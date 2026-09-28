@@ -1,5 +1,5 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage}=require("electron");
-const path=require("path"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
+const path=require("path"),fs=require("fs"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
 
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
@@ -8,10 +8,10 @@ let win,agent,tray,realtime;
 function windowsIconPath(){
  const ico=path.join(__dirname,"..","assets","saeed.ico");
  const png=path.join(__dirname,"..","assets","saeed.png");
- return require("fs").existsSync(ico)?ico:png;
+ return fs.existsSync(ico)?ico:png;
 }
 function trayIcon(){return nativeImage.createFromPath(windowsIconPath());}
-if(process.platform==="win32")app.setAppUserModelId("ai.saeed.desktop");
+app.setAppUserModelId("ai.saeed.desktop");
 let updateState="idle";
 const confirmations=new Map();
 const WINDOW={width:760,height:480,minWidth:360,minHeight:260};
@@ -70,7 +70,7 @@ async function createWindow(){
   webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}
  });
  win.setIcon(windowsIconPath());
- if(process.platform==="win32"&&win.setAppDetails)win.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI"});
+ if(process.platform==="win32")win.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI"});
  win.setAlwaysOnTop(true,"floating");
  const registry=new ToolRegistry({
   captureScreen,userDataPath:app.getPath("userData"),

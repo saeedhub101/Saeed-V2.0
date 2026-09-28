@@ -24,7 +24,6 @@
       "target": [
         "nsis"
       ],
-      "icon": "assets/saeed.png",
       "artifactName": "Saeed.AI.Setup.${version}.${ext}"
     },
     "nsis": {
