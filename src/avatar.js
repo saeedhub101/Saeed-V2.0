@@ -209,6 +209,12 @@ function frame(){
   const breathe=(Math.sin(facialTime*1.8)+1)*.5;
   root.position.y+=(breathe*.018-root.position.y)*Math.min(1,dt*2);
  }
- renderer.render(scene,camera);
+ try{
+  renderer.render(scene,camera);
+ }catch(e){
+  console.error("Saeed 3D renderer.render failed:",e);
+  const message=document.getElementById("status");
+  if(message)message.textContent="Saeed 3D renderer failed";
+ }
 }
 frame();
