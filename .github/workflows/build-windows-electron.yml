@@ -1,0 +1,272 @@
+name: Saeed AI — Windows Build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'package.json'
+      - 'VERSION'
+      - '.github/workflows/build-windows-electron.yml'
+      - 'BUILD_RULES.md'
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Publish a GitHub Release for the VERSION in this commit'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: saeed-windows-build-main
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and build Windows
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+
+      - name: Validate version identity
+        shell: pwsh
+        run: |
+          $releaseVersion = (Get-Content "VERSION" -Raw).Trim()
+          if ($releaseVersion -notmatch '^\d+\.\d+$') { throw "VERSION must be MAJOR.MINOR, found: $releaseVersion" }
+          $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
+          if ($pkg.version -ne "$releaseVersion.0") {
+            throw "package.json version $($pkg.version) does not match VERSION $releaseVersion (expected $releaseVersion.0)"
+          }
+          if ($pkg.build.buildVersion -ne $pkg.version) { throw "Electron buildVersion must equal package.json version" }
+          Write-Host "Official product version: v$releaseVersion"
+          Write-Host "Workflow build number: $env:GITHUB_RUN_NUMBER"
+
+      - name: Validate repository structure
+        shell: pwsh
+        run: |
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/index.html","src/agent.js","src/realtime.js","src/tools.js")
+          foreach ($path in $required) {
+            if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" }
+          }
+
+      - name: Validate pinned direct dependencies
+        shell: pwsh
+        run: |
+          $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
+          $expected = @{
+            "three" = "0.180.0"
+            "ws" = "8.18.3"
+            "electron" = "38.8.6"
+            "electron-builder" = "26.15.3"
+          }
+          foreach ($name in $expected.Keys) {
+            $actual = if ($pkg.dependencies.$name) { $pkg.dependencies.$name } else { $pkg.devDependencies.$name }
+            if ($actual -ne $expected[$name]) { throw "$name is not pinned to $($expected[$name]); found $actual" }
+          }
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Static JavaScript validation
+        run: npm test
+
+      - name: Enforce Always Listening
+        shell: pwsh
+        run: |
+          $agent = Get-Content "src/agent.js" -Raw
+          $renderer = Get-Content "src/renderer.js" -Raw
+          if ($agent -notmatch "alwaysListening") { throw "Always Listening contract missing from agent.js" }
+          if ($renderer -notmatch "alwaysListening") { throw "Always Listening contract missing from renderer.js" }
+          if ($agent -notmatch 'micMode:\s*"always"') { throw "Microphone mode is not locked to Always Listening" }
+
+      - name: Build Windows installer
+        run: npm run build
+
+      - name: Launch built program and verify chat screen
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $app = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          if (-not (Test-Path $app -PathType Leaf)) { throw "Built application was not found: $app" }
+
+          $debugPort = 9222
+          $stdoutLog = Join-Path $PWD "dist\runtime-smoke.stdout.log"
+          $stderrLog = Join-Path $PWD "dist\runtime-smoke.stderr.log"
+          $proc = $null
+          try {
+            $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+
+            $target = $null
+            for ($i = 0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 1
+              try {
+                $targets = @(Invoke-RestMethod "http://127.0.0.1:$debugPort/json")
+                $target = $targets | Where-Object { $_.type -eq "page" -and $_.webSocketDebuggerUrl } | Select-Object -First 1
+                if ($target) { break }
+              } catch {}
+            }
+            if (-not $target) { throw "Saeed did not expose a Chromium page for runtime inspection." }
+
+            $ws = [System.Net.WebSockets.ClientWebSocket]::new()
+            $ws.ConnectAsync([Uri]$target.webSocketDebuggerUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            $expression = "JSON.stringify({title:document.title,panel:!!document.querySelector('#panel'),panelVisible:document.querySelector('#panel')?.classList.contains('visible'),welcome:document.body?.innerText?.includes('مرحبًا')})"
+            $message = @{ id = 1; method = "Runtime.evaluate"; params = @{ expression = $expression; returnByValue = $true } } | ConvertTo-Json -Compress
+            $bytes = [Text.Encoding]::UTF8.GetBytes($message)
+            $ws.SendAsync([ArraySegment[byte]]::new($bytes), [Net.WebSockets.WebSocketMessageType]::Text, $true, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+
+            $buffer = New-Object byte[] 65536
+            $resultText = ""
+            do {
+              $received = $ws.ReceiveAsync([ArraySegment[byte]]::new($buffer), [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+              if ($received.Count -gt 0) { $resultText += [Text.Encoding]::UTF8.GetString($buffer,0,$received.Count) }
+            } while (-not $received.EndOfMessage)
+            $ws.Dispose()
+
+            $result = $resultText | ConvertFrom-Json
+            $value = $result.result.result.value | ConvertFrom-Json
+            Write-Host "Runtime page title: $($value.title)"
+            Write-Host "Chat panel found: $($value.panel)"
+            Write-Host "Chat panel visible: $($value.panelVisible)"
+            Write-Host "Chat welcome rendered: $($value.welcome)"
+
+            if ($value.title -ne "Saeed AI") { throw "Unexpected application page title: $($value.title)" }
+            if (-not $value.panel) { throw "Chat panel was not found in the running application." }
+            if (-not $value.panelVisible) { throw "Chat panel exists but is not visible." }
+            if (-not $value.welcome) { throw "Chat welcome message was not rendered." }
+            Write-Host "CHAT_SMOKE=PASS"
+          }
+          finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process | Where-Object { $_.Path -like "$PWD\dist\win-unpacked\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Measure CPU usage of built program
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $appPath = (Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path
+          $appDir = Split-Path $appPath
+          $debugPort = 9223
+          $stdoutLog = Join-Path $PWD "dist\cpu-test.stdout.log"
+          $stderrLog = Join-Path $PWD "dist\cpu-test.stderr.log"
+          $report = Join-Path $PWD "dist\cpu-report.json"
+          $proc = Start-Process -FilePath $appPath -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+
+          try {
+            Start-Sleep -Seconds 8
+            $logicalProcessors = [Environment]::ProcessorCount
+            $sampleValues = @()
+            $sampleProcessCounts = @()
+            $start = Get-Date
+
+            for ($sample = 0; $sample -lt 20; $sample++) {
+              $processes = @(Get-CimInstance Win32_Process | Where-Object {
+                $_.ExecutablePath -and $_.ExecutablePath.StartsWith($appDir,[StringComparison]::OrdinalIgnoreCase)
+              })
+              $ids = @($processes.ProcessId)
+              $sampleProcessCounts += $ids.Count
+
+              if ($ids.Count -gt 0) {
+                $idSet = @{}
+                foreach ($id in $ids) { $idSet[[uint32]$id] = $true }
+
+                $perf = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction SilentlyContinue |
+                  Where-Object { $idSet.ContainsKey([uint32]$_.IDProcess) })
+
+                if ($perf.Count -gt 0) {
+                  $sum = ($perf | Measure-Object -Property PercentProcessorTime -Sum).Sum
+                  $sampleValues += [double]$sum
+                }
+              }
+              Start-Sleep -Seconds 1
+            }
+
+            $end = Get-Date
+            $elapsed = ($end - $start).TotalSeconds
+            if (-not $sampleValues.Count) { throw "CPU performance samples for the built Saeed program were not available." }
+
+            $averageProcessCpuPercent = ($sampleValues | Measure-Object -Average).Average
+            $averageCpuPercent = $averageProcessCpuPercent / $logicalProcessors
+
+            $result = [ordered]@{
+              test = "built-program-cpu"
+              elapsedSeconds = [Math]::Round($elapsed,2)
+              samplesCollected = $sampleValues.Count
+              minProcessCount = ($sampleProcessCounts | Measure-Object -Minimum).Minimum
+              maxProcessCount = ($sampleProcessCounts | Measure-Object -Maximum).Maximum
+              logicalProcessors = $logicalProcessors
+              averageCpuPercentAllSystemCores = [Math]::Round($averageCpuPercent,2)
+              rawAverageProcessPercent = [Math]::Round($averageProcessCpuPercent,2)
+              note = "CPU measured while the built program is running normally. No repository files are restored or reverted."
+              measuredAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            }
+            $result | ConvertTo-Json | Set-Content $report
+            $result | ConvertTo-Json
+            Write-Host "CPU_CHECK=PASS"
+          }
+          finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process | Where-Object { $_.Path -like "$appDir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Verify release output
+        shell: pwsh
+        run: |
+          $releaseVersion = (Get-Content "VERSION" -Raw).Trim()
+          if (-not (Test-Path "dist" -PathType Container)) { throw "dist directory was not created" }
+          $installers = @(Get-ChildItem "dist" -Filter "*.exe" -File | Where-Object { $_.Name -notlike "*uninstaller*" })
+          if ($installers.Count -ne 1) { throw "Expected exactly one installer EXE, found $($installers.Count)" }
+          $installer = $installers[0]
+          $expectedName = "Saeed.AI.Setup.$releaseVersion.0.exe"
+          if ($installer.Name -ne $expectedName) { throw "Installer version mismatch: expected $expectedName, found $($installer.Name)" }
+          if ($installer.Length -lt 10000000) { throw "Installer is unexpectedly small: $($installer.Length) bytes" }
+          $blockmaps = @(Get-ChildItem "dist" -Filter "*.blockmap" -File)
+          if ($blockmaps.Count -lt 1) { throw "Installer blockmap is missing" }
+          $sha = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash
+          "$sha  $($installer.Name)" | Set-Content "dist/Saeed-AI-Setup-x64.exe.sha256"
+          Write-Host "Verified installer: $($installer.Name)"
+          Write-Host "Size: $($installer.Length) bytes"
+          Write-Host "SHA256: $sha"
+
+      - name: Upload verified build and diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: Saeed-AI-windows-build-${{ github.run_number }}
+          if-no-files-found: error
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/*.sha256
+            dist/runtime-smoke.stdout.log
+            dist/runtime-smoke.stderr.log
+            dist/cpu-test.stdout.log
+            dist/cpu-test.stderr.log
+            dist/cpu-report.json
+
+      - name: Publish official release only when explicitly requested
+        if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')) || (github.event_name == 'workflow_dispatch' && inputs.release)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(tr -d '\r\n ' < VERSION)"
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; refusing to create a duplicate."
+            exit 1
+          fi
+          gh release create "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 \
+            --title "Saeed AI ${VERSION}" \
+            --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}." \
+            --target "${{ github.sha }}"
