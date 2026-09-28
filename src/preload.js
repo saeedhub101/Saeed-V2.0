@@ -27,7 +27,7 @@ contextBridge.exposeInMainWorld("saeed",{
  onShowSettings:f=>ipcRenderer.on("settings:show",()=>f()),
  startRealtime:o=>ipcRenderer.invoke("realtime:start",o||{}),
  stopRealtime:()=>ipcRenderer.invoke("realtime:stop"),
- setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),
+ setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),transcribeAudio:b=>ipcRenderer.invoke("stt:transcribe",b),speakText:t=>ipcRenderer.invoke("tts:speak",t),
  onMicMode:f=>ipcRenderer.on("mic:mode",(_,mode)=>f(mode)),
  sendRealtimeAudio:b=>ipcRenderer.invoke("realtime:audio",b),
  sendRealtimeText:t=>ipcRenderer.invoke("realtime:text",t),

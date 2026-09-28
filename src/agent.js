@@ -5,7 +5,7 @@ class Agent{
   this.registry=registry;this.onEvent=onEvent;this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");
   fs.mkdirSync(this.dir,{recursive:true});
-  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:32,alwaysListening:true,micMode:"always",brainMode:"auto",sttProvider:"local",sttModel:"gpt-4o-mini-transcribe",sttLanguage:"en",ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,speakResponses:true,language:"en",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin"});
+  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:32,alwaysListening:true,micMode:"always",brainMode:"auto",sttProvider:"openai",sttModel:"gpt-4o-mini-transcribe",sttLanguage:"en",ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,speakResponses:true,language:"en",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin"});
   this._settings={...raw,
    apiKey:this.decryptKey(raw.apiKey),
    sttApiKey:this.decryptKey(raw.sttApiKey),
@@ -82,10 +82,10 @@ class Agent{
   }
   if(mode!=="api"){
    const local=await this.localIntent(text);
-   if(local!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain handled the request"});return local;}
+   if(local!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local Skills handled the request"});return local;}
    if(mode==="local"){
-    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain has no handler for this request"});
-    return "The selected Local brain mode does not have a local skill for this request.";
+    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local Skills has no handler for this request"});
+    return "The selected Local Skills mode does not have a local skill for this request.";
    }
   }
   if(!s.apiKey&&s.provider!=="ollama"){
