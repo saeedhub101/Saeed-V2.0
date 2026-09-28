@@ -58,7 +58,7 @@ async function showSettings(){
  $("brainMode").value=s.brainMode||"auto";$("sttProvider").value=s.sttProvider||"local";$("sttModel").value=s.sttModel||"gpt-4o-mini-transcribe";$("sttLanguage").value=s.sttLanguage||"en";
  $("ttsProvider").value=s.ttsProvider||"local";$("ttsModel").value=s.ttsModel||"gpt-4o-mini-tts";$("ttsVoice").value=s.ttsVoice||"alloy";
  $("realtimeModel").value=s.realtimeModel||"gpt-realtime-2.1";$("realtimeVoice").value=s.realtimeVoice||"marin";
- $("voiceProfile").value=s.voiceProfile||"saeed";$("micMode").value="always";$("showSpeechText").checked=s.showSpeechText===true;$("speakResponses").checked=s.speakResponses!==false;$("language").value=s.language||"en";
+ $("voiceProfile").value=s.voiceProfile||"saeed";$("micMode").value=s.micMode||"always";$("showSpeechText").checked=s.showSpeechText===true;$("speakResponses").checked=s.speakResponses!==false;$("language").value=s.language||"en";
  $("modal").classList.remove("hidden");
 }
 function activateSettingsTab(name){
@@ -156,7 +156,7 @@ window.saeed.onRealtimeAssistantDelta(t=>{realtimeAssistant+=t;window.saeedAvata
 window.saeed.onRealtimeAssistantFinal(t=>{if(t){add("assistant",t);realtimeAssistant="";}});
 window.saeed.onRealtimeUserFinal(t=>{if(t){window.saeed.reportDiagnostic("INFO","STT RECEIVE TEXT","Speech text received");if($("input").value.trim()==="")add("user",t)}});
 window.saeed.onRealtimeError(e=>{window.saeed.reportDiagnostic("ERROR","REALTIME API ERROR",String(e));console.error("Realtime:",e);$("status").textContent="Realtime: "+e});
-window.addEventListener("load",async()=>{try{const cfg=await window.saeed.getSettings();const mode=cfg?.micMode||(cfg?.alwaysListening===false?"off":"always");if((cfg?.hasRealtimeApiKey||cfg?.hasApiKey)&&mode!=="off")await window.saeed.startRealtime({});}catch(e){console.warn("Realtime startup:",e)}});$("save").onclick=async()=>{
+window.addEventListener("load",async()=>{try{const cfg=await window.saeed.getSettings();const mode=cfg?.micMode||(cfg?.alwaysListening===false?"off":"always");if(cfg?.brainMode==="realtime"&&mode!=="off"&&(cfg?.hasRealtimeApiKey||cfg?.hasApiKey))await window.saeed.startRealtime({});}catch(e){console.warn("Realtime startup:",e)}});$("save").onclick=async()=>{
  const payload={provider:$("provider").value,baseUrl:$("baseUrl").value,model:$("model").value,brainMode:$("brainMode").value,
   sttProvider:$("sttProvider").value,sttModel:$("sttModel").value,sttLanguage:$("sttLanguage").value,
   ttsProvider:$("ttsProvider").value,ttsModel:$("ttsModel").value,ttsVoice:$("ttsVoice").value,

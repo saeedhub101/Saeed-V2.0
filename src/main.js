@@ -77,7 +77,7 @@ function showChat(){keepWindowVisible();win?.show();win?.focus();win?.webContent
 function showStatus(){if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile});return}statusWin=new BrowserWindow({width:820,height:620,minWidth:620,minHeight:420,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 function openDiagnosticsLog(){require("electron").shell.openPath(diagnosticFile).catch(e=>diagnostic("ERROR","DIAGNOSTICS LOG",e.message))}
 function chooseCharacter(){dialog.showOpenDialog(win,{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file);win?.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB SELECTED","Character GLB selected",{name:path.basename(file),size:data.length})}catch(e){diagnostic("ERROR","GLB SELECTED",e.message)}})}
-function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};if(value==="off")stopRealtime();else startRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
+function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};if(value==="off"||String(agent?.settings?.brainMode||"auto")!=="realtime")stopRealtime();else startRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
 function setSaeedSize(size){const m={small:[600,400],medium:[760,480],large:[980,620]};const v=m[size]||m.medium;win?.setSize(v[0],v[1],true)}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
@@ -150,8 +150,11 @@ ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState,file:diagnosticFile}));ipcMain.handle("diagnostic:open-log",()=>{openDiagnosticsLog();return true});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
- agent.settings={...(s||{}),alwaysListening:true,micMode:"always"};
- startRealtime();
+ agent.settings={...(s||{})};
+ const mode=String(agent.settings.brainMode||"auto");
+ if(mode==="realtime")startRealtime();
+ else stopRealtime();
+ diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
  return agent.publicSettings();
 });
 ipcMain.handle("realtime:start",(_,options={})=>{startRealtime(options);return true});
