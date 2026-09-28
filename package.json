@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "three": "0.180.0",
-    "ws": "8.18.3"
+    "ws": "8.18.3",
+    "electron-updater": "6.6.2"
   },
   "devDependencies": {
     "electron-builder": "26.15.3",
@@ -30,5 +31,11 @@
       "allowToChangeInstallationDirectory": true
     },
     "buildVersion": "2.1.0"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "saeedhub101",
+    "repo": "Saeed-V2.0",
+    "releaseType": "release"
   }
 }
