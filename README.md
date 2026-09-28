@@ -1,321 +1,215 @@
-# Saeed AI 2.0
+# Saeed AI
 
-**Saeed AI** is a production-oriented Windows desktop AI Agent and floating 3D companion. Version **2.0** establishes the project's long-term architecture: native C++ Windows execution, a persistent Agent Core, verified computer use, memory, extensible skills/tools, knowledge retrieval, model routing, scheduling, and a replaceable intelligent 3D character.
+Saeed AI is a Windows desktop AI agent and 3D companion built with **Electron, Chromium, HTML/CSS/JavaScript, and Three.js**.
 
-Saeed is **not** a chatbot demo. The repository is the source of truth for one coherent Agent product.
+The current repository is an Electron application. The old native C++/Win32 application, WebView2 utility-window implementation, and legacy repair/build files are no longer part of the current architecture.
 
-## Product contract
-
-Saeed 2.0 is designed around these capabilities:
-
-- **Agent Core:** understand goals, decompose work, plan, execute, verify, recover, retry safely, and re-plan.
-- **Computer use:** inspect Windows, applications, processes, windows, files and screens; use mouse/keyboard; launch applications and URLs.
-- **Perception:** screenshots, visual verification, and a future OCR/vision layer for identifying text and UI elements.
-- **Application skills:** extensible adapters for browsers, Explorer, Office/Excel and other applications.
-- **Web Agent:** search, open, read, interact, compare and download/upload with confirmation where needed.
-- **Knowledge/RAG:** indexed documents, project files, PDFs, Word/Excel data, images and approved web knowledge.
-- **Skills/tools:** modular tools with permissions, verification, recovery and evaluation hooks.
-- **Persistent goals:** long-running goals survive task boundaries and can be resumed.
-- **Scheduler/background work:** scheduled and recurring tasks with explicit permissions.
-- **Model Router:** route general, coding, vision and future local/offline work to appropriate models/providers.
-- **Memory:** persistent user/project/task/technical/preference knowledge with controlled retention.
-- **Execution journal:** auditable task/tool state and results.
-- **Safety:** destructive, financial, credential, account and other sensitive actions require appropriate confirmation.
-- **Evaluation:** capability and regression tests must verify real behavior rather than source-code presence.
-- **Voice:** Push to Talk, Smart Listening and Always Listening, with multilingual STT/TTS as the production backend evolves.
-- **3D companion:** replaceable GLB character with full-body controller, facial behavior, idle behavior and animation support.
-
-## Architecture
+## Current architecture
 
 ```
-Saeed AI 2.0
-├── Native Windows C++20 shell
-│   ├── Win32 frameless/topmost companion
-│   ├── DPI / multi-monitor / work-area handling
-│   ├── system tray / startup / single instance
-│   └── native Chat + Settings windows
-├── Agent Core 2.0
-│   ├── goal manager
-│   ├── planner / task decomposition
-│   ├── execution + verification
-│   ├── recovery / retry / replanning
-│   ├── permissions / confirmations
-│   ├── execution journal
-│   ├── context persistence
-│   ├── model routing
-│   ├── scheduler state
-│   └── evaluation / skill hooks
-├── Tool & Skill Layer
-│   ├── Windows automation
-│   ├── files / applications
-│   ├── browser / web
-│   ├── screen / vision
-│   ├── memory / knowledge
-│   └── future OAuth / cloud / MCP integrations
-└── WebView2 + Three.js avatar runtime
-    ├── replaceable GLB
-    ├── bone auto-detection
-    ├── Character Controller
-    ├── base-pose detection
-    ├── T-pose → A-pose correction
-    ├── idle-animation selection
-    ├── facial / morph controls
-    ├── breathing / blinking / eye behavior
-    └── speech / gesture / walking behavior
+Saeed AI
+├── Electron main process
+│   └── src/main.js
+├── Secure renderer bridge
+│   └── src/preload.js
+├── HTML/CSS/JavaScript UI
+│   ├── src/index.html
+│   ├── src/style.css
+│   └── src/renderer.js
+├── 3D character
+│   └── src/avatar.js + assets/Saeed_AI-3D.glb
+├── Agent system
+│   ├── src/agent.js
+│   ├── src/tools.js
+│   ├── src/computer.js
+│   └── src/memory.js
+└── Realtime voice
+    └── src/realtime.js
 ```
 
-### Native desktop architecture
+### What each layer does
 
-The main executable is **Saeed.exe**. C++ owns the Windows lifecycle, security boundary, agent bridge, computer-control layer, utility windows and update process.
+- **Electron/Chromium:** owns the Windows desktop application, window lifecycle, tray integration, screen capture, IPC, updates, and packaged EXE.
+- **HTML/CSS/JavaScript:** provides the current chat interface, settings UI, controls, status displays, and application interaction.
+- **Three.js/WebGL:** renders and controls the GLB character.
+- **Agent:** handles local conversation, persistent history/settings, tool selection, confirmations, and model/API interaction.
+- **Computer tools:** provide Windows-oriented operations such as screen capture and computer interaction exposed through the agent tool layer.
+- **Realtime:** provides realtime voice/audio integration and realtime tool calls when configured.
 
-WebView2 is reserved for the **3D avatar rendering surface**. Chat and Settings are independent top-level native Win32 windows. Avatar movement must never move the Chat or Settings windows.
+**Chromium is provided by Electron. It is not a separate browser application.**
 
-The Windows taskbar Jump List provides direct Chat access and small, medium and large avatar sizes. Right-clicking the avatar opens Show, Hide, Mute and Settings actions. Chat requests from voice and the native Chat window use the same Agent execution path.
+There is **no C++ build path in the current application**, and C++ source files are not required to build the current Windows EXE.
 
-AI Settings accepts API keys for OpenAI-compatible providers and custom endpoints; keys are protected with Windows DPAPI and connection tests report provider rejection instead of treating it as success. The companion shows when listening is active and surfaces recognized speech and microphone errors.
+## Current application
 
-There is no separate updater executable.
+The current app provides:
 
-## Agent Core 2.0 contract
+- Desktop chat with persistent conversation history.
+- Always Listening configuration; the main process enforces `alwaysListening: true` and `micMode: "always"` when settings are saved.
+- Realtime voice/audio integration when the required API configuration is available.
+- LLM/API settings with separate API-key fields and masked public settings.
+- Local agent execution and tool calling.
+- Confirmation handling for sensitive agent operations.
+- Screen capture.
+- Persistent memory and task data under Electron's user-data directory.
+- Three.js GLB avatar loading and animation/behavior support.
+- Character movement, gestures, facial morph/viseme handling, blinking, eye behavior, and procedural behavior when the loaded character supports the required rig/features.
+- System tray controls.
+- Always-on-top desktop window behavior and work-area boundary handling.
+- Automatic update checking/downloading/installing through `electron-updater` in installed builds.
 
-Agent Core 2.0 is the foundation for future agent intelligence. It must evolve as one system rather than as unrelated scripts.
+The application currently uses one Electron desktop window containing the HTML UI and 3D surface. Chat/settings are implemented in the current renderer UI; they are **not** native C++/Win32 windows.
 
-### Required execution loop
+## 3D character
 
-1. Understand the user's goal.
-2. Build or update a structured plan.
-3. Inspect the current state.
-4. Select the required skill/tool/model.
-5. Ask for confirmation when policy requires it.
-6. Execute the smallest appropriate action.
-7. Verify the resulting state.
-8. If verification fails, diagnose and recover safely.
-9. Retry only within a bounded policy.
-10. Re-plan when the environment or goal changes.
-11. Persist relevant goal/task state.
-12. Report the verified result in the user's language.
+The current default character is:
 
-The Agent must never treat a tool invocation as proof that the requested outcome happened.
+`assets/Saeed_AI-3D.glb`
 
-### Core state
+The runtime loads the GLB with Three.js and attempts to work with different humanoid rigs rather than requiring the old `avatar.html` runtime.
 
-Agent state must support:
+The avatar code supports, where the asset provides the required data:
 
-- goals and long-running objectives;
-- plans and plan revisions;
-- task IDs and cancellation;
-- step state and retry count;
-- tool results;
-- verification results;
-- confirmation state;
-- recovery/replanning;
-- execution journal;
-- relevant context and memory;
-- model/provider routing;
-- scheduled work.
+- humanoid bone detection;
+- camera/model framing;
+- animation clip selection and playback;
+- idle/procedural body behavior;
+- eye/head movement;
+- blinking;
+- facial morphs;
+- speech visemes;
+- expressions;
+- gestures;
+- movement and turning.
 
-## Computer-use requirements
+If a particular GLB does not provide a required bone, morph target, or animation, the runtime can skip that capability instead of requiring a second character system.
 
-Computer control is an execution capability, not an assertion mechanism.
+## Agent and tools
 
-Every important operation should have an observable verification path. Examples:
+The agent is implemented in `src/agent.js`.
 
-- launching an application → verify foreground process/window;
-- focusing a window → verify focus;
-- clicking → verify resulting UI/state when possible;
-- typing → verify target context and resulting state;
-- file operation → verify filesystem result;
-- download → verify file existence/integrity;
-- settings change → verify persisted value;
-- avatar load → verify GLB/WebGL startup marker.
+The tool registry is implemented in `src/tools.js` and currently connects agent requests to capabilities including computer operations and memory/task operations.
 
-Sensitive operations remain confirmation-gated.
+`src/computer.js` contains the computer-execution layer.
 
-## Skill and tool architecture
+`src/memory.js` provides persistent memory storage.
 
-New capabilities must be implemented as reusable skills/tools where practical. A skill should define:
+Conversation history and settings are stored through Electron's user-data path rather than inside the repository.
 
-- purpose and inputs;
-- required permissions;
-- execution method;
-- expected result;
-- verification method;
-- safe retry/recovery behavior;
-- failure conditions;
-- evaluation tests.
+The agent is designed to verify important operations instead of treating a tool call alone as proof that an action succeeded.
 
-Do not create duplicate implementations of existing memory, updater, character controller or tool systems.
+Sensitive/destructive operations can require an explicit confirmation from the user before execution.
 
-## Knowledge and RAG direction
+## Voice
 
-The production architecture must support retrieval from approved sources such as:
+`src/realtime.js` implements the realtime voice connection.
 
-- local project files;
-- PDFs;
-- Word documents;
-- spreadsheets;
-- images;
-- indexed application/project data;
-- approved web sources.
+The main process connects realtime audio/transcription events to the renderer and can expose registered agent tools to the realtime model.
 
-Retrieved knowledge must remain distinguishable from live computer state and from user memory.
+API configuration is stored through the application's settings system. Public settings returned to the renderer do not expose the stored API keys.
 
-## Model routing
+## Updates
 
-The Agent should eventually select models by task:
+The application uses `electron-updater`.
 
-- general reasoning;
-- coding;
-- vision/screen understanding;
-- document/knowledge tasks;
-- local/offline tasks.
+The current updater flow is:
 
-Routing must be explicit and observable. A model must never be claimed to have vision or tool capabilities that it does not actually provide.
+1. Check for an update.
+2. Report update state to the UI.
+3. Download an available update when requested.
+4. Install it when requested/restarted according to the updater state.
 
-## 3D Character System
+There is no separate native C++ updater executable in the current architecture.
 
-The character is replaceable. The runtime must tolerate different GLB rigs and capabilities.
+## Build
 
-### Automatic base-pose controller
+The official Windows workflow is:
 
-When a GLB loads:
+`.github/workflows/build-windows-electron.yml`
 
-1. Detect relevant bones automatically where possible:
-   - Hips/Pelvis
-   - Head/Neck
-   - shoulders
-   - upper/lower arms
-   - hands/wrists
-   - thighs/shins/feet
-   - eyes
-2. Measure the relationship of the hands to the head, shoulders and hips.
-3. Classify the initial pose as approximately T-pose, A-pose or standing/other.
-4. If the file contains an appropriate **Idle/Stand/Breath/Rest/Default** animation, select and play that animation as the base behavior.
-5. If there is no suitable animation and the character is detected in T-pose, automatically lower the upper arms toward an A-pose using the detected rig geometry rather than hard-coded character dimensions.
-6. If the rig is incomplete or unsuitable, leave the character static instead of throwing an error.
-7. Procedural idle, speech and manual controller offsets remain separate from the base animation.
+It is named **Saeed AI — Windows Build** and is the single official Windows build workflow.
 
-The controller must not assume that every character uses the same bone names, proportions, axes or animation set.
+It runs for changes to the relevant application/build files on `main`, and it can also be started manually with GitHub Actions.
 
-### Manual Character Controller
+The workflow performs, among other checks:
 
-Current controller ranges include:
+- version validation;
+- repository structure validation;
+- dependency pin validation;
+- JavaScript syntax tests;
+- Always Listening contract checks;
+- Electron Windows packaging;
+- built-program chat smoke testing;
+- chat/response/voice checks;
+- CPU, RAM, and GPU checks where the Windows runner supports them;
+- installer validation;
+- artifact upload.
 
-- Eyes X/Z: ±15°
-- Head X/Y/Z: ±15°
-- Neck X/Y/Z: ±15°
-- Spine X/Y/Z: ±8°
-- Arms: ±20°
-- Forearms/Wrists: ±25°
-- Thighs: ±25°
-- Shins: ±30°
-- Feet: ±20°
+A normal test/fix build does not automatically become a GitHub Release. Release publication is separately gated by the workflow.
 
-Natural behavior includes breathing, subtle idle motion, blinking, eye saccades, speech gestures and walking. Manual controller values remain authoritative; procedural behavior is additive.
+## Local development
 
-If facial morphs do not exist, facial animation is skipped without failing the character.
+Requirements:
 
-## Voice and multilingual behavior
+- Windows
+- Node.js compatible with the repository workflow
+- npm
 
-Saeed should understand the user's language and answer in that language by default. Production multilingual support depends on the actual STT/TTS backend; UI language and browser speech selection alone are not proof of universal language support.
+Install dependencies:
 
-Supported voice modes include Push to Talk, Smart Listening and Always Listening, with a visible Pause Listening control.
+```powershell
+npm install
+```
 
-The listening indicator distinguishes an active recognition session from a stopped/error state, and recognized phrases are shown in the conversation before Saeed responds. Settings' microphone test can be stopped to release the capture device.
+Run the application:
 
-## Memory
+```powershell
+npm start
+```
 
-Use the existing persistent memory system. Do not create a second memory database.
+Run JavaScript validation:
 
-Memory categories include:
+```powershell
+npm test
+```
 
-- personal
-- preference
-- project
-- task
-- technical
-- general
+Build the Windows installer:
 
-Sensitive or unnecessary information must not be retained merely because it appeared in a conversation.
+```powershell
+npm run build
+```
 
-## Security
-
-Sensitive actions require confirmation. This includes destructive operations, credential/account changes, payments/purchases, shutdown/restart where applicable, and protected Windows locations.
-
-Protected paths include:
-
-- C:\Program Files
-- C:\Program Files (x86)
-- C:\Windows
-- C:\Windows\System32
-
-Approvals are per-operation and are never permanent.
-
-## UI requirements
-
-- Chat and Settings are independent native Windows windows.
-- They are movable and independently resizable where appropriate.
-- Escape and the standard close button must always provide an exit path.
-- Settings uses OK / Apply / Cancel semantics.
-- Administrative UI is English.
-- User conversation may be Arabic or another supported language.
-- The avatar window remains separate from utility windows.
-- The avatar must remain inside usable monitor/work-area bounds.
-- The full character should be framed using actual GLB bounds rather than a fixed camera distance.
+The package configuration uses Electron Builder to produce the Windows NSIS installer.
 
 ## Repository structure
 
-- `src/main.cpp` — native Windows application and agent bridge.
-- `src/agent_core2.hpp` — Agent Core 2.0 planning, goals, journal, permissions, routing and recovery foundation.
-- `src/agent_core2.cpp` — Agent Core 2.0 runtime initialization.
-- `assets/avatar.html` — Three.js/WebView2 avatar runtime and Character Controller.
-- `assets/saeed_AI-3D.glb` — default avatar asset used by CI/build.
-- `assets/vendor/` — Three.js runtime prepared by CI.
-- `.github/workflows/build-windows-cpp.yml` — mandatory Windows build, smoke test, packaging and release validation.
-- `installer.iss` — Inno Setup installer.
-- `AGENTS.md` — mandatory development contract for coding agents.
-- `PROJECT_STATUS.md` — current implementation/handoff record.
-- `VERSION` — official application version source.
+Important current files:
 
-## Build and release contract
+- `package.json` — Electron project, dependencies, scripts, and Windows packaging configuration.
+- `VERSION` — official product version source; currently `2.1`.
+- `src/main.js` — Electron main process.
+- `src/preload.js` — renderer/main-process bridge.
+- `src/index.html` — current UI markup.
+- `src/style.css` — current UI styling.
+- `src/renderer.js` — renderer-side chat/settings/voice interaction.
+- `src/avatar.js` — Three.js GLB character runtime.
+- `src/agent.js` — agent and persistent conversation/settings logic.
+- `src/tools.js` — agent tool registry.
+- `src/computer.js` — computer-operation layer.
+- `src/memory.js` — persistent memory layer.
+- `src/realtime.js` — realtime voice/API integration.
+- `assets/Saeed_AI-3D.glb` — current default 3D character.
+- `assets/saeed.png` — current application icon fallback.
+- `.github/workflows/build-windows-electron.yml` — official Windows build.
 
-The Windows pipeline must verify:
+## Architecture rule
 
-1. VERSION.
-2. CMake/C++ x64 build.
-3. Required executable/runtime/avatar files.
-4. WebView2 Runtime.
-5. Native smoke test.
-6. `STARTUP_READY: WebView2 + WebGL + GLB character loaded`.
-7. Portable ZIP.
-8. Inno Setup installer.
-9. SHA256 checksums.
-10. Artifact upload.
-11. Release publication and release assets.
+There must be one coherent current application architecture.
 
-A source-code change is not a verified feature until the relevant CI stages pass.
+The current source of truth is:
 
-Official version: **2.0**.
+**Electron + Chromium + HTML/CSS/JavaScript + Three.js/WebGL + the current Agent/Tools/Memory/Realtime modules.**
 
-Build numbers are CI identifiers; they are not substitutes for the product version.
+Do not reintroduce the deleted native C++ application, old WebView2 utility-window architecture, duplicate avatar runtime, duplicate agent system, duplicate memory system, or obsolete build/repair workflows unless the architecture is deliberately redesigned and the current repository is updated as a whole.
 
-## Local Windows build
-
-Install Visual Studio C++ tools, CMake and Microsoft WebView2 Runtime:
-
-```powershell
-cmake -S . -B build -A x64
-cmake --build build --config Release
-```
-
-Output:
-
-```
-build/Release/Saeed.exe
-```
-
-## Development principle
-
-Saeed 2.0 is one coherent Agent product. Future work should strengthen the Agent Core, skills, perception, verification, knowledge, voice, scheduling and character intelligence without replacing the native architecture or creating parallel systems.
-
-The repository and Git history are the source of truth.
+The repository and Git history are the source of truth for the implementation.
