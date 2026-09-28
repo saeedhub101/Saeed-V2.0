@@ -36,8 +36,7 @@ function speakSaeed(text){
 
 async function send(){
  if(busy)return;let t=$("input").value.trim();if(!t&&!attachments.length)return;
- if(attachments.length){t=(t?t+"\n\n":"")+"[مرفقات]\n"+attachments.map(a=>"--- "+a.name+" ---
-"+a.text).join("\n");attachments=[];renderAttachments()}
+ if(attachments.length){t=(t?t+"\n\n":"")+"[مرفقات]\n"+attachments.map(a=>"--- "+a.name+" ---\n"+a.text).join("\n");attachments=[];renderAttachments()}
  busy=true;$("input").value="";add("user",t);$("status").textContent="يفكر...";
  const image=pendingImage;pendingImage=null;
  try{const answer=await window.saeed.chat(t,image);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);if(!realtimeConnected)speakSaeed(answer)}}
