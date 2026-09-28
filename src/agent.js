@@ -74,10 +74,10 @@ class Agent{
   return null;
  }
  async run(text,image=null){
-  const s=this.settings;if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";
+  const s=this.settings;if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
   const local=await this.localIntent(text);
-  if(local!==null)return local;
-  if(!s.apiKey&&s.provider!=="ollama")return "افتح الإعدادات وأدخل API key أو اختر Ollama.";
+  if(local!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain handled the request"});return local;}
+  if(!s.apiKey&&s.provider!=="ollama"){this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT NOT READY",message:"LLM API key is missing"});return "افتح الإعدادات وأدخل API key أو اختر Ollama.";}
   const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Never claim success without evidence. Ask before destructive, credential, financial, privacy-sensitive, or irreversible actions. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."},...this.history.slice(-30),{role:"user",content:userContent}];
   for(let step=0;step<(Math.min(100,Math.max(1,Number(s.maxSteps)||32)));step++){
@@ -87,9 +87,9 @@ class Agent{
    const body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto",temperature:.1};
    let r;
    try{r=await fetch(base+"/chat/completions",{method:"POST",headers,body:JSON.stringify(body)})}
-   catch(e){throw new Error("تعذر الاتصال بمزود الذكاء الاصطناعي: "+e.message)}
-   if(!r.ok)throw new Error(await r.text());
-   const m=(await r.json()).choices?.[0]?.message;if(!m)throw new Error("No model response");
+   catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});throw new Error("تعذر الاتصال بمزود الذكاء الاصطناعي: "+e.message)}
+   if(!r.ok){await r.text();this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"});throw new Error("LLM HTTP "+r.status);}
+   const m=(await r.json()).choices?.[0]?.message;if(!m){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:"No model response"});throw new Error("No model response");}this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM RESPONSE RECEIVED",message:"LLM response received"});
    if(!m.tool_calls?.length){
     const answer=m.content||"";
     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;

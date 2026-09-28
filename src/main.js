@@ -4,7 +4,24 @@ const path=require("path"),fs=require("fs"),{Agent}=require("./agent"),{ToolRegi
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
 
-let win,agent,tray,realtime;
+let win,agent,tray,realtime,statusWin;
+const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
+const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""}};
+function diagnostic(level,stage,message,meta={}){
+ const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
+ try{fs.mkdirSync(path.dirname(diagnosticFile),{recursive:true});fs.appendFileSync(diagnosticFile,JSON.stringify(event)+"\n")}catch(e){console.error("Diagnostics write failed:",e)}
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:event",event);if(win&&!win.isDestroyed())win.webContents.send("diagnostic:event",event);updateDiagnosticState(event);return event;
+}
+function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail=e.level==="ERROR";
+ if(s.includes("MIC")){diagnosticState.mic.state=fail?"error":"active";diagnosticState.mic.detail=e.message;if(e.meta?.level!=null)diagnosticState.mic.level=Number(e.meta.level)||0}
+ if(s.includes("LLM")||s.includes("BRAIN API")){diagnosticState.brainApi.state=fail?"error":(s.includes("SUCCESS")||s.includes("CONNECTED")?"connected":"active");diagnosticState.brainApi.detail=e.message}
+ if(s.includes("LOCAL")){diagnosticState.brainLocal.state=fail?"error":"ready";diagnosticState.brainLocal.detail=e.message}
+ if(s.includes("STT")){diagnosticState.stt.state=fail?"error":(s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")?"active":diagnosticState.stt.state);diagnosticState.stt.detail=e.message}
+ if(s.includes("TTS")){diagnosticState.tts.state=fail?"error":(s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")||s.includes("SUCCESS")?"active":diagnosticState.tts.state);diagnosticState.tts.detail=e.message}
+ if(s.includes("GLB")||s.includes("CHARACTER READY")){diagnosticState.glb.state=fail?"error":s.includes("READY")?"ready":"active";diagnosticState.glb.detail=e.message}
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);
+}
+function diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
 
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
 // This code defines the official Saeed Windows application/taskbar icon source.
@@ -57,6 +74,11 @@ function keepWindowVisible(){
  fitWindowToDisplay(display);
 }
 function showChat(){keepWindowVisible();win?.show();win?.focus();win?.webContents.send("chat:show")}
+function showStatus(){if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile});return}statusWin=new BrowserWindow({width:820,height:620,minWidth:620,minHeight:420,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
+function openDiagnosticsLog(){require("electron").shell.openPath(diagnosticFile).catch(e=>diagnostic("ERROR","DIAGNOSTICS LOG",e.message))}
+function chooseCharacter(){dialog.showOpenDialog(win,{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file);win?.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB SELECTED","Character GLB selected",{name:path.basename(file),size:data.length})}catch(e){diagnostic("ERROR","GLB SELECTED",e.message)}})}
+function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};if(value==="off")stopRealtime();else startRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
+function setSaeedSize(size){const m={small:[600,400],medium:[760,480],large:[980,620]};const v=m[size]||m.medium;win?.setSize(v[0],v[1],true)}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
   {label:"فتح المحادثة",click:showChat},
@@ -87,7 +109,7 @@ async function createWindow(){
    confirmations.set(id,resolve);showChat();win?.webContents.send("agent:confirm",{id,name,args});
   })
  });
- agent=new Agent({registry,onEvent:e=>win?.webContents.send("agent:event",e)});
+ agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);win?.webContents.send("agent:event",e)}});
  win.on("closed",()=>{win=null});
  win.webContents.on("context-menu",()=>contextMenu());
  win.on("move",keepWindowVisible);
@@ -96,15 +118,17 @@ async function createWindow(){
  win.show();
 }
 function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";win?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";win?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";win?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>win?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";win?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";win?.webContents.send("update:state","error",e?.message||String(e))})}
-app.whenReady().then(async()=>{
+app.whenReady().then(async()=>{diagnostic("INFO","APPLICATION","Diagnostics system started");
  configureUpdater();
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
  try{
   tray=new Tray(trayIcon());
   tray.setToolTip("Saeed AI");
   tray.setContextMenu(Menu.buildFromTemplate([
-   {label:"Show Saeed",click:showChat},{label:"Hide Saeed",click:()=>win?.hide()},
-   {type:"separator"},{label:"Quit",click:()=>app.quit()}
+   {label:"Show Saeed",click:showChat},{label:"Chat",click:showChat},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>win?.hide()},
+   {type:"separator"},{label:"Always Listening",type:"radio",checked:true,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic Off",type:"radio",click:()=>setMicMode("off")},
+   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:()=>{showChat();win?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
+   {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
   ]));
  }catch(e){console.error("Tray failed:",e)}
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
@@ -123,6 +147,7 @@ ipcMain.handle("chat",(_,payload)=>{
  return agent.run(String(data.text||""),data.image||null);
 });
 ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState,file:diagnosticFile}));ipcMain.handle("diagnostic:open-log",()=>{openDiagnosticsLog();return true});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  agent.settings={...(s||{}),alwaysListening:true,micMode:"always"};
@@ -144,14 +169,13 @@ ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  confirmations.delete(id);resolve(Boolean(approved));return true;
 });
 function stopRealtime(){
- if(realtime){realtime.stop();realtime=null}
- win?.webContents.send("realtime:state","disconnected");
+ if(realtime){realtime.stop();realtime=null}diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");win?.webContents.send("realtime:state","disconnected");
 }
 function startRealtime(options={}){
  const s=agent?.settings||{};
  const key=s.realtimeApiKey||s.apiKey||"";
- if(!key || s.provider==="ollama"){win?.webContents.send("realtime:state","not-configured","OpenAI API key is not configured.");return false}
- if(realtime) realtime.stop();
+ if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");win?.webContents.send("realtime:state","not-configured","OpenAI API key is not configured.");return false}
+ diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
  const registry=agent?.registry;
  const realtimeTools=(registry?.schemas()||[]).map(t=>({
   type:"function",
@@ -160,9 +184,9 @@ function startRealtime(options={}){
   parameters:t.function?.parameters||{type:"object",properties:{},required:[]}
  })).filter(t=>t.name);
  realtime=new OpenAIRealtime({
-  state:(state,message)=>win?.webContents.send("realtime:state",state,message),
+  state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");win?.webContents.send("realtime:state",state,message)},
   event:async(event)=>{
-   if(event.type==="response.output_audio.delta"&&event.delta)win?.webContents.send("realtime:audio",event.delta);
+   if(event.type==="response.output_audio.delta"&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received");win?.webContents.send("realtime:audio",event.delta);}
    else if(event.type==="response.output_audio_transcript.delta"&&event.delta)win?.webContents.send("realtime:assistant-delta",event.delta);
    else if(event.type==="response.output_audio_transcript.done"&&event.transcript)win?.webContents.send("realtime:assistant-final",event.transcript);
    else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)win?.webContents.send("realtime:user-delta",event.delta);
