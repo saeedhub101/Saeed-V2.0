@@ -5,12 +5,20 @@ process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
 
 let win,agent,tray,realtime;
+
+// AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
+// This code defines the official Saeed Windows application/taskbar icon source.
 function windowsIconPath(){
  const ico=path.join(__dirname,"..","assets","saeed.ico");
  const png=path.join(__dirname,"..","assets","saeed.png");
  return fs.existsSync(ico)?ico:png;
 }
-function trayIcon(){return nativeImage.createFromPath(windowsIconPath());}
+
+// AUTHORITATIVE SAEED SYSTEM TRAY ICON CODE — DO NOT REMOVE OR REPLACE.
+// This code creates the official Saeed system-tray icon from the same source.
+function trayIcon(){
+ return nativeImage.createFromPath(windowsIconPath());
+}
 app.setAppUserModelId("ai.saeed.desktop");
 let updateState="idle";
 const confirmations=new Map();
@@ -145,7 +153,7 @@ function startRealtime(options={}){
  if(!key || s.provider==="ollama"){win?.webContents.send("realtime:state","not-configured","OpenAI API key is not configured.");return false}
  if(realtime) realtime.stop();
  const registry=agent?.registry;
- const realtimeTools=(registry?.schemas?.()||[]).map(t=>({
+ const realtimeTools=(registry?.schemas()||[]).map(t=>({
   type:"function",
   name:t.function?.name,
   description:t.function?.description||"",
