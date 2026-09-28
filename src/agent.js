@@ -55,8 +55,28 @@ class Agent{
    realtimeApiKey:this.encryptKey(this._settings.realtimeApiKey)
   },null,2))}catch(e){console.error("Settings save failed:",e)}}
  saveHistory(){try{fs.writeFileSync(this.historyFile,JSON.stringify(this.history.slice(-200),null,2))}catch(e){console.error("History save failed:",e)}}
+ async localIntent(text){
+  const t=String(text||"").trim();
+  if(!t)return null;
+  const lower=t.toLowerCase();
+  if(/(?:what time is it|what's the time|current time|time is it|كم الساعة|الساعة كم|الوقت الآن|ما الوقت)/i.test(lower)){
+   const now=new Date();
+   const time=now.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+   const date=now.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
+   const answer="The local time is "+time+" on "+date+".";
+   this.history.push({role:"user",content:t},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local"});return answer;
+  }
+  if(/(?:open|launch|start|show)\s+(?:my\s+)?(?:computer|this pc|file explorer)|(?:جهاز الكمبيوتر|هذا الكمبيوتر|الكمبيوتر)/i.test(lower)){
+   const out=await this.registry.call("open_application",{application:"explorer"});
+   const answer=out?.ok===false?("تعذر فتح جهاز الكمبيوتر: "+out.error):"تم فتح جهاز الكمبيوتر.";
+   this.history.push({role:"user",content:t},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local"});return answer;
+  }
+  return null;
+ }
  async run(text,image=null){
   const s=this.settings;if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";
+  const local=await this.localIntent(text);
+  if(local!==null)return local;
   if(!s.apiKey&&s.provider!=="ollama")return "افتح الإعدادات وأدخل API key أو اختر Ollama.";
   const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Never claim success without evidence. Ask before destructive, credential, financial, privacy-sensitive, or irreversible actions. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."},...this.history.slice(-30),{role:"user",content:userContent}];

@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: saeed-windows-build-main
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -151,6 +151,40 @@ jobs:
             Get-Process | Where-Object { $_.Path -like "$PWD\dist\win-unpacked\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Verify chat response, local time, and speech
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $app = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          $debugPort = 9224
+          $stdoutLog = Join-Path $PWD "dist\chat-test.stdout.log"
+          $stderrLog = Join-Path $PWD "dist\chat-test.stderr.log"
+          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+          try {
+            Start-Sleep -Seconds 8
+            $target=$null
+            for($i=0;$i-lt 30;$i++){Start-Sleep -Seconds 1;try{$target=@(Invoke-RestMethod "http://127.0.0.1:$debugPort/json")|Where-Object{$_.type-eq"page"-and $_.webSocketDebuggerUrl}|Select-Object -First 1;if($target){break}}catch{}}
+            if(-not $target){throw "Saeed did not expose a Chromium page."}
+            $ws=[System.Net.WebSockets.ClientWebSocket]::new()
+            $ws.ConnectAsync([Uri]$target.webSocketDebuggerUrl,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            $js=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("KGFzeW5jKCk9Pntjb25zdCBpbnB1dD1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjaW5wdXQnKTtjb25zdCBzZW5kPWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoJyNzZW5kJyk7aWYoIWlucHV0fHwhc2VuZCl0aHJvdyBuZXcgRXJyb3IoJ0NoYXQgY29udHJvbHMgbWlzc2luZycpO2xldCBzcGVlY2hDYWxscz0wO2NvbnN0IGZha2VTcGVlY2g9e2NhbmNlbCgpe30sc3BlYWsodSl7c3BlZWNoQ2FsbHMrKzt1Lm9uc3RhcnQ/LigpO3Uub25lbmQ/LigpO319O09iamVjdC5kZWZpbmVQcm9wZXJ0eSh3aW5kb3csJ3NwZWVjaFN5bnRoZXNpcycse3ZhbHVlOmZha2VTcGVlY2gsY29uZmlndXJhYmxlOnRydWV9KTtpbnB1dC52YWx1ZT0nV2hhdCB0aW1lIGlzIGl0Pyc7c2VuZC5jbGljaygpO2ZvcihsZXQgaT0wO2k8NDA7aSsrKXthd2FpdCBuZXcgUHJvbWlzZShyPT5zZXRUaW1lb3V0KHIsMjUwKSk7fWNvbnN0IHRleHRzPVsuLi5kb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCcjbWVzc2FnZXMgLmFzc2lzdGFudCcpXS5tYXAoeD0+eC5pbm5lclRleHQpO2NvbnN0IGFuc3dlcj10ZXh0c1t0ZXh0cy5sZW5ndGgtMV18fCcnO3JldHVybiBKU09OLnN0cmluZ2lmeSh7YW5zd2VyLHNwZWVjaENhbGxzLGFwaVByb21wdDovQVBJIGtleXxPcGVuIHNldHRpbmdzfNij2K/YrtmEIEFQSS9pLnRlc3QoYW5zd2VyKSxoYXNUaW1lOi9sb2NhbCB0aW1lfFxiXGR7MSwyfTpcZHsyfS9pLnRlc3QoYW5zd2VyKX0pfSkoKQ=="))
+            $message=@{id=1;method="Runtime.evaluate";params=@{expression=$js;awaitPromise=$true;returnByValue=$true}}|ConvertTo-Json -Compress
+            $bytes=[Text.Encoding]::UTF8.GetBytes($message)
+            $ws.SendAsync([ArraySegment[byte]]::new($bytes),[Net.WebSockets.WebSocketMessageType]::Text,$true,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            $buffer=New-Object byte[] 65536;$resultText=""
+            do{$received=$ws.ReceiveAsync([ArraySegment[byte]]::new($buffer),[Threading.CancellationToken]::None).GetAwaiter().GetResult();if($received.Count-gt 0){$resultText+=[Text.Encoding]::UTF8.GetString($buffer,0,$received.Count)}}while(-not $received.EndOfMessage)
+            $ws.Dispose()
+            $value=($resultText|ConvertFrom-Json).result.result.value|ConvertFrom-Json
+            Write-Host "Chat response: $($value.answer)"
+            Write-Host "Speech calls: $($value.speechCalls)"
+            if($value.apiPrompt){throw "Local chat still requests an API key."}
+            if(-not $value.hasTime){throw "Local time response was not returned."}
+            if([int]$value.speechCalls-lt 1){throw "Speech output was not invoked."}
+            Write-Host "CHAT_RESPONSE_SMOKE=PASS"
+            Write-Host "CHAT_VOICE_SMOKE=PASS"
+            Write-Host "LOCAL_TIME_SMOKE=PASS"
+          } finally {if($proc-and-not $proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue}}
+
       - name: Measure CPU usage of built program
         shell: pwsh
         run: |
@@ -220,6 +254,56 @@ jobs:
             Get-Process | Where-Object { $_.Path -like "$appDir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Measure RAM usage of built program
+        shell: pwsh
+        run: |
+          $app=(Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path;$dir=Split-Path $app;$p=Start-Process $app -ArgumentList "--remote-debugging-port=9225" -PassThru
+          try{Start-Sleep 8;$s=@();1..10|%{ $ps=@(Get-Process|?{$_.Path-and$_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase)});if($ps.Count){$s+=(($ps|Measure-Object WorkingSet64 -Sum).Sum)};Start-Sleep 1 };if(!$s.Count){throw "RAM samples unavailable"};$a=($s|Measure-Object -Average).Average;Write-Host ("Average RAM MB: "+[math]::Round($a/1MB,2));Write-Host "RAM_CHECK=PASS"}finally{if($p-and-not$p.HasExited){Stop-Process $p.Id -Force -ErrorAction SilentlyContinue};Get-Process | Where-Object { $_.Path -like "$dir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue}
+      - name: Measure GPU usage of built program
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $app=(Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path
+          $dir=Split-Path $app
+          $p=Start-Process $app -ArgumentList "--remote-debugging-port=9226" -PassThru
+          try {
+            Start-Sleep -Seconds 8
+            $ids=@(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) } | Select-Object -ExpandProperty Id)
+            $samples=@()
+            $counterAvailable=$true
+            try { $null=Get-Counter -ListSet "GPU Engine" -ErrorAction Stop } catch { $counterAvailable=$false }
+            if($counterAvailable){
+              1..10 | ForEach-Object {
+                $c=Get-Counter "\GPU Engine(*)\Utilization Percentage" -ErrorAction SilentlyContinue
+                $sum=0
+                foreach($x in @($c.CounterSamples)){
+                  if($x.InstanceName -match "pid_(\d+)_"){
+                    $id=[int]$Matches[1]
+                    if($ids -contains $id){$sum += [double]$x.CookedValue}
+                  }
+                }
+                $samples += $sum
+                Start-Sleep -Seconds 1
+              }
+            }
+            if($samples.Count -gt 0){
+              $avg=($samples | Measure-Object -Average).Average
+              Write-Host ("Average GPU utilization: "+[math]::Round($avg,2)+"%")
+              Write-Host "GPU_CHECK=PASS"
+            } else {
+              Write-Host "GPU counter unavailable on this Windows runner; no GPU value was invented."
+              Write-Host "GPU_CHECK=SKIPPED_NO_GPU_COUNTER"
+            }
+          } finally {
+            if($p -and -not $p.HasExited){Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue}
+            Get-Process | Where-Object { $_.Path -like "$dir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Generate Windows updater metadata
+        shell: pwsh
+        run: |
+          $v=(Get-Content VERSION -Raw).Trim()+".0";$f=@(Get-ChildItem dist -Filter "*.exe"|?{$_.Name-notlike"*uninstaller*"})[0];if(!$f){throw "Installer missing"};$h=(Get-FileHash $f.FullName -Algorithm SHA512).Hash;$b=[Convert]::ToBase64String([Convert]::FromHexString($h));@{version=$v;files=@(@{url=$f.Name;sha512=$b;size=[int64]$f.Length});releaseDate=(Get-Date).ToUniversalTime().ToString("o")}|ConvertTo-Json -Depth 5|Set-Content dist/latest.yml -Encoding UTF8;Write-Host "UPDATE_METADATA_CHECK=PASS"
+
       - name: Verify release output
         shell: pwsh
         run: |
@@ -253,6 +337,9 @@ jobs:
             dist/cpu-test.stdout.log
             dist/cpu-test.stderr.log
             dist/cpu-report.json
+            dist/chat-test.stdout.log
+            dist/chat-test.stderr.log
+            dist/latest.yml
 
       - name: Publish official release only when explicitly requested
         if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')) || (github.event_name == 'workflow_dispatch' && inputs.release)
