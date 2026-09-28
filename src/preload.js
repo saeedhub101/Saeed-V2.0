@@ -1,7 +1,7 @@
 const {contextBridge,ipcRenderer}=require("electron");
 contextBridge.exposeInMainWorld("saeed",{
  chat:(text,image=null)=>ipcRenderer.invoke("chat",{text,image}),
- capture:()=>ipcRenderer.invoke("capture"),
+ capture:()=>ipcRenderer.invoke("capture"),\n checkForUpdates:()=>ipcRenderer.invoke("update:check"),\n installUpdate:()=>ipcRenderer.invoke("update:install"),\n downloadUpdate:()=>ipcRenderer.invoke("update:download"),
  getHistory:()=>ipcRenderer.invoke("history:get"),
  getSettings:()=>ipcRenderer.invoke("settings:get"),
  setSettings:s=>ipcRenderer.invoke("settings:set",s),
@@ -25,5 +25,5 @@ contextBridge.exposeInMainWorld("saeed",{
  onRealtimeUserDelta:f=>ipcRenderer.on("realtime:user-delta",(_,t)=>f(t)),
  onRealtimeUserFinal:f=>ipcRenderer.on("realtime:user-final",(_,t)=>f(t)),
  onRealtimeDone:f=>ipcRenderer.on("realtime:done",(_,s)=>f(s)),
- onRealtimeError:f=>ipcRenderer.on("realtime:error",(_,e)=>f(e))
+ onRealtimeError:f=>ipcRenderer.on("realtime:error",(_,e)=>f(e)),\n onUpdateState:f=>ipcRenderer.on("update:state",(_,state,message)=>f(state,message)),\n onUpdateAvailable:f=>ipcRenderer.on("update:available",(_,info)=>f(info)),\n onUpdateProgress:f=>ipcRenderer.on("update:progress",(_,info)=>f(info)),\n onUpdateDownloaded:f=>ipcRenderer.on("update:downloaded",(_,info)=>f(info))
 });
