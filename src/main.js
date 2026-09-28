@@ -1,8 +1,8 @@
-const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage}=require("electron");
+const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
 
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
-process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
+process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));\n// Explicit Electron microphone permission handling for Always Listening.\n// Chromium must be allowed to request/use media audio before getUserMedia can open the device.\nfunction configureMediaPermissions(){\n try{\n  session.defaultSession.setPermissionCheckHandler((webContents,permission,origin,details)=>{\n   if(permission==="media")return true;\n   return true;\n  });\n  session.defaultSession.setPermissionRequestHandler((webContents,permission,callback,details)=>{\n   if(permission==="media"){diagnostic("INFO","MIC PERMISSION","Electron granted media permission",details||{});callback(true);return;}\n   callback(true);\n  });\n  diagnostic("INFO","MIC PERMISSION","Electron microphone/media permission handlers configured");\n }catch(e){diagnostic("ERROR","MIC PERMISSION",e.message)}\n}\n
 
 let win,agent,tray,realtime,statusWin;
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
@@ -161,7 +161,7 @@ ipcMain.handle("realtime:start",(_,options={})=>{startRealtime(options);return t
 ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
-ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});
+ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});\nipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");win?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
 ipcMain.handle("capture",()=>captureScreen());
 ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";win?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
 ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return false}});
