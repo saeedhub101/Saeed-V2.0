@@ -1,0 +1,34 @@
+{
+  "name": "saeed-ai",
+  "version": "2.1.0",
+  "description": "Saeed AI desktop agent",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win nsis --publish never",
+    "test": "node --check src/main.js && node --check src/realtime.js && node --check src/agent.js && node --check src/tools.js && node --check src/computer.js && node --check src/memory.js && node --check src/preload.js && node --check src/renderer.js"
+  },
+  "dependencies": {
+    "three": "0.180.0",
+    "ws": "8.18.3"
+  },
+  "devDependencies": {
+    "electron-builder": "26.15.3",
+    "electron": "38.8.6"
+  },
+  "build": {
+    "appId": "ai.saeed.desktop",
+    "productName": "Saeed AI",
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Saeed.AI.Setup.${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "buildVersion": "2.1.0"
+  }
+}
