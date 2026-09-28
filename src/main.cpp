@@ -2341,22 +2341,14 @@ static std::wstring NativeGetText(HWND h){
 static void NativeSetText(HWND h,const std::wstring& s){if(h)SetWindowTextW(h,s.c_str());}
 
 static void NativeCreateChatControls(HWND h){
-    // Visual-only desktop chat styling aligned with the Saeed-AI light chat surface.
-    // Chat remains the same native top-level window and keeps the existing IPC/agent logic.
-    NativeLabel(h,L"Saeed AI",20,13,330,30);
-    NativeLabel(h,L"Ready • Desktop Assistant",20,41,330,18);
-
-    g_nativeChatHistory=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",
-        WS_CHILD|WS_VISIBLE|WS_VSCROLL|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL,
-        18,70,864,430,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_HISTORY),GetModuleHandleW(nullptr),nullptr);
-
-    g_nativeChatInput=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",
-        WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_MULTILINE|ES_AUTOVSCROLL|ES_WANTRETURN,
-        18,520,720,72,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_INPUT),GetModuleHandleW(nullptr),nullptr);
-    HWND send=NativeButton(h,L"Send",ID_NATIVE_CHAT_SEND,748,520,120,34);
-    HWND cancel=NativeButton(h,L"Stop",ID_NATIVE_CHAT_CANCEL,748,558,120,34);
-    g_nativeChatStatus=NativeLabel(h,L"Ready",18,596,850,22);
-
+    // Visual-only styling layer. Existing HWNDs, IDs, IPC, agent logic and message flow are unchanged.
+    g_nativeChatHistory=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_VISIBLE|WS_VSCROLL|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL,
+        246,82,636,390,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_HISTORY),GetModuleHandleW(nullptr),nullptr);
+    g_nativeChatInput=CreateWindowExW(0,L"EDIT",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_MULTILINE|ES_AUTOVSCROLL|ES_WANTRETURN,
+        264,526,560,58,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_INPUT),GetModuleHandleW(nullptr),nullptr);
+    HWND send=NativeButton(h,L"Send",ID_NATIVE_CHAT_SEND,832,526,74,34);
+    HWND cancel=NativeButton(h,L"Stop",ID_NATIVE_CHAT_CANCEL,832,566,74,30);
+    g_nativeChatStatus=NativeLabel(h,L"Ready",246,600,650,20);
     for(HWND c:{g_nativeChatHistory,g_nativeChatInput,send,cancel,g_nativeChatStatus})ApplyNativeFont(c);
     NativeSetText(g_nativeChatHistory,L"Today\r\n\r\nSaeed AI\r\nHello. I am Saeed, your desktop AI companion.\r\n\r\n");
     SetFocus(g_nativeChatInput);
@@ -2642,6 +2634,15 @@ static void InitSettingsWebView(){
                         [](ICoreWebView2*,ICoreWebView2WebMessageReceivedEventArgs* a)->HRESULT{
                             LPWSTR raw=nullptr;if(SUCCEEDED(a->get_WebMessageAsJson(&raw))&&raw){try{HandleSettingsWebMessage(json::parse(Utf8(raw)));}catch(...){ }CoTaskMemFree(raw);}return S_OK;
                         }).Get(),nullptr);
+                    g_settingsWebView->add_NavigationCompleted(Callback<ICoreWebView2NavigationCompletedEventHandler>(
+                        [](ICoreWebView2*,ICoreWebView2NavigationCompletedEventArgs*)->HRESULT{
+                            if(!g_settingsWebView)return S_OK;
+                            const wchar_t* css=LR"CSS(:root{color-scheme:light!important;--bg:#f5f7fb!important;--panel:#fff!important;--card:#fff!important;--text:#182230!important;--muted:#7b8797!important;--accent:#182230!important;--border:#e1e7ef!important;--danger:#c73535!important}body{background:#f5f7fb!important;color:#182230!important;font-family:"Segoe UI",system-ui,sans-serif!important}.top{background:#fff!important;border-bottom:1px solid #e1e7ef!important}.header{height:76px!important;padding:0 25px!important}.title{font-size:20px!important;font-weight:760!important}.subtitle,.hint,.status{color:#7b8797!important;font-size:12px!important}.tabs{background:#fff!important;padding:18px 12px!important;gap:4px!important;border-right:1px solid #e1e7ef!important;flex-direction:column!important;position:absolute!important;left:0!important;top:76px!important;bottom:57px!important;width:185px!important;overflow:auto!important}.tab{width:100%!important;text-align:left!important;border:0!important;border-radius:9px!important;padding:11px 13px!important;margin-bottom:4px!important;color:#667386!important;background:transparent!important}.tab[aria-selected=true]{background:#182230!important;color:#fff!important;border:0!important}.tabs+main,main{margin:0 0 0 185px!important;max-width:none!important;width:auto!important;padding:30px 38px 92px!important}.card{border:1px solid #e0e6ee!important;border-radius:12px!important;background:#fff!important;box-shadow:none!important;padding:15px!important}.card h2{font-size:15px!important;color:#182230!important}input,select,textarea{border:1px solid #d8e0ea!important;border-radius:9px!important;background:#fff!important;color:#182230!important}input:focus,select:focus,textarea:focus{border-color:#7e9ed0!important;box-shadow:0 0 0 3px #eaf0fa!important}button{border:0!important;border-radius:9px!important}.primary{background:#182230!important;border-color:#182230!important}.danger{color:#c73535!important}footer{left:185px!important;background:rgba(255,255,255,.97)!important;border-top:1px solid #e1e7ef!important;padding:11px 25px!important})CSS";
+                            std::wstring script=L"(function(){var s=document.getElementById('saeedVisualStyle');if(!s){s=document.createElement('style');s.id='saeedVisualStyle';s.textContent='";
+                            std::wstring escaped;for(const wchar_t c:std::wstring(css)){if(c==L'\\')escaped+=L"\\\\\\";else if(c==L'\'')escaped+=L"\\\'";else if(c==L'\n')escaped+=L"\\n";else if(c!=L'\r')escaped+=c;}
+                            script+=escaped;script+=L"';document.head.appendChild(s);}})();";
+                            g_settingsWebView->ExecuteScript(script.c_str(),nullptr);return S_OK;
+                        }).Get(),nullptr);
                     std::wstring p=AppDirectory()+L"\\assets\\settings.html";std::replace(p.begin(),p.end(),L'\\',L'/');g_settingsWebView->Navigate((L"file:///"+p).c_str());ResizeSettingsWebView();
                 }
                 return S_OK;
@@ -2893,21 +2894,43 @@ void InitializeWebView(){
     }).Get());
 }
 
+static void PaintSaeedChatSurface(HWND h,HDC dc){
+    RECT r{};GetClientRect(h,&r);const int w=r.right,hh=r.bottom;
+    HBRUSH b=CreateSolidBrush(RGB(247,249,252));FillRect(dc,&r,b);DeleteObject(b);
+    RECT header{0,0,w,68},line{0,67,w,68},side{0,68,235,hh},sline{234,68,235,hh},composer{235,std::max(68,hh-94),w,hh};
+    HBRUSH white=CreateSolidBrush(RGB(255,255,255)),sb=CreateSolidBrush(RGB(238,242,247)),bd=CreateSolidBrush(RGB(225,230,238));
+    FillRect(dc,&header,white);FillRect(dc,&line,bd);FillRect(dc,&side,sb);FillRect(dc,&sline,bd);FillRect(dc,&composer,white);
+    RECT cl{235,std::max(68,hh-94),w,std::max(68,hh-93)};FillRect(dc,&cl,bd);
+    HBRUSH mark=CreateSolidBrush(RGB(24,34,48));HPEN hp=CreatePen(PS_NULL,0,0);HGDIOBJ ob=SelectObject(dc,mark),op=SelectObject(dc,hp);
+    RoundRect(dc,18,15,56,53,12,12);SelectObject(dc,op);SelectObject(dc,ob);DeleteObject(hp);DeleteObject(mark);
+    SetBkMode(dc,TRANSPARENT);
+    HFONT f=CreateFontW(-21,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");
+    HGDIOBJ of=SelectObject(dc,f);SetTextColor(dc,RGB(255,255,255));RECT br{18,15,56,53};DrawTextW(dc,L"S",1,&br,DT_CENTER|DT_VCENTER|DT_SINGLELINE);SelectObject(dc,of);DeleteObject(f);
+    f=CreateFontW(-16,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");of=SelectObject(dc,f);SetTextColor(dc,RGB(24,34,48));RECT tr{68,13,420,38};DrawTextW(dc,L"Saeed AI",-1,&tr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);SelectObject(dc,of);DeleteObject(f);
+    f=CreateFontW(-11,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");of=SelectObject(dc,f);SetTextColor(dc,RGB(123,135,151));
+    RECT sr{68,37,420,58};DrawTextW(dc,L"Ready • Desktop Assistant",-1,&sr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+    RECT hr{12,82,220,108};SetTextColor(dc,RGB(83,97,117));DrawTextW(dc,L"History",-1,&hr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+    RECT dr{12,116,220,142};SetTextColor(dc,RGB(38,51,70));DrawTextW(dc,L"Today",-1,&dr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+    RECT nr{12,146,220,180};SetTextColor(dc,RGB(123,135,151));DrawTextW(dc,L"Current conversation",-1,&nr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+    RECT hint{246,492,w-20,518};DrawTextW(dc,L"Type a message to Saeed",-1,&hint,DT_LEFT|DT_VCENTER|DT_SINGLELINE);SelectObject(dc,of);DeleteObject(f);
+    HPEN pen=CreatePen(PS_SOLID,1,RGB(217,224,233));of=SelectObject(dc,pen);HGDIOBJ obr=SelectObject(dc,GetStockObject(HOLLOW_BRUSH));RoundRect(dc,254,std::max(508,hh-104),std::max(300,w-82),std::max(560,hh-29),14,14);SelectObject(dc,obr);SelectObject(dc,of);DeleteObject(pen);
+    DeleteObject(white);DeleteObject(sb);DeleteObject(bd);
+}
 LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
     switch(msg){
         case WM_CTLCOLORSTATIC:
         case WM_CTLCOLORBTN:{
-            HDC dc=reinterpret_cast<HDC>(wp);
-            SetBkColor(dc,RGB(247,249,252));
-            SetTextColor(dc,RGB(25,35,45));
+            HDC dc=reinterpret_cast<HDC>(wp);SetBkColor(dc,RGB(247,249,252));SetTextColor(dc,RGB(24,34,48));
             return reinterpret_cast<LRESULT>(g_utilityBgBrush);
         }
         case WM_CTLCOLOREDIT:
         case WM_CTLCOLORLISTBOX:{
-            HDC dc=reinterpret_cast<HDC>(wp);
-            SetBkColor(dc,RGB(255,255,255));
-            SetTextColor(dc,RGB(24,34,48));
+            HDC dc=reinterpret_cast<HDC>(wp);SetBkColor(dc,RGB(255,255,255));SetTextColor(dc,RGB(24,34,48));
             return reinterpret_cast<LRESULT>(g_utilityInputBrush);
+        }
+        case WM_PAINT:{
+            if(h==g_chatHwnd){PAINTSTRUCT ps{};HDC dc=BeginPaint(h,&ps);PaintSaeedChatSurface(h,dc);EndPaint(h,&ps);return 0;}
+            break;
         }
         case WM_GETMINMAXINFO:{
             auto* m=reinterpret_cast<MINMAXINFO*>(lp);
@@ -2932,12 +2955,13 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
                 if(later)MoveWindow(later,170,320,100,38,TRUE);
                 if(close)MoveWindow(close,std::max(300,w-140),320,108,38,TRUE);
             }else if(h==g_chatHwnd){
-                if(g_nativeChatHistory)MoveWindow(g_nativeChatHistory,18,72,std::max(300,w-36),std::max(180,hh-245),TRUE);
-                if(g_nativeChatInput)MoveWindow(g_nativeChatInput,18,std::max(180,hh-165),std::max(220,w-170),72,TRUE);
+                const int composerTop=std::max(160,hh-94);
+                if(g_nativeChatHistory)MoveWindow(g_nativeChatHistory,246,82,std::max(300,w-264),std::max(160,composerTop-98),TRUE);
+                if(g_nativeChatInput)MoveWindow(g_nativeChatInput,264,composerTop+10,std::max(220,w-346),58,TRUE);
                 HWND send=GetDlgItem(h,ID_NATIVE_CHAT_SEND),cancel=GetDlgItem(h,ID_NATIVE_CHAT_CANCEL);
-                if(send)MoveWindow(send,std::max(230,w-140),std::max(180,hh-165),122,34,TRUE);
-                if(cancel)MoveWindow(cancel,std::max(230,w-140),std::max(218,hh-127),122,34,TRUE);
-                if(g_nativeChatStatus)MoveWindow(g_nativeChatStatus,18,std::max(230,hh-55),std::max(300,w-36),24,TRUE);
+                if(send)MoveWindow(send,std::max(330,w-82),composerTop+10,74,34,TRUE);
+                if(cancel)MoveWindow(cancel,std::max(330,w-82),composerTop+50,74,30,TRUE);
+                if(g_nativeChatStatus)MoveWindow(g_nativeChatStatus,246,composerTop+72,std::max(300,w-264),20,TRUE);
             }else if(h==g_settingsHwnd){
                 ResizeSettingsWebView();
                 // Settings controls follow the native window size instead of fixed HTML coordinates.
