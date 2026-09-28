@@ -2341,22 +2341,21 @@ static std::wstring NativeGetText(HWND h){
 static void NativeSetText(HWND h,const std::wstring& s){if(h)SetWindowTextW(h,s.c_str());}
 
 static void NativeCreateChatControls(HWND h){
-    // WhatsApp-inspired native desktop chat: compact header, conversation surface,
-    // composer at the bottom, and clear green send action. It remains a completely
-    // independent top-level window from the 3D avatar.
-    NativeLabel(h,L"●  Saeed AI",18,14,330,34);
-    NativeLabel(h,L"Online • Desktop Assistant",18,40,330,20);
+    // Visual-only desktop chat styling aligned with the Saeed-AI light chat surface.
+    // Chat remains the same native top-level window and keeps the existing IPC/agent logic.
+    NativeLabel(h,L"Saeed AI",20,13,330,30);
+    NativeLabel(h,L"Ready • Desktop Assistant",20,41,330,18);
 
     g_nativeChatHistory=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",
         WS_CHILD|WS_VISIBLE|WS_VSCROLL|ES_MULTILINE|ES_READONLY|ES_AUTOVSCROLL,
-        18,72,784,420,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_HISTORY),GetModuleHandleW(nullptr),nullptr);
+        18,70,864,430,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_HISTORY),GetModuleHandleW(nullptr),nullptr);
 
     g_nativeChatInput=CreateWindowExW(WS_EX_CLIENTEDGE,L"EDIT",L"",
         WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_MULTILINE|ES_AUTOVSCROLL|ES_WANTRETURN,
-        18,510,650,72,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_INPUT),GetModuleHandleW(nullptr),nullptr);
-    HWND send=NativeButton(h,L"Send",ID_NATIVE_CHAT_SEND,680,510,122,34);
-    HWND cancel=NativeButton(h,L"Stop",ID_NATIVE_CHAT_CANCEL,680,548,122,34);
-    g_nativeChatStatus=NativeLabel(h,L"Ready",18,590,650,24);
+        18,520,720,72,h,reinterpret_cast<HMENU>(ID_NATIVE_CHAT_INPUT),GetModuleHandleW(nullptr),nullptr);
+    HWND send=NativeButton(h,L"Send",ID_NATIVE_CHAT_SEND,748,520,120,34);
+    HWND cancel=NativeButton(h,L"Stop",ID_NATIVE_CHAT_CANCEL,748,558,120,34);
+    g_nativeChatStatus=NativeLabel(h,L"Ready",18,596,850,22);
 
     for(HWND c:{g_nativeChatHistory,g_nativeChatInput,send,cancel,g_nativeChatStatus})ApplyNativeFont(c);
     NativeSetText(g_nativeChatHistory,L"Today\r\n\r\nSaeed AI\r\nHello. I am Saeed, your desktop AI companion.\r\n\r\n");
@@ -2425,17 +2424,17 @@ static void CreateNativeUtilityWindow(UtilityWindowKind kind,const std::string& 
     if(slot && IsWindow(slot)){ ShowWindow(slot,SW_SHOWNORMAL); SetForegroundWindow(slot); if(kind==UTILITY_SETTINGS){InitSettingsWebView();ResizeSettingsWebView();} return; }
     const wchar_t* cls=L"SaeedNativeUtilityWindow";
     WNDCLASSEXW wc{sizeof(wc)}; wc.hInstance=GetModuleHandleW(nullptr); wc.lpfnWndProc=UtilityWndProc;
-    wc.lpszClassName=cls; wc.hCursor=LoadCursorW(nullptr,IDC_ARROW); wc.hbrBackground=CreateSolidBrush(RGB(238,242,246));
+    wc.lpszClassName=cls; wc.hCursor=LoadCursorW(nullptr,IDC_ARROW); wc.hbrBackground=CreateSolidBrush(RGB(247,249,252));
     static bool registered=false;
     if(!registered){ if(!RegisterClassExW(&wc) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS)return; registered=true; }
     const wchar_t* title=kind==UTILITY_SETTINGS?L"Saeed AI Settings":(kind==UTILITY_UPDATE?L"Saeed AI Update":(kind==UTILITY_PERFORMANCE?L"Saeed AI Performance":L"Saeed AI Chat"));
-    const int width=kind==UTILITY_SETTINGS?900:(kind==UTILITY_UPDATE?820:(kind==UTILITY_PERFORMANCE?520:820));
-    const int height=kind==UTILITY_SETTINGS?700:(kind==UTILITY_UPDATE?400:(kind==UTILITY_PERFORMANCE?260:700));
+    const int width=kind==UTILITY_SETTINGS?960:(kind==UTILITY_UPDATE?820:(kind==UTILITY_PERFORMANCE?520:900));
+    const int height=kind==UTILITY_SETTINGS?720:(kind==UTILITY_UPDATE?400:(kind==UTILITY_PERFORMANCE?260:720));
     slot=CreateWindowExW(WS_EX_APPWINDOW,cls,title,WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_VISIBLE,
         CW_USEDEFAULT,CW_USEDEFAULT,width,height,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     if(!slot)return;
     SetWindowLongPtrW(slot,GWLP_ID,kind);
-    if(!g_utilityBgBrush)g_utilityBgBrush=CreateSolidBrush(RGB(238,242,246));
+    if(!g_utilityBgBrush)g_utilityBgBrush=CreateSolidBrush(RGB(247,249,252));
     if(!g_utilityInputBrush)g_utilityInputBrush=CreateSolidBrush(RGB(255,255,255));
     ShowWindow(slot,SW_SHOWNORMAL); UpdateWindow(slot);
     if(kind==UTILITY_SETTINGS){ NativeCreateSettingsControls(slot,initialTab); InitSettingsWebView(); }
@@ -2899,7 +2898,7 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
         case WM_CTLCOLORSTATIC:
         case WM_CTLCOLORBTN:{
             HDC dc=reinterpret_cast<HDC>(wp);
-            SetBkColor(dc,RGB(238,242,246));
+            SetBkColor(dc,RGB(247,249,252));
             SetTextColor(dc,RGB(25,35,45));
             return reinterpret_cast<LRESULT>(g_utilityBgBrush);
         }
@@ -2907,7 +2906,7 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
         case WM_CTLCOLORLISTBOX:{
             HDC dc=reinterpret_cast<HDC>(wp);
             SetBkColor(dc,RGB(255,255,255));
-            SetTextColor(dc,RGB(25,35,45));
+            SetTextColor(dc,RGB(24,34,48));
             return reinterpret_cast<LRESULT>(g_utilityInputBrush);
         }
         case WM_GETMINMAXINFO:{
