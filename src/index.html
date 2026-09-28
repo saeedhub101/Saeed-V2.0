@@ -7,7 +7,7 @@
   <nav class="settingsTabs"><button data-tab="ai" class="active">AI</button><button data-tab="voice">Voice</button><button data-tab="interaction">Interaction</button><button data-tab="security">Security</button></nav>
   <div id="tab-ai" class="settingsTabContent">
    <h3>Brain / LLM</h3>
-   <label>Brain / interaction mode<select id="brainMode"><option value="auto">Auto — Local intents, then External LLM</option><option value="local">Local Skills — local skills only</option><option value="api">External API — LLM only</option><option value="realtime">Realtime — live voice streaming</option></select></label>
+   <label>Brain / interaction mode<select id="brainMode"><option value="auto">Auto — Local intents, then External LLM</option><option value="local">Local — local brain only</option><option value="api">External API — LLM only</option><option value="realtime">Realtime — live voice streaming</option></select></label>
    <div class="settingActions"><button type="button" id="applyBrainNow">Apply brain mode now</button><button type="button" id="openLiveStatus">Open Live Status</button></div><div id="brainModeStatus" class="settingStatus"></div>
    <label>LLM provider<select id="provider"><option value="openai">OpenAI / GPT</option><option value="anthropic">Anthropic / Claude</option><option value="gemini">Google / Gemini</option><option value="openai-compatible">OpenAI-compatible</option></select></label>
    <label>LLM model<input id="model"></label>
@@ -18,7 +18,7 @@
   </div>
   <div id="tab-voice" class="settingsTabContent hidden">
    <h3>STT — Speech to Text</h3>
-   <label>STT provider<select id="sttProvider"><option value="openai">OpenAI STT — API</option></select></label>
+   <label>STT provider<select id="sttProvider"><option value="local">Local / Browser</option><option value="openai">OpenAI STT — API</option></select></label>
    <label>STT model<input id="sttModel" value="gpt-4o-mini-transcribe"></label>
    <label>STT language<input id="sttLanguage" value="en"></label>
    <label id="sttKeyRow">STT API key<input id="sttKey" type="password" placeholder="Enter STT API key"></label>
@@ -30,7 +30,7 @@
    <label>Realtime API key<input id="realtimeKey" type="password" placeholder="Enter Realtime API key"></label>
    <div class="settingActions"><button id="testRealtime">Connect & Verify Realtime</button><button type="button" id="stopRealtimeNow">Stop Realtime</button><button type="button" id="openLiveStatusVoice">Live Status</button></div><div id="realtimeStatus" class="settingStatus"></div>
    <hr><h3>TTS — Text to Speech</h3>
-   <label>TTS provider<select id="ttsProvider"><option value="local">Internal speechSynthesis</option><option value="openai">OpenAI TTS — API</option></select></label>
+   <label>TTS provider<select id="ttsProvider"><option value="local">Local Browser TTS</option><option value="openai">OpenAI TTS — API</option><option value="azure">Azure Speech — API</option></select></label>
    <label>TTS model<input id="ttsModel" value="gpt-4o-mini-tts"></label>
    <label>TTS voice<input id="ttsVoice" value="alloy"></label>
    <label id="ttsKeyRow">TTS API key<input id="ttsKey" type="password" placeholder="Enter TTS API key"></label>

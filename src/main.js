@@ -166,13 +166,10 @@ ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState,file:diagnosticFile}));ipcMain.handle("diagnostic:open-log",()=>{openDiagnosticsLog();return true});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
- const previous={...agent.settings};
  agent.settings={...(s||{})};
  const mode=String(agent.settings.brainMode||"auto");
- const micMode=String(agent.settings.micMode||"always");
  if(mode==="realtime")startRealtime();
  else stopRealtime();
- if(micMode!==String(previous.micMode||"always"))setMicMode(micMode);
  diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
  return agent.publicSettings();
 });
@@ -181,11 +178,8 @@ ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
 ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});
-ipcMain.handle("mic:mode",(_,mode)=>{setMicMode(String(mode||"always"));return true});
-function pcm16ToWav(base64){const pcm=Buffer.from(String(base64||""),"base64"),sampleRate=24000,channels=1,bits=16,header=Buffer.alloc(44);header.write("RIFF",0);header.writeUInt32LE(36+pcm.length,4);header.write("WAVE",8);header.write("fmt ",12);header.writeUInt32LE(16,16);header.writeUInt16LE(1,20);header.writeUInt16LE(channels,22);header.writeUInt32LE(sampleRate,24);header.writeUInt32LE(sampleRate*channels*bits/8,28);header.writeUInt16LE(channels*bits/8,32);header.writeUInt16LE(bits,34);header.write("data",36);header.writeUInt32LE(pcm.length,40);return Buffer.concat([header,pcm])}
-async function transcribeAudio(base64){const s=agent?.settings||{},key=s.sttApiKey||s.apiKey||"";if(!key)throw new Error("OpenAI STT API key is not configured.");const audio=pcm16ToWav(base64),form=new FormData();form.append("file",new Blob([audio],{type:"audio/wav"}),"saeed-mic.wav");form.append("model",s.sttModel||"gpt-4o-mini-transcribe");if(s.sttLanguage)form.append("language",s.sttLanguage);const r=await fetch("https://api.openai.com/v1/audio/transcriptions",{method:"POST",headers:{Authorization:"Bearer "+key},body:form});if(!r.ok)throw new Error("STT HTTP "+r.status+" — "+(await r.text()).slice(0,300));const text=String((await r.json()).text||"").trim();diagnostic("INFO","STT TRANSCRIBE SUCCESS","OpenAI STT transcription completed",{length:text.length});return text}
-async function synthesizeTts(text){const s=agent?.settings||{},key=s.ttsApiKey||s.apiKey||"";if(!key)throw new Error("OpenAI TTS API key is not configured.");const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+key},body:JSON.stringify({model:s.ttsModel||"gpt-4o-mini-tts",voice:s.ttsVoice||"alloy",input:String(text||""),response_format:"mp3"})});if(!r.ok)throw new Error("TTS HTTP "+r.status+" — "+(await r.text()).slice(0,300));return Buffer.from(await r.arrayBuffer()).toString("base64")}
-ipcMain.handle("stt:transcribe",(_,base64)=>transcribeAudio(String(base64||"")));ipcMain.handle("tts:speak",(_,text)=>synthesizeTts(String(text||"")));ipcMain.handle("capture",()=>captureScreen());
+ipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");win?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
+ipcMain.handle("capture",()=>captureScreen());
 ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";win?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
 ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return false}});
 ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
