@@ -4,7 +4,8 @@ const path=require("path"),{Agent}=require("./agent"),{ToolRegistry}=require("./
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
 
-let win,agent,tray,realtime;\nlet updateState="idle";
+let win,agent,tray,realtime;
+let updateState="idle";
 const confirmations=new Map();
 const WINDOW={width:760,height:480,minWidth:360,minHeight:260};
 
@@ -76,7 +77,9 @@ async function createWindow(){
  placeBottomRight();
  win.show();
 }
-function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";win?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";win?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";win?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>win?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";win?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";win?.webContents.send("update:state","error",e?.message||String(e))})}\napp.whenReady().then(async()=>{
+function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";win?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";win?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";win?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>win?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";win?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";win?.webContents.send("update:state","error",e?.message||String(e))})}
+app.whenReady().then(async()=>{
+ configureUpdater();
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
  try{
   tray=new Tray(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=","base64"));
@@ -113,7 +116,10 @@ ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
 ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});
-ipcMain.handle("capture",()=>captureScreen());\nipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";win?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});\nipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return false}});\nipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
+ipcMain.handle("capture",()=>captureScreen());
+ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";win?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
+ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return false}});
+ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
 ipcMain.handle("history:get",()=>agent?.history||[]);
 ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  const resolve=confirmations.get(id);if(!resolve)return false;
