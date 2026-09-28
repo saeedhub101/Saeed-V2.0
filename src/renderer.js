@@ -3,6 +3,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":
 function markdown(s){let x=escapeHtml(s);x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/`([^`]+)`/g,"<code>$1</code>").split("\n").join("<br>");return x}
 function add(role,text){const d=document.createElement("div");d.className="msg "+role;d.innerHTML=role==="assistant"?markdown(text):escapeHtml(text).split("\n").join("<br>");messages.appendChild(d);messages.scrollTop=messages.scrollHeight}
 let busy=false,pendingImage=null,attachments=[];
+let realtimeConnected=false;
 // Voice output + lightweight real-time viseme driver.
 let speechTimer=null;
 const phonemeMap={a:"aa",e:"ee",i:"ee",o:"oh",u:"oo",y:"ee",b:"mbp",m:"mbp",p:"mbp",f:"fv",v:"fv",q:"oh",w:"oo",j:"ee"};
@@ -144,7 +145,6 @@ class RealtimeMic {
 }
 const realtimeMic=new RealtimeMic();
 let realtimeAssistant="";
-let realtimeConnected=false;
 window.saeed.onRealtimeState(async(state,message)=>{
  const badge=$("micBadge");badge.className="micBadge "+state;
  realtimeConnected=state==="connected";
