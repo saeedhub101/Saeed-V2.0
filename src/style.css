@@ -84,7 +84,7 @@ code{background:#eef1f5;color:#182230;padding:2px 5px;border-radius:4px}
 .historyRow span{line-height:1.45}
 
 .micBadge{position:absolute;right:8px;top:8px;width:11px;height:11px;border-radius:50%;font-size:0;background:#a5afbd;box-shadow:0 0 0 3px rgba(24,34,48,.08)}
-.micBadge.connected{background:#27a66f;box-shadow:0 0 0 4px rgba(39,166,111,.1)}
+.micBadge.active,.micBadge.connected{background:#27a66f;box-shadow:0 0 0 4px rgba(39,166,111,.1)}
 .micBadge.connecting{background:#d99b22}
 .micBadge.error{background:#c73535}
 .micBadge.not-configured,.micBadge.disconnected{background:#a5afbd}
