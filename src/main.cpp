@@ -134,6 +134,20 @@ constexpr int ID_NATIVE_UPDATE_PROGRESS=8301;
 constexpr int ID_NATIVE_UPDATE_NOW=8302;
 constexpr int ID_NATIVE_UPDATE_LATER=8303;
 constexpr int ID_NATIVE_UPDATE_CLOSE=8304;
+constexpr int ID_NATIVE_PERF_LLM_PROVIDER=8401;
+constexpr int ID_NATIVE_PERF_LLM_BASEURL=8402;
+constexpr int ID_NATIVE_PERF_LLM_MODEL=8403;
+constexpr int ID_NATIVE_PERF_LLM_KEY=8404;
+constexpr int ID_NATIVE_PERF_STT_PROVIDER=8405;
+constexpr int ID_NATIVE_PERF_STT_BASEURL=8406;
+constexpr int ID_NATIVE_PERF_STT_MODEL=8407;
+constexpr int ID_NATIVE_PERF_STT_KEY=8408;
+constexpr int ID_NATIVE_PERF_TTS_ENGINE=8409;
+constexpr int ID_NATIVE_PERF_TTS_VOICE=8410;
+constexpr int ID_NATIVE_PERF_TTS_SPEED=8411;
+constexpr int ID_NATIVE_PERF_TTS_VOLUME=8412;
+constexpr int ID_NATIVE_PERF_SAVE=8413;
+constexpr int ID_NATIVE_PERF_CLOSE=8414;
 constexpr int IDI_SAEED_ICON=101;
 HWND g_nativeChatHistory=nullptr;
 HWND g_nativeChatInput=nullptr;
@@ -151,6 +165,18 @@ HWND g_nativeUpdateDate=nullptr;
 HWND g_nativeUpdateSize=nullptr;
 HWND g_nativeUpdateStatus=nullptr;
 HWND g_nativeUpdateProgress=nullptr;
+HWND g_nativePerfLlmProvider=nullptr;
+HWND g_nativePerfLlmBaseUrl=nullptr;
+HWND g_nativePerfLlmModel=nullptr;
+HWND g_nativePerfLlmKey=nullptr;
+HWND g_nativePerfSttProvider=nullptr;
+HWND g_nativePerfSttBaseUrl=nullptr;
+HWND g_nativePerfSttModel=nullptr;
+HWND g_nativePerfSttKey=nullptr;
+HWND g_nativePerfTtsEngine=nullptr;
+HWND g_nativePerfTtsVoice=nullptr;
+HWND g_nativePerfTtsSpeed=nullptr;
+HWND g_nativePerfTtsVolume=nullptr;
 std::string g_pendingUpdateUrl;
 std::string g_pendingUpdateVersion;
 uint64_t g_pendingUpdateSize=0;
@@ -2376,10 +2402,113 @@ static void ApplyProviderPreset(HWND h){
 }
 static void NativeSaveSettings(HWND){ /* Settings is currently an experimental informational screen. */ }
 static void NativeCreateSettingsControls(HWND,const std::string&){ }
+static HWND NativePerfEdit(HWND h,int id,int x,int y,int w,int height=30){
+    HWND e=NativeEdit(h,id,x,y,w,height);
+    ApplyNativeFont(e);
+    return e;
+}
+static HWND NativePerfCombo(HWND h,int id,int x,int y,int w,int height=30){
+    HWND c=CreateWindowExW(0,L"COMBOBOX",L"",WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL,
+        x,y,w,height,h,reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)),GetModuleHandleW(nullptr),nullptr);
+    ApplyNativeFont(c);
+    return c;
+}
+static void NativePerfComboItems(HWND combo,const std::vector<std::wstring>& items,const std::wstring& selected){
+    if(!combo)return;
+    for(const auto& item:items)SendMessageW(combo,CB_ADDSTRING,0,reinterpret_cast<LPARAM>(item.c_str()));
+    int idx=static_cast<int>(SendMessageW(combo,CB_FINDSTRINGEXACT,static_cast<WPARAM>(-1),reinterpret_cast<LPARAM>(selected.c_str())));
+    SendMessageW(combo,CB_SETCURSEL,idx>=0?idx:0,0);
+}
+static void NativePerfLabel(HWND h,const wchar_t* text,int x,int y,int w,int height=20){
+    HWND l=NativeLabel(h,text,x,y,w,height);ApplyNativeFont(l);
+}
+static void NativePerfLoadValues(HWND h){
+    json s=LoadSettings();
+    if(!s.is_object())s=json::object();
+    const json voice=s.value("voice",json::object());
+    NativeSetText(g_nativePerfLlmBaseUrl,Wide(s.value("baseUrl","https://openrouter.ai/api/v1")));
+    NativeSetText(g_nativePerfLlmModel,Wide(s.value("model","openai/gpt-5.1")));
+    NativeSetText(g_nativePerfLlmKey,s.value("apiKey","").empty()?L"":L"********");
+    NativeSetText(g_nativePerfSttBaseUrl,Wide(s.value("sttBaseUrl","")));
+    NativeSetText(g_nativePerfSttModel,Wide(s.value("sttModel","")));
+    NativeSetText(g_nativePerfSttKey,s.value("sttApiKey","").empty()?L"":L"********");
+    NativeSetText(g_nativePerfTtsVoice,Wide(voice.value("voice","default")));
+    NativeSetText(g_nativePerfTtsSpeed,Wide(std::to_string(voice.value("speed",1.0))));
+    NativeSetText(g_nativePerfTtsVolume,Wide(std::to_string(voice.value("volume",0.85))));
+}
+static void NativePerfSave(HWND h){
+    json s=LoadSettings();
+    if(!s.is_object())s=json::object();
+    s["provider"]=Utf8(NativeGetText(g_nativePerfLlmProvider));
+    s["baseUrl"]=Utf8(NativeGetText(g_nativePerfLlmBaseUrl));
+    s["model"]=Utf8(NativeGetText(g_nativePerfLlmModel));
+    std::string llmKey=Utf8(NativeGetText(g_nativePerfLlmKey));
+    if(!llmKey.empty() && llmKey.rfind("****",0)!=0) s["apiKey"]=llmKey;
+    s["sttProvider"]=Utf8(NativeGetText(g_nativePerfSttProvider));
+    s["sttBaseUrl"]=Utf8(NativeGetText(g_nativePerfSttBaseUrl));
+    s["sttModel"]=Utf8(NativeGetText(g_nativePerfSttModel));
+    std::string sttKey=Utf8(NativeGetText(g_nativePerfSttKey));
+    if(!sttKey.empty() && sttKey.rfind("****",0)!=0) s["sttApiKey"]=sttKey;
+    json voice=s.value("voice",json::object());
+    voice["ttsEngine"]=Utf8(NativeGetText(g_nativePerfTtsEngine));
+    voice["voice"]=Utf8(NativeGetText(g_nativePerfTtsVoice));
+    try{voice["speed"]=std::stod(Utf8(NativeGetText(g_nativePerfTtsSpeed)));}catch(...){}
+    try{voice["volume"]=std::stod(Utf8(NativeGetText(g_nativePerfTtsVolume)));}catch(...){}
+    s["voice"]=voice;
+    SaveSettings(s);
+    ShowNativeNotification(L"Saeed AI",L"Performance settings saved.");
+}
 static void NativeCreatePerformanceControls(HWND h){
-    NativeLabel(h,L"This is a Performance experimental screen.",30,55,440,42);
-    NativeButton(h,L"Cancel",ID_NATIVE_SETTINGS_CANCEL,270,175,95,34);
-    NativeButton(h,L"OK",ID_NATIVE_SETTINGS_OK,375,175,95,34);
+    // Standalone native C++ settings window. It has no parent window and no WebView2.
+    NativePerfLabel(h,L"Performance",28,22,300,30);
+    NativePerfLabel(h,L"Audio and AI service configuration",28,51,520,20);
+
+    // Visual navigation rail, matching the Saeed-AI settings proportions.
+    NativePerfLabel(h,L"CONFIGURATION",22,92,180,18);
+    HWND llmNav=NativeLabel(h,L"LLM",22,122,180,34);ApplyNativeFont(llmNav);
+    HWND sttNav=NativeLabel(h,L"STT",22,160,180,34);ApplyNativeFont(sttNav);
+    HWND ttsNav=NativeLabel(h,L"TTS",22,198,180,34);ApplyNativeFont(ttsNav);
+
+    NativePerfLabel(h,L"LLM",230,92,620,28);
+    NativePerfLabel(h,L"Language model provider and connection",230,119,620,20);
+    NativePerfLabel(h,L"Provider",230,158,130);
+    g_nativePerfLlmProvider=NativePerfCombo(h,ID_NATIVE_PERF_LLM_PROVIDER,230,180,250);
+    NativePerfComboItems(g_nativePerfLlmProvider,{L"OpenAI",L"OpenRouter",L"Anthropic",L"Google Gemini",L"Groq",L"xAI",L"DeepSeek",L"Cohere",L"Together"},L"OpenAI");
+    NativePerfLabel(h,L"Base URL",230,218,130);
+    g_nativePerfLlmBaseUrl=NativePerfEdit(h,ID_NATIVE_PERF_LLM_BASEURL,230,240,620);
+    NativePerfLabel(h,L"Model",230,278,130);
+    g_nativePerfLlmModel=NativePerfEdit(h,ID_NATIVE_PERF_LLM_MODEL,230,300,620);
+    NativePerfLabel(h,L"API key",230,338,130);
+    g_nativePerfLlmKey=NativePerfEdit(h,ID_NATIVE_PERF_LLM_KEY,230,360,620);
+    
+    NativePerfLabel(h,L"STT",230,412,620,28);
+    NativePerfLabel(h,L"Speech-to-text provider",230,439,620,20);
+    NativePerfLabel(h,L"Provider",230,478,130);
+    g_nativePerfSttProvider=NativePerfCombo(h,ID_NATIVE_PERF_STT_PROVIDER,230,500,250);
+    NativePerfComboItems(g_nativePerfSttProvider,{L"Local Windows",L"OpenAI",L"Custom"},L"Local Windows");
+    NativePerfLabel(h,L"Base URL",230,538,130);
+    g_nativePerfSttBaseUrl=NativePerfEdit(h,ID_NATIVE_PERF_STT_BASEURL,230,560,620);
+    NativePerfLabel(h,L"Model",230,598,130);
+    g_nativePerfSttModel=NativePerfEdit(h,ID_NATIVE_PERF_STT_MODEL,230,620,620);
+    NativePerfLabel(h,L"API key",230,658,130);
+    g_nativePerfSttKey=NativePerfEdit(h,ID_NATIVE_PERF_STT_KEY,230,680,620);
+
+    NativePerfLabel(h,L"TTS",230,732,620,28);
+    NativePerfLabel(h,L"Text-to-speech engine and voice",230,759,620,20);
+    NativePerfLabel(h,L"Engine",230,798,130);
+    g_nativePerfTtsEngine=NativePerfCombo(h,ID_NATIVE_PERF_TTS_ENGINE,230,820,250);
+    NativePerfComboItems(g_nativePerfTtsEngine,{L"System",L"Windows SAPI"},L"System");
+    NativePerfLabel(h,L"Voice",230,858,130);
+    g_nativePerfTtsVoice=NativePerfEdit(h,ID_NATIVE_PERF_TTS_VOICE,230,880,620);
+    NativePerfLabel(h,L"Speed",230,918,130);
+    g_nativePerfTtsSpeed=NativePerfEdit(h,ID_NATIVE_PERF_TTS_SPEED,230,940,150);
+    NativePerfLabel(h,L"Volume",400,918,130);
+    g_nativePerfTtsVolume=NativePerfEdit(h,ID_NATIVE_PERF_TTS_VOLUME,400,940,150);
+
+    HWND save=NativeButton(h,L"Save changes",ID_NATIVE_PERF_SAVE,680,1000,170,38);
+    HWND close=NativeButton(h,L"Close",ID_NATIVE_PERF_CLOSE,570,1000,95,38);
+    ApplyNativeFont(save);ApplyNativeFont(close);
+    NativePerfLoadValues(h);
 }
 void HandleNativeUtilityMessage(const json& j){
     const std::string type=j.value("type","");
@@ -2421,7 +2550,7 @@ static void CreateNativeUtilityWindow(UtilityWindowKind kind,const std::string& 
     if(!registered){ if(!RegisterClassExW(&wc) && GetLastError()!=ERROR_CLASS_ALREADY_EXISTS)return; registered=true; }
     const wchar_t* title=kind==UTILITY_SETTINGS?L"Saeed AI Settings":(kind==UTILITY_UPDATE?L"Saeed AI Update":(kind==UTILITY_PERFORMANCE?L"Saeed AI Performance":L"Saeed AI Chat"));
     const int width=kind==UTILITY_SETTINGS?960:(kind==UTILITY_UPDATE?820:(kind==UTILITY_PERFORMANCE?520:900));
-    const int height=kind==UTILITY_SETTINGS?720:(kind==UTILITY_UPDATE?400:(kind==UTILITY_PERFORMANCE?260:720));
+    const int height=kind==UTILITY_SETTINGS?720:(kind==UTILITY_UPDATE?400:(kind==UTILITY_PERFORMANCE?780:720));
     slot=CreateWindowExW(WS_EX_APPWINDOW,cls,title,WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN|WS_VISIBLE,
         CW_USEDEFAULT,CW_USEDEFAULT,width,height,nullptr,nullptr,GetModuleHandleW(nullptr),nullptr);
     if(!slot)return;
@@ -2929,14 +3058,35 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
             return reinterpret_cast<LRESULT>(g_utilityInputBrush);
         }
         case WM_PAINT:{
-            if(h==g_chatHwnd){PAINTSTRUCT ps{};HDC dc=BeginPaint(h,&ps);PaintSaeedChatSurface(h,dc);EndPaint(h,&ps);return 0;}
+            if(h==g_chatHwnd){PAINTSTRUCT ps{};HDC dc=BeginPaint(h,&ps);PaintSaeedChatSurface(h,dc);EndPaint(h, &ps);return 0;}
+            if(h==g_performanceHwnd){
+                PAINTSTRUCT ps{};HDC dc=BeginPaint(h,&ps);
+                RECT r{};GetClientRect(h,&r);
+                HBRUSH bg=CreateSolidBrush(RGB(245,247,251));FillRect(dc,&r,bg);DeleteObject(bg);
+                HBRUSH rail=CreateSolidBrush(RGB(255,255,255));RECT rr{0,0,205,r.bottom};FillRect(dc,&rr,rail);DeleteObject(rail);
+                HPEN pen=CreatePen(PS_SOLID,1,RGB(225,231,239));HGDIOBJ op=SelectObject(dc,pen);MoveToEx(dc,204,0,nullptr);LineTo(dc,204,r.bottom);SelectObject(dc,op);DeleteObject(pen);
+                HBRUSH card=CreateSolidBrush(RGB(255,255,255));HGDIOBJ ob=SelectObject(dc,card);
+                RoundRect(dc,220,78,r.right-24,398,12,12);RoundRect(dc,220,430,r.right-24,718,12,12);RoundRect(dc,220,750,r.right-24,1060,12,12);
+                SelectObject(dc,ob);DeleteObject(card);
+                SetBkMode(dc,TRANSPARENT);SetTextColor(dc,RGB(24,34,48));
+                HFONT title=CreateFontW(-20,0,0,0,FW_BOLD,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");
+                HGDIOBJ of=SelectObject(dc,title);RECT tr{28,20,190,52};DrawTextW(dc,L"Performance",-1,&tr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);SelectObject(dc,of);DeleteObject(title);
+                HFONT small=CreateFontW(-12,0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,DEFAULT_PITCH|FF_SWISS,L"Segoe UI");
+                of=SelectObject(dc,small);SetTextColor(dc,RGB(123,135,151));
+                RECT sr{28,50,190,78};DrawTextW(dc,L"Configuration",-1,&sr,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+                RECT nav1{22,118,190,150};DrawTextW(dc,L"LLM",-1,&nav1,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+                RECT nav2{22,156,190,188};DrawTextW(dc,L"STT",-1,&nav2,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+                RECT nav3{22,194,190,226};DrawTextW(dc,L"TTS",-1,&nav3,DT_LEFT|DT_VCENTER|DT_SINGLELINE);
+                SelectObject(dc,of);DeleteObject(small);
+                EndPaint(h,&ps);return 0;
+            }
             break;
         }
         case WM_GETMINMAXINFO:{
             auto* m=reinterpret_cast<MINMAXINFO*>(lp);
             if(m){
-                m->ptMinTrackSize.x=(h==g_chatHwnd)?620:760;
-                m->ptMinTrackSize.y=(h==g_chatHwnd)?560:(h==g_updateHwnd?420:720);
+                m->ptMinTrackSize.x=(h==g_chatHwnd)?620:(h==g_performanceHwnd?900:760);
+                m->ptMinTrackSize.y=(h==g_chatHwnd)?560:(h==g_performanceHwnd?700:(h==g_updateHwnd?420:720));
             }
             return 0;
         }
@@ -2962,6 +3112,18 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
                 if(send)MoveWindow(send,std::max(330,w-82),composerTop+10,74,34,TRUE);
                 if(cancel)MoveWindow(cancel,std::max(330,w-82),composerTop+50,74,30,TRUE);
                 if(g_nativeChatStatus)MoveWindow(g_nativeChatStatus,246,composerTop+72,std::max(300,w-264),20,TRUE);
+            }else if(h==g_performanceHwnd){
+                // Performance is a standalone native C++ window. Keep its settings layout stable on resize.
+                if(g_nativePerfLlmBaseUrl)MoveWindow(g_nativePerfLlmBaseUrl,230,240,std::max(320,w-260),30,TRUE);
+                if(g_nativePerfLlmModel)MoveWindow(g_nativePerfLlmModel,230,300,std::max(320,w-260),30,TRUE);
+                if(g_nativePerfLlmKey)MoveWindow(g_nativePerfLlmKey,230,360,std::max(320,w-260),30,TRUE);
+                if(g_nativePerfSttBaseUrl)MoveWindow(g_nativePerfSttBaseUrl,230,560,std::max(320,w-260),30,TRUE);
+                if(g_nativePerfSttModel)MoveWindow(g_nativePerfSttModel,230,620,std::max(320,w-260),30,TRUE);
+                if(g_nativePerfSttKey)MoveWindow(g_nativePerfSttKey,230,680,std::max(320,w-260),30,TRUE);
+                if(g_nativePerfTtsVoice)MoveWindow(g_nativePerfTtsVoice,230,880,std::max(320,w-260),30,TRUE);
+                HWND save=GetDlgItem(h,ID_NATIVE_PERF_SAVE),close=GetDlgItem(h,ID_NATIVE_PERF_CLOSE);
+                if(save)MoveWindow(save,std::max(330,w-200),700,170,38,TRUE);
+                if(close)MoveWindow(close,std::max(220,w-305),700,95,38,TRUE);
             }else if(h==g_settingsHwnd){
                 ResizeSettingsWebView();
                 // Settings controls follow the native window size instead of fixed HTML coordinates.
@@ -3031,7 +3193,8 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
                 if(id==ID_NATIVE_UPDATE_LATER || id==ID_NATIVE_UPDATE_CLOSE){ DestroyWindow(h); return 0; }
             }
             if(h==g_settingsHwnd && (id==ID_NATIVE_SETTINGS_BACK || id==ID_NATIVE_SETTINGS_CANCEL || id==ID_NATIVE_SETTINGS_OK)){ DestroyWindow(h); return 0; }
-            if(h==g_performanceHwnd && (id==ID_NATIVE_SETTINGS_CANCEL || id==ID_NATIVE_SETTINGS_OK)){ DestroyWindow(h); return 0; }
+            if(h==g_performanceHwnd && id==ID_NATIVE_PERF_SAVE){ NativePerfSave(h); return 0; }
+            if(h==g_performanceHwnd && id==ID_NATIVE_PERF_CLOSE){ DestroyWindow(h); return 0; }
             break;
         }
         case WM_KEYDOWN:
@@ -3049,6 +3212,12 @@ LRESULT CALLBACK UtilityWndProc(HWND h,UINT msg,WPARAM wp,LPARAM lp){
             }
             if(h==g_updateHwnd){g_updateHwnd=nullptr;}
             if(h==g_chatHwnd){g_chatHwnd=nullptr;g_nativeChatHistory=nullptr;g_nativeChatInput=nullptr;g_nativeChatStatus=nullptr;}
+            if(h==g_performanceHwnd){
+                g_performanceHwnd=nullptr;
+                g_nativePerfLlmProvider=nullptr;g_nativePerfLlmBaseUrl=nullptr;g_nativePerfLlmModel=nullptr;g_nativePerfLlmKey=nullptr;
+                g_nativePerfSttProvider=nullptr;g_nativePerfSttBaseUrl=nullptr;g_nativePerfSttModel=nullptr;g_nativePerfSttKey=nullptr;
+                g_nativePerfTtsEngine=nullptr;g_nativePerfTtsVoice=nullptr;g_nativePerfTtsSpeed=nullptr;g_nativePerfTtsVolume=nullptr;
+            }
             if(h && GetWindowLongPtrW(h,GWLP_ID)==UTILITY_UPDATE){
                 g_nativeUpdateTitle=nullptr;g_nativeUpdateVersion=nullptr;g_nativeUpdateDate=nullptr;g_nativeUpdateSize=nullptr;g_nativeUpdateStatus=nullptr;g_nativeUpdateProgress=nullptr;
             }
