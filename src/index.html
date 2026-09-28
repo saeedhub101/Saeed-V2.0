@@ -8,6 +8,7 @@
   <div id="tab-ai" class="settingsTabContent">
    <h3>Brain / LLM</h3>
    <label>Brain / interaction mode<select id="brainMode"><option value="auto">Auto — Local intents, then External LLM</option><option value="local">Local — local brain only</option><option value="api">External API — LLM only</option><option value="realtime">Realtime — live voice streaming</option></select></label>
+   <div class="settingActions"><button type="button" id="applyBrainNow">Apply brain mode now</button><button type="button" id="openLiveStatus">Open Live Status</button></div><div id="brainModeStatus" class="settingStatus"></div>
    <label>LLM provider<select id="provider"><option value="openai">OpenAI / GPT</option><option value="anthropic">Anthropic / Claude</option><option value="gemini">Google / Gemini</option><option value="openai-compatible">OpenAI-compatible</option></select></label>
    <label>LLM model<input id="model"></label>
    <label id="baseUrlRow">LLM Base URL<input id="baseUrl" placeholder="https://provider.example/v1"></label>
@@ -17,29 +18,30 @@
   </div>
   <div id="tab-voice" class="settingsTabContent hidden">
    <h3>STT — Speech to Text</h3>
-   <label>STT provider<select id="sttProvider"><option value="local">Local Whisper — offline</option><option value="openai">OpenAI STT — API</option></select></label>
+   <label>STT provider<select id="sttProvider"><option value="local">Local / Browser</option><option value="openai">OpenAI STT — API</option></select></label>
    <label>STT model<input id="sttModel" value="gpt-4o-mini-transcribe"></label>
    <label>STT language<input id="sttLanguage" value="en"></label>
    <label id="sttKeyRow">STT API key<input id="sttKey" type="password" placeholder="Enter STT API key"></label>
-   <div class="settingActions"><button id="testSTT">Test STT</button></div><div id="sttStatus" class="settingStatus"></div>
+   <div class="settingActions"><button id="testSTT">Verify STT</button></div><div id="sttStatus" class="settingStatus"></div>
    <hr><h3>Realtime Live Streaming</h3>
-   <div class="settingHint">Realtime هو وضع اختياري فقط. اختره من Brain / interaction mode عند الحاجة؛ Local وExternal API وAuto لا يقومون بتشغيل Realtime تلقائيًا. VAD وAlways Listening يعملان عند اختيار Realtime.</div>
+   <div class="settingHint">Realtime هو وضع اختياري فقط. الحالة الخضراء تظهر فقط بعد نجاح الاتصال الفعلي. إذا فشل المفتاح أو النموذج سيظهر خطأ أحمر.</div>
    <label>Realtime model<select id="realtimeModel"><option value="gpt-realtime-2.1">GPT-Realtime-2.1</option><option value="gpt-realtime-2">GPT-Realtime-2</option><option value="gpt-realtime-1.5">GPT-Realtime-1.5</option></select></label>
    <label>Realtime voice<select id="realtimeVoice"><option value="marin">marin</option><option value="cedar">cedar</option><option value="alloy">alloy</option><option value="ash">ash</option><option value="ballad">ballad</option><option value="coral">coral</option><option value="sage">sage</option><option value="verse">verse</option></select></label>
    <label>Realtime API key<input id="realtimeKey" type="password" placeholder="Enter Realtime API key"></label>
-   <div class="settingActions"><button id="testRealtime">Test Realtime</button></div><div id="realtimeStatus" class="settingStatus"></div>
+   <div class="settingActions"><button id="testRealtime">Connect & Verify Realtime</button><button type="button" id="stopRealtimeNow">Stop Realtime</button><button type="button" id="openLiveStatusVoice">Live Status</button></div><div id="realtimeStatus" class="settingStatus"></div>
    <hr><h3>TTS — Text to Speech</h3>
-   <label>TTS provider<select id="ttsProvider"><option value="local">Local TTS — offline</option><option value="openai">OpenAI TTS — API</option><option value="azure">Azure Speech — API</option></select></label>
+   <label>TTS provider<select id="ttsProvider"><option value="local">Local Browser TTS</option><option value="openai">OpenAI TTS — API</option><option value="azure">Azure Speech — API</option></select></label>
    <label>TTS model<input id="ttsModel" value="gpt-4o-mini-tts"></label>
    <label>TTS voice<input id="ttsVoice" value="alloy"></label>
    <label id="ttsKeyRow">TTS API key<input id="ttsKey" type="password" placeholder="Enter TTS API key"></label>
-   <div class="settingActions"><button id="testTTS">Test TTS</button></div><div id="ttsStatus" class="settingStatus"></div>
+   <div class="settingActions"><button id="testTTS">Verify TTS</button></div><div id="ttsStatus" class="settingStatus"></div>
   </div>
   <div id="tab-interaction" class="settingsTabContent hidden">
    <h3>Microphone & Voice</h3>
    <label>Voice profile<select id="voiceProfile"><option value="saeed">Saeed voice</option><option value="computer">Computer voice</option><option value="female">Female voice</option><option value="clone">My cloned voice</option></select></label>
-   <label>Microphone mode<select id="micMode" disabled><option value="always">Always listening</option></select></label>
-   <div class="settingHint">Microphone listening is independent from the selected brain mode. Realtime microphone streaming starts only when Realtime mode is selected.</div>
+   <label>Microphone mode<select id="micMode"><option value="always">Mic ON — Always listening</option><option value="off">Mic OFF</option></select></label>
+   <div class="settingActions"><button type="button" id="micOnNow">Turn Mic ON</button><button type="button" id="micOffNow">Turn Mic OFF</button><button type="button" id="openLiveStatusMic">Live Status</button></div>
+   <div class="settingHint">الميكروفون لا يُعتبر فعالًا لمجرد اختيار الخيار. شاشة Status تعرض مستوى الصوت الفعلي، وحالة الالتقاط، وأخطاء الجهاز.</div>
    <label class="check"><input id="showSpeechText" type="checkbox"> Show speech text</label>
    <label class="check"><input id="speakResponses" type="checkbox"> Speak Saeed's responses</label>
    <label>Language<input id="language" value="en"></label>
@@ -47,12 +49,11 @@
   <div id="tab-security" class="settingsTabContent hidden">
    <h3>API & Character</h3>
    <div class="settingActions"><button id="clearLlmKeys">Clear LLM key</button><button id="clearAllKeys">Clear all API keys</button></div>
-   <div class="settingActions"><button id="changeCharacter">Change Character (.glb)</button><button id="checkUpdates">Check for updates</button></div>
-   <div class="settingHint">API keys for LLM / STT / TTS / Realtime are stored locally using Electron safeStorage. Diagnostics and status reporting remain active in every brain mode.</div>
+   <div class="settingActions"><button id="changeCharacter">Change Character (.glb)</button><button id="checkUpdates">Check for updates</button><button type="button" id="openLiveStatusSecurity">Live Status</button></div>
+   <div class="settingHint">Status لا يعرض اختيارًا أخضر بشكل افتراضي. الأخضر يعني أن العملية أثبتت اتصالها فعليًا؛ الأحمر يعني فشلًا فعليًا؛ والرمادي/الأصفر يعني أن الحالة لم تُتحقق بعد.</div>
   </div>
   <div id="settingsStatus" class="settingsStatus"></div>
   <footer class="settingsFooter"><button id="save">Apply</button><button id="settingsCancel">Cancel</button></footer>
  </div>
 </div>
-</div>
-<script src="renderer.js"></script><script type="module" src="avatar.js"></script></body></html>
+<script src="renderer.js"></script><script src="settings-controls.js"></script><script type="module" src="avatar.js"></script></body></html>
