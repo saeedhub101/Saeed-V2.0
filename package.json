@@ -24,15 +24,14 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "Saeed.AI.Setup.${version}.${ext}",
-      "icon": "assets/saeed.png",
-      "publisherName": "Saeed O. Almansour"
+      "artifactName": "Saeed.AI.Setup.${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "buildVersion": "2.1.0"
+    "buildVersion": "2.1.0",
+    "icon": "assets/saeed.ico"
   },
   "publish": {
     "provider": "github",
