@@ -4,40 +4,14 @@ import {GLTFLoader} from "../node_modules/three/examples/jsm/loaders/GLTFLoader.
 const canvas=document.getElementById("avatar");
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(32,1,.1,100);
-camera.position.set(0,1.55,4.2);camera.lookAt(0,1.25,0);
+camera.position.set(0,0,5);camera.lookAt(0,0,0);
 const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
 scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));
 const key=new THREE.DirectionalLight(0xffffff,2.5);key.position.set(2,4,3);scene.add(key);
 
 const root=new THREE.Group();scene.add(root);
-function fitCameraToModel(){
- const box=new THREE.Box3().setFromObject(root);
- if(box.isEmpty())return;
- const size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
- const aspect=Math.max(.2,canvas.clientWidth/Math.max(1,canvas.clientHeight));
- camera.aspect=aspect;
- // Same framing calculation used by Saeed3D:
-// measure the actual rendered model bounds, then fit both height and width
-// into the current viewport while preserving the model's real proportions.
- const vertical=Math.max(size.y,size.x/aspect);
- const distance=(vertical/(2*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))))*1.28;
- camera.near=Math.max(.01,distance/100);
- camera.far=Math.max(100,distance*20);
- camera.position.set(center.x,center.y+size.y*.02,center.z+distance);
- camera.lookAt(center.x,center.y+size.y*.02,center.z);
- camera.updateProjectionMatrix();
-}
-const mat=new THREE.MeshStandardMaterial({color:0x3f6fbd,roughness:.55,metalness:.05});
-function part(g,p,s){const m=new THREE.Mesh(g,mat);m.position.set(...p);m.scale.set(...s);root.add(m);return m}
-part(new THREE.SphereGeometry(.46,32,20),[0,1.82,0],[1,1.08,.95]);
-part(new THREE.CapsuleGeometry(.28,.75,8,16),[0,.95,0],[1.15,1.15,.8]);
-part(new THREE.CapsuleGeometry(.11,.75,8,12),[-.52,1.0,0],[1,1,1]);
-part(new THREE.CapsuleGeometry(.11,.75,8,12),[.52,1.0,0],[1,1,1]);
-part(new THREE.CapsuleGeometry(.13,.8,8,12),[-.18,.05,0],[1,1,1]);
-part(new THREE.CapsuleGeometry(.13,.8,8,12),[.18,.05,0],[1,1,1]);
-const eyeMat=new THREE.MeshBasicMaterial({color:0xffffff});
-for(const x of [-.16,.16]){const e=new THREE.Mesh(new THREE.SphereGeometry(.075,16,12),eyeMat);e.position.set(x,1.88,.43);root.add(e)}
+
 
 let mixer=null,clips=[],actions=new Map(),activeAction=null,clock=new THREE.Clock();
 let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;
@@ -147,7 +121,7 @@ function resetVisemes(){["aa","ee","oo","oh","fv","mbp"].forEach(v=>{visemeTarge
 async function loadAvatar(){
  try{
   const gltf=await new GLTFLoader().loadAsync("../assets/Saeed_AI-3D.glb");
-  root.clear();model=gltf.scene;root.add(model);model.position.y=-.95;model.scale.setScalar(1.55);fitCameraToModel();
+  root.clear();model=gltf.scene;root.add(model);
   mapHumanoidBones(model);collectFacialMeshes(model);mixer=new THREE.AnimationMixer(model);clips=gltf.animations||[];actions.clear();activeAction=null;playAnimation("idle");
  }catch(e){
   console.error("Avatar GLB not loaded:",e);
@@ -211,7 +185,7 @@ window.saeedAvatar={
 
 function resize(){
  const r=canvas.getBoundingClientRect(),w=Math.max(1,r.width),h=Math.max(1,r.height);
- renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();if(model)fitCameraToModel();
+ renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();
 }
 new ResizeObserver(resize).observe(canvas);resize();
 
