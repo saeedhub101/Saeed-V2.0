@@ -24,7 +24,9 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "Saeed.AI.Setup.${version}.${ext}"
+      "artifactName": "Saeed.AI.Setup.${version}.${ext}",
+      "icon": "assets/saeed.png",
+      "publisherName": "Saeed O. Almansour"
     },
     "nsis": {
       "oneClick": false,
@@ -37,5 +39,8 @@
     "owner": "saeedhub101",
     "repo": "Saeed-V2.0",
     "releaseType": "release"
+  },
+  "author": {
+    "name": "Saeed O. Almansour"
   }
 }
