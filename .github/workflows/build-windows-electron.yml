@@ -205,69 +205,103 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $appPath = (Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path
+          $appPath = (Resolve-Path "dist\\win-unpacked\\Saeed AI.exe").Path
           $appDir = Split-Path $appPath
           $debugPort = 9223
-          $stdoutLog = Join-Path $PWD "dist\cpu-test.stdout.log"
-          $stderrLog = Join-Path $PWD "dist\cpu-test.stderr.log"
-          $report = Join-Path $PWD "dist\cpu-report.json"
+          $stdoutLog = Join-Path $PWD "dist\\cpu-test.stdout.log"
+          $stderrLog = Join-Path $PWD "dist\\cpu-test.stderr.log"
+          $report = Join-Path $PWD "dist\\cpu-report.json"
           $proc = Start-Process -FilePath $appPath -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
           try {
             Start-Sleep -Seconds 8
             $logicalProcessors = [Environment]::ProcessorCount
-            $sampleValues = @()
-            $sampleProcessCounts = @()
-            $start = Get-Date
 
-            for ($sample = 0; $sample -lt 20; $sample++) {
+            function Get-SaeedCpuSample {
               $processes = @(Get-CimInstance Win32_Process | Where-Object {
                 $_.ExecutablePath -and $_.ExecutablePath.StartsWith($appDir,[StringComparison]::OrdinalIgnoreCase)
               })
               $ids = @($processes.ProcessId)
-              $sampleProcessCounts += $ids.Count
+              if ($ids.Count -eq 0) { return $null }
 
-              if ($ids.Count -gt 0) {
-                $idSet = @{}
-                foreach ($id in $ids) { $idSet[[uint32]$id] = $true }
+              $idSet = @{}
+              foreach ($id in $ids) { $idSet[[uint32]$id] = $true }
+              $perf = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction SilentlyContinue |
+                Where-Object { $idSet.ContainsKey([uint32]$_.IDProcess) })
+              if ($perf.Count -eq 0) { return $null }
 
-                $perf = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction SilentlyContinue |
-                  Where-Object { $idSet.ContainsKey([uint32]$_.IDProcess) })
+              $sum = ($perf | Measure-Object -Property PercentProcessorTime -Sum).Sum
+              [pscustomobject]@{
+                cpu = [double]$sum / $logicalProcessors
+                processCount = $ids.Count
+              }
+            }
 
-                if ($perf.Count -gt 0) {
-                  $sum = ($perf | Measure-Object -Property PercentProcessorTime -Sum).Sum
-                  $sampleValues += [double]$sum
-                }
+            $idleSamples = @()
+            $allSamples = @()
+            $processCounts = @()
+
+            # Short idle measurement: Saeed is running normally without user interaction.
+            for ($i = 0; $i -lt 5; $i++) {
+              $sample = Get-SaeedCpuSample
+              if ($sample) {
+                $idleSamples += $sample.cpu
+                $processCounts += $sample.processCount
+                $allSamples += $sample.cpu
               }
               Start-Sleep -Seconds 1
             }
 
-            $end = Get-Date
-            $elapsed = ($end - $start).TotalSeconds
-            if (-not $sampleValues.Count) { throw "CPU performance samples for the built Saeed program were not available." }
+            # Short overall measurement: continue sampling while the built program is running normally.
+            for ($i = 0; $i -lt 5; $i++) {
+              $sample = Get-SaeedCpuSample
+              if ($sample) {
+                $allSamples += $sample.cpu
+                $processCounts += $sample.processCount
+              }
+              Start-Sleep -Seconds 1
+            }
 
-            $averageProcessCpuPercent = ($sampleValues | Measure-Object -Average).Average
-            $averageCpuPercent = $averageProcessCpuPercent / $logicalProcessors
+            if (-not $idleSamples.Count -or -not $allSamples.Count) {
+              throw "CPU performance samples for the built Saeed program were not available."
+            }
+
+            $idleAverage = ($idleSamples | Measure-Object -Average).Average
+            $idleMaximum = ($idleSamples | Measure-Object -Maximum).Maximum
+            $overallAverage = ($allSamples | Measure-Object -Average).Average
+            $overallMaximum = ($allSamples | Measure-Object -Maximum).Maximum
 
             $result = [ordered]@{
               test = "built-program-cpu"
-              elapsedSeconds = [Math]::Round($elapsed,2)
-              samplesCollected = $sampleValues.Count
-              minProcessCount = ($sampleProcessCounts | Measure-Object -Minimum).Minimum
-              maxProcessCount = ($sampleProcessCounts | Measure-Object -Maximum).Maximum
               logicalProcessors = $logicalProcessors
-              averageCpuPercentAllSystemCores = [Math]::Round($averageCpuPercent,2)
-              rawAverageProcessPercent = [Math]::Round($averageProcessCpuPercent,2)
-              note = "CPU measured while the built program is running normally. No repository files are restored or reverted."
+              saeedProcessesMin = ($processCounts | Measure-Object -Minimum).Minimum
+              saeedProcessesMax = ($processCounts | Measure-Object -Maximum).Maximum
+              idleSamples = $idleSamples.Count
+              overallSamples = $allSamples.Count
+              idleCpuAveragePercent = [Math]::Round($idleAverage,2)
+              idleCpuMaximumPercent = [Math]::Round($idleMaximum,2)
+              overallCpuAveragePercent = [Math]::Round($overallAverage,2)
+              overallCpuMaximumPercent = [Math]::Round($overallMaximum,2)
+              note = "CPU is normalized across logical processors. Idle = normal operation without user interaction; overall = combined short measurement window."
               measuredAtUtc = (Get-Date).ToUniversalTime().ToString("o")
             }
+
             $result | ConvertTo-Json | Set-Content $report
-            $result | ConvertTo-Json
+            Write-Host "CPU RESOURCE TEST"
+            Write-Host "Logical CPUs: $logicalProcessors"
+            Write-Host "Saeed Processes: $($result.saeedProcessesMax)"
+            Write-Host ""
+            Write-Host ("Idle CPU Average: " + $result.idleCpuAveragePercent + "%")
+            Write-Host ("Idle CPU Maximum: " + $result.idleCpuMaximumPercent + "%")
+            Write-Host ""
+            Write-Host ("Overall CPU Average: " + $result.overallCpuAveragePercent + "%")
+            Write-Host ("Overall CPU Maximum: " + $result.overallCpuMaximumPercent + "%")
+            Write-Host ""
             Write-Host "CPU_CHECK=PASS"
           }
           finally {
             if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-            Get-Process | Where-Object { $_.Path -like "$appDir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+            Get-Process | Where-Object { $_.Path -like "$appDir\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
       - name: Measure RAM usage of built program
