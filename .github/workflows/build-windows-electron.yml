@@ -109,6 +109,16 @@ jobs:
       - name: Build Windows installer
         run: npm run build
 
+      - name: Verify Chat taskbar entry and on-demand lifecycle contract
+        shell: pwsh
+        run: |
+          $main = Get-Content "src/main.js" -Raw
+          if ($main -notmatch 'setUserTasks') { throw "Windows taskbar Jump List setup is missing." }
+          if ($main -notmatch 'arguments:"--chat"') { throw "Chat Me taskbar entry does not launch the --chat command." }
+          if ($main -notmatch 'else if\(process\.argv\.includes\("--chat"\)') { throw "Startup does not explicitly open Chat when launched by the Chat Me taskbar command." }
+          if ($main -notmatch 'chatWin\.destroy\(\)') { throw "Closing Chat does not destroy the Chat window." }
+          Write-Host "CHAT_TASKBAR_CONTRACT=PASS"
+
       - name: Launch built program and verify chat screen
         shell: pwsh
         run: |
@@ -117,7 +127,7 @@ jobs:
           if (-not (Test-Path $app -PathType Leaf)) { throw "Built application was not found: $app" }
 
           $debugPort = 9222
-          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
+          $proc = Start-Process -FilePath $app -ArgumentList "--chat --remote-debugging-port=$debugPort" -PassThru
           try {
             @'
           const http = require("http");
@@ -226,7 +236,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $app = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           $debugPort = 9224
-          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
+          $proc = Start-Process -FilePath $app -ArgumentList "--chat --remote-debugging-port=$debugPort" -PassThru
           try {
             Start-Sleep -Seconds 5
             @'
