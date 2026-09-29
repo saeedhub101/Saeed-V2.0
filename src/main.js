@@ -102,9 +102,12 @@ function setMicMode(mode){
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
  if(value==="off"){
   stopRealtime();
+  diagnostic("INFO","STT DISCONNECTED","Speech-to-text is stopped");
+  diagnostic("INFO","TTS DISCONNECTED","Text-to-speech is idle");
   voiceBroadcast("local-stt:state","disconnected","Microphone is off");
  }else{
-  if(agent?.settings?.sttProvider==="whisper")voiceBroadcast("local-stt:state","ready","Local Whisper ready");
+  if(agent?.settings?.sttProvider==="whisper"){voiceBroadcast("local-stt:state","ready","Local Whisper ready");diagnostic("INFO","STT READY","Local Whisper is ready for microphone input");}
+  diagnostic("INFO","TTS READY","TTS is ready for voice replies");
   if(String(agent?.settings?.brainMode||"auto")==="realtime")startRealtime();
  }
  diagnostic("INFO","MIC MODE","Microphone mode: "+value);
