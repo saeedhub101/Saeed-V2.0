@@ -135,7 +135,7 @@ jobs:
             if (-not $target) { throw "Saeed did not expose a Chromium page for runtime inspection." }
 
             $ws = [System.Net.WebSockets.ClientWebSocket]::new()
-            $ws.ConnectAsync([Uri]$target.webSocketDebuggerUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            $ws.ConnectAsync([Uri]::new([string]$target.webSocketDebuggerUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
             $expression = "JSON.stringify({title:document.title,panel:!!document.querySelector('#panel'),panelVisible:document.querySelector('#panel')?.classList.contains('visible'),welcome:document.body?.innerText?.includes('مرحبًا')})"
             $message = @{ id = 1; method = "Runtime.evaluate"; params = @{ expression = $expression; returnByValue = $true } } | ConvertTo-Json -Compress
             $bytes = [Text.Encoding]::UTF8.GetBytes($message)
@@ -182,7 +182,7 @@ jobs:
             for($i=0;$i-lt 30;$i++){Start-Sleep -Seconds 1;try{$target=@((Invoke-RestMethod "http://127.0.0.1:$debugPort/json")|Where-Object{$_.type-eq"page"-and $_.webSocketDebuggerUrl -and (($_.url -match "index\.html") -or ($_.title -eq "Saeed AI"))})[0];if($target){break}}catch{}}
             if(-not $target){throw "Saeed did not expose a Chromium page."}
             $ws=[System.Net.WebSockets.ClientWebSocket]::new()
-            $ws.ConnectAsync([Uri]$target.webSocketDebuggerUrl,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            $ws.ConnectAsync([Uri]::new([string]$target.webSocketDebuggerUrl,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
             $js=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("KGFzeW5jKCk9Pntjb25zdCBpbnB1dD1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjaW5wdXQnKTtjb25zdCBzZW5kPWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoJyNzZW5kJyk7aWYoIWlucHV0fHwhc2VuZCl0aHJvdyBuZXcgRXJyb3IoJ0NoYXQgY29udHJvbHMgbWlzc2luZycpO2xldCBzcGVlY2hDYWxscz0wO2NvbnN0IGZha2VTcGVlY2g9e2NhbmNlbCgpe30sc3BlYWsodSl7c3BlZWNoQ2FsbHMrKzt1Lm9uc3RhcnQ/LigpO3Uub25lbmQ/LigpO319O09iamVjdC5kZWZpbmVQcm9wZXJ0eSh3aW5kb3csJ3NwZWVjaFN5bnRoZXNpcycse3ZhbHVlOmZha2VTcGVlY2gsY29uZmlndXJhYmxlOnRydWV9KTtpbnB1dC52YWx1ZT0nV2hhdCB0aW1lIGlzIGl0Pyc7c2VuZC5jbGljaygpO2ZvcihsZXQgaT0wO2k8NDA7aSsrKXthd2FpdCBuZXcgUHJvbWlzZShyPT5zZXRUaW1lb3V0KHIsMjUwKSk7fWNvbnN0IHRleHRzPVsuLi5kb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCcjbWVzc2FnZXMgLmFzc2lzdGFudCcpXS5tYXAoeD0+eC5pbm5lclRleHQpO2NvbnN0IGFuc3dlcj10ZXh0c1t0ZXh0cy5sZW5ndGgtMV18fCcnO3JldHVybiBKU09OLnN0cmluZ2lmeSh7YW5zd2VyLHNwZWVjaENhbGxzLGFwaVByb21wdDovQVBJIGtleXxPcGVuIHNldHRpbmdzfNij2K/YrtmEIEFQSS9pLnRlc3QoYW5zd2VyKSxoYXNUaW1lOi9sb2NhbCB0aW1lfFxiXGR7MSwyfTpcZHsyfS9pLnRlc3QoYW5zd2VyKX0pfSkoKQ=="))
             $message=@{id=1;method="Runtime.evaluate";params=@{expression=$js;awaitPromise=$true;returnByValue=$true}}|ConvertTo-Json -Compress
             $bytes=[Text.Encoding]::UTF8.GetBytes($message)
