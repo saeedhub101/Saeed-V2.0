@@ -1,5 +1,5 @@
 <!doctype html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>Saeed AI</title><link rel="stylesheet" href="style.css"><script type="importmap">{"imports":{"three":"../node_modules/three/build/three.module.js"}}</script></head><body>
-<section id="panel" class="visible"><header><strong>سعيد</strong><small id="status">جاهز</small><button id="togglePanel">−</button><button id="history">☰</button><button id="settings">⚙</button><button id="closeChat" title="Close chat">×</button></header><main id="messages"><div class="msg assistant">مرحبًا، أنا سعيد. أخبرني بما تريد أن أفعله على جهازك.</div></main><footer><div id="attachments"></div><button id="capture">▣</button><textarea id="input" placeholder="اكتب أمرك أو تحدث مع سعيد..."></textarea><button id="send">➤</button></footer></section>
+<section id="panel" class="visible"><header><strong>سعيد</strong><small id="status">جاهز</small><button id="togglePanel">−</button><button id="history">☰</button><button id="settings">⚙</button><button id="closeChat" title="Close chat">×</button></header><main id="messages"><div class="msg assistant">مرحبًا، أنا سعيد. أخبرني بما تريد أن أفعله على جهازك.</div></main><footer><div id="attachments"></div><button id="capture">▣</button><textarea id="input" placeholder="اكتب أمرك أو تحدث مع سعيد..."></textarea><button id="pushToTalk" type="button" title="اضغط مطولًا للتحدث">🎙</button><button id="send">➤</button></footer></section>
 <div id="modal" class="hidden">
  <div class="settingsCard">
   <header class="settingsTitle"><div><h2>Saeed Settings</h2><p>Configure Saeed's AI, voice and interaction.</p></div><button id="settingsClose">×</button></header>
@@ -39,7 +39,7 @@
   <div id="tab-interaction" class="settingsTabContent hidden">
    <h3>Microphone & Voice</h3>
    <label>Voice profile<select id="voiceProfile"><option value="saeed">Saeed voice</option><option value="computer">Computer voice</option><option value="female">Female voice</option><option value="clone">My cloned voice</option></select></label>
-   <label>Microphone mode<select id="micMode"><option value="always">Mic ON — Always listening</option><option value="off">Mic OFF</option></select></label>
+   <label>Microphone mode<select id="micMode"><option value="always">Mic ON — Always listening</option><option value="ptt">Push to Talk</option><option value="off">Mic OFF</option></select></label>
    <div class="settingActions"><button type="button" id="micOnNow">Turn Mic ON</button><button type="button" id="micOffNow">Turn Mic OFF</button><button type="button" id="openLiveStatusMic">Live Status</button></div>
    <div class="settingHint">الميكروفون لا يُعتبر فعالًا لمجرد اختيار الخيار. شاشة Status تعرض مستوى الصوت الفعلي، وحالة الالتقاط، وأخطاء الجهاز.</div>
    <label class="check"><input id="showSpeechText" type="checkbox"> Show speech text</label>
@@ -52,7 +52,7 @@
    <div class="settingActions"><button id="changeCharacter">Change Character (.glb)</button><button id="checkUpdates">Check for updates</button><button type="button" id="openLiveStatusSecurity">Live Status</button></div>
    <div class="settingHint">Status لا يعرض اختيارًا أخضر بشكل افتراضي. الأخضر يعني أن العملية أثبتت اتصالها فعليًا؛ الأحمر يعني فشلًا فعليًا؛ والرمادي/الأصفر يعني أن الحالة لم تُتحقق بعد.</div>
   </div>
-  <div id="settingsStatus" class="settingsStatus"></div>
+  <div id="updatePanel" class="updatePanel hidden"></div><div id="settingsStatus" class="settingsStatus"></div>
   <footer class="settingsFooter"><button id="save">Apply</button><button id="settingsCancel">Cancel</button></footer>
  </div>
 </div>
