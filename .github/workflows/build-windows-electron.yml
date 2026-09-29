@@ -196,21 +196,31 @@ jobs:
             if(!target)throw new Error("Saeed did not expose the chat Chromium page.");
             const ws=new WebSocket(target.webSocketDebuggerUrl);
             await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
-            const value=await new Promise((resolve,reject)=>{
-              const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
-              ws.on("message",raw=>{
+            const evaluate=()=>new Promise((resolve,reject)=>{
+              const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),10000);
+              const onMessage=raw=>{
                 try{
                   const m=JSON.parse(raw.toString());
                   if(m.id!==1)return;
                   clearTimeout(timer);
+                  ws.off("message",onMessage);
                   if(m.error)reject(new Error(m.error.message||"CDP error"));
                   else resolve(m.result?.result?.value);
-                }catch(e){reject(e);}
-              });
+                }catch(e){clearTimeout(timer);ws.off("message",onMessage);reject(e);}
+              };
+              ws.on("message",onMessage);
               ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
             });
+            let value=null;
+            for(let i=0;i<30;i++){
+              try{
+                value=JSON.parse(await evaluate());
+                if(value?.title==="Saeed AI"&&value?.panel&&value?.panelVisible&&value?.welcome&&value?.closeButton)break;
+              }catch(e){}
+              await sleep(500);
+            }
             ws.close();
-            process.stdout.write(String(value));
+            process.stdout.write(JSON.stringify(value||{}));
           })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
           '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-smoke.cjs") -Encoding UTF8
             $expression = 'JSON.stringify({title:document.title,panel:!!document.querySelector("#panel"),panelVisible:document.querySelector("#panel")?.classList.contains("visible"),welcome:document.body?.innerText?.includes("مرحبًا"),closeButton:!!document.querySelector("#closeChat")})'
