@@ -202,7 +202,7 @@ window.addEventListener("load",async()=>{
 };
 
 window.saeed.onLocalSttState((state,message)=>{const badge=$("micBadge");if(badge)badge.className="micBadge "+state;$("status").textContent=state==="connected"?"Offline Whisper listening":state==="starting"?"Starting Offline Whisper...":state==="error"?"Whisper error: "+(message||"unknown"):"Offline Whisper: "+state;});
-window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").trim();if(!text)return;window.saeed.reportDiagnostic("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});if($("input").value.trim()==="")add("user",text);try{const answer=await window.saeed.chat(text);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);speakSaeed(answer)}}catch(err){add("assistant","حدث خطأ: "+err.message)}});
+window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").replace(/^[\s\.,!?؟،؛:]+/,"").trim();if(!text)return;window.saeed.reportDiagnostic("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});if($("input").value.trim()==="")add("user",text);try{const answer=await window.saeed.chat(text);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);speakSaeed(answer)}}catch(err){add("assistant","حدث خطأ: "+err.message)}});
 
 const pttButton=$("pushToTalk");
 let pttActive=false;
