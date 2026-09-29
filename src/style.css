@@ -10,3 +10,4 @@
 #clearChat{width:auto!important;min-width:0!important;padding:0 10px!important;font-size:11px!important}
 .chatHeader{-webkit-app-region:drag;cursor:move}
 .chatHeader button,.chatHeader .micBadge,.chatHeader .brandMark{-webkit-app-region:no-drag}
+.brandMark img,.mark img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
