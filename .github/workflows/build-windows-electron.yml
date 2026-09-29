@@ -136,7 +136,20 @@ jobs:
           Write-Host "OFFLINE_WHISPER_READY modelBytes=$size sha256=$hash"
 
       - name: Build Windows installer
-        run: npm run build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $release = $false
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") { $release = [bool]${{ inputs.release }} }
+          elseif ("${{ github.event_name }}" -eq "push" -and "${{ github.event.head_commit.message }}".Contains("[release]")) { $release = $true }
+          if ($release) {
+            Write-Host "RELEASE_REQUESTED=true"
+            npx electron-builder --win nsis --publish always
+          } else {
+            Write-Host "RELEASE_REQUESTED=false"
+            npx electron-builder --win nsis --publish never
+          }
 
       - name: Verify bundled Offline Whisper
         shell: pwsh
