@@ -28,7 +28,8 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     },
     "buildVersion": "2.8.0",
     "icon": "assets/saeed.ico"
