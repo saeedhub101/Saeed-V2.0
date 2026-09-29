@@ -115,9 +115,66 @@ jobs:
           $synth.SetOutputToWaveFile($wav)
           $synth.Speak("Hello Saeed please tell me the time")
           $synth.Dispose()
-          $out = Join-Path $env:RUNNER_TEMP "saeed-whisper-smoke.txt"
-          & "build\whisper\whisper-cli.exe" -m "build\whisper\ggml-base-q5_1.bin" -f $wav -otxt -of ($out -replace '\.txt
+          $base = Join-Path $env:RUNNER_TEMP "saeed-whisper-smoke"
+          & "build\whisper\whisper-cli.exe" -m "build\whisper\ggml-base-q5_1.bin" -f $wav -otxt -of $base
+          if ($LASTEXITCODE -ne 0) { throw "Whisper synthetic speech test failed." }
+          $out = "$base.txt"
+          if (!(Test-Path $out)) { throw "Whisper did not produce transcript output." }
+          $text = (Get-Content $out -Raw).Trim()
+          if ([string]::IsNullOrWhiteSpace($text)) { throw "Whisper returned an empty transcript." }
+          Write-Host "WHISPER_SYNTHETIC_STT=PASS"
+          Write-Host "TRANSCRIPT=$text"
 
+      - name: Capture build host CPU and RAM baseline
+        shell: powershell
+        run: |
+          $os=Get-CimInstance Win32_OperatingSystem
+          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+          $total=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
+          $free=[math]::Round($os.FreePhysicalMemory/1MB,1)
+          Write-Host "HOST_CPU_PERCENT=$([math]::Round($cpu,1))"
+          Write-Host "HOST_RAM_TOTAL_GB=$total"
+          Write-Host "HOST_RAM_FREE_GB=$free"
+
+      - name: Build Windows installer
+        run: npm run build
+
+      - name: Runtime application smoke test and resource report
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Unpacked application EXE is missing: $exe" }
+          $report = Join-Path $PWD "dist\ci-runtime-report.json"
+          $env:SAEED_CI_SMOKE="1"
+          $env:SAEED_CI_REPORT=$report
+          & $exe --ci-smoke
+          $code=$LASTEXITCODE
+          if (!(Test-Path $report)) { throw "Runtime smoke test did not produce ci-runtime-report.json" }
+          Get-Content $report -Raw
+          if ($code -ne 0) { throw "Runtime smoke process exited with code $code" }
+          $json=Get-Content $report -Raw | ConvertFrom-Json
+          if (-not $json.checks.glbFile.pass) { throw "GLB file check failed." }
+          if (-not $json.checks.glbRuntime.pass) { throw "GLB runtime display check failed." }
+          if (-not $json.checks.brain.pass) { throw "Brain smoke test failed." }
+          if (-not $json.checks.chat.pass) { throw "Chat/Agent smoke test failed." }
+          if (-not $json.checks.tts.pass) { throw "TTS API smoke test failed." }
+          Write-Host "RUNTIME_GLB=PASS"
+          Write-Host "RUNTIME_BRAIN=PASS"
+          Write-Host "RUNTIME_CHAT=PASS"
+          Write-Host "RUNTIME_TTS_API=PASS"
+          if ($json.checks.micOn.pass) { Write-Host "RUNTIME_MIC_CAPTURE=PASS" } else { Write-Warning "RUNTIME_MIC_CAPTURE=UNAVAILABLE_OR_FAILED; see report (host audio device may be unavailable)." }
+
+      - name: Capture final build host CPU and RAM
+        shell: powershell
+        run: |
+          $os=Get-CimInstance Win32_OperatingSystem
+          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+          $total=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
+          $free=[math]::Round($os.FreePhysicalMemory/1MB,1)
+          Write-Host "HOST_CPU_PERCENT=$([math]::Round($cpu,1))"
+          Write-Host "HOST_RAM_TOTAL_GB=$total"
+          Write-Host "HOST_RAM_FREE_GB=$free"
 
       - name: Generate Windows updater metadata
         shell: pwsh
