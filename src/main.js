@@ -20,7 +20,7 @@ function configureMediaPermissions(){
 }
 
 
-let win,chatWin,characterWin,agent,tray,realtime,statusWin;
+let chatWin,characterWin,agent,tray,realtime,statusWin;
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""}};
 function diagnostic(level,stage,message,meta={}){
@@ -116,7 +116,7 @@ async function createWindow(){
  })});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);chatWin?.webContents.send("agent:event",e)}});
 }
-function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";win?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";win?.webContents.send("update:state","error",e?.message||String(e))})}
+function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";chatWin?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";chatWin?.webContents.send("update:state","error",e?.message||String(e))})}
 app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
  configureUpdater();
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
@@ -132,7 +132,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATI
  }catch(e){console.error("Tray failed:",e)}
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
-  try{const image=await captureScreen();showChat();win?.webContents.send("screen:capture",image)}
+  try{const image=await captureScreen();showChat();chatWin?.webContents.send("screen:capture",image)}
   catch(e){console.error("Screen capture failed:",e)}
  });
  const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
@@ -163,8 +163,8 @@ ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false
 ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});
 ipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");chatWin?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
 ipcMain.handle("capture",()=>captureScreen());
-ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";win?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
-ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return false}});
+ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";chatWin?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
+ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return false}});
 ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
 ipcMain.handle("history:get",()=>agent?.history||[]);
 ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
@@ -172,12 +172,12 @@ ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  confirmations.delete(id);resolve(Boolean(approved));return true;
 });
 function stopRealtime(){
- if(realtime){realtime.stop();realtime=null}diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");win?.webContents.send("realtime:state","disconnected");
+ if(realtime){realtime.stop();realtime=null}diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");chatWin?.webContents.send("realtime:state","disconnected");
 }
 function startRealtime(options={}){
  const s=agent?.settings||{};
  const key=s.realtimeApiKey||s.apiKey||"";
- if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");win?.webContents.send("realtime:state","not-configured","OpenAI API key is not configured.");return false}
+ if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");chatWin?.webContents.send("realtime:state","not-configured","OpenAI API key is not configured.");return false}
  diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
  const registry=agent?.registry;
  const realtimeTools=(registry?.schemas()||[]).map(t=>({
@@ -187,26 +187,26 @@ function startRealtime(options={}){
   parameters:t.function?.parameters||{type:"object",properties:{},required:[]}
  })).filter(t=>t.name);
  realtime=new OpenAIRealtime({
-  state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");win?.webContents.send("realtime:state",state,message)},
+  state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");chatWin?.webContents.send("realtime:state",state,message)},
   event:async(event)=>{
-   if(event.type==="response.output_audio.delta"&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received");win?.webContents.send("realtime:audio",event.delta);}
-   else if(event.type==="response.output_audio_transcript.delta"&&event.delta)win?.webContents.send("realtime:assistant-delta",event.delta);
-   else if(event.type==="response.output_audio_transcript.done"&&event.transcript)win?.webContents.send("realtime:assistant-final",event.transcript);
-   else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)win?.webContents.send("realtime:user-delta",event.delta);
-   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)win?.webContents.send("realtime:user-final",event.transcript);
+   if(event.type==="response.output_audio.delta"&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received");chatWin?.webContents.send("realtime:audio",event.delta);}
+   else if(event.type==="response.output_audio_transcript.delta"&&event.delta)chatWin?.webContents.send("realtime:assistant-delta",event.delta);
+   else if(event.type==="response.output_audio_transcript.done"&&event.transcript)chatWin?.webContents.send("realtime:assistant-final",event.transcript);
+   else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)chatWin?.webContents.send("realtime:user-delta",event.delta);
+   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)chatWin?.webContents.send("realtime:user-final",event.transcript);
    else if(event.type==="response.function_call_arguments.done"&&event.call_id){
     const name=String(event.name||"");
     let args={};
     try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
-    win?.webContents.send("agent:event",{type:"tool",name,args,source:"realtime"});
+    chatWin?.webContents.send("agent:event",{type:"tool",name,args,source:"realtime"});
     let out;
     try{out=await registry.call(name,args)}catch(e){out={ok:false,error:e.message}};
-    if(out?.ok===false)win?.webContents.send("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
-    else win?.webContents.send("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
+    if(out?.ok===false)chatWin?.webContents.send("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
+    else chatWin?.webContents.send("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
    }
-   else if(event.type==="response.done")win?.webContents.send("realtime:done",event.response?.status||"completed");
-   else if(event.type==="error")win?.webContents.send("realtime:error",event.error?.message||"Realtime API error");
+   else if(event.type==="response.done")chatWin?.webContents.send("realtime:done",event.response?.status||"completed");
+   else if(event.type==="error")chatWin?.webContents.send("realtime:error",event.error?.message||"Realtime API error");
   }
  });
  realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools});
