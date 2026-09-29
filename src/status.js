@@ -11,6 +11,23 @@ function render(){
 function add(e){return;}async function refresh(){try{const x=await window.saeed.getDiagnosticSnapshot();state=x?.state||{};render();const s=await window.saeed.getSettings();settings=s||{};render()}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"STATUS",message:e.message})}}
 async function setMode(mode){try{await window.saeed.setSettings({...settings,brainMode:mode});settings=await window.saeed.getSettings();add({time:new Date().toISOString(),level:"INFO",stage:"CONTROL",message:"Brain mode requested: "+mode});render()}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"CONTROL",message:e.message})}}
 async function setMic(mode){try{await window.saeed.setSettings({...settings,micMode:mode,alwaysListening:mode==="always"});settings=await window.saeed.getSettings();add({time:new Date().toISOString(),level:"INFO",stage:"CONTROL",message:"Microphone mode requested: "+mode});render()}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"CONTROL",message:e.message})}}
-$("refresh").onclick=refresh;$("brainAuto").onclick=()=>setMode("auto");$("brainLocal").onclick=()=>setMode("local");$("brainApi").onclick=()=>setMode("api");$("brainRealtime").onclick=()=>setMode("realtime");$("micOn").onclick=()=>setMic("always");$("micOff").onclick=()=>setMic("off");$("micPtt").onclick=()=>setMic("ptt");$("realtimeStart").onclick=async()=>{try{await setMode("realtime");await window.saeed.startRealtime({});}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"REALTIME CONTROL",message:e.message})}};$("realtimeStop").onclick=async()=>{try{await window.saeed.stopRealtime();await setMode(settings.brainMode==="realtime"?"local":settings.brainMode||"auto")}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"REALTIME CONTROL",message:e.message})}};
-window.saeed.onStatusSnapshot(x=>{state=x?.state||{};render()});window.saeed.onMicMode?.(mode=>{settings={...settings,micMode:String(mode||"off"),alwaysListening:String(mode||"off")==="always"};state.mic={...(state.mic||{}),state:String(mode||"off")==="off"?"disabled":"active",detail:"Microphone mode: "+String(mode||"off")};render()});window.saeed.onMicLevel?.(level=>{state.mic={...(state.mic||{}),level:Number(level)||0,state:(Number(level)>0?"active":state.mic?.state||"unknown")};render()});window.saeed.onDiagnosticState(x=>{state=x||{};render()});window.saeed.onRealtimeState((s,m)=>{add({time:new Date().toISOString(),level:s==="error"?"ERROR":"INFO",stage:"REALTIME "+String(s).toUpperCase(),message:m||s});refresh()});window.saeed.onRealtimeError(e=>add({time:new Date().toISOString(),level:"ERROR",stage:"REALTIME API ERROR",message:String(e)}));
+$("refresh").onclick=refresh;
+async function setMic(mode){
+ try{await window.saeed.setMicMode(mode);await refresh()}
+ catch(e){console.error("Microphone control failed:",e);add({time:new Date().toISOString(),level:"ERROR",stage:"MIC CONTROL",message:e.message})}
+}
+$("micOn").onclick=()=>setMic("on");
+$("micOff").onclick=()=>setMic("off");
+window.saeed.onStatusSnapshot(x=>{state=x?.state||{};render()});
+window.saeed.onMicMode?.(mode=>{
+ settings={...settings,micMode:String(mode||"off")};
+ state.mic={...(state.mic||{}),state:String(mode||"off")==="on"?"active":"disabled",detail:String(mode||"off")==="on"?"Microphone ON":"Microphone OFF",level:String(mode||"off")==="on"?(state.mic?.level||0):0};
+ render();
+});
+window.saeed.onMicLevel?.(level=>{
+ state.mic={...(state.mic||{}),level:Number(level)||0,state:Number(level)>0?"active":(settings.micMode==="on"?"active":"disabled")};
+ render();
+});
+window.saeed.onDiagnosticState(x=>{state=x||{};render()});
+window.saeed.onRealtimeState(()=>{});
 refresh();
