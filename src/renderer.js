@@ -46,7 +46,7 @@ async function send(){
 }
 function renderAttachments(){$("attachments").textContent=attachments.length?attachments.map(a=>a.name).join(" • "):""}
 $("send").onclick=send;
-$("togglePanel").onclick=()=>{$("panel").classList.toggle("collapsed")};
+$("togglePanel").onclick=()=>window.saeed.minimizeChat();
 $("input").ondblclick=()=>window.saeed.showChat();
 $("input").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
 async function showSettings(){
