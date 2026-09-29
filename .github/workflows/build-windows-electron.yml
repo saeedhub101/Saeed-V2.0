@@ -128,7 +128,7 @@ jobs:
               Start-Sleep -Seconds 1
               try {
                 $targets = @(Invoke-RestMethod "http://127.0.0.1:$debugPort/json")
-                $target = $targets | Where-Object { $_.type -eq "page" -and $_.webSocketDebuggerUrl } | Select-Object -First 1
+                $target = @($targets | Where-Object { $_.type -eq "page" -and $_.webSocketDebuggerUrl -and (($_.url -match "index\.html") -or ($_.title -eq "Saeed AI")) })[0]
                 if ($target) { break }
               } catch {}
             }
@@ -179,7 +179,7 @@ jobs:
           try {
             Start-Sleep -Seconds 8
             $target=$null
-            for($i=0;$i-lt 30;$i++){Start-Sleep -Seconds 1;try{$target=@(Invoke-RestMethod "http://127.0.0.1:$debugPort/json")|Where-Object{$_.type-eq"page"-and $_.webSocketDebuggerUrl}|Select-Object -First 1;if($target){break}}catch{}}
+            for($i=0;$i-lt 30;$i++){Start-Sleep -Seconds 1;try{$target=@((Invoke-RestMethod "http://127.0.0.1:$debugPort/json")|Where-Object{$_.type-eq"page"-and $_.webSocketDebuggerUrl -and (($_.url -match "index\.html") -or ($_.title -eq "Saeed AI"))})[0];if($target){break}}catch{}}
             if(-not $target){throw "Saeed did not expose a Chromium page."}
             $ws=[System.Net.WebSockets.ClientWebSocket]::new()
             $ws.ConnectAsync([Uri]$target.webSocketDebuggerUrl,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
