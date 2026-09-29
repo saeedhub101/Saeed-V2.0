@@ -1,5 +1,5 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
-const path=require("path"),fs=require("fs"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
+const path=require("path"),fs=require("fs"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
 
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
@@ -20,7 +20,7 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,agent,tray,realtime,statusWin,threeDStatusWin;
+let chatWin,characterWin,agent,tray,realtime,localWhisper,statusWin,threeDStatusWin;
 const pending3DQueries=new Map();
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
@@ -88,7 +88,11 @@ function showCharacter(){if(!characterWin||characterWin.isDestroyed())return;cha
 function showStatus(){if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile});return}statusWin=new BrowserWindow({width:820,height:620,minWidth:620,minHeight:420,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 function openDiagnosticsLog(){require("electron").shell.openPath(diagnosticFile).catch(e=>diagnostic("ERROR","DIAGNOSTICS LOG",e.message))}
 function chooseCharacter(){dialog.showOpenDialog(characterWin||chatWin,{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file);characterWin?.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB SELECTED","Character GLB selected",{name:path.basename(file),size:data.length})}catch(e){diagnostic("ERROR","GLB SELECTED",e.message)}})}
-function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};chatWin?.webContents.send("mic:mode",value);if(value==="off"||String(agent?.settings?.brainMode||"auto")!=="realtime")stopRealtime();else startRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
+
+function whisperRuntimePaths(){const root=app.isPackaged?process.resourcesPath:path.join(__dirname,"..","build");return{exe:path.join(root,"whisper","whisper-stream.exe"),model:path.join(root,"whisper","ggml-base-q5_1.bin")}}
+function stopLocalWhisper(){if(localWhisper){try{localWhisper.kill()}catch{}localWhisper=null}diagnostic("INFO","LOCAL STT STOP","Offline Whisper stopped");chatWin?.webContents.send("local-stt:state","disconnected")}
+function startLocalWhisper(){const s=agent?.settings||{};if(s.micMode==="off"||s.sttProvider!=="whisper"){stopLocalWhisper();return false}const p=whisperRuntimePaths();if(!fs.existsSync(p.exe)||!fs.existsSync(p.model)){diagnostic("ERROR","LOCAL STT","Bundled Whisper engine/model is missing",{exe:p.exe,model:p.model});chatWin?.webContents.send("local-stt:state","error","Whisper engine/model is missing from this build");return false}stopLocalWhisper();const args=["-m",p.model,"-t",String(Math.max(2,Math.min(8,Number(s.whisperThreads)||4)),"--step","0","--length","5000","-vth","0.6"];if(s.sttLanguage&&s.sttLanguage!=="auto")args.push("-l",String(s.sttLanguage));try{localWhisper=spawn(p.exe,args,{cwd:path.dirname(p.exe),windowsHide:true});chatWin?.webContents.send("local-stt:state","starting");let block="";const line=d=>{const x=String(d||"").replace(/\x1b\[[0-9;]*[A-Za-z]/g,"").trim();if(!x)return;if(x.startsWith("### Transcription")&&x.includes("START")){block="";return}if(x.startsWith("### Transcription")&&x.includes("END")){const text=block.replace(/\[[^\]]+-->[^\]]+\]/g,"").replace(/\s+/g," ").trim();block="";if(text){diagnostic("INFO","LOCAL STT RESULT",text);chatWin?.webContents.send("local-stt:result",{text})}return}if(!x.startsWith("[Start speaking]")&&!x.startsWith("system_info"))block+=(block?" ":"")+x};localWhisper.stdout.setEncoding("utf8");localWhisper.stdout.on("data",d=>String(d).split(/\r?\n/).forEach(line));localWhisper.stderr.setEncoding("utf8");localWhisper.stderr.on("data",d=>diagnostic("INFO","LOCAL STT ENGINE",String(d).trim().slice(-1000)));localWhisper.on("error",e=>{localWhisper=null;diagnostic("ERROR","LOCAL STT PROCESS",e.message);chatWin?.webContents.send("local-stt:state","error",e.message)});localWhisper.on("close",(code,signal)=>{localWhisper=null;diagnostic(code===0?"INFO":"ERROR","LOCAL STT EXIT","Offline Whisper exited",{code,signal});chatWin?.webContents.send("local-stt:state",code===0?"disconnected":"error",code===0?"Whisper stopped":"Whisper exited with code "+code)});chatWin?.webContents.send("local-stt:state","connected");diagnostic("INFO","LOCAL STT CONNECTED","Bundled Whisper streaming engine is active");return true}catch(e){diagnostic("ERROR","LOCAL STT START",e.message);chatWin?.webContents.send("local-stt:state","error",e.message);return false}}
+function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};chatWin?.webContents.send("mic:mode",value);if(value==="off"){stopRealtime();stopLocalWhisper()}else if(agent?.settings?.sttProvider==="whisper"){stopRealtime();startLocalWhisper()}else if(String(agent?.settings?.brainMode||"auto")==="realtime")startRealtime();else stopRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
 function setSaeedSize(size){const m={small:[360,440],medium:[430,520],large:[520,620]};const v=m[size]||m.medium;characterWin?.setSize(v[0],v[1],true)}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
@@ -167,8 +171,7 @@ ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  agent.settings={...(s||{})};
  const mode=String(agent.settings.brainMode||"auto");
- if(mode==="realtime")startRealtime();
- else stopRealtime();
+ if(mode==="realtime")startRealtime(); else stopRealtime(); if(agent.settings.sttProvider==="whisper"&&agent.settings.micMode!=="off")startLocalWhisper(); else if(agent.settings.sttProvider!=="whisper")stopLocalWhisper();
  diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
  return agent.publicSettings();
 });
@@ -176,7 +179,7 @@ ipcMain.handle("realtime:start",(_,options={})=>{startRealtime(options);return t
 ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
-ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});
+ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});ipcMain.handle("local-stt:start",()=>startLocalWhisper());ipcMain.handle("local-stt:stop",()=>{stopLocalWhisper();return true});
 ipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");chatWin?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
 ipcMain.handle("capture",()=>captureScreen());
 ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";chatWin?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
@@ -246,7 +249,7 @@ app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharact
 app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});
 app.on("before-quit",()=>{
  app.isQuitting=true;
- try{stopRealtime()}catch(e){console.error("Realtime shutdown failed:",e)}
+ try{stopRealtime();stopLocalWhisper()}catch(e){console.error("Voice shutdown failed:",e)}
  for(const win of [chatWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
