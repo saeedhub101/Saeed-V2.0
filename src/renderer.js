@@ -55,7 +55,7 @@ async function showSettings(){
  $("sttKey").value="";$("sttKey").placeholder=s.hasSttApiKey?"Saved securely — leave blank to keep it":"Enter STT API key";
  $("ttsKey").value="";$("ttsKey").placeholder=s.hasTtsApiKey?"Saved securely — leave blank to keep it":"Enter TTS API key";
  $("realtimeKey").value="";$("realtimeKey").placeholder=s.hasRealtimeApiKey?"Saved securely — leave blank to keep it":"Enter Realtime API key";
- $("brainMode").value=s.brainMode||"auto";$("sttProvider").value=s.sttProvider||"local";$("sttModel").value=s.sttModel||"gpt-4o-mini-transcribe";$("sttLanguage").value=s.sttLanguage||"en";
+ $("brainMode").value=s.brainMode||"auto";$("sttProvider").value=s.sttProvider||"whisper";$("sttModel").value=s.sttModel||"base-q5_1";$("sttLanguage").value=s.sttLanguage||"auto";$("streamingMode").value=s.streamingMode||"local-whisper";
  $("ttsProvider").value=s.ttsProvider||"local";$("ttsModel").value=s.ttsModel||"gpt-4o-mini-tts";$("ttsVoice").value=s.ttsVoice||"alloy";
  $("realtimeModel").value=s.realtimeModel||"gpt-realtime-2.1";$("realtimeVoice").value=s.realtimeVoice||"marin";
  $("voiceProfile").value=s.voiceProfile||"saeed";$("micMode").value=s.micMode||"always";$("showSpeechText").checked=s.showSpeechText===true;$("speakResponses").checked=s.speakResponses!==false;$("language").value=s.language||"en";
@@ -153,7 +153,7 @@ window.saeed.onRealtimeState(async(state,message)=>{
  if(state==="connected"){
   window.saeed.reportDiagnostic("INFO","STT ACTIVE","Realtime speech-to-text connected");
   const cfg=await window.saeed.getSettings();const mode=cfg?.micMode||(cfg?.alwaysListening===false?"off":"always");
-  if(mode!=="off")try{await realtimeMic.start(mode)}catch(e){$("status").textContent="تعذر تشغيل المايك: "+e.message}
+  if(mode!=="off" && cfg?.sttProvider!=="whisper")try{await realtimeMic.start(mode)}catch(e){$("status").textContent="تعذر تشغيل المايك: "+e.message}
  }
  // Realtime disconnects must NOT turn off Always Listening. The microphone is an independent service.
 });
@@ -175,11 +175,11 @@ window.addEventListener("load",async()=>{
   if(mode!=="off"){
    try{await realtimeMic.start(mode)}catch(e){const badge=$("micBadge");if(badge)badge.className="micBadge error";$("status").textContent="تعذر تشغيل المايك: "+e.message;window.saeed.reportDiagnostic("ERROR","MIC STARTUP",e.message,{mode});}
   }
-  if(cfg?.brainMode==="realtime"&&(cfg?.hasRealtimeApiKey||cfg?.hasApiKey))await window.saeed.startRealtime({});
+  if(cfg?.sttProvider==="whisper" && mode!=="off"){await window.saeed.startLocalWhisper();} else if(cfg?.brainMode==="realtime"&&(cfg?.hasRealtimeApiKey||cfg?.hasApiKey))await window.saeed.startRealtime({});
  }catch(e){console.warn("Voice startup:",e);window.saeed.reportDiagnostic("ERROR","VOICE STARTUP",e.message)}
 });$("save").onclick=async()=>{
  const payload={provider:$("provider").value,baseUrl:$("baseUrl").value,model:$("model").value,brainMode:$("brainMode").value,
-  sttProvider:$("sttProvider").value,sttModel:$("sttModel").value,sttLanguage:$("sttLanguage").value,
+  sttProvider:$("sttProvider").value,sttModel:$("sttModel").value,sttLanguage:$("sttLanguage").value,streamingMode:$("streamingMode").value,
   ttsProvider:$("ttsProvider").value,ttsModel:$("ttsModel").value,ttsVoice:$("ttsVoice").value,
   realtimeModel:$("realtimeModel").value,realtimeVoice:$("realtimeVoice").value,
   voiceProfile:$("voiceProfile").value,micMode:$("micMode").value,alwaysListening:$("micMode").value==="always",showSpeechText:$("showSpeechText").checked,speakResponses:$("speakResponses").checked,language:$("language").value};
@@ -190,3 +190,6 @@ window.addEventListener("load",async()=>{
  await window.saeed.setSettings(payload);
  $("settingsStatus").textContent="Applied";setTimeout(()=>$("modal").classList.add("hidden"),300);
 };
+
+window.saeed.onLocalSttState((state,message)=>{const badge=$("micBadge");if(badge)badge.className="micBadge "+state;$("status").textContent=state==="connected"?"Offline Whisper listening":state==="starting"?"Starting Offline Whisper...":state==="error"?"Whisper error: "+(message||"unknown"):"Offline Whisper: "+state;});
+window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").trim();if(!text)return;window.saeed.reportDiagnostic("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});if($("input").value.trim()==="")add("user",text);try{const answer=await window.saeed.chat(text);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);speakSaeed(answer)}}catch(err){add("assistant","حدث خطأ: "+err.message)}});
