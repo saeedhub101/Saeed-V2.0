@@ -130,7 +130,7 @@ jobs:
           $size = (Get-Item "build\whisper\ggml-base-q5_1.bin").Length
           if ($size -lt 50000000) { throw "Whisper model download is unexpectedly small: $size bytes" }
           $hash = (Get-FileHash "build\whisper\ggml-base-q5_1.bin" -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne "a3733eda680ef76256db5fc5dd9de8629e62c5e7") { throw "Whisper model SHA256 mismatch: $hash" }
+          if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
           & "build\whisper\whisper-stream.exe" --help | Out-File "build\whisper\whisper-help.txt"
           if ($LASTEXITCODE -ne 0) { throw "Whisper stream binary failed its startup/help check." }
           Write-Host "OFFLINE_WHISPER_READY modelBytes=$size sha256=$hash"
