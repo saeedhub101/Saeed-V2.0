@@ -117,6 +117,10 @@ jobs:
           if ($main -notmatch 'arguments:"--chat"') { throw "Chat Me taskbar entry does not launch the --chat command." }
           if ($main -notmatch 'else if\(process\.argv\.includes\("--chat"\)') { throw "Startup does not explicitly open Chat when launched by the Chat Me taskbar command." }
           if ($main -notmatch 'chatWin\.destroy\(\)') { throw "Closing Chat does not destroy the Chat window." }
+          if ($main -notmatch 'resizable:true') { throw "Chat window is not configured as resizable." }
+          $style = Get-Content "src/style.css" -Raw
+          if ($style -notmatch '#panel>header[^\n]*-webkit-app-region:drag') { throw "Chat header is not configured as draggable." }
+          if ($style -notmatch '#panel>header button[^\n]*no-drag') { throw "Chat header controls are not excluded from drag." }
           Write-Host "CHAT_TASKBAR_CONTRACT=PASS"
 
       - name: Launch built program and verify chat screen
