@@ -185,7 +185,7 @@ jobs:
             process.stdout.write(JSON.stringify(value||{}));
           })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
           '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-smoke.cjs") -Encoding UTF8
-            $expression = 'JSON.stringify({title:document.title,panel:!!document.querySelector("#panel"),panelVisible:document.querySelector("#panel")?.classList.contains("visible"),welcome:document.body?.innerText?.includes("مرحبًا"),closeButton:!!document.querySelector("#closeChat")})'
+            $expression = 'JSON.stringify({title:document.title,panel:!!document.querySelector("#panel"),panelVisible:document.querySelector("#panel")?.classList.contains("visible"),welcome:document.body?.innerText?.includes("Hello, I’m Saeed."),closeButton:!!document.querySelector("#closeChat")})'
             $json = & node (Join-Path $PWD "dist\cdp-smoke.cjs") $debugPort $expression
             if ($LASTEXITCODE -ne 0) { throw "CDP chat smoke failed." }
             $value = $json | ConvertFrom-Json
