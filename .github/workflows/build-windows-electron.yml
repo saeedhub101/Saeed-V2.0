@@ -117,10 +117,13 @@ jobs:
           7z x "build\SDL2.zip" -obuild\sdl2 | Out-Null
           $sdl = (Get-ChildItem "build\sdl2" -Directory | Select-Object -First 1).FullName
           cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_SDL2=ON -DWHISPER_BUILD_EXAMPLES=ON -DSDL2_DIR="$sdl\cmake" -DGGML_NATIVE=OFF
-          cmake --build build\whisper-src\build --config Release --target whisper-stream
+          cmake --build build\whisper-src\build --config Release --target whisper-stream --target whisper-cli
           New-Item -ItemType Directory -Force -Path build\whisper | Out-Null
           $stream = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-stream.exe" | Select-Object -First 1
           if (!$stream) { throw "whisper-stream.exe was not built." }
+          $cli = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+          if (!$cli) { throw "whisper-cli.exe was not built." }
+          Copy-Item $cli.FullName "build\whisper\whisper-cli.exe" -Force
           Copy-Item $stream.FullName "build\whisper\whisper-stream.exe" -Force
           Get-ChildItem "build\whisper-src\build\bin\Release" -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "build\whisper\$($_.Name)" -Force }
           $sdlDll = Get-ChildItem $sdl -Recurse -Filter "SDL2.dll" | Select-Object -First 1
@@ -142,7 +145,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          foreach($p in @("build\whisper\whisper-stream.exe","build\whisper\SDL2.dll","build\whisper\ggml-base-q5_1.bin")){
+          foreach($p in @("build\whisper\whisper-stream.exe","build\whisper\whisper-cli.exe","build\whisper\SDL2.dll","build\whisper\ggml-base-q5_1.bin")){
             if(!(Test-Path $p -PathType Leaf)){throw "Missing Offline Whisper component: $p"}
           }
           $modelBytes=(Get-Item "build\whisper\ggml-base-q5_1.bin").Length
