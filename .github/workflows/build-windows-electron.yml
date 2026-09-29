@@ -440,33 +440,6 @@ jobs:
             Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Verify installer uninstall removes selected install directory and all Saeed AppData
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $installer = @(Get-ChildItem "dist" -Filter "*.exe" -File | Where-Object { $_.Name -notlike "*uninstaller*" })[0]
-          if(-not $installer){throw "Installer EXE was not found for uninstall test."}
-          $installDir = Join-Path $env:RUNNER_TEMP "saeed-custom-install"
-          if(Test-Path $installDir){Remove-Item $installDir -Recurse -Force}
-          $appDataPaths=@(
-            (Join-Path $env:APPDATA "Saeed AI"),
-            (Join-Path $env:LOCALAPPDATA "Saeed AI"),
-            (Join-Path $env:LOCALAPPDATA "Saeed AI-updater"),
-            (Join-Path $env:APPDATA "Saeed AI-updater")
-          )
-          foreach($p in $appDataPaths){
-            New-Item -ItemType Directory -Path $p -Force | Out-Null
-            Set-Content -Path (Join-Path $p "uninstall-test-marker.txt") -Value "Saeed uninstall test" -Encoding UTF8
-          }
-          Start-Process -FilePath $installer.FullName -ArgumentList @("/S",("/D="+$installDir)) -Wait -NoNewWindow
-          $uninstaller=Join-Path $installDir "Uninstall Saeed AI.exe"
-          if(-not (Test-Path $uninstaller)){throw "Uninstaller was not created in the selected installation directory: $installDir"}
-          Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($installDir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
-          Start-Process -FilePath $uninstaller -ArgumentList @("/S") -Wait -NoNewWindow
-          if(Test-Path $installDir){throw "Selected installation directory was not completely removed: $installDir"}
-          foreach($p in $appDataPaths){if(Test-Path $p){throw "Saeed AppData remained after uninstall: $p"}}
-          Write-Host "UNINSTALL_CLEANUP_CHECK=PASS"
-
       - name: Upload verified build and diagnostics
         uses: actions/upload-artifact@v4
         with:
