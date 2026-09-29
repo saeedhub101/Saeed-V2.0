@@ -423,10 +423,10 @@ jobs:
             do {
               $changed = $false
               foreach ($p in $all) {
-                $pid = [int]$p.ProcessId
-                $parent = [int]$p.ParentProcessId
-                if (-not $known.ContainsKey($pid) -and $known.ContainsKey($parent)) {
-                  $known[$pid] = $true
+                $processId = [int]$p.ProcessId
+                $parentProcessId = [int]$p.ParentProcessId
+                if (-not $known.ContainsKey($processId) -and $known.ContainsKey($parentProcessId)) {
+                  $known[$processId] = $true
                   $changed = $true
                 }
               }
@@ -651,16 +651,12 @@ jobs:
             dist/*.exe
             dist/*.blockmap
             dist/*.sha256
-            dist/runtime-smoke.stdout.log
-            dist/runtime-smoke.stderr.log
             dist/cpu-test.stdout.log
             dist/cpu-test.stderr.log
             dist/cpu-report.json
             dist/cpu-tree-test.stdout.log
             dist/cpu-tree-test.stderr.log
             dist/cpu-tree-report.json
-            dist/chat-test.stdout.log
-            dist/chat-test.stderr.log
             dist/latest.yml
 
       - name: Publish official release only when explicitly requested
