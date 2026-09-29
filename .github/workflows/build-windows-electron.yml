@@ -55,7 +55,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/index.html","src/agent.js","src/realtime.js","src/tools.js")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/index.html","src/agent.js","src/realtime.js","src/tools.js")
           foreach ($path in $required) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" }
           }
@@ -124,6 +124,7 @@ jobs:
           const WebSocket = require("ws");
           const port = Number(process.argv[2]);
           const expression = String(process.argv[3] || "");
+          const needle = String(process.argv[4] || "index.html");
           const getTargets = () => new Promise((resolve,reject) => {
             http.get(`http://127.0.0.1:${port}/json`, res => {
               let data="";
@@ -138,7 +139,7 @@ jobs:
             for(let i=0;i<30;i++){
               try{
                 const targets=await getTargets();
-                target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&(((x.url||"").includes("index.html"))||x.title==="Saeed AI"));
+                target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&((x.url||"").includes(needle)||(needle==="index.html"&&x.title==="Saeed AI")));
                 if(target)break;
               }catch{}
               await sleep(1000);
@@ -182,6 +183,41 @@ jobs:
           finally {
             if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
             Get-Process | Where-Object { $_.Path -like "$PWD\dist\win-unpacked\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Verify 3D renderer, diagnostic object, and 3D status
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $app = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
+          $debugPort = 9227
+          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
+          try {
+            Start-Sleep -Seconds 6
+            $expression = 'JSON.stringify({title:document.title,frame:!!document.querySelector("#characterFrame"),canvas:!!document.querySelector("#avatar"),avatarApi:!!window.saeedAvatar,status:window.saeedAvatar?.get3DStatus?.()})'
+            $json = & node (Join-Path $PWD "dist\\cdp-smoke.cjs") $debugPort $expression "character.html"
+            if ($LASTEXITCODE -ne 0) { throw "CDP 3D smoke failed." }
+            $value = $json | ConvertFrom-Json
+            Write-Host "3D page title: $($value.title)"
+            Write-Host "3D frame found: $($value.frame)"
+            Write-Host "3D canvas found: $($value.canvas)"
+            Write-Host "3D avatar API found: $($value.avatarApi)"
+            Write-Host ($value.status | ConvertTo-Json -Depth 8 -Compress)
+            if ($value.title -ne "Saeed 3D Character") { throw "Unexpected 3D page title: $($value.title)" }
+            if (-not $value.frame -or -not $value.canvas -or -not $value.avatarApi) { throw "3D character surface is incomplete." }
+            if ($value.status.overall.state -ne "ready") { throw "3D renderer overall state is not READY: $($value.status.overall.state)" }
+            if ($value.status.components.threeJs.state -ne "ready") { throw "Three.js status is not READY." }
+            if ($value.status.components.webgl.state -ne "ready") { throw "WebGL status is not READY." }
+            if ($value.status.components.renderer.state -ne "ready") { throw "WebGLRenderer status is not READY." }
+            if ($value.status.components.gltfLoader.state -ne "ready") { throw "GLTFLoader status is not READY." }
+            if ($value.status.components.testObject.state -ne "rendered") { throw "Diagnostic 3D object was not rendered." }
+            if ([int]$value.status.components.renderLoop.frames -lt 10) { throw "3D render loop did not produce enough frames." }
+            if ([int]$value.status.metrics.drawCalls -lt 1) { throw "No WebGL draw calls were recorded." }
+            Write-Host "3D_RENDER_SMOKE=PASS"
+          }
+          finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process | Where-Object { $_.Path -like "$PWD\\dist\\win-unpacked\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
       - name: Verify chat response, local time, and speech

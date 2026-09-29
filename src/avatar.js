@@ -1,11 +1,16 @@
 import * as THREE from "../node_modules/three/build/three.module.js";
 import {GLTFLoader} from "../node_modules/three/examples/jsm/loaders/GLTFLoader.js";
 
-const canvas=document.getElementById("avatar");const report=(level,stage,message,meta)=>window.saeed?.reportDiagnostic?.(level,stage,message,meta);report("INFO","THREE MODULE","THREE module loaded");report("INFO","GLTFLOADER","GLTFLoader module loaded");let scene;try{scene=new THREE.Scene();report("INFO","THREE.SCENE","THREE.Scene created")}catch(e){report("ERROR","THREE.SCENE",e.message);throw e}
-let camera;try{camera=new THREE.PerspectiveCamera(32,1,.1,100);report("INFO","PERSPECTIVECAMERA","PerspectiveCamera created");camera.position.set(0,0,5);camera.lookAt(0,0,0);report("INFO","PERSPECTIVECAMERA POSITION","PerspectiveCamera position set")}catch(e){report("ERROR","PERSPECTIVECAMERA",e.message);throw e}
-let renderer;try{const gl2=canvas.getContext("webgl2");const gl=gl2||canvas.getContext("webgl");if(!gl)throw new Error("WebGL/WebGL2 context unavailable");report("INFO","WEBGL CONTEXT",gl2?"WebGL2 context available":"WebGL context available");renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});report("INFO","WEBGLRENDERER","WebGLRenderer created")}catch(e){report("ERROR","WEBGL CONTEXT",e.message);throw e}
+const canvas=document.getElementById("avatar");
+const report=(level,stage,message,meta)=>window.saeed?.reportDiagnostic?.(level,stage,message,meta);
+const runtime3D={version:THREE.REVISION,overall:{state:"starting",detail:"Initializing 3D renderer"},components:{threeJs:{state:"ready",detail:`Three.js r${THREE.REVISION}`},webgl:{state:"unknown",detail:""},renderer:{state:"unknown",detail:""},scene:{state:"unknown",detail:""},camera:{state:"unknown",detail:""},lights:{state:"unknown",detail:""},canvas:{state:"unknown",detail:""},renderLoop:{state:"unknown",detail:"",frames:0,fps:0,lastRenderAt:null},gltfLoader:{state:"ready",detail:"GLTFLoader module loaded"},testObject:{state:"unknown",detail:""},selectedGlb:{state:"not-tested",detail:"No external GLB selected",name:"",size:0,displayed:false}},metrics:{drawCalls:0,triangles:0,points:0,lines:0,geometries:0,textures:0},viewport:{width:0,height:0,pixelRatio:Math.min(devicePixelRatio||1,2)},lastError:"",lastUpdated:null};
+function refreshOverall(){const required=["threeJs","webgl","renderer","scene","camera","lights","canvas","renderLoop","gltfLoader","testObject"];const hasError=required.some(k=>runtime3D.components[k]?.state==="error")||Boolean(runtime3D.lastError);const ready=required.every(k=>["ready","rendered","active"].includes(runtime3D.components[k]?.state));runtime3D.overall=hasError?{state:"error",detail:runtime3D.lastError||"One or more 3D components failed"}:ready&&runtime3D.components.testObject.state==="rendered"?{state:"ready",detail:"Three.js + WebGL + diagnostic 3D object are rendering"}:{state:"starting",detail:"3D renderer is initializing"};runtime3D.lastUpdated=new Date().toISOString()}
+function set3DState(key,state,detail,extra={}){if(runtime3D.components[key])runtime3D.components[key]={...runtime3D.components[key],state,detail,...extra};refreshOverall()}
+report("INFO","THREE MODULE","Three.js module loaded",{revision:THREE.REVISION});report("INFO","GLTFLOADER","GLTFLoader module loaded");let scene;try{scene=new THREE.Scene();set3DState("scene","ready","THREE.Scene created");report("INFO","THREE.SCENE","THREE.Scene created")}catch(e){set3DState("scene","error",e.message);runtime3D.lastError=e.message;report("ERROR","THREE.SCENE",e.message);throw e}
+let camera;try{camera=new THREE.PerspectiveCamera(32,1,.1,100);camera.position.set(0,0,5);camera.lookAt(0,0,0);set3DState("camera","ready","Fixed PerspectiveCamera created");report("INFO","PERSPECTIVECAMERA","PerspectiveCamera created");report("INFO","PERSPECTIVECAMERA POSITION","Fixed camera position set")}catch(e){set3DState("camera","error",e.message);runtime3D.lastError=e.message;report("ERROR","PERSPECTIVECAMERA",e.message);throw e}
+let renderer;try{const gl2=canvas.getContext("webgl2");const gl=gl2||canvas.getContext("webgl");if(!gl)throw new Error("WebGL/WebGL2 context unavailable");set3DState("webgl","ready",gl2?"WebGL2 context available":"WebGL context available",{version:gl2?"WebGL2":"WebGL"});report("INFO","WEBGL CONTEXT",gl2?"WebGL2 context available":"WebGL context available");renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});set3DState("renderer","ready","THREE.WebGLRenderer created",{antialias:true,alpha:true});report("INFO","WEBGLRENDERER","WebGLRenderer created")}catch(e){set3DState("webgl","error",e.message);set3DState("renderer","error",e.message);runtime3D.lastError=e.message;report("ERROR","WEBGL CONTEXT",e.message);throw e}
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setClearColor(0,0);renderer.outputColorSpace=THREE.SRGBColorSpace;
-try{scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));report("INFO","HEMISPHERELIGHT","HemisphereLight added");const key=new THREE.DirectionalLight(0xffffff,2.5);key.position.set(2,4,3);scene.add(key);report("INFO","DIRECTIONALLIGHT","DirectionalLight added")}catch(e){report("ERROR","LIGHTS",e.message);throw e}
+try{scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.2));const key=new THREE.DirectionalLight(0xffffff,2.5);key.position.set(2,4,3);scene.add(key);set3DState("lights","ready","Hemisphere + directional lights added");report("INFO","HEMISPHERELIGHT","HemisphereLight added");report("INFO","DIRECTIONALLIGHT","DirectionalLight added")}catch(e){set3DState("lights","error",e.message);runtime3D.lastError=e.message;report("ERROR","LIGHTS",e.message);throw e}
 
 const root=new THREE.Group();scene.add(root);
 
@@ -14,7 +19,7 @@ let mixer=null,clips=[],actions=new Map(),activeAction=null,clock=new THREE.Cloc
 let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;
 let facialTime=0,blinkUntil=0,nextBlink=2+Math.random()*4,expression={smile:0,jawopen:0};
 let visemeValues={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTargets={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTimer=null;
-let model=null,bones=new Map(),boneBase=new Map();
+let model=null,bones=new Map(),boneBase=new Map(),loader=new GLTFLoader(),diagnosticObject=null,renderedReportSent=false,frameWindowStart=performance.now(),frameWindowCount=0;
 const lookTarget=new THREE.Vector3(0,1.5,1);
 
 const aliases={
@@ -115,15 +120,14 @@ function setExpression(name,value){expression[String(name).toLowerCase()]=Math.m
 function blink(){setMorph("blink",1);blinkUntil=facialTime+.14;return true}
 function resetVisemes(){["aa","ee","oo","oh","fv","mbp"].forEach(v=>{visemeTargets[v]=0;visemeValues[v]=0;setMorph(v,0)});return true}
 
-async function installAvatar(gltf){try{root.clear();model=gltf.scene;root.add(model);report("INFO","GLB ADDED TO SCENE","GLB added to THREE.Scene");report("INFO","BOUNDING BOX / FRAMING","No auto-framing applied; GLB displayed as-is");report("INFO","PERSPECTIVECAMERA POSITION","Fixed camera position used; no auto-positioning");mapHumanoidBones(model);collectFacialMeshes(model);mixer=new THREE.AnimationMixer(model);report("INFO","ANIMATIONMIXER","AnimationMixer created");clips=gltf.animations||[];actions.clear();activeAction=null;const idleOk=playAnimation("idle");report(idleOk?"INFO":"WARN","IDLE ANIMATION",idleOk?"Idle animation selected/started":"No Idle animation found; still character");report("INFO","CHARACTER READY","Character ready")}catch(e){report("ERROR","GLB INSTALL",e.message);throw e}}
-async function loadAvatar(){try{report("INFO","GLB LOADING","Loading default assets/Saeed_AI-3D.glb");const gltf=await new GLTFLoader().loadAsync("../assets/Saeed_AI-3D.glb");await installAvatar(gltf)}catch(e){
-  console.error("Avatar GLB not loaded:",e);
-  const message=document.getElementById("status");
-  if(message)message.textContent="Saeed 3D character failed to load";report("ERROR","GLB",e.message);
+function installDiagnosticObject(){try{root.clear();const group=new THREE.Group();const geometry=new THREE.BoxGeometry(1.45,1.45,1.45);const material=new THREE.MeshStandardMaterial({color:0x4e7ccf,metalness:.08,roughness:.38});const mesh=new THREE.Mesh(geometry,material);const edge=new THREE.LineSegments(new THREE.EdgesGeometry(geometry),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.65}));group.add(mesh,edge);diagnosticObject=group;root.add(group);runtime3D.components.testObject={state:"ready",detail:"Built-in Three.js diagnostic cube added to scene"};set3DState("scene","ready","THREE.Scene contains the diagnostic 3D object");report("INFO","3D TEST OBJECT","Standalone diagnostic cube added; external character GLB is not displayed");refreshOverall()}catch(e){runtime3D.lastError=e.message;set3DState("testObject","error",e.message);report("ERROR","3D TEST OBJECT",e.message);throw e}}
+async function loadDiagnosticObject(){try{runtime3D.components.gltfLoader.state="ready";installDiagnosticObject()}catch(e){
+  console.error("Diagnostic 3D object failed:",e);const message=document.getElementById("status");if(message)message.textContent="3D diagnostic object failed";runtime3D.lastError=e.message;runtime3D.components.testObject.state="error";runtime3D.components.testObject.detail="Diagnostic 3D object failed: "+e.message;refreshOverall();report("ERROR","3D TEST OBJECT",e.message);
  }
 }
-window.saeedAvatarLoadData=async data=>{try{const gltf=await new GLTFLoader().parseAsync(data,"");await installAvatar(gltf)}catch(e){report("ERROR","GLB SELECTED",e.message)}};
-loadAvatar();
+window.saeedAvatarLoadData=async data=>{try{const bytes=data?.byteLength!=null?data:data?.buffer||data;const size=data?.byteLength||data?.length||0;runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"loading",detail:"Selected GLB is parsed for diagnostics only",size};report("INFO","GLB SELECTED PROBE","Selected GLB will be parsed but NOT displayed",{size});await loader.parseAsync(bytes,"");runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"ready",detail:"Selected GLB parsed successfully; intentionally not displayed",parsed:true,displayed:false};report("INFO","GLB SELECTED PROBE","Selected GLB parsed successfully; diagnostic object remains displayed");}catch(e){runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"error",detail:"Selected GLB parse failed: "+e.message,displayed:false};report("ERROR","GLB SELECTED PROBE",e.message)}refreshOverall()};
+window.saeedAvatar={get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))},reloadDiagnostic:()=>{renderedReportSent=false;runtime3D.lastError="";runtime3D.components.testObject={...runtime3D.components.testObject,state:"loading",detail:"Reloading diagnostic 3D object"};installDiagnosticObject();return true}};
+loadDiagnosticObject();
 
 function smoothTurnTo(yaw){
  bodyYawTarget=Number(yaw)||0;
@@ -177,11 +181,11 @@ window.saeedAvatar={
  getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
 };
 
-function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,r.width),h=Math.max(1,r.height);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();report("INFO","CANVAS","Canvas resized")}catch(e){report("ERROR","CANVAS",e.message)}}try{new ResizeObserver(resize).observe(canvas);resize();report("INFO","CANVAS READY","Canvas initialized")}catch(e){report("ERROR","CANVAS",e.message)}
+function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,r.width),h=Math.max(1,r.height);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);report("INFO","CANVAS","Canvas resized")}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);report("ERROR","CANVAS",e.message)}}try{new ResizeObserver(resize).observe(canvas);resize();report("INFO","CANVAS READY","Canvas initialized")}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);report("ERROR","CANVAS",e.message)}
 
 let renderLoopStarted=false;function frame(){
- requestAnimationFrame(frame);if(!renderLoopStarted){renderLoopStarted=true;report("INFO","RENDER LOOP","Render loop started");}
- const dt=clock.getDelta();facialTime+=dt;
+ requestAnimationFrame(frame);if(!renderLoopStarted){renderLoopStarted=true;set3DState("renderLoop","active","requestAnimationFrame loop is running");report("INFO","RENDER LOOP","Render loop started");}
+ const dt=clock.getDelta();facialTime+=dt;runtime3D.components.renderLoop.frames++;runtime3D.components.renderLoop.lastRenderAt=new Date().toISOString();frameWindowCount++;const now=performance.now();if(now-frameWindowStart>=1000){runtime3D.components.renderLoop.fps=frameWindowCount*1000/(now-frameWindowStart);frameWindowCount=0;frameWindowStart=now;}
  proceduralBody(facialTime);
  Object.keys(visemeTargets).forEach(k=>{visemeValues[k]+=(visemeTargets[k]-visemeValues[k])*Math.min(1,dt*18);setMorph(k,visemeValues[k])});
  if(mixer)mixer.update(dt);
@@ -200,7 +204,10 @@ let renderLoopStarted=false;function frame(){
   root.position.y+=(breathe*.018-root.position.y)*Math.min(1,dt*2);
  }
  try{
+  if(diagnosticObject)diagnosticObject.rotation.y+=dt*.55;
   renderer.render(scene,camera);
+  runtime3D.metrics={drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,points:renderer.info.render.points,lines:renderer.info.render.lines,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures};
+  if(runtime3D.components.testObject.state==="ready"&&renderer.info.render.calls>0){runtime3D.components.testObject.state="rendered";runtime3D.components.testObject.detail="Diagnostic 3D object produced WebGL draw calls";if(!renderedReportSent){renderedReportSent=true;report("INFO","3D TEST OBJECT RENDERED","Standalone 3D object is rendered by WebGL",runtime3D.metrics)}refreshOverall()}
  }catch(e){
   console.error("Saeed 3D renderer.render failed:",e);
   const message=document.getElementById("status");

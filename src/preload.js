@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("saeed",{
  getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),
  openDiagnosticsLog:()=>ipcRenderer.invoke("diagnostic:open-log"),
  showStatus:()=>ipcRenderer.invoke("status:show"),
+ show3DStatus:()=>ipcRenderer.invoke("3d-status:show"),get3DStatus:()=>ipcRenderer.invoke("3d:query"),reload3DTest:()=>ipcRenderer.invoke("3d:reload-test"),report3DStatus:(requestId,status)=>ipcRenderer.send("3d:status-report",requestId,status),on3DQuery:f=>ipcRenderer.on("3d:query",(_,id)=>f(id)),on3DReload:f=>ipcRenderer.on("3d:reload-test",()=>f()),on3DStatus:f=>ipcRenderer.on("3d:status",(_,status)=>f(status)),
  onStatusSnapshot:f=>ipcRenderer.on("diagnostic:snapshot",(_,e)=>f(e)),
  onDiagnostic:f=>ipcRenderer.on("diagnostic:event",(_,e)=>f(e)),
  onDiagnosticState:f=>ipcRenderer.on("diagnostic:state",(_,e)=>f(e)),

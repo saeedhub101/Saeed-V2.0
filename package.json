@@ -1,12 +1,12 @@
 {
   "name": "saeed-ai",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Saeed AI desktop agent",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
     "build": "electron-builder --win nsis --publish never",
-    "test": "node --check src/main.js && node --check src/realtime.js && node --check src/agent.js && node --check src/tools.js && node --check src/computer.js && node --check src/memory.js && node --check src/preload.js && node --check src/renderer.js"
+    "test": "node --check src/main.js && node --check src/realtime.js && node --check src/agent.js && node --check src/tools.js && node --check src/computer.js && node --check src/memory.js && node --check src/preload.js && node --check src/renderer.js && node --check src/avatar.js && node --check src/3d-status.js"
   },
   "dependencies": {
     "three": "0.180.0",
@@ -30,7 +30,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "buildVersion": "2.7.0",
+    "buildVersion": "2.8.0",
     "icon": "assets/saeed.ico"
   },
   "publish": {

@@ -20,14 +20,18 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,agent,tray,realtime,statusWin;
+let chatWin,characterWin,agent,tray,realtime,statusWin,threeDStatusWin;
+const pending3DQueries=new Map();
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
-const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""}};
+const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
 function diagnostic(level,stage,message,meta={}){
  const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
  try{fs.mkdirSync(path.dirname(diagnosticFile),{recursive:true});fs.appendFileSync(diagnosticFile,JSON.stringify(event)+"\n")}catch(e){console.error("Diagnostics write failed:",e)}
- if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:event",event);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("diagnostic:event",event);if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("diagnostic:event",event);updateDiagnosticState(event);return event;
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:event",event);if(threeDStatusWin&&!threeDStatusWin.isDestroyed())threeDStatusWin.webContents.send("diagnostic:event",event);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("diagnostic:event",event);if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("diagnostic:event",event);updateDiagnosticState(event);return event;
 }
+function publish3DStatus(report){if(!report)return;diagnosticState.threeD=report;diagnosticState.threeD.lastUpdated=new Date().toISOString();if(threeDStatusWin&&!threeDStatusWin.isDestroyed())threeDStatusWin.webContents.send("3d:status",diagnosticState.threeD)}
+function request3DStatus(){return new Promise(resolve=>{if(!characterWin||characterWin.isDestroyed()){const report={overall:{state:"error",detail:"3D character window is not available"},components:{},lastUpdated:new Date().toISOString()};publish3DStatus(report);resolve(report);return}const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);const timer=setTimeout(()=>{pending3DQueries.delete(id);const report={...diagnosticState.threeD,overall:{state:"error",detail:"3D renderer status query timed out"}};publish3DStatus(report);resolve(report)},1800);pending3DQueries.set(id,report=>{clearTimeout(timer);pending3DQueries.delete(id);publish3DStatus(report);resolve(report)});characterWin.webContents.send("3d:query",id)})}
+function show3DStatus(){if(threeDStatusWin&&!threeDStatusWin.isDestroyed()){threeDStatusWin.show();threeDStatusWin.focus();request3DStatus().then(r=>threeDStatusWin?.webContents.send("3d:status",r));return}threeDStatusWin=new BrowserWindow({width:900,height:700,minWidth:680,minHeight:500,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});threeDStatusWin.on("closed",()=>{threeDStatusWin=null});threeDStatusWin.loadFile(path.join(__dirname,"3d-status.html")).then(async()=>{threeDStatusWin?.show();threeDStatusWin?.focus();const r=await request3DStatus();threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
 function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail=e.level==="ERROR";
  if(s.includes("MIC")){diagnosticState.mic.state=fail?"error":"active";diagnosticState.mic.detail=e.message;if(e.meta?.level!=null)diagnosticState.mic.level=Number(e.meta.level)||0}
  if(s.includes("LLM")||s.includes("BRAIN API")){diagnosticState.brainApi.state=fail?"error":(s.includes("SUCCESS")||s.includes("CONNECTED")?"connected":"active");diagnosticState.brainApi.detail=e.message}
@@ -35,6 +39,7 @@ function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail
  if(s.includes("STT")){diagnosticState.stt.state=fail?"error":(s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")?"active":diagnosticState.stt.state);diagnosticState.stt.detail=e.message}
  if(s.includes("TTS")){diagnosticState.tts.state=fail?"error":(s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")||s.includes("SUCCESS")?"active":diagnosticState.tts.state);diagnosticState.tts.detail=e.message}
  if(s.includes("GLB")||s.includes("CHARACTER READY")){diagnosticState.glb.state=fail?"error":s.includes("READY")?"ready":"active";diagnosticState.glb.detail=e.message}
+ if((s.startsWith("3D")||s.startsWith("THREE")||s.includes("WEBGL")||s.includes("GLTF")||s.includes("CANVAS")||s.includes("RENDER LOOP"))&&diagnosticState.threeD){diagnosticState.threeD.lastEvent={time:e.time,level:e.level,stage:e.stage,message:e.message}}
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);
 }
 function diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
@@ -55,7 +60,7 @@ function trayIcon(){
 app.setAppUserModelId("ai.saeed.desktop");
 const singleInstanceLock=app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
-else app.on("second-instance",()=>showChat());
+else app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
 let updateState="idle";
 const confirmations=new Map();
 const WINDOW={width:760,height:480,minWidth:360,minHeight:260};
@@ -88,6 +93,7 @@ function setSaeedSize(size){const m={small:[360,440],medium:[430,520],large:[520
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
   {label:"Chat Me",click:showChat},
+  {label:"3D Status",click:show3DStatus},
   {label:"Hide Saeed",click:()=>characterWin?.hide()},
   {type:"separator"},
   {label:"Change Character (GLB)",click:chooseCharacter},
@@ -104,7 +110,7 @@ async function createWindow(){
  chatWin.on("close",e=>{if(!app.isQuitting()){e.preventDefault();chatWin.hide()}});
  chatWin.webContents.on("context-menu",()=>contextMenu());
  await chatWin.loadFile(path.join(__dirname,"index.html"));
- chatWin.show();
+ if(!process.argv.includes("--3d-status"))chatWin.show();
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
  characterWin.setIcon(windowsIconPath());
  if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
@@ -122,13 +128,14 @@ async function createWindow(){
 function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";chatWin?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";chatWin?.webContents.send("update:state","error",e?.message||String(e))})}
 app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
  configureUpdater();
- if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"}]);
+ if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
+ if(process.argv.includes("--3d-status"))show3DStatus();
  try{
   tray=new Tray(trayIcon());
   tray.setToolTip("Saeed AI");
   tray.setContextMenu(Menu.buildFromTemplate([
-   {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
+   {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
    {type:"separator"},{label:"Always Listening",type:"radio",checked:true,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic Off",type:"radio",click:()=>setMicMode("off")},
    {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:()=>{showChat();chatWin?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
    {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
@@ -144,6 +151,8 @@ app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATI
  screen.on("display-removed",()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())});
  screen.on("display-metrics-changed",refresh);
 });
+ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);const resolve=pending3DQueries.get(String(requestId||""));if(resolve)resolve(report)});
+ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});ipcMain.handle("3d:reload-test",()=>{if(!characterWin||characterWin.isDestroyed())return false;characterWin.webContents.send("3d:reload-test");return true});
 ipcMain.handle("chat",(_,payload)=>{
  if(!agent)return {ok:false,error:"Saeed is still starting."};
  const data=typeof payload==="string"?{text:payload}:payload||{};
