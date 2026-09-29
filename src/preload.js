@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld("saeed",{
  onCharacterSelected:f=>ipcRenderer.on("character:selected",(_,e)=>f(e)),
  moveWindowBy:(dx,dy)=>ipcRenderer.send("window:move-by",dx,dy),
  showChat:()=>ipcRenderer.send("window:show-chat"),
+ closeChat:()=>ipcRenderer.send("window:close-chat"),
  onEvent:f=>ipcRenderer.on("agent:event",(_,e)=>f(e)),
  onConfirmation:f=>ipcRenderer.on("agent:confirm",(_,e)=>f(e)),
  respondConfirmation:(id,approved)=>ipcRenderer.invoke("agent:confirm-response",id,approved),
