@@ -114,9 +114,7 @@ async function createChatWindow(){
 }
 async function createWindow(){
  await createCharacterWindow();
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:({name,args})=>new Promise(async resolve=>{
-  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);await showChat();chatWin?.webContents.send("agent:confirm",{id,name,args});
- })});
+ const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:async({name,args})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name,args});});}});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);chatWin?.webContents.send("agent:event",e)}});
 }
 async function createCharacterWindow(){
@@ -244,6 +242,6 @@ ipcMain.on("window:move-by",(_,dx,dy)=>{
 ipcMain.on("window:show-chat",()=>{void showChat()});
 ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}});
 
-app.on("activate",()=>{if(!chatWin||chatWin.isDestroyed())createWindow().catch(e=>console.error(e))});
+app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>console.error(e))});
 app.on("window-all-closed",e=>e.preventDefault());
 app.on("before-quit",()=>{app.isQuitting=true});app.on("will-quit",()=>globalShortcut.unregisterAll());
