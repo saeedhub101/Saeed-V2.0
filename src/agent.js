@@ -55,7 +55,8 @@ class Agent{
    ttsApiKey:this.encryptKey(this._settings.ttsApiKey),
    realtimeApiKey:this.encryptKey(this._settings.realtimeApiKey)
   },null,2))}catch(e){console.error("Settings save failed:",e)}}
- saveHistory(){try{fs.writeFileSync(this.historyFile,JSON.stringify(this.history.slice(-200),null,2))}catch(e){console.error("History save failed:",e)}}\n clearHistory(){this.history=[];try{fs.writeFileSync(this.historyFile,"[]")}catch(e){console.error("History clear failed:",e)}}
+ saveHistory(){try{fs.writeFileSync(this.historyFile,JSON.stringify(this.history.slice(-200),null,2))}catch(e){console.error("History save failed:",e)}}
+ clearHistory(){this.history=[];try{fs.writeFileSync(this.historyFile,"[]")}catch(e){console.error("History clear failed:",e)}}
  async localIntent(text){
   const t=String(text||"").trim();
   if(!t)return null;
