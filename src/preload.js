@@ -9,7 +9,7 @@ contextBridge.exposeInMainWorld("saeed",{
  getSettings:()=>ipcRenderer.invoke("settings:get"),
  setSettings:s=>ipcRenderer.invoke("settings:set",s),
  reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),
- getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),
+ getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),getCpuMetrics:()=>ipcRenderer.invoke("cpu:metrics"),onCpuMetrics:f=>ipcRenderer.on("cpu:metrics",(_,e)=>f(e)),
  openDiagnosticsLog:()=>ipcRenderer.invoke("diagnostic:open-log"),
  showStatus:()=>ipcRenderer.invoke("status:show"),
  show3DStatus:()=>ipcRenderer.invoke("3d-status:show"),get3DStatus:()=>ipcRenderer.invoke("3d:query"),reload3DTest:()=>ipcRenderer.invoke("3d:reload-test"),report3DStatus:(requestId,status)=>ipcRenderer.send("3d:status-report",requestId,status),on3DQuery:f=>ipcRenderer.on("3d:query",(_,id)=>f(id)),on3DReload:f=>ipcRenderer.on("3d:reload-test",()=>f()),on3DStatus:f=>ipcRenderer.on("3d:status",(_,status)=>f(status)),
