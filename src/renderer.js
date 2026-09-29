@@ -1,3 +1,4 @@
+const isSettingsOnly=new URLSearchParams(location.search).get("settings")==="1";
 const $=id=>document.getElementById(id),messages=$("messages");
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function markdown(s){let x=escapeHtml(s);x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/`([^`]+)`/g,"<code>$1</code>").split("\n").join("<br>");return x}
@@ -167,7 +168,7 @@ window.saeed.onRealtimeState(async(state,message)=>{
  }
  // Realtime disconnects must NOT turn off Always Listening. The microphone is an independent service.
 });
-window.saeed.onRealtimeAudio(b=>realtimeMic.playPCM(b));
+window.saeed.onRealtimeAudio(b=>{if(isSettingsOnly)return;/* Voice playback is owned by the 3D character window. */});
 window.saeed.onRealtimeAssistantDelta(t=>{realtimeAssistant+=t;window.saeedAvatar?.play("talk");});
 window.saeed.onRealtimeAssistantFinal(t=>{if(t){add("assistant",t);realtimeAssistant="";}});
 window.saeed.onRealtimeUserFinal(t=>{if(t){window.saeed.reportDiagnostic("INFO","STT RECEIVE TEXT","Speech text received");if($("input").value.trim()==="")add("user",t)}});
@@ -178,16 +179,7 @@ window.saeed.onMicMode(async mode=>{
   await realtimeMic.start(m);
  }catch(e){const badge=$("micBadge");if(badge)badge.className="micBadge error";$("status").textContent="تعذر تشغيل المايك: "+e.message;window.saeed.reportDiagnostic("ERROR","MIC START FAILURE",e.message,{mode:m});}
 });
-window.addEventListener("load",async()=>{
- try{
-  const cfg=await window.saeed.getSettings();
-  const mode=cfg?.micMode||(cfg?.alwaysListening===false?"off":"always");
-  if(mode!=="off"){
-   try{await realtimeMic.start(mode)}catch(e){const badge=$("micBadge");if(badge)badge.className="micBadge error";$("status").textContent="تعذر تشغيل المايك: "+e.message;window.saeed.reportDiagnostic("ERROR","MIC STARTUP",e.message,{mode});}
-  }
-  if(cfg?.sttProvider==="whisper" && mode!=="off"){await window.saeed.startLocalWhisper();} else if(cfg?.brainMode==="realtime"&&(cfg?.hasRealtimeApiKey||cfg?.hasApiKey))await window.saeed.startRealtime({});
- }catch(e){console.warn("Voice startup:",e);window.saeed.reportDiagnostic("ERROR","VOICE STARTUP",e.message)}
-});$("save").onclick=async()=>{
+window.addEventListener("load",async()=>{try{if(isSettingsOnly){document.body.classList.add("settingsOnly");await showSettings();}else{const cfg=await window.saeed.getSettings();if(cfg?.micMode==="off")$("status").textContent="Microphone off";}}catch(e){console.warn("Startup:",e);window.saeed.reportDiagnostic("ERROR","STARTUP",e.message)}});$("save").onclick=async()=>{
  const payload={provider:$("provider").value,baseUrl:$("baseUrl").value,model:$("model").value,brainMode:$("brainMode").value,
   sttProvider:$("sttProvider").value,sttModel:$("sttModel").value,sttLanguage:$("sttLanguage").value,streamingMode:$("streamingMode").value,
   ttsProvider:$("ttsProvider").value,ttsModel:$("ttsModel").value,ttsVoice:$("ttsVoice").value,
@@ -202,7 +194,7 @@ window.addEventListener("load",async()=>{
 };
 
 window.saeed.onLocalSttState((state,message)=>{const badge=$("micBadge");if(badge)badge.className="micBadge "+state;$("status").textContent=state==="connected"?"Offline Whisper listening":state==="starting"?"Starting Offline Whisper...":state==="error"?"Whisper error: "+(message||"unknown"):"Offline Whisper: "+state;});
-window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").replace(/^[\s\.,!?؟،؛:]+/,"").trim();if(!text)return;window.saeed.reportDiagnostic("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});if($("input").value.trim()==="")add("user",text);try{const answer=await window.saeed.chat(text);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);speakSaeed(answer)}}catch(err){add("assistant","حدث خطأ: "+err.message)}});
+window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").replace(/^[\s\.,!?؟،؛:]+/,"").trim();if(!text)return;window.saeed.reportDiagnostic("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});if(!isSettingsOnly&&$("input").value.trim()==="")add("user",text);});
 
 const pttButton=$("pushToTalk");
 let pttActive=false,pttStream=null,pttCtx=null,pttSource=null,pttProcessor=null,pttSamples=[];
