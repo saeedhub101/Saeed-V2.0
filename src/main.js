@@ -53,6 +53,9 @@ function trayIcon(){
  return nativeImage.createFromPath(windowsIconPath());
 }
 app.setAppUserModelId("ai.saeed.desktop");
+const singleInstanceLock=app.requestSingleInstanceLock();
+if(!singleInstanceLock)app.quit();
+else app.on("second-instance",()=>showChat());
 let updateState="idle";
 const confirmations=new Map();
 const WINDOW={width:760,height:480,minWidth:360,minHeight:260};
@@ -119,6 +122,7 @@ async function createWindow(){
 function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";chatWin?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";chatWin?.webContents.send("update:state","error",e?.message||String(e))})}
 app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
  configureUpdater();
+ if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"}]);
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
  try{
   tray=new Tray(trayIcon());
