@@ -83,7 +83,7 @@ function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}
  characterWin.setPosition(Math.round(x),Math.round(y),false);
 }
 async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
-function closeChat(){if(chatWin&&!chatWin.isDestroyed())chatWin.hide()}
+function closeChat(){if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}}
 function showCharacter(){if(!characterWin||characterWin.isDestroyed())return;characterWin.show();characterWin.focus()}
 function showStatus(){if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile});return}statusWin=new BrowserWindow({width:820,height:620,minWidth:620,minHeight:420,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 function openDiagnosticsLog(){require("electron").shell.openPath(diagnosticFile).catch(e=>diagnostic("ERROR","DIAGNOSTICS LOG",e.message))}
@@ -97,7 +97,7 @@ function contextMenu(){
   {label:"Hide Saeed",click:()=>characterWin?.hide()},
   {type:"separator"},
   {label:"Change Character (GLB)",click:chooseCharacter},
-  {label:"Settings",click:()=>{showChat();chatWin?.webContents.send("settings:show")}},
+  {label:"Settings",click:async()=>{await showChat();chatWin?.webContents.send("settings:show")}},
   {type:"separator"},{label:"Quit",click:()=>app.quit()}
  ]);
  menu.popup({window:characterWin});
@@ -115,7 +115,7 @@ async function createChatWindow(){
 async function createWindow(){
  await createCharacterWindow();
  const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:({name,args})=>new Promise(resolve=>{
-  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);showChat();chatWin?.webContents.send("agent:confirm",{id,name,args});
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);await showChat();chatWin?.webContents.send("agent:confirm",{id,name,args});
  })});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);chatWin?.webContents.send("agent:event",e)}});
 }
@@ -142,13 +142,13 @@ app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATI
   tray.setContextMenu(Menu.buildFromTemplate([
    {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
    {type:"separator"},{label:"Always Listening",type:"radio",checked:true,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic Off",type:"radio",click:()=>setMicMode("off")},
-   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:()=>{showChat();chatWin?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
+   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:async()=>{await showChat();chatWin?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
    {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
   ]));
  }catch(e){console.error("Tray failed:",e)}
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
-  try{const image=await captureScreen();showChat();chatWin?.webContents.send("screen:capture",image)}
+  try{const image=await captureScreen();await showChat();chatWin?.webContents.send("screen:capture",image)}
   catch(e){console.error("Screen capture failed:",e)}
  });
  const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
