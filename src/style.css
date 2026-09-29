@@ -52,7 +52,7 @@ code{background:#eef1f5;color:#182230;padding:2px 5px;border-radius:4px}
 #modal.hidden,#historyModal.hidden{display:none}
 #modal h3{margin:0 0 7px;font-size:14px}
 .settingsCard{width:100%;min-height:100%;margin:0;box-sizing:border-box;padding:0 0 64px;background:#f5f7fb}
-.settingsTitle{height:76px;display:flex;justify-content:space-between;align-items:center;padding:0 25px;position:sticky;top:0;background:#fff;border-bottom:1px solid #e1e7ef;z-index:10;gap:16px}
+.settingsTitle{height:76px;display:flex;justify-content:space-between;align-items:center;padding:0 25px;position:sticky;top:0;background:#fff;border-bottom:1px solid #e1e7ef;z-index:10;gap:16px;-webkit-app-region:drag;cursor:move}.settingsTitle button{ -webkit-app-region:no-drag }
 .settingsTitle h2{margin:0 0 4px;font-size:20px;font-weight:760}
 .settingsTitle p{margin:0;font-size:12px;color:#7b8797}
 .settingsTitle button{border:0;border-radius:9px;padding:0;background:#f1f4f8;color:#5c697b;font-size:20px;width:34px;height:34px;cursor:pointer}
