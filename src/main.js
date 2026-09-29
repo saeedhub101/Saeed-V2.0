@@ -224,6 +224,7 @@ ipcMain.on("window:move-by",(_,dx,dy)=>{
  characterWin.setPosition(nx,ny,true);
 });
 ipcMain.on("window:show-chat",showChat);
+ipcMain.on("window:close-chat",closeChat);
 app.on("activate",()=>{if(!chatWin||chatWin.isDestroyed())createWindow().catch(e=>console.error(e))});
 app.on("window-all-closed",e=>e.preventDefault());
 app.on("before-quit",()=>{app.isQuitting=true});app.on("will-quit",()=>globalShortcut.unregisterAll());
