@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld("saeed",{
  getHistory:()=>ipcRenderer.invoke("history:get"),
  getSettings:()=>ipcRenderer.invoke("settings:get"),
  setSettings:s=>ipcRenderer.invoke("settings:set",s),
- reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),
+ reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),reportMicLevel:level=>ipcRenderer.send("mic:level",Number(level)||0),onMicLevel:f=>ipcRenderer.on("mic:level",(_,level)=>f(level)),
  getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),getCpuMetrics:()=>ipcRenderer.invoke("cpu:metrics"),onCpuMetrics:f=>ipcRenderer.on("cpu:metrics",(_,e)=>f(e)),
  openDiagnosticsLog:()=>ipcRenderer.invoke("diagnostic:open-log"),
  showStatus:()=>ipcRenderer.invoke("status:show"),
