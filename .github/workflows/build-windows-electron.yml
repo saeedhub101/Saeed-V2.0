@@ -135,7 +135,7 @@ jobs:
             if (-not $target) { throw "Saeed did not expose a Chromium page for runtime inspection." }
 
             $ws = [System.Net.WebSockets.ClientWebSocket]::new()
-            $ws.ConnectAsync([Uri]::new([string]$target.webSocketDebuggerUrl, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
+            $ws.ConnectAsync([Uri]::new([string]$target.webSocketDebuggerUrl), [Threading.CancellationToken]::None).GetAwaiter().GetResult()
             $expression = "JSON.stringify({title:document.title,panel:!!document.querySelector('#panel'),panelVisible:document.querySelector('#panel')?.classList.contains('visible'),welcome:document.body?.innerText?.includes('مرحبًا')})"
             $message = @{ id = 1; method = "Runtime.evaluate"; params = @{ expression = $expression; returnByValue = $true } } | ConvertTo-Json -Compress
             $bytes = [Text.Encoding]::UTF8.GetBytes($message)
