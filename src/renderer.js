@@ -39,6 +39,20 @@ function speakSaeed(text){
  window.speechSynthesis.speak(u);
 }
 
+async function sendVoiceText(text){
+ const t=String(text||"").trim();
+ if(!t||busy||currentMicMode!=="on")return;
+ busy=true;
+ add("user",t);
+ $("status").textContent="Thinking…";
+ try{
+  const answer=await window.saeed.chat(t,null);
+  if(answer?.error)add("assistant","Error: "+answer.error);
+  else if(answer){add("assistant",answer);speakSaeed(answer)}
+ }catch(e){add("assistant","Error: "+e.message)}
+ finally{busy=false;$("status").textContent=currentMicMode==="on"?"Microphone on":"Ready"}
+}
+
 async function send(){
  if(busy)return;let t=$("input").value.trim();if(!t&&!attachments.length)return;
  if(attachments.length){t=(t?t+"\n\n":"")+"[مرفقات]\n"+attachments.map(a=>"--- "+a.name+" ---\n"+a.text).join("\n");attachments=[];renderAttachments()}
