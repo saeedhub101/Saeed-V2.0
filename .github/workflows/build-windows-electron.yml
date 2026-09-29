@@ -3,6 +3,7 @@ name: Saeed AI — Windows Build
 on:
   push:
     branches: [main]
+    tags: ['v*']
     paths:
       - 'src/**'
       - 'assets/**'
@@ -10,12 +11,6 @@ on:
       - 'VERSION'
       - '.github/workflows/build-windows-electron.yml'
   workflow_dispatch:
-    inputs:
-      release:
-        description: 'Publish a GitHub Release for the VERSION in this commit'
-        required: true
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -46,6 +41,11 @@ jobs:
           $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
           if ($pkg.version -ne "$releaseVersion.0") { throw "package.json version $($pkg.version) does not match VERSION $releaseVersion (expected $releaseVersion.0)" }
           if ($pkg.build.buildVersion -ne $pkg.version) { throw "Electron buildVersion must equal package.json version" }
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
+            if ($tagVersion -ne $releaseVersion) { throw "Release tag $env:GITHUB_REF_NAME does not match VERSION v$releaseVersion" }
+            Write-Host "Release tag validated: $env:GITHUB_REF_NAME"
+          }
           Write-Host "Official product version: v$releaseVersion"
           Write-Host "Workflow build number: $env:GITHUB_RUN_NUMBER"
 
@@ -214,8 +214,8 @@ jobs:
             dist/latest.yml
             dist/ci-runtime-report.json
 
-      - name: Publish official release only when explicitly requested
-        if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')) || (github.event_name == 'workflow_dispatch' && inputs.release)
+      - name: Publish official release from version tag
+        if: startsWith(github.ref, 'refs/tags/v')
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
