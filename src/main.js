@@ -84,7 +84,7 @@ function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}
  const y=bottomRight?area.y+Math.max(0,area.height-h-margin):Math.max(area.y,Math.min(y0,area.y+Math.max(0,area.height-h)));
  characterWin.setPosition(Math.round(x),Math.round(y),false);
 }
-async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
+async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
 function closeChat(){if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}}
 async function showSettings(){try{if(settingsWin&&!settingsWin.isDestroyed()){settingsWin.show();settingsWin.focus();settingsWin.webContents.send("settings:show");return}settingsWin=new BrowserWindow({width:900,height:700,minWidth:760,minHeight:560,title:"Saeed Settings",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});settingsWin.setIcon(windowsIconPath());settingsWin.on("closed",()=>{settingsWin=null});await settingsWin.loadFile(path.join(__dirname,"index.html"),{query:{settings:"1"}});settingsWin.show();settingsWin.focus();settingsWin.webContents.send("settings:show")}catch(e){diagnostic("ERROR","SETTINGS WINDOW",e.message)}}
 function showCharacter(){if(!characterWin||characterWin.isDestroyed())return;characterWin.show();characterWin.focus()}
@@ -117,6 +117,7 @@ async function createChatWindow(){
  if(process.platform==="win32")chatWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Chat"});
  chatWin.on("closed",()=>{chatWin=null});
  chatWin.webContents.on("context-menu",()=>contextMenu());
+ chatWin.setIgnoreMouseEvents(false);
  await chatWin.loadFile(path.join(__dirname,"index.html"));
  return chatWin;
 }
@@ -176,7 +177,12 @@ ipcMain.handle("settings:set",(_,s)=>{
  const previous={...agent.settings};
  agent.settings={...(s||{})};
  const mode=String(agent.settings.brainMode||"auto");
- const micMode=String(agent.settings.micMode||"off");
+ let micMode=String(agent.settings.micMode||"off");
+ if(previous.brainMode==="realtime"&&mode!=="realtime"&&micMode==="always"){
+  micMode="off";
+  agent.settings={...agent.settings,micMode:"off",alwaysListening:false};
+  diagnostic("INFO","REALTIME EXIT","Leaving Realtime mode automatically turned the microphone OFF");
+ }
  setMicMode(micMode);
  if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});
  diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
@@ -190,6 +196,11 @@ ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});ipcMain.h
 ipcMain.handle("mic:mode",(_,mode)=>{setMicMode(String(mode||"always"));return true});
 ipcMain.on("mic:level",(_,level)=>{const v=Math.max(0,Math.min(1,Number(level)||0));diagnosticState.mic={...diagnosticState.mic,state:v>0?"active":diagnosticState.mic.state,level:v,detail:"Live microphone input"};for(const win of [statusWin,threeDStatusWin,characterWin])if(win&&!win.isDestroyed())win.webContents.send("mic:level",v);if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);});
 ipcMain.handle("chat:minimize",()=>{if(!chatWin||chatWin.isDestroyed())return false;chatWin.minimize();return true});
+ipcMain.on("chat:mouse-passthrough",(event,ignore)=>{
+ const win=BrowserWindow.fromWebContents(event.sender);
+ if(!win||win.isDestroyed()||win!==chatWin)return;
+ win.setIgnoreMouseEvents(Boolean(ignore),{forward:true});
+});
  ipcMain.on("mic:ptt",(_,active)=>{voiceBroadcast("mic:ptt",Boolean(active))});
 ipcMain.handle("capture",()=>captureScreen());
 ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";voiceBroadcast("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
@@ -203,7 +214,14 @@ ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  confirmations.delete(id);resolve(Boolean(approved));return true;
 });
 function stopRealtime(){
- if(realtime){realtime.stop();realtime=null}diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");voiceBroadcast("realtime:state","disconnected");
+ if(realtime){realtime.stop();realtime=null}
+ if(agent&&agent.settings?.micMode!=="off"){
+  agent.settings={...agent.settings,micMode:"off",alwaysListening:false};
+  voiceBroadcast("mic:mode","off");
+ }
+ diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");
+ diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");
+ voiceBroadcast("realtime:state","disconnected");
 }
 function startRealtime(options={}){
  const s=agent?.settings||{};
@@ -255,7 +273,7 @@ ipcMain.on("window:move-by",(_,dx,dy)=>{
  characterWin.setPosition(nx,ny,true);
 });
 ipcMain.on("window:show-chat",()=>{void showChat()});
-ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}});
+ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.setIgnoreMouseEvents(false);chatWin.close()}});
 
 app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>console.error(e))});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});

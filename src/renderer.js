@@ -47,6 +47,21 @@ async function send(){
 function renderAttachments(){$("attachments").textContent=attachments.length?attachments.map(a=>a.name).join(" • "):""}
 $("send").onclick=send;
 $("togglePanel").onclick=()=>window.saeed.minimizeChat();
+const chatPanel=$("panel");
+let chatMouseIgnored=false;
+function updateChatMousePassthrough(e){
+ if(isSettingsOnly||!chatPanel)return;
+ const target=document.elementFromPoint(e.clientX,e.clientY);
+ const inside=Boolean(target&&chatPanel.contains(target));
+ const shouldIgnore=!inside;
+ if(shouldIgnore!==chatMouseIgnored){
+  chatMouseIgnored=shouldIgnore;
+  window.saeed.setChatMousePassthrough(shouldIgnore);
+ }
+}
+document.addEventListener("mousemove",updateChatMousePassthrough,{passive:true});
+chatPanel?.addEventListener("mouseenter",()=>{chatMouseIgnored=false;window.saeed.setChatMousePassthrough(false)});
+chatPanel?.addEventListener("mouseleave",()=>{chatMouseIgnored=true;window.saeed.setChatMousePassthrough(true)});
 $("input").ondblclick=()=>window.saeed.showChat();
 $("input").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
 async function showSettings(){
@@ -164,7 +179,7 @@ window.saeed.onRealtimeAssistantFinal(t=>{if(t){add("assistant",t);realtimeAssis
 window.saeed.onRealtimeUserFinal(t=>{if(t&&!isSettingsOnly){const clean=String(t).replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();if($("input").value.trim()===""&&clean)add("user",clean)}});
 window.saeed.onRealtimeError(e=>{window.saeed.reportDiagnostic("ERROR","REALTIME API ERROR",String(e));if(!isSettingsOnly)$("status").textContent="Realtime: "+e});
 window.saeed.onMicMode(mode=>{const m=String(mode||"always");const badge=$("micBadge");if(badge)badge.className="micBadge "+m;if(!isSettingsOnly)$("status").textContent=m==="off"?"Microphone off":"Microphone mode: "+m;});
-window.addEventListener("load",async()=>{try{if(isSettingsOnly){document.body.classList.add("settingsOnly");await showSettings();}else{const cfg=await window.saeed.getSettings();if(cfg?.micMode==="off")$("status").textContent="Microphone off";}}catch(e){console.warn("Startup:",e);window.saeed.reportDiagnostic("ERROR","STARTUP",e.message)}});$("save").onclick=async()=>{
+window.addEventListener("load",async()=>{try{if(isSettingsOnly){document.body.classList.add("settingsOnly");window.saeed.setChatMousePassthrough(false);await showSettings();}else{const cfg=await window.saeed.getSettings();if(cfg?.micMode==="off")$("status").textContent="Microphone off";}}catch(e){console.warn("Startup:",e);window.saeed.reportDiagnostic("ERROR","STARTUP",e.message)}});$("save").onclick=async()=>{
  const payload={provider:$("provider").value,baseUrl:$("baseUrl").value,model:$("model").value,brainMode:$("brainMode").value,
   sttProvider:$("sttProvider").value,sttModel:$("sttModel").value,sttLanguage:$("sttLanguage").value,streamingMode:$("streamingMode").value,
   ttsProvider:$("ttsProvider").value,ttsModel:$("ttsModel").value,ttsVoice:$("ttsVoice").value,

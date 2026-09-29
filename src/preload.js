@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld("saeed",{
  moveWindowBy:(dx,dy)=>ipcRenderer.send("window:move-by",dx,dy),
  showChat:()=>ipcRenderer.send("window:show-chat"),
  closeChat:()=>ipcRenderer.send("window:close-chat"),
+ setChatMousePassthrough:ignore=>ipcRenderer.send("chat:mouse-passthrough",Boolean(ignore)),
  minimizeChat:()=>ipcRenderer.invoke("chat:minimize"),
  onEvent:f=>ipcRenderer.on("agent:event",(_,e)=>f(e)),
  onConfirmation:f=>ipcRenderer.on("agent:confirm",(_,e)=>f(e)),
