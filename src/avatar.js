@@ -170,6 +170,8 @@ function nod(){
 }
 window.saeedAvatar={
  setState,move,turn,gesture,lookAt,nod,
+ get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))},
+ reloadDiagnostic:()=>{renderedReportSent=false;runtime3D.lastError="";runtime3D.components.testObject={...runtime3D.components.testObject,state:"loading",detail:"Reloading diagnostic 3D object"};installDiagnosticObject();return true},
  stop(){if(moveTimer){clearTimeout(moveTimer);moveTimer=null}avatarState="idle";return playAnimation("idle")},
   setMood(mood){root.rotation.z=0;root.scale.setScalar(mood==="excited"?1.04:mood==="sad"?.97:1);if(mood==="alert")root.rotation.z=.02},
  play(name,options){return playAnimation(name,options)},
@@ -210,8 +212,10 @@ let renderLoopStarted=false;function frame(){
   if(runtime3D.components.testObject.state==="ready"&&renderer.info.render.calls>0){runtime3D.components.testObject.state="rendered";runtime3D.components.testObject.detail="Diagnostic 3D object produced WebGL draw calls";if(!renderedReportSent){renderedReportSent=true;report("INFO","3D TEST OBJECT RENDERED","Standalone 3D object is rendered by WebGL",runtime3D.metrics)}refreshOverall()}
  }catch(e){
   console.error("Saeed 3D renderer.render failed:",e);
+  runtime3D.lastError=e.message;set3DState("renderLoop","error",e.message);
   const message=document.getElementById("status");
   if(message)message.textContent="Saeed 3D renderer failed";
+  report("ERROR","3D RENDER","renderer.render failed: "+e.message);
  }
 }
 frame();
