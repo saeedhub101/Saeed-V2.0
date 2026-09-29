@@ -156,11 +156,13 @@ jobs:
           $json=Get-Content $report -Raw | ConvertFrom-Json
           if (-not $json.checks.glbFile.pass) { throw "GLB file check failed." }
           if (-not $json.checks.glbRuntime.pass) { throw "GLB runtime display check failed." }
-          if (-not $json.checks.brain.pass) { throw "Brain smoke test failed." }
+          if (-not $json.checks.brain.pass) { throw "Agent/brain smoke test failed." }
+          if (-not $json.checks.localBrain.pass) { throw "Local Brain smoke test failed." }
           if (-not $json.checks.chat.pass) { throw "Chat/Agent smoke test failed." }
           if (-not $json.checks.tts.pass) { throw "TTS API smoke test failed." }
           Write-Host "RUNTIME_GLB=PASS"
-          Write-Host "RUNTIME_BRAIN=PASS"
+          Write-Host "RUNTIME_AGENT=PASS"
+          Write-Host "RUNTIME_LOCAL_BRAIN=PASS"
           Write-Host "RUNTIME_CHAT=PASS"
           Write-Host "RUNTIME_TTS_API=PASS"
           if ($json.checks.micOn.pass) { Write-Host "RUNTIME_MIC_CAPTURE=PASS" } else { Write-Warning "RUNTIME_MIC_CAPTURE=UNAVAILABLE_OR_FAILED; see report (host audio device may be unavailable)." }
