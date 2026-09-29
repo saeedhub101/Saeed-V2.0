@@ -17,13 +17,14 @@
   </div>
   <div id="tab-voice" class="settingsTabContent hidden">
    <h3>STT — Speech to Text</h3>
-   <label>STT provider<select id="sttProvider"><option value="local">Local / Browser</option><option value="openai">OpenAI STT — API</option></select></label>
-   <label>STT model<input id="sttModel" value="gpt-4o-mini-transcribe"></label>
-   <label>STT language<input id="sttLanguage" value="en"></label>
+   <label>STT provider<select id="sttProvider"><option value="whisper">Whisper — Local / Offline</option><option value="openai">OpenAI STT — API</option></select></label>
+   <label>STT model<select id="sttModel"><option value="base-q5_1">Whisper Base Q5 — Multilingual</option></select></label>
+   <label>STT language<select id="sttLanguage"><option value="auto">Auto Detect</option><option value="en">English</option><option value="ar">Arabic</option></select></label>
    <label id="sttKeyRow">STT API key<input id="sttKey" type="password" placeholder="Enter STT API key"></label>
    <div class="settingActions"><button id="testSTT">Verify STT</button></div><div id="sttStatus" class="settingStatus"></div>
    <hr><h3>Realtime Live Streaming</h3>
    <div class="settingHint">Realtime هو وضع اختياري فقط. الحالة الخضراء تظهر فقط بعد نجاح الاتصال الفعلي. إذا فشل المفتاح أو النموذج سيظهر خطأ أحمر.</div>
+   <label>Streaming<select id="streamingMode"><option value="off">Off</option><option value="local-whisper">Local Whisper Streaming</option><option value="realtime">Realtime Live Streaming</option></select></label>
    <label>Realtime model<select id="realtimeModel"><option value="gpt-realtime-2.1">GPT-Realtime-2.1</option><option value="gpt-realtime-2">GPT-Realtime-2</option><option value="gpt-realtime-1.5">GPT-Realtime-1.5</option></select></label>
    <label>Realtime voice<select id="realtimeVoice"><option value="marin">marin</option><option value="cedar">cedar</option><option value="alloy">alloy</option><option value="ash">ash</option><option value="ballad">ballad</option><option value="coral">coral</option><option value="sage">sage</option><option value="verse">verse</option></select></label>
    <label>Realtime API key<input id="realtimeKey" type="password" placeholder="Enter Realtime API key"></label>
