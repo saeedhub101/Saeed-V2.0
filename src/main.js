@@ -202,7 +202,8 @@ ipcMain.handle("update:download",async()=>{if(updateState!=="available")return f
 ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
 ipcMain.handle("update:state",()=>updateState);
 
-ipcMain.handle("history:get",()=>agent?.history||[]);\nipcMain.handle("history:clear",()=>{if(!agent)return false;agent.clearHistory();chatWin?.webContents.send("history:cleared");return true});
+ipcMain.handle("history:get",()=>agent?.history||[]);
+ipcMain.handle("history:clear",()=>{if(!agent)return false;agent.clearHistory();chatWin?.webContents.send("history:cleared");return true});
 ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  const resolve=confirmations.get(id);if(!resolve)return false;
  confirmations.delete(id);resolve(Boolean(approved));return true;
