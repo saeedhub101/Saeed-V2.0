@@ -1,4 +1,9 @@
 const $=id=>document.getElementById(id),messages=$("messages");
+let chatDragging=false,chatLastX=0,chatLastY=0;
+const chatHeader=document.querySelector(".chatHeader");
+chatHeader?.addEventListener("mousedown",e=>{if(e.button!==0||e.target.closest("button,.micBadge"))return;chatDragging=true;chatLastX=e.screenX;chatLastY=e.screenY;e.preventDefault()});
+window.addEventListener("mousemove",e=>{if(!chatDragging)return;const dx=e.screenX-chatLastX,dy=e.screenY-chatLastY;chatLastX=e.screenX;chatLastY=e.screenY;window.saeed.moveChatBy?.(dx,dy)});
+window.addEventListener("mouseup",()=>{chatDragging=false});
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 function markdown(s){let x=escapeHtml(s);x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/`([^`]+)`/g,"<code>$1</code>").split("\n").join("<br>");return x}
 function add(role,text){const d=document.createElement("div");d.className="msg "+role;d.innerHTML=role==="assistant"?markdown(text):escapeHtml(text).split("\n").join("<br>");messages.appendChild(d);messages.scrollTop=messages.scrollHeight}
