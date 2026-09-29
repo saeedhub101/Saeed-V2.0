@@ -167,9 +167,9 @@ function turn(direction){
  smoothTurnTo(yaw);return true;
 }
 function nod(){
- const head=bones.get("head"),base=boneBase.get("head");
- if(head&&base){head.rotation.x=base.x+.12;setTimeout(()=>head.rotation.set(base.x,base.y,base.z),180);return true;}
- const base=root.rotation.x;root.rotation.x=base+.12;setTimeout(()=>root.rotation.x=base,180);return true;
+ const head=bones.get("head"),baseBone=boneBase.get("head");
+ if(head&&baseBone){head.rotation.x=baseBone.x+.12;setTimeout(()=>head.rotation.set(baseBone.x,baseBone.y,baseBone.z),180);return true;}
+ const baseRoot=root.rotation.x;root.rotation.x=baseRoot+.12;setTimeout(()=>root.rotation.x=baseRoot,180);return true;
 }
 window.saeedAvatar={
  setState,move,turn,gesture,lookAt,nod,
