@@ -18,7 +18,7 @@ contextBridge.exposeInMainWorld("saeed",{
  onDiagnosticState:f=>ipcRenderer.on("diagnostic:state",(_,e)=>f(e)),
  chooseCharacter:()=>ipcRenderer.invoke("character:choose"),
  onCharacterSelected:f=>ipcRenderer.on("character:selected",(_,e)=>f(e)),
- moveWindowBy:(dx,dy)=>ipcRenderer.send("window:move-by",dx,dy),
+ moveWindowBy:(dx,dy)=>ipcRenderer.send("window:move-by",dx,dy),moveChatBy:(dx,dy)=>ipcRenderer.send("chat:move-by",dx,dy),
  showChat:()=>ipcRenderer.send("window:show-chat"),
  closeChat:()=>ipcRenderer.send("window:close-chat"),
  setChatMousePassthrough:ignore=>ipcRenderer.send("chat:mouse-passthrough",Boolean(ignore)),
