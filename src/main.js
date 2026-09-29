@@ -147,7 +147,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATI
   tray.setToolTip("Saeed AI");
   tray.setContextMenu(Menu.buildFromTemplate([
    {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
-   {type:"separator"},{label:"Always Listening",type:"radio",checked:true,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic Off",type:"radio",click:()=>setMicMode("off")},
+   {type:"separator"},{label:"Mic ON — Live",type:"radio",checked:false,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic OFF",type:"radio",checked:true,click:()=>setMicMode("off")},
    {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:async()=>{try{await autoUpdater.checkForUpdates()}catch(e){diagnostic("ERROR","UPDATE",e.message)}}},{label:"Settings",click:showSettings},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
    {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
   ]));
