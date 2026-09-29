@@ -79,7 +79,7 @@ const resourceProbeSamples=[];
 function resourceSnapshot(label="sample"){
  const usage=process.memoryUsage(), cpu=process.cpuUsage();
  const rss=Math.round(usage.rss/1048576), heapUsed=Math.round(usage.heapUsed/1048576), external=Math.round(usage.external/1048576);
- const sample={time:new Date().toISOString(),label,pid:process.pid,cpuUserMs:Math.round(cpu.user/1000),cpuSystemMs:Math.round(cpu.system/1000),rssMB:rss,heapUsedMB:heapUsed,heapTotalMB:Math.round(usage.heapTotal/1048576),externalMB:external,platform:process.platform};
+ const windows=BrowserWindow.getAllWindows().map(w=>({title:w.getTitle(),url:w.webContents.getURL(),processId:w.webContents.getOSProcessId(),destroyed:w.isDestroyed()}));const metrics=app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,name:m.name||"",serviceName:m.serviceName||"",cpuPercent:+(m.cpu?.percentCPUUsage||0).toFixed(2),cpuTotalSec:+(m.cpu?.cumulativeCPUUsage||0).toFixed(3),workingSetMB:+((m.memory?.workingSetSize||0)/1024).toFixed(1),privateMB:+((m.memory?.privateBytes||0)/1024).toFixed(1)}));const sample={time:new Date().toISOString(),label,pid:process.pid,cpuUserMs:Math.round(cpu.user/1000),cpuSystemMs:Math.round(cpu.system/1000),rssMB:rss,heapUsedMB:heapUsed,heapTotalMB:Math.round(usage.heapTotal/1048576),externalMB:external,platform:process.platform,windows,processes:metrics};
  resourceProbeSamples.push(sample);if(resourceProbeSamples.length>120)resourceProbeSamples.shift();return sample;
 }
 function startResourceProbe(){if(resourceProbeTimer)return;resourceSnapshot("startup");resourceProbeTimer=setInterval(()=>resourceSnapshot("interval"),1000);resourceProbeTimer.unref?.()}
