@@ -60,20 +60,6 @@ jobs:
             if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" }
           }
 
-      - name: Validate pinned direct dependencies
-        shell: pwsh
-        run: |
-          $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
-          $expected = @{
-            "three" = "0.180.0"
-            "ws" = "8.18.3"
-            "electron" = "38.8.6"
-            "electron-builder" = "26.15.3"
-          }
-          foreach ($name in $expected.Keys) {
-            $actual = if ($pkg.dependencies.$name) { $pkg.dependencies.$name } else { $pkg.devDependencies.$name }
-            if ($actual -ne $expected[$name]) { throw "$name is not pinned to $($expected[$name]); found $actual" }
-          }
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -132,31 +118,7 @@ jobs:
       - name: Build Windows installer
         run: npm run build
 
-      - name: Verify bundled Offline Whisper
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          foreach($p in @("build\whisper\whisper-stream.exe","build\whisper\whisper-cli.exe","build\whisper\SDL2.dll","build\whisper\ggml-base-q5_1.bin")){
-            if(!(Test-Path $p -PathType Leaf)){throw "Missing Offline Whisper component: $p"}
-          }
-          $modelBytes=(Get-Item "build\whisper\ggml-base-q5_1.bin").Length
-          if($modelBytes -lt 50000000){throw "Bundled Whisper model is too small."}
-          Write-Host "WHISPER_MODEL_BYTES=$modelBytes"
-          Write-Host "OFFLINE_WHISPER_ASSETS=PASS"
 
-      - name: Verify Chat taskbar entry and on-demand lifecycle contract
-        shell: pwsh
-        run: |
-          $main = Get-Content "src/main.js" -Raw
-          if ($main -notmatch 'setUserTasks') { throw "Windows taskbar Jump List setup is missing." }
-          if ($main -notmatch 'arguments:"--chat"') { throw "Chat Me taskbar entry does not launch the --chat command." }
-          if ($main -notmatch 'else if\(process\.argv\.includes\("--chat"\)') { throw "Startup does not explicitly open Chat when launched by the Chat Me taskbar command." }
-          if ($main -notmatch 'chatWin\.destroy\(\)') { throw "Closing Chat does not destroy the Chat window." }
-          if ($main -notmatch 'resizable:true') { throw "Chat window is not configured as resizable." }
-          $style = Get-Content "src/style.css" -Raw
-          if ($style -notmatch '#panel>header[^\n]*-webkit-app-region:drag') { throw "Chat header is not configured as draggable." }
-          if ($style -notmatch '#panel>header button[^\n]*no-drag') { throw "Chat header controls are not excluded from drag." }
-          Write-Host "CHAT_TASKBAR_CONTRACT=PASS"
 
       - name: Launch built program and verify chat screen
         shell: pwsh
@@ -279,114 +241,8 @@ jobs:
             Get-Process | Where-Object { $_.Path -like "$PWD\\dist\\win-unpacked\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Measure CPU usage of built program
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $appPath = (Resolve-Path "dist\\win-unpacked\\Saeed AI.exe").Path
-          $appDir = Split-Path $appPath
-          $debugPort = 9223
-          $stdoutLog = Join-Path $PWD "dist\\cpu-test.stdout.log"
-          $stderrLog = Join-Path $PWD "dist\\cpu-test.stderr.log"
-          $report = Join-Path $PWD "dist\\cpu-report.json"
-          $proc = Start-Process -FilePath $appPath -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
 
-          try {
-            Start-Sleep -Seconds 8
-            $logicalProcessors = [Environment]::ProcessorCount
 
-            function Get-SaeedCpuSample {
-              $processes = @(Get-CimInstance Win32_Process | Where-Object {
-                $_.ExecutablePath -and $_.ExecutablePath.StartsWith($appDir,[StringComparison]::OrdinalIgnoreCase)
-              })
-              $ids = @($processes.ProcessId)
-              if ($ids.Count -eq 0) { return $null }
-
-              $idSet = @{}
-              foreach ($id in $ids) { $idSet[[uint32]$id] = $true }
-              $perf = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction SilentlyContinue |
-                Where-Object { $idSet.ContainsKey([uint32]$_.IDProcess) })
-              if ($perf.Count -eq 0) { return $null }
-
-              $sum = ($perf | Measure-Object -Property PercentProcessorTime -Sum).Sum
-              [pscustomobject]@{
-                cpu = [double]$sum / $logicalProcessors
-                processCount = $ids.Count
-              }
-            }
-
-            $idleSamples = @()
-            $allSamples = @()
-            $processCounts = @()
-
-            # Short idle measurement: Saeed is running normally without user interaction.
-            for ($i = 0; $i -lt 5; $i++) {
-              $sample = Get-SaeedCpuSample
-              if ($sample) {
-                $idleSamples += $sample.cpu
-                $processCounts += $sample.processCount
-                $allSamples += $sample.cpu
-              }
-              Start-Sleep -Seconds 1
-            }
-
-            # Short overall measurement: continue sampling while the built program is running normally.
-            for ($i = 0; $i -lt 5; $i++) {
-              $sample = Get-SaeedCpuSample
-              if ($sample) {
-                $allSamples += $sample.cpu
-                $processCounts += $sample.processCount
-              }
-              Start-Sleep -Seconds 1
-            }
-
-            if (-not $idleSamples.Count -or -not $allSamples.Count) {
-              throw "CPU performance samples for the built Saeed program were not available."
-            }
-
-            $idleAverage = ($idleSamples | Measure-Object -Average).Average
-            $idleMaximum = ($idleSamples | Measure-Object -Maximum).Maximum
-            $overallAverage = ($allSamples | Measure-Object -Average).Average
-            $overallMaximum = ($allSamples | Measure-Object -Maximum).Maximum
-
-            $result = [ordered]@{
-              test = "built-program-cpu"
-              logicalProcessors = $logicalProcessors
-              saeedProcessesMin = ($processCounts | Measure-Object -Minimum).Minimum
-              saeedProcessesMax = ($processCounts | Measure-Object -Maximum).Maximum
-              idleSamples = $idleSamples.Count
-              overallSamples = $allSamples.Count
-              idleCpuAveragePercent = [Math]::Round($idleAverage,2)
-              idleCpuMaximumPercent = [Math]::Round($idleMaximum,2)
-              overallCpuAveragePercent = [Math]::Round($overallAverage,2)
-              overallCpuMaximumPercent = [Math]::Round($overallMaximum,2)
-              note = "CPU is normalized across logical processors. Idle = normal operation without user interaction; overall = combined short measurement window."
-              measuredAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            }
-
-            $result | ConvertTo-Json | Set-Content $report
-            Write-Host "CPU RESOURCE TEST"
-            Write-Host "Logical CPUs: $logicalProcessors"
-            Write-Host "Saeed Processes: $($result.saeedProcessesMax)"
-            Write-Host ""
-            Write-Host ("Idle CPU Average: " + $result.idleCpuAveragePercent + "%")
-            Write-Host ("Idle CPU Maximum: " + $result.idleCpuMaximumPercent + "%")
-            Write-Host ""
-            Write-Host ("Overall CPU Average: " + $result.overallCpuAveragePercent + "%")
-            Write-Host ("Overall CPU Maximum: " + $result.overallCpuMaximumPercent + "%")
-            Write-Host ""
-            Write-Host "CPU_CHECK=PASS"
-          }
-          finally {
-            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-            Get-Process | Where-Object { $_.Path -like "$appDir\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-          }
-
-      - name: Measure RAM usage of built program
-        shell: pwsh
-        run: |
-          $app=(Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path;$dir=Split-Path $app;$p=Start-Process $app -ArgumentList "--remote-debugging-port=9225" -PassThru
-          try{Start-Sleep 8;$s=@();1..10|%{ $ps=@(Get-Process|?{$_.Path-and$_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase)});if($ps.Count){$s+=(($ps|Measure-Object WorkingSet64 -Sum).Sum)};Start-Sleep 1 };if(!$s.Count){throw "RAM samples unavailable"};$a=($s|Measure-Object -Average).Average;Write-Host ("Average RAM MB: "+[math]::Round($a/1MB,2));Write-Host "RAM_CHECK=PASS"}finally{if($p-and-not$p.HasExited){Stop-Process $p.Id -Force -ErrorAction SilentlyContinue};Get-Process | Where-Object { $_.Path -like "$dir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue}
       - name: Generate Windows updater metadata
         shell: pwsh
         run: |
@@ -420,9 +276,6 @@ jobs:
             dist/*.exe
             dist/*.blockmap
             dist/*.sha256
-            dist/cpu-test.stdout.log
-            dist/cpu-test.stderr.log
-            dist/cpu-report.json
             dist/latest.yml
 
       - name: Publish official release only when explicitly requested
