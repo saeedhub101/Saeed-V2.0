@@ -36,7 +36,7 @@ contextBridge.exposeInMainWorld("saeed",{
  sendRealtimeAudio:b=>ipcRenderer.invoke("realtime:audio",b),
  sendRealtimeText:t=>ipcRenderer.invoke("realtime:text",t),
  cancelRealtime:()=>ipcRenderer.invoke("realtime:cancel"),
- startLocalWhisper:()=>ipcRenderer.invoke("local-stt:start"),stopLocalWhisper:()=>ipcRenderer.invoke("local-stt:stop"),transcribeLocalWav:b=>ipcRenderer.invoke("local-stt:transcribe",b),onLocalSttState:f=>ipcRenderer.on("local-stt:state",(_,state,message)=>f(state,message)),onLocalSttResult:f=>ipcRenderer.on("local-stt:result",(_,e)=>f(e)),
+ transcribeLocalWav:b=>ipcRenderer.invoke("local-stt:transcribe",b),onLocalSttState:f=>ipcRenderer.on("local-stt:state",(_,state,message)=>f(state,message)),onLocalSttResult:f=>ipcRenderer.on("local-stt:result",(_,e)=>f(e)),
  onRealtimeState:f=>ipcRenderer.on("realtime:state",(_,state,message)=>f(state,message)),
  onRealtimeAudio:f=>ipcRenderer.on("realtime:audio",(_,b)=>f(b)),
  onRealtimeAssistantDelta:f=>ipcRenderer.on("realtime:assistant-delta",(_,t)=>f(t)),
