@@ -69,9 +69,10 @@ function trayIcon(){
  return nativeImage.createFromPath(windowsIconPath());
 }
 app.setAppUserModelId("ai.saeed.desktop");
-const singleInstanceLock=app.requestSingleInstanceLock();
+const ciSmoke=process.env.SAEED_CI_SMOKE==="1";
+const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
-else app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
+else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
 let updateState="idle",updateUiRequested=false;
 const confirmations=new Map();
 let resourceProbeTimer=null;
@@ -195,7 +196,7 @@ async function runCiRuntimeSmoke(){
   report.resourcesAfter=resourceReport();report.finishedAt=new Date().toISOString();
  }catch(e){report.error=e.message;report.pass=false}
  report.pass=Boolean(report.checks.glbFile?.pass&&report.checks.brain?.pass&&report.checks.localBrain?.pass&&report.checks.chat?.pass&&report.checks.tts?.pass&&report.checks.glbRuntime?.pass);
- const target=process.env.SAEED_CI_REPORT;if(target){try{fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8")}catch(e){console.error("CI report write failed:",e.message)}}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
+ const target=process.env.SAEED_CI_REPORT;if(target){try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8")}catch(e){console.error("CI report write failed:",e.message)}}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
  setMicMode("off");stopResourceProbe();setTimeout(()=>app.quit(),250);
 }
 app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");if(process.env.SAEED_CI_SMOKE==="1")startResourceProbe();
