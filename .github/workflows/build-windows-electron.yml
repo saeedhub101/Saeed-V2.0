@@ -9,7 +9,6 @@ on:
       - 'package.json'
       - 'VERSION'
       - '.github/workflows/build-windows-electron.yml'
-      - 'BUILD_RULES.md'
   workflow_dispatch:
     inputs:
       release:
@@ -94,25 +93,19 @@ jobs:
           7z x "build\SDL2.zip" -obuild\sdl2 | Out-Null
           $sdl = (Get-ChildItem "build\sdl2" -Directory | Select-Object -First 1).FullName
           cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_SDL2=ON -DWHISPER_BUILD_EXAMPLES=ON -DSDL2_DIR="$sdl\cmake" -DGGML_NATIVE=OFF
-          cmake --build build\whisper-src\build --config Release --target whisper-stream --target whisper-cli
+          cmake --build build\whisper-src\build --config Release --target whisper-cli
           New-Item -ItemType Directory -Force -Path build\whisper | Out-Null
-          $stream = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-stream.exe" | Select-Object -First 1
-          if (!$stream) { throw "whisper-stream.exe was not built." }
           $cli = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
           if (!$cli) { throw "whisper-cli.exe was not built." }
           Copy-Item $cli.FullName "build\whisper\whisper-cli.exe" -Force
-          Copy-Item $stream.FullName "build\whisper\whisper-stream.exe" -Force
           Get-ChildItem "build\whisper-src\build\bin\Release" -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "build\whisper\$($_.Name)" -Force }
-          $sdlDll = Get-ChildItem $sdl -Recurse -Filter "SDL2.dll" | Select-Object -First 1
-          if (!$sdlDll) { throw "SDL2.dll was not found." }
-          Copy-Item $sdlDll.FullName "build\whisper\SDL2.dll" -Force
           Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile "build\whisper\ggml-base-q5_1.bin"
           $size = (Get-Item "build\whisper\ggml-base-q5_1.bin").Length
           if ($size -lt 50000000) { throw "Whisper model download is unexpectedly small: $size bytes" }
           $hash = (Get-FileHash "build\whisper\ggml-base-q5_1.bin" -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
-          & "build\whisper\whisper-stream.exe" --help | Out-File "build\whisper\whisper-help.txt"
-          if ($LASTEXITCODE -ne 0) { throw "Whisper stream binary failed its startup/help check." }
+          & "build\whisper\whisper-cli.exe" --help | Out-File "build\whisper\whisper-help.txt"
+          if ($LASTEXITCODE -ne 0) { throw "Whisper CLI binary failed its startup/help check." }
           Write-Host "OFFLINE_WHISPER_READY modelBytes=$size sha256=$hash"
 
       - name: Build Windows installer
