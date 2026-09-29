@@ -1,8 +1,6 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{autoUpdater}=require("electron-updater");
 
-process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
-process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
 function configureMediaPermissions(){
@@ -70,6 +68,16 @@ function trayIcon(){
 }
 app.setAppUserModelId("ai.saeed.desktop");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
+function ciWriteStartupReport(kind,error){
+ if(!ciSmoke||!process.env.SAEED_CI_REPORT)return;
+ try{
+  const target=process.env.SAEED_CI_REPORT;
+  fs.mkdirSync(path.dirname(target),{recursive:true});
+  fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.getAppPath(),resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
+ }catch(writeError){console.error("CI startup report write failed:",writeError)}
+}
+process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
+process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
@@ -199,10 +207,10 @@ async function runCiRuntimeSmoke(){
  const target=process.env.SAEED_CI_REPORT;if(target){try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8")}catch(e){console.error("CI report write failed:",e.message)}}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
  setMicMode("off");stopResourceProbe();setTimeout(()=>app.quit(),250);
 }
-app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
+app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
  if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
- try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off",brainMode:"auto"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
+ try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off",brainMode:"auto"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  if(process.argv.includes("--3d-status"))show3DStatus(); else if(process.argv.includes("--chat"))void showChat();
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
  if(ciSmoke)void runCiRuntimeSmoke();
