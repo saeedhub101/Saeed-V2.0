@@ -357,3 +357,12 @@ The current source of truth is:
 Do not reintroduce the deleted native C++ application, old WebView2 utility-window architecture, duplicate avatar runtime, duplicate agent system, duplicate memory system, or obsolete build/repair workflows unless the architecture is deliberately redesigned and the current repository is updated as a whole.
 
 The repository and Git history are the source of truth for the implementation.
+
+
+## v3.3 Release Scope
+
+- Performance is the replacement control center for the former Settings surface.
+- Status microphone controls and the Windows taskbar share one live microphone state.
+- Chat has a rebuilt desktop UI while preserving the existing voice/API runtime paths.
+- The offline computer brain now routes a broader set of Windows intents locally.
+- The 3D character path remains GLB-first and uses the bundled Saeed character asset.
