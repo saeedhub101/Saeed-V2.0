@@ -3,7 +3,7 @@ const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("ch
 
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
-// Explicit Electron microphone permission handling for Always Listening.
+// Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
 function configureMediaPermissions(){
  try{
@@ -95,8 +95,24 @@ function voiceBroadcast(channel,...args){for(const win of [characterWin,chatWin]
 function stopLocalWhisper(){if(localWhisper){try{localWhisper.kill()}catch{}localWhisper=null}diagnostic("INFO","LOCAL STT STOP","Offline Whisper stopped");voiceBroadcast("local-stt:state","disconnected")}
 function startLocalWhisper(){const s=agent?.settings||{};if(s.micMode==="off"||s.sttProvider!=="whisper"){stopLocalWhisper();return false}const p=whisperRuntimePaths();if(!fs.existsSync(p.exe)||!fs.existsSync(p.model)){diagnostic("ERROR","LOCAL STT","Bundled Whisper engine/model is missing",{exe:p.exe,model:p.model});voiceBroadcast("local-stt:state","error","Whisper engine/model is missing from this build");return false}stopLocalWhisper();const args=["-m",p.model,"-t",String(Math.max(2,Math.min(8,Number(s.whisperThreads)||4))),"--step","0","--length","5000","-vth","0.6"];if(s.sttLanguage&&s.sttLanguage!=="auto")args.push("-l",String(s.sttLanguage));try{localWhisper=spawn(p.exe,args,{cwd:path.dirname(p.exe),windowsHide:true});voiceBroadcast("local-stt:state","starting");let block="";const line=d=>{const x=String(d||"").replace(/\x1b\[[0-9;]*[A-Za-z]/g,"").trim();if(!x)return;if(x.startsWith("### Transcription")&&x.includes("START")){block="";return}if(x.startsWith("### Transcription")&&x.includes("END")){const text=block.replace(/\[[^\]]+-->[^\]]+\]/g,"").replace(/\s+/g," ").replace(/^[\s\.,!?؟،؛:]+/,"").trim();block="";if(text){diagnostic("INFO","LOCAL STT RESULT",text);voiceBroadcast("local-stt:result",{text})}return}if(!x.startsWith("[Start speaking]")&&!x.startsWith("system_info"))block+=(block?" ":"")+x};localWhisper.stdout.setEncoding("utf8");localWhisper.stdout.on("data",d=>String(d).split(/\r?\n/).forEach(line));localWhisper.stderr.setEncoding("utf8");localWhisper.stderr.on("data",d=>diagnostic("INFO","LOCAL STT ENGINE",String(d).trim().slice(-1000)));localWhisper.on("error",e=>{localWhisper=null;diagnostic("ERROR","LOCAL STT PROCESS",e.message);voiceBroadcast("local-stt:state","error",e.message)});localWhisper.on("close",(code,signal)=>{localWhisper=null;diagnostic(code===0?"INFO":"ERROR","LOCAL STT EXIT","Offline Whisper exited",{code,signal});voiceBroadcast("local-stt:state",code===0?"disconnected":"error",code===0?"Whisper stopped":"Whisper exited with code "+code)});voiceBroadcast("local-stt:state","connected");diagnostic("INFO","LOCAL STT CONNECTED","Bundled Whisper streaming engine is active");return true}catch(e){diagnostic("ERROR","LOCAL STT START",e.message);voiceBroadcast("local-stt:state","error",e.message);return false}}
 let currentMicMode="off";
-function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},{type:"separator"},{label:"Mic ON — Live",type:"radio",checked:currentMicMode==="always",click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",checked:currentMicMode==="ptt",click:()=>setMicMode("ptt")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")},{label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:async()=>{if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";voiceBroadcast("update:state","checking");await autoUpdater.checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}},{label:"Performance",click:showPerformance},{label:"Open Diagnostics Log",click:openDiagnosticsLog},{label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}]))}
-function setMicMode(mode){const value=String(mode||"off");currentMicMode=value;if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};voiceBroadcast("mic:mode",value);if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);if(value==="off"){stopRealtime();stopLocalWhisper()}else if(value==="ptt"){stopLocalWhisper();if(String(agent?.settings?.brainMode||"auto")==="realtime")startRealtime();else stopRealtime()}else if(String(agent?.settings?.brainMode||"auto")==="realtime"){startRealtime()}else if(agent?.settings?.sttProvider==="whisper"){startLocalWhisper()}else stopRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value);rebuildTray()}
+function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},{type:"separator"},{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")},{label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:async()=>{if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";voiceBroadcast("update:state","checking");await autoUpdater.checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}},{label:"Performance",click:showPerformance},{label:"Open Diagnostics Log",click:openDiagnosticsLog},{label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}]))}
+function setMicMode(mode){
+ const value=String(mode||"off")==="on"?"on":"off";
+ currentMicMode=value;
+ if(agent)agent.settings={...agent.settings,micMode:value,brainMode:"auto"};
+ diagnosticState.mic={...diagnosticState.mic,state:value==="on"?"active":"disabled",level:value==="on"?diagnosticState.mic.level:0,detail:value==="on"?"Microphone ON":"Microphone OFF"};
+ voiceBroadcast("mic:mode",value);
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
+ if(value==="off"){
+  stopRealtime();
+  voiceBroadcast("local-stt:state","disconnected","Microphone is off");
+ }else{
+  if(agent?.settings?.sttProvider==="whisper")voiceBroadcast("local-stt:state","ready","Local Whisper ready");
+  if(String(agent?.settings?.brainMode||"auto")==="realtime")startRealtime();
+ }
+ diagnostic("INFO","MIC MODE","Microphone mode: "+value);
+ rebuildTray();
+}
 function setSaeedSize(size){const m={small:[360,440],medium:[430,520],large:[520,620]};const v=m[size]||m.medium;characterWin?.setSize(v[0],v[1],true)}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
@@ -142,7 +158,7 @@ function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInsta
 app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");updateCpuMetrics();cpuTimer=setInterval(updateCpuMetrics,1000);
  configureUpdater();
  if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
- try{await createWindow();currentMicMode=agent?.settings?.micMode||"off"}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
+ try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off",brainMode:"auto"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
  if(process.argv.includes("--3d-status"))show3DStatus(); else if(process.argv.includes("--chat"))void showChat();
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
@@ -169,13 +185,9 @@ ipcMain.handle("settings:set",(_,s)=>{
  const previous={...agent.settings};
  agent.settings={...(s||{})};
  const mode=String(agent.settings.brainMode||"auto");
- let micMode=String(agent.settings.micMode||"off");
- if(previous.brainMode==="realtime"&&mode!=="realtime"&&micMode==="always"){
-  micMode="off";
-  agent.settings={...agent.settings,micMode:"off",alwaysListening:false};
-  diagnostic("INFO","REALTIME EXIT","Leaving Realtime mode automatically turned the microphone OFF");
- }
- setMicMode(micMode);
+ let micMode=String(agent.settings.micMode||currentMicMode||"off");
+ 
+ if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});
  diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
  return agent.publicSettings();
@@ -185,7 +197,7 @@ ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
 ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});ipcMain.handle("local-stt:start",()=>startLocalWhisper());ipcMain.handle("local-stt:stop",()=>{stopLocalWhisper();return true});ipcMain.handle("local-stt:transcribe",(_,base64)=>transcribeLocalWav(String(base64||"")));function transcribeLocalWav(base64){return new Promise((resolve,reject)=>{const p=whisperRuntimePaths();const cli=path.join(path.dirname(p.exe),"whisper-cli.exe");if(!fs.existsSync(cli)||!fs.existsSync(p.model))return reject(new Error("Offline Whisper CLI/model is missing"));const wav=path.join(app.getPath("temp"),"saeed-ptt-"+Date.now()+".wav");try{const pcm=Buffer.from(String(base64||""),"base64");const header=Buffer.alloc(44);header.write("RIFF",0);header.writeUInt32LE(36+pcm.length,4);header.write("WAVE",8);header.write("fmt ",12);header.writeUInt32LE(16,16);header.writeUInt16LE(1,20);header.writeUInt16LE(1,22);header.writeUInt32LE(24000,24);header.writeUInt32LE(24000*2,28);header.writeUInt16LE(2,32);header.writeUInt16LE(16,34);header.write("data",36);header.writeUInt32LE(pcm.length,40);fs.writeFileSync(wav,Buffer.concat([header,pcm]));const args=["-m",p.model,"-f",wav,"-nt","-np","--no-timestamps"];if(agent?.settings?.sttLanguage&&agent.settings.sttLanguage!=="auto")args.push("-l",String(agent.settings.sttLanguage));const child=spawn(cli,args,{cwd:path.dirname(cli),windowsHide:true});let out="";let err="";child.stdout.setEncoding("utf8");child.stderr.setEncoding("utf8");child.stdout.on("data",d=>out+=d);child.stderr.on("data",d=>err+=d);child.on("error",e=>{try{fs.unlinkSync(wav)}catch{}reject(e)});child.on("close",code=>{try{fs.unlinkSync(wav)}catch{}if(code!==0)return reject(new Error(err.slice(-1200)||("Whisper CLI exited with code "+code)));const text=out.replace(/\x1b\[[0-9;]*[A-Za-z]/g,"").split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!x.startsWith("whisper_")).join(" ").replace(/^\s*[\[\(].*?[\]\)]\s*/,"").trim();diagnostic("INFO","LOCAL STT PTT RESULT",text);resolve(text)})}catch(e){try{fs.unlinkSync(wav)}catch{}reject(e)}})}
-ipcMain.handle("mic:mode",(_,mode)=>{setMicMode(String(mode||"always"));return true});
+ipcMain.handle("mic:mode",(_,mode)=>{setMicMode(String(mode||"off"));return true});
 ipcMain.on("mic:level",(_,level)=>{const v=Math.max(0,Math.min(1,Number(level)||0));diagnosticState.mic={...diagnosticState.mic,state:v>0?"active":diagnosticState.mic.state,level:v,detail:"Live microphone input"};for(const win of [statusWin,threeDStatusWin,characterWin])if(win&&!win.isDestroyed())win.webContents.send("mic:level",v);if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);});
 ipcMain.handle("chat:minimize",()=>{if(!chatWin||chatWin.isDestroyed())return false;chatWin.minimize();return true});
 ipcMain.on("chat:mouse-passthrough",(event,ignore)=>{
@@ -208,10 +220,6 @@ ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
 });
 function stopRealtime(){
  if(realtime){realtime.stop();realtime=null}
- if(agent&&agent.settings?.micMode!=="off"){
-  agent.settings={...agent.settings,micMode:"off",alwaysListening:false};
-  voiceBroadcast("mic:mode","off");
- }
  diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");
  diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");
  voiceBroadcast("realtime:state","disconnected");
