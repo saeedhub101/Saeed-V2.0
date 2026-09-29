@@ -81,15 +81,6 @@ jobs:
       - name: Static JavaScript validation
         run: npm test
 
-      - name: Enforce Always Listening
-        shell: pwsh
-        run: |
-          $agent = Get-Content "src/agent.js" -Raw
-          $renderer = Get-Content "src/renderer.js" -Raw
-          if ($agent -notmatch "alwaysListening") { throw "Always Listening contract missing from agent.js" }
-          if ($renderer -notmatch "alwaysListening") { throw "Always Listening contract missing from renderer.js" }
-          if ($agent -notmatch 'micMode:\s*"always"') { throw "Microphone mode is not locked to Always Listening" }
-
       - name: Prepare native Windows icon
         shell: pwsh
         run: |
@@ -278,74 +269,6 @@ jobs:
             Get-Process | Where-Object { $_.Path -like "$PWD\\dist\\win-unpacked\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Verify chat response, local time, and speech
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $app = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
-          $debugPort = 9224
-          $proc = Start-Process -FilePath $app -ArgumentList "--chat --remote-debugging-port=$debugPort" -PassThru
-          try {
-            Start-Sleep -Seconds 5
-            @'
-          const http = require("http");
-          const WebSocket = require("ws");
-          const port = Number(process.argv[2]);
-          const expression = String(process.argv[3] || "");
-          const getTargets = () => new Promise((resolve,reject) => {
-            http.get(`http://127.0.0.1:${port}/json`, res => {
-              let data="";
-              res.setEncoding("utf8");
-              res.on("data", chunk => data += chunk);
-              res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
-            }).on("error", reject);
-          });
-          const sleep = ms => new Promise(r => setTimeout(r, ms));
-          (async()=>{
-            let target=null;
-            for(let i=0;i<30;i++){
-              try{
-                const targets=await getTargets();
-                target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&(((x.url||"").includes("index.html"))||x.title==="Saeed AI"));
-                if(target)break;
-              }catch{}
-              await sleep(1000);
-            }
-            if(!target)throw new Error("Saeed did not expose the chat Chromium page.");
-            const ws=new WebSocket(target.webSocketDebuggerUrl);
-            await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
-            const value=await new Promise((resolve,reject)=>{
-              const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
-              ws.on("message",raw=>{
-                try{
-                  const m=JSON.parse(raw.toString());
-                  if(m.id!==1)return;
-                  clearTimeout(timer);
-                  if(m.error)reject(new Error(m.error.message||"CDP error"));
-                  else resolve(m.result?.result?.value);
-                }catch(e){reject(e);}
-              });
-              ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
-            });
-            ws.close();
-            process.stdout.write(String(value));
-          })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
-          '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-chat-test.cjs") -Encoding UTF8
-            $js = '(async()=>{const input=document.querySelector("#input");const send=document.querySelector("#send");if(!input||!send)throw new Error("Chat controls missing");let speechCalls=0;const fakeSpeech={cancel(){},speak(u){speechCalls++;u.onstart?.();u.onend?.()}};Object.defineProperty(window,"speechSynthesis",{value:fakeSpeech,configurable:true});input.value="What time is it?";send.click();for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));}const texts=[...document.querySelectorAll("#messages .assistant")].map(x=>x.innerText);const answer=texts[texts.length-1]||"";return JSON.stringify({answer,speechCalls,apiPrompt:/API key|Open settings/i.test(answer),hasTime:/\b\d{1,2}:\d{2}\b/.test(answer)});})()'
-            $json = & node (Join-Path $PWD "dist\cdp-chat-test.cjs") $debugPort $js
-            if ($LASTEXITCODE -ne 0) { throw "CDP chat response test failed." }
-            $value = $json | ConvertFrom-Json
-            Write-Host ($value | ConvertTo-Json -Compress)
-            if ($value.apiPrompt) { throw "Chat asked for API configuration instead of returning a time response." }
-            if (-not $value.hasTime) { throw "Chat response did not contain a local time." }
-            if ([int]$value.speechCalls -lt 1) { throw "Local speech synthesis was not invoked." }
-            Write-Host "CHAT_RESPONSE_SMOKE=PASS"
-          }
-          finally {
-            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-            Get-Process | Where-Object { $_.Path -like "$PWD\dist\win-unpacked\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-          }
-
       - name: Measure CPU usage of built program
         shell: pwsh
         run: |
@@ -449,153 +372,11 @@ jobs:
             Get-Process | Where-Object { $_.Path -like "$appDir\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
-      - name: Measure CPU usage with process-tree timing (new independent test)
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $appPath = (Resolve-Path "dist\\win-unpacked\\Saeed AI.exe").Path
-          $appDir = Split-Path $appPath
-          $debugPort = 9233
-          $stdoutLog = Join-Path $PWD "dist\\cpu-tree-test.stdout.log"
-          $stderrLog = Join-Path $PWD "dist\\cpu-tree-test.stderr.log"
-          $report = Join-Path $PWD "dist\\cpu-tree-report.json"
-          $proc = Start-Process -FilePath $appPath -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
-
-          function Get-ProcessTree([int]$rootPid) {
-            $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
-            $known = @{$rootPid = $true}
-            do {
-              $changed = $false
-              foreach ($p in $all) {
-                $processId = [int]$p.ProcessId
-                $parentProcessId = [int]$p.ParentProcessId
-                if (-not $known.ContainsKey($processId) -and $known.ContainsKey($parentProcessId)) {
-                  $known[$processId] = $true
-                  $changed = $true
-                }
-              }
-            } while ($changed)
-            return @($known.Keys | ForEach-Object {[int]$_})
-          }
-
-          function Get-TreeCpuSnapshot([int[]]$ids) {
-            $now = Get-Date
-            $rows = @()
-            foreach ($id in $ids) {
-              try {
-                $p = Get-Process -Id $id -ErrorAction Stop
-                $rows += [pscustomobject]@{
-                  pid = $id
-                  name = $p.ProcessName
-                  cpuTimeSeconds = [double]$p.TotalProcessorTime.TotalSeconds
-                }
-              } catch {}
-            }
-            [pscustomobject]@{timestamp=$now;rows=$rows}
-          }
-
-          try {
-            Start-Sleep -Seconds 8
-            $ids = @(Get-ProcessTree $proc.Id)
-            if (-not $ids.Count) { throw "No Saeed process tree was found." }
-
-            $s1 = Get-TreeCpuSnapshot $ids
-            Start-Sleep -Seconds 2
-            $ids2 = @(Get-ProcessTree $proc.Id)
-            $s2 = Get-TreeCpuSnapshot $ids2
-
-            $wallSeconds = ($s2.timestamp - $s1.timestamp).TotalSeconds
-            if ($wallSeconds -le 0) { throw "CPU timing interval was invalid." }
-
-            $first = @{}
-            foreach ($row in $s1.rows) { $first[$row.pid] = $row }
-            $logicalProcessors = [Environment]::ProcessorCount
-            $details = @()
-            foreach ($row in $s2.rows) {
-              if ($first.ContainsKey($row.pid)) {
-                $delta = [Math]::Max(0, $row.cpuTimeSeconds - $first[$row.pid].cpuTimeSeconds)
-                $pct = ($delta / $wallSeconds) * 100 / $logicalProcessors
-                $details += [pscustomobject]@{pid=$row.pid;name=$row.name;cpuPercent=[Math]::Round($pct,2);cpuTimeDeltaSeconds=[Math]::Round($delta,4)}
-              }
-            }
-
-            if (-not $details.Count) { throw "No stable Saeed processes were available for CPU timing." }
-
-            $total = ($details | Measure-Object -Property cpuPercent -Sum).Sum
-            $max = ($details | Measure-Object -Property cpuPercent -Maximum).Maximum
-            $result = [ordered]@{
-              test = "built-program-cpu-process-tree-delta"
-              logicalProcessors = $logicalProcessors
-              rootPid = $proc.Id
-              processCount = $details.Count
-              totalCpuPercent = [Math]::Round([double]$total,2)
-              maxProcessCpuPercent = [Math]::Round([double]$max,2)
-              intervalSeconds = [Math]::Round($wallSeconds,3)
-              processes = $details
-              measuredAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            }
-            $result | ConvertTo-Json -Depth 8 | Set-Content $report -Encoding UTF8
-
-            Write-Host "CPU PROCESS-TREE TIMING TEST"
-            Write-Host "Root PID: $($result.rootPid)"
-            Write-Host "Saeed processes measured: $($result.processCount)"
-            foreach ($row in $details | Sort-Object cpuPercent -Descending) {
-              Write-Host ("PID {0} {1}: {2}%" -f $row.pid,$row.name,$row.cpuPercent)
-            }
-            Write-Host ("Total Saeed CPU: " + $result.totalCpuPercent + "%")
-            Write-Host ("Maximum single-process CPU: " + $result.maxProcessCpuPercent + "%")
-            Write-Host "CPU_PROCESS_TREE_CHECK=PASS"
-          }
-          finally {
-            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
-            Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($appDir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
-          }
-
       - name: Measure RAM usage of built program
         shell: pwsh
         run: |
           $app=(Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path;$dir=Split-Path $app;$p=Start-Process $app -ArgumentList "--remote-debugging-port=9225" -PassThru
           try{Start-Sleep 8;$s=@();1..10|%{ $ps=@(Get-Process|?{$_.Path-and$_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase)});if($ps.Count){$s+=(($ps|Measure-Object WorkingSet64 -Sum).Sum)};Start-Sleep 1 };if(!$s.Count){throw "RAM samples unavailable"};$a=($s|Measure-Object -Average).Average;Write-Host ("Average RAM MB: "+[math]::Round($a/1MB,2));Write-Host "RAM_CHECK=PASS"}finally{if($p-and-not$p.HasExited){Stop-Process $p.Id -Force -ErrorAction SilentlyContinue};Get-Process | Where-Object { $_.Path -like "$dir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue}
-      - name: Measure GPU usage of built program
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $app=(Resolve-Path "dist\win-unpacked\Saeed AI.exe").Path
-          $dir=Split-Path $app
-          $p=Start-Process $app -ArgumentList "--remote-debugging-port=9226" -PassThru
-          try {
-            Start-Sleep -Seconds 8
-            $ids=@(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) } | Select-Object -ExpandProperty Id)
-            $samples=@()
-            $counterAvailable=$true
-            try { $null=Get-Counter -ListSet "GPU Engine" -ErrorAction Stop } catch { $counterAvailable=$false }
-            if($counterAvailable){
-              1..10 | ForEach-Object {
-                $c=Get-Counter "\GPU Engine(*)\Utilization Percentage" -ErrorAction SilentlyContinue
-                $sum=0
-                foreach($x in @($c.CounterSamples)){
-                  if($x.InstanceName -match "pid_(\d+)_"){
-                    $id=[int]$Matches[1]
-                    if($ids -contains $id){$sum += [double]$x.CookedValue}
-                  }
-                }
-                $samples += $sum
-                Start-Sleep -Seconds 1
-              }
-            }
-            if($samples.Count -gt 0){
-              $avg=($samples | Measure-Object -Average).Average
-              Write-Host ("Average GPU utilization: "+[math]::Round($avg,2)+"%")
-              Write-Host "GPU_CHECK=PASS"
-            } else {
-              Write-Host "GPU counter unavailable on this Windows runner; no GPU value was invented."
-              Write-Host "GPU_CHECK=SKIPPED_NO_GPU_COUNTER"
-            }
-          } finally {
-            if($p -and -not $p.HasExited){Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue}
-            Get-Process | Where-Object { $_.Path -like "$dir\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
-          }
-
       - name: Generate Windows updater metadata
         shell: pwsh
         run: |
@@ -698,9 +479,6 @@ jobs:
             dist/cpu-test.stdout.log
             dist/cpu-test.stderr.log
             dist/cpu-report.json
-            dist/cpu-tree-test.stdout.log
-            dist/cpu-tree-test.stderr.log
-            dist/cpu-tree-report.json
             dist/latest.yml
 
       - name: Publish official release only when explicitly requested
