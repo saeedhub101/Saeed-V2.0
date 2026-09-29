@@ -1,4 +1,5 @@
 import * as THREE from "../node_modules/three/build/three.module.js";
+if(window.saeed3DBootstrap)window.saeed3DBootstrap.moduleLoaded=true;
 
 const canvas=document.getElementById("avatar");
 const report=(level,stage,message,meta)=>window.saeed?.reportDiagnostic?.(level,stage,message,meta);

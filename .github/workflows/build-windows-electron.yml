@@ -194,7 +194,7 @@ jobs:
           $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
           try {
             Start-Sleep -Seconds 6
-            $expression = 'JSON.stringify({title:document.title,frame:!!document.querySelector("#characterFrame"),canvas:!!document.querySelector("#avatar"),avatarApi:!!window.saeedAvatar,status:window.saeedAvatar?.get3DStatus?.()})'
+            $expression = 'JSON.stringify({title:document.title,frame:!!document.querySelector("#characterFrame"),canvas:!!document.querySelector("#avatar"),avatarApi:!!window.saeedAvatar,status:window.saeedAvatar?.get3DStatus?.(),bootstrap:window.saeed3DBootstrap})'
             $json = & node (Join-Path $PWD "dist\\cdp-smoke.cjs") $debugPort $expression "character.html"
             if ($LASTEXITCODE -ne 0) { throw "CDP 3D smoke failed." }
             $value = $json | ConvertFrom-Json
