@@ -53,6 +53,7 @@ window.saeed.onRealtimeAssistantDelta(t=>{realtimeAssistant+=t;window.saeedAvata
 window.saeed.onRealtimeAssistantFinal(t=>{if(t){add("assistant",t);realtimeAssistant="";}});
 window.saeed.onRealtimeUserFinal(t=>{if(t&&!false){const clean=String(t).replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();if($("input").value.trim()===""&&clean)add("user",clean)}});
 window.saeed.onRealtimeError(e=>{window.saeed.reportDiagnostic("ERROR","REALTIME API ERROR",String(e));if(!false)$("status").textContent="Realtime: "+e});
+window.saeed.onMicMode?.(mode=>{const m=String(mode||"off");const badge=$("micBadge");if(badge){badge.className="micBadge "+m;badge.textContent=m==="on"?"MIC ON":"MIC OFF"}$("status").textContent=m==="on"?"Microphone on":"Microphone off"});
 window.addEventListener("load",async()=>{try{$("status").textContent="Ready";document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>{$("input").value=b.dataset.prompt||"";send()});}catch(e){console.warn("Startup:",e);window.saeed.reportDiagnostic("ERROR","STARTUP",e.message)}});
 window.saeed.onLocalSttState((state,message)=>{const badge=$("micBadge");if(badge)badge.className="micBadge "+state;$("status").textContent=state==="connected"?"Offline Whisper listening":state==="starting"?"Starting Offline Whisper...":state==="error"?"Whisper error: "+(message||"unknown"):"Offline Whisper: "+state;});
 
