@@ -21,6 +21,8 @@ button{border:0;border-radius:9px;background:#182230;color:#fff;padding:9px 12px
 #panel>header small{flex:1;color:#7b8797;font-size:11px}
 #panel>header button{width:34px;height:34px;padding:0;border-radius:9px;background:transparent;color:#59677a;border:0;font-size:18px;transition:background .15s,transform .15s}
 #panel>header button:hover{background:#edf1f6;transform:none}
+#closeChat{font-size:22px!important;color:#7b8797!important}
+#closeChat:hover{background:#f0f2f5!important;color:#182230!important}
 
 #messages{flex:1;overflow:auto;padding:24px 24px 14px;scroll-behavior:smooth;background:#f7f9fc}
 #messages::-webkit-scrollbar{width:7px}
@@ -95,3 +97,4 @@ code{background:#eef1f5;color:#182230;padding:2px 5px;border-radius:4px}
  .settingsTabContent{margin-left:135px;padding:25px 20px}
  .settingsFooter{left:135px}
 }
+.characterWindow #character{left:50%;bottom:8px;transform:translateX(-50%);animation:f 3s ease-in-out infinite}.characterWindow #character.dragging{transform:translateX(-50%);animation:none}.characterWindow .characterStatus{position:absolute;left:50%;top:8px;transform:translateX(-50%);font-size:10px;color:#7b8797;background:#ffffffcc;border:1px solid #dfe5ed;border-radius:8px;padding:3px 7px;z-index:10;pointer-events:none}.characterWindow .micBadge{z-index:11}
