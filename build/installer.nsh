@@ -7,5 +7,7 @@
   RMDir /r "$APPDATA\\Saeed AI"
   RMDir /r "$LOCALAPPDATA\\Saeed AI"
   RMDir /r "$LOCALAPPDATA\\Saeed AI-updater"
-  RMDir /r "$APPDATA\\Saeed AI-updater"\n  RMDir /r "$APPDATA\\saeed-ai"\n  RMDir /r "$LOCALAPPDATA\\saeed-ai-updater"
+  RMDir /r "$APPDATA\\Saeed AI-updater"
+  RMDir /r "$APPDATA\\saeed-ai"
+  RMDir /r "$LOCALAPPDATA\\saeed-ai-updater"
 !macroend
