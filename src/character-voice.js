@@ -33,7 +33,6 @@
  window.saeed.onRealtimeUserFinal(t=>{if(t){const clean=cleanText(t);if(clean)report("INFO","STT RECEIVE TEXT","Realtime speech received",{text:clean})}});
  window.saeed.onRealtimeError(e=>report("ERROR","REALTIME API ERROR",String(e)));
  window.saeed.onLocalSttState((state,message)=>{report(state==="error"?"ERROR":"INFO","LOCAL STT STATE",String(message||state));if(state==="error")window.saeedAvatar?.setState?.("alert")});
- window.saeed.onLocalSttResult(async e=>{const text=cleanText(e?.text);if(!text)return;report("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});window.saeedAvatar?.setState?.("think");try{const answer=await window.saeed.chat(text);if(answer?.error){report("ERROR","LLM RESPONSE",answer.error);return}if(answer&&micEnabled){window.saeedAvatar?.setState?.("talk")}}catch(err){report("ERROR","VOICE BRAIN",err.message)}});
  window.saeed.onEvent(e=>{if(e?.type==="thinking")window.saeedAvatar?.setState?.("think");if(e?.type==="answer"&&micEnabled){window.saeedAvatar?.setState?.("talk");window.saeedAvatar?.nod?.();if(e.text)speak(e.text)}});
  window.addEventListener("load",async()=>{try{const cfg=await window.saeed.getSettings();report("INFO","VOICE READY","Voice control is user-activated; microphone starts only after an explicit Mic ON action",{micMode:cfg?.micMode||"off"})}catch(e){report("ERROR","VOICE STARTUP",e.message)}});
 })();
