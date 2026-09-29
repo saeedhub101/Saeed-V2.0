@@ -132,7 +132,7 @@ async function createCharacterWindow(){
  fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
  characterWin.show();
 }
-function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";chatWin?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";chatWin?.webContents.send("update:state","error",e?.message||String(e))})}
+function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=false;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";chatWin?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version,releaseDate:info.releaseDate||null,releaseNotes:info.releaseNotes||null})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";chatWin?.webContents.send("update:state","error",e?.message||String(e))})}
 app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
  configureUpdater();
  if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
@@ -144,7 +144,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATI
   tray.setContextMenu(Menu.buildFromTemplate([
    {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
    {type:"separator"},{label:"Always Listening",type:"radio",checked:true,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic Off",type:"radio",click:()=>setMicMode("off")},
-   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:async()=>{await showChat();chatWin?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
+   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:async()=>{await showChat();chatWin?.webContents.send("update:check-ui");try{await autoUpdater.checkForUpdates()}catch(e){diagnostic("ERROR","UPDATE",e.message)}}},{label:"Settings",click:async()=>{await showChat();chatWin?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
    {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
   ]));
  }catch(e){console.error("Tray failed:",e)}
@@ -183,8 +183,10 @@ ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});ipcMain.h
 ipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");chatWin?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
 ipcMain.handle("capture",()=>captureScreen());
 ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";chatWin?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
-ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return false}});
+ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{updateState="downloading";chatWin?.webContents.send("update:state","downloading");await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";chatWin?.webContents.send("update:state","error",e.message);return false}});
 ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
+ipcMain.handle("update:state",()=>updateState);
+
 ipcMain.handle("history:get",()=>agent?.history||[]);
 ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  const resolve=confirmations.get(id);if(!resolve)return false;
