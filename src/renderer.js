@@ -164,7 +164,7 @@ window.saeed.onRealtimeUserFinal(t=>{if(t){window.saeed.reportDiagnostic("INFO",
 window.saeed.onRealtimeError(e=>{window.saeed.reportDiagnostic("ERROR","REALTIME API ERROR",String(e));console.error("Realtime:",e);$("status").textContent="Realtime: "+e});
 window.saeed.onMicMode(async mode=>{
  const m=String(mode||"always");
- try{if(m==="off"){realtimeMic.stop();$("micBadge").className="micBadge off";$("status").textContent="Microphone off";return;}
+ try{if(m==="off"){realtimeMic.stop();const badge=$("micBadge");if(badge)badge.className="micBadge off";$("status").textContent="Microphone off";return;}
   await realtimeMic.start(m);
  }catch(e){const badge=$("micBadge");if(badge)badge.className="micBadge error";$("status").textContent="تعذر تشغيل المايك: "+e.message;window.saeed.reportDiagnostic("ERROR","MIC START FAILURE",e.message,{mode:m});}
 });
