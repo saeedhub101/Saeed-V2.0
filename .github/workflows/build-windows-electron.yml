@@ -44,9 +44,7 @@ jobs:
           $releaseVersion = (Get-Content "VERSION" -Raw).Trim()
           if ($releaseVersion -notmatch '^\d+\.\d+$') { throw "VERSION must be MAJOR.MINOR, found: $releaseVersion" }
           $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
-          if ($pkg.version -ne "$releaseVersion.0") {
-            throw "package.json version $($pkg.version) does not match VERSION $releaseVersion (expected $releaseVersion.0)"
-          }
+          if ($pkg.version -ne "$releaseVersion.0") { throw "package.json version $($pkg.version) does not match VERSION $releaseVersion (expected $releaseVersion.0)" }
           if ($pkg.build.buildVersion -ne $pkg.version) { throw "Electron buildVersion must equal package.json version" }
           Write-Host "Official product version: v$releaseVersion"
           Write-Host "Workflow build number: $env:GITHUB_RUN_NUMBER"
@@ -55,10 +53,7 @@ jobs:
         shell: pwsh
         run: |
           $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/local-brain.js","src/realtime.js","src/tools.js","src/performance.html","src/performance.js","src/performance.css")
-          foreach ($path in $required) {
-            if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" }
-          }
-
+          foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -76,11 +71,9 @@ jobs:
           & magick $source -background none -define icon:auto-resize=256,128,64,48,32,16 $icon
           if ($LASTEXITCODE -ne 0) { throw "ImageMagick failed to generate $icon" }
           if (!(Test-Path $icon)) { throw "Saeed.ico was not generated from Saeed.png." }
-          $bytes = (Get-Item $icon).Length
-          if ($bytes -lt 1000) { throw "Windows icon is unexpectedly small: $bytes bytes" }
+          if ((Get-Item $icon).Length -lt 1000) { throw "Windows icon is unexpectedly small." }
           & magick identify $icon
           if ($LASTEXITCODE -ne 0) { throw "Generated ICO could not be inspected." }
-          Write-Host "Native Windows icon generated from Saeed.png: $icon"
 
       - name: Build bundled Offline Whisper
         shell: pwsh
@@ -103,7 +96,6 @@ jobs:
           if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
           & "build\whisper\whisper-cli.exe" --help | Out-File "build\whisper\whisper-help.txt"
           if ($LASTEXITCODE -ne 0) { throw "Whisper CLI binary failed its startup/help check." }
-          Write-Host "OFFLINE_WHISPER_READY modelBytes=$size sha256=$hash"
 
       - name: Synthetic Offline Whisper speech test
         shell: powershell
@@ -167,7 +159,7 @@ jobs:
           Write-Host "RUNTIME_CHAT=PASS"
           Write-Host "RUNTIME_TTS_API=PASS"
           Write-Host "RUNTIME_TTS_RESPONSE_PATH=PASS"
-          if ($json.checks.micOn.pass) { Write-Host "RUNTIME_MIC_CAPTURE=PASS" } else { Write-Warning "RUNTIME_MIC_CAPTURE=UNAVAILABLE_OR_FAILED; see report (host audio device may be unavailable)." }
+          if ($json.checks.micOn.pass) { Write-Host "RUNTIME_MIC_CAPTURE=PASS" } else { Write-Warning "RUNTIME_MIC_CAPTURE=UNAVAILABLE_OR_FAILED; see report." }
 
       - name: Capture final build host CPU and RAM
         shell: powershell
@@ -183,7 +175,13 @@ jobs:
       - name: Generate Windows updater metadata
         shell: pwsh
         run: |
-          $v=(Get-Content VERSION -Raw).Trim()+".0";$f=@(Get-ChildItem dist -Filter "*.exe"|?{$_.Name-notlike"*uninstaller*"})[0];if(!$f){throw "Installer missing"};$h=(Get-FileHash $f.FullName -Algorithm SHA512).Hash;$b=[Convert]::ToBase64String([Convert]::FromHexString($h));@{version=$v;files=@(@{url=$f.Name;sha512=$b;size=[int64]$f.Length});releaseDate=(Get-Date).ToUniversalTime().ToString("o")}|ConvertTo-Json -Depth 5|Set-Content dist/latest.yml -Encoding UTF8;Write-Host "UPDATE_METADATA_CHECK=PASS"
+          $v=(Get-Content VERSION -Raw).Trim()+".0"
+          $f=@(Get-ChildItem dist -Filter "*.exe"|Where-Object{$_.Name-notlike"*uninstaller*"})[0]
+          if(!$f){throw "Installer missing"}
+          $h=(Get-FileHash $f.FullName -Algorithm SHA512).Hash
+          $b=[Convert]::ToBase64String([Convert]::FromHexString($h))
+          @{version=$v;files=@(@{url=$f.Name;sha512=$b;size=[int64]$f.Length});releaseDate=(Get-Date).ToUniversalTime().ToString("o")}|ConvertTo-Json -Depth 5|Set-Content dist/latest.yml -Encoding UTF8
+          Write-Host "UPDATE_METADATA_CHECK=PASS"
 
       - name: Verify release output
         shell: pwsh
@@ -215,118 +213,6 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-runtime-report.json
-
-      - name: Publish official release only when explicitly requested
-        if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')) || (github.event_name == 'workflow_dispatch' && inputs.release)
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="$(tr -d '\r\n ' < VERSION)"
-          TAG="v${VERSION}"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Release $TAG already exists; refusing to create a duplicate."
-            exit 1
-          fi
-          gh release create "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml \
-            --title "Saeed AI ${VERSION}" \
-            --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}." \
-            --target "${{ github.sha }}"
-,'')
-          if ($LASTEXITCODE -ne 0) { throw "Whisper synthetic speech test failed." }
-          if (!(Test-Path $out)) { throw "Whisper did not produce transcript output." }
-          $text = (Get-Content $out -Raw).Trim()
-          if ([string]::IsNullOrWhiteSpace($text)) { throw "Whisper returned an empty transcript." }
-          Write-Host "WHISPER_SYNTHETIC_STT=PASS"
-          Write-Host "TRANSCRIPT=$text"
-
-      - name: Capture build host CPU and RAM baseline
-        shell: powershell
-        run: |
-          $os=Get-CimInstance Win32_OperatingSystem
-          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-          $total=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
-          $free=[math]::Round($os.FreePhysicalMemory/1MB,1)
-          Write-Host "HOST_CPU_PERCENT=$([math]::Round($cpu,1))"
-          Write-Host "HOST_RAM_TOTAL_GB=$total"
-          Write-Host "HOST_RAM_FREE_GB=$free"
-
-      - name: Build Windows installer
-        run: npm run build
-
-      - name: Runtime application smoke test and resource report
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
-          if (!(Test-Path $exe)) { throw "Unpacked application EXE is missing: $exe" }
-          $report = Join-Path $PWD "dist\ci-runtime-report.json"
-          $env:SAEED_CI_SMOKE="1"
-          $env:SAEED_CI_REPORT=$report
-          & $exe --ci-smoke
-          $code=$LASTEXITCODE
-          if (!(Test-Path $report)) { throw "Runtime smoke test did not produce ci-runtime-report.json" }
-          Get-Content $report -Raw
-          if ($code -ne 0) { throw "Runtime smoke process exited with code $code" }
-          $json=Get-Content $report -Raw | ConvertFrom-Json
-          if (-not $json.checks.glbFile.pass) { throw "GLB file check failed." }
-          if (-not $json.checks.glbRuntime.pass) { throw "GLB runtime display check failed." }
-          if (-not $json.checks.brain.pass) { throw "Brain smoke test failed." }
-          if (-not $json.checks.chat.pass) { throw "Chat/Agent smoke test failed." }
-          if (-not $json.checks.tts.pass) { throw "TTS API smoke test failed." }
-          Write-Host "RUNTIME_GLb=PASS"
-          Write-Host "RUNTIME_BRAIN=PASS"
-          Write-Host "RUNTIME_CHAT=PASS"
-          Write-Host "RUNTIME_TTS_API=PASS"
-          if ($json.checks.micOn.pass) { Write-Host "RUNTIME_MIC_CAPTURE=PASS" } else { Write-Warning "RUNTIME_MIC_CAPTURE=UNAVAILABLE_OR_FAILED; see report (host audio device may be unavailable)." }
-
-      - name: Capture final build host CPU and RAM
-        shell: powershell
-        run: |
-          $os=Get-CimInstance Win32_OperatingSystem
-          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-          $total=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
-          $free=[math]::Round($os.FreePhysicalMemory/1MB,1)
-          Write-Host "HOST_CPU_PERCENT=$([math]::Round($cpu,1))"
-          Write-Host "HOST_RAM_TOTAL_GB=$total"
-          Write-Host "HOST_RAM_FREE_GB=$free"
-
-
-
-      - name: Generate Windows updater metadata
-        shell: pwsh
-        run: |
-          $v=(Get-Content VERSION -Raw).Trim()+".0";$f=@(Get-ChildItem dist -Filter "*.exe"|?{$_.Name-notlike"*uninstaller*"})[0];if(!$f){throw "Installer missing"};$h=(Get-FileHash $f.FullName -Algorithm SHA512).Hash;$b=[Convert]::ToBase64String([Convert]::FromHexString($h));@{version=$v;files=@(@{url=$f.Name;sha512=$b;size=[int64]$f.Length});releaseDate=(Get-Date).ToUniversalTime().ToString("o")}|ConvertTo-Json -Depth 5|Set-Content dist/latest.yml -Encoding UTF8;Write-Host "UPDATE_METADATA_CHECK=PASS"
-
-      - name: Verify release output
-        shell: pwsh
-        run: |
-          $releaseVersion = (Get-Content "VERSION" -Raw).Trim()
-          if (-not (Test-Path "dist" -PathType Container)) { throw "dist directory was not created" }
-          $installers = @(Get-ChildItem "dist" -Filter "*.exe" -File | Where-Object { $_.Name -notlike "*uninstaller*" })
-          if ($installers.Count -ne 1) { throw "Expected exactly one installer EXE, found $($installers.Count)" }
-          $installer = $installers[0]
-          $expectedName = "Saeed.AI.Setup.$releaseVersion.0.exe"
-          if ($installer.Name -ne $expectedName) { throw "Installer version mismatch: expected $expectedName, found $($installer.Name)" }
-          if ($installer.Length -lt 10000000) { throw "Installer is unexpectedly small: $($installer.Length) bytes" }
-          $blockmaps = @(Get-ChildItem "dist" -Filter "*.blockmap" -File)
-          if ($blockmaps.Count -lt 1) { throw "Installer blockmap is missing" }
-          $sha = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash
-          "$sha  $($installer.Name)" | Set-Content "dist/Saeed-AI-Setup-x64.exe.sha256"
-          Write-Host "Verified installer: $($installer.Name)"
-          Write-Host "Size: $($installer.Length) bytes"
-          Write-Host "SHA256: $sha"
-
-      - name: Upload verified build and diagnostics
-        uses: actions/upload-artifact@v4
-        with:
-          name: Saeed-AI-windows-build-${{ github.run_number }}
-          if-no-files-found: error
-          path: |
-            dist/*.exe
-            dist/*.blockmap
-            dist/*.sha256
-            dist/latest.yml
 
       - name: Publish official release only when explicitly requested
         if: (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')) || (github.event_name == 'workflow_dispatch' && inputs.release)
