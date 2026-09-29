@@ -8,14 +8,14 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":
 function markdown(s){let x=escapeHtml(s);x=x.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/`([^`]+)`/g,"<code>$1</code>").split("\n").join("<br>");return x}
 function add(role,text){const d=document.createElement("div");d.className="msg "+role;d.innerHTML=role==="assistant"?markdown(text):escapeHtml(text).split("\n").join("<br>");messages.appendChild(d);messages.scrollTop=messages.scrollHeight}
 let busy=false,pendingImage=null,attachments=[];
-let realtimeConnected=false;
+let realtimeConnected=false,currentMicMode="off";
 // Voice output + lightweight real-time viseme driver.
 let speechTimer=null;
 const phonemeMap={a:"aa",e:"ee",i:"ee",o:"oh",u:"oo",y:"ee",b:"mbp",m:"mbp",p:"mbp",f:"fv",v:"fv",q:"oh",w:"oo",j:"ee"};
 function visemeForChar(ch){return phonemeMap[String(ch||"").toLowerCase()]||"aa"}
 function stopSpeaking(){if("speechSynthesis" in window)window.speechSynthesis.cancel();if(speechTimer){clearInterval(speechTimer);speechTimer=null}["aa","ee","oo","oh","fv","mbp"].forEach(v=>window.saeedAvatar?.setViseme(v,0));}
 function speakSaeed(text){
- if(!text||!("speechSynthesis" in window))return;window.saeed.reportDiagnostic("INFO","TTS START","Local browser TTS started");
+ if(currentMicMode!=="on"||!text||!("speechSynthesis" in window))return;window.saeed.reportDiagnostic("INFO","TTS START","Local browser TTS started");
  stopSpeaking();
  const clean=String(text).replace(/[ *_#]/g,"");
  const u=new SpeechSynthesisUtterance(clean);u.lang="ar-SA";u.rate=.98;u.pitch=1;
@@ -77,8 +77,8 @@ window.saeed.onEvent(e=>{if(e.type==="tool")add("tool","تنفيذ: "+e.name);if
 async function handleDrop(files){let total=attachments.reduce((n,a)=>n+a.size,0);for(const f of [...files]){if(!/^(text\/(plain|csv|markdown)|application\/json|application\/xml)/i.test(f.type)&&!/[.](txt|md|csv|json|xml|log)$/i.test(f.name))continue;if(f.size>256*1024||total+f.size>1024*1024)continue;const text=await f.text();attachments.push({name:f.name,text,size:f.size});total+=f.size}renderAttachments()}
 window.saeed.onConfirmation(async e=>{const label={write_file:"تعديل ملف",remove_task:"حذف مهمة",mouse_click:"نقرة بالماوس",type_text:"كتابة نص",key_press:"ضغط مفتاح"}[e.name]||e.name;const ok=confirm(`سعيد يريد تنفيذ: ${label}\n\n${JSON.stringify(e.args,null,2)}\n\nهل تسمح؟`);await window.saeed.respondConfirmation(e.id,ok);});
 class RealtimeMic {
- constructor(){this.stream=null;this.ctx=null;this.source=null;this.processor=null;this.active=false;this.mode="always";this.playCtx=null;this.nextPlayTime=0}
- async start(mode="always"){
+ constructor(){this.stream=null;this.ctx=null;this.source=null;this.processor=null;this.active=false;this.mode="on";this.playCtx=null;this.nextPlayTime=0;this.localSamples=[];this.localTimer=null;this.localTranscribing=false}
+ async start(mode="on"){
   this.mode=mode;window.saeed.reportDiagnostic("INFO","MIC START","Starting microphone",{mode});
   if(mode==="off"){this.stop();return}
   if(this.active)return;
@@ -101,8 +101,7 @@ class RealtimeMic {
    const n=Math.max(1,Math.floor(input.length*ratio));
    const pcm=new Int16Array(n);
    for(let i=0;i<n;i++){const x=input[Math.min(input.length-1,Math.floor(i/ratio))];pcm[i]=Math.max(-1,Math.min(1,x))*32767}
-   let binary="";const bytes=new Uint8Array(pcm.buffer);for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));
-   window.saeed.sendRealtimeAudio(btoa(binary));
+   if(realtimeConnected){let binary="";const bytes=new Uint8Array(pcm.buffer);for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));window.saeed.sendRealtimeAudio(btoa(binary));}else{this.localSamples.push(pcm);}
   };
   this.source.connect(this.processor);
   const mute=this.ctx.createGain();
@@ -110,9 +109,27 @@ class RealtimeMic {
   this.processor.connect(mute);
   mute.connect(this.ctx.destination);
   this.monitorGain=mute;
+  if(this.localTimer)clearInterval(this.localTimer);
+  this.localTimer=setInterval(()=>this.flushLocalChunk(),3000);
   this.active=true;window.saeed.reportDiagnostic("INFO","MIC ACTIVE","Microphone capture active",{mode:this.mode});
  }
- stop(){this.active=false;window.saeed.reportDiagnostic("INFO","MIC STOP","Microphone capture stopped");try{this.processor?.disconnect()}catch{}
+ async flushLocalChunk(){
+  if(!this.active||realtimeConnected||this.localTranscribing||!this.localSamples.length)return;
+  const chunks=this.localSamples.splice(0);
+  const total=chunks.reduce((n,a)=>n+a.length,0);
+  if(total<12000)return;
+  const pcm=new Int16Array(total);let offset=0;
+  for(const chunk of chunks){pcm.set(chunk,offset);offset+=chunk.length}
+  let binary="";const bytes=new Uint8Array(pcm.buffer);
+  for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));
+  this.localTranscribing=true;
+  try{
+   const text=await window.saeed.transcribeLocalWav(btoa(binary));
+   if(text)await sendVoiceText(text);
+  }catch(e){window.saeed.reportDiagnostic("ERROR","LOCAL STT",e.message)}
+  finally{this.localTranscribing=false}
+ }
+ stop(){this.active=false;if(this.localTimer)clearInterval(this.localTimer);this.localTimer=null;this.localSamples=[];window.saeed.reportDiagnostic("INFO","MIC STOP","Microphone capture stopped");try{this.processor?.disconnect()}catch{}
   try{this.monitorGain?.disconnect()}catch{}
   try{this.source?.disconnect()}catch{}
   try{this.stream?.getTracks().forEach(t=>t.stop())}catch{}
@@ -139,14 +156,15 @@ window.saeed.onRealtimeAssistantDelta(t=>{realtimeAssistant+=t;window.saeedAvata
 window.saeed.onRealtimeAssistantFinal(t=>{if(t){add("assistant",t);realtimeAssistant="";}});
 window.saeed.onRealtimeUserFinal(t=>{if(t&&!false){const clean=String(t).replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();if($("input").value.trim()===""&&clean)add("user",clean)}});
 window.saeed.onRealtimeError(e=>{window.saeed.reportDiagnostic("ERROR","REALTIME API ERROR",String(e));if(!false)$("status").textContent="Realtime: "+e});
-window.saeed.onMicMode(mode=>{const m=String(mode||"always");const badge=$("micBadge");if(badge)badge.className="micBadge "+m;if(!false)$("status").textContent=m==="off"?"Microphone off":"Microphone mode: "+m;});
-window.addEventListener("load",async()=>{try{const cfg=await window.saeed.getSettings();if(cfg?.micMode==="off")$("status").textContent="Microphone off";if(cfg?.micMode==="always")$("status").textContent="Microphone on";document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>{$("input").value=b.dataset.prompt||"";send()});}catch(e){console.warn("Startup:",e);window.saeed.reportDiagnostic("ERROR","STARTUP",e.message)}});
+window.saeed.onMicMode(async mode=>{
+ const m=String(mode||"off");currentMicMode=m;
+ const badge=$("micBadge");if(badge)badge.className="micBadge "+m;
+ if(m==="on"){
+  try{await realtimeMic.start("on");$("status").textContent="Microphone on"}catch(e){$("status").textContent="Mic error: "+e.message}
+ }else{realtimeMic.stop();$("status").textContent="Microphone off"}
+});
+window.addEventListener("load",async()=>{try{currentMicMode="off";$("status").textContent="Microphone off";document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>{$("input").value=b.dataset.prompt||"";send()});}catch(e){console.warn("Startup:",e);window.saeed.reportDiagnostic("ERROR","STARTUP",e.message)}});
 window.saeed.onLocalSttState((state,message)=>{const badge=$("micBadge");if(badge)badge.className="micBadge "+state;$("status").textContent=state==="connected"?"Offline Whisper listening":state==="starting"?"Starting Offline Whisper...":state==="error"?"Whisper error: "+(message||"unknown"):"Offline Whisper: "+state;});
-window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();if(!text)return;window.saeed.reportDiagnostic("INFO","LOCAL STT RECEIVE TEXT","Offline Whisper transcript received",{text});if(!false&&$("input").value.trim()==="")add("user",text);});
+window.saeed.onLocalSttResult(async e=>{const text=String(e?.text||"").replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();if(text)await sendVoiceText(text);});
 
-const pttButton=$("pushToTalk");
-let pttActive=false,pttStream=null,pttCtx=null,pttSource=null,pttProcessor=null,pttSamples=[];
-async function pttStart(e){e?.preventDefault();if(pttActive)return;const cfg=await window.saeed.getSettings();if(cfg?.micMode!=="ptt")return;pttActive=true;pttSamples=[];pttButton.classList.add("pttActive");$("status").textContent="Listening… release to send";try{pttStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});pttCtx=new AudioContext();pttSource=pttCtx.createMediaStreamSource(pttStream);pttProcessor=pttCtx.createScriptProcessor(4096,1,1);pttProcessor.onaudioprocess=ev=>{if(!pttActive)return;pttSamples.push(new Float32Array(ev.inputBuffer.getChannelData(0)))};pttSource.connect(pttProcessor);pttProcessor.connect(pttCtx.destination)}catch(err){pttActive=false;pttButton.classList.remove("pttActive");$("status").textContent="Mic error: "+err.message}}
-async function pttStop(e){e?.preventDefault();if(!pttActive)return;pttActive=false;pttButton.classList.remove("pttActive");window.saeed.setPttState(false);const cfg=await window.saeed.getSettings();if(cfg?.sttProvider!=="whisper"){$("status").textContent="Released";return}$("status").textContent="Processing…";try{pttProcessor?.disconnect();pttSource?.disconnect();pttStream?.getTracks().forEach(t=>t.stop());const sampleRate=pttCtx?.sampleRate||48000;const total=pttSamples.reduce((n,a)=>n+a.length,0);const input=new Float32Array(total);let o=0;for(const a of pttSamples){input.set(a,o);o+=a.length}const ratio=24000/sampleRate;const n=Math.max(1,Math.floor(input.length*ratio));const pcm=new Int16Array(n);for(let i=0;i<n;i++){const x=input[Math.min(input.length-1,Math.floor(i/ratio))]||0;pcm[i]=Math.max(-1,Math.min(1,x))*32767}let binary="";const bytes=new Uint8Array(pcm.buffer);for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,Math.min(i+0x8000,bytes.length)));const text=await window.saeed.transcribeLocalWav(btoa(binary));if(text){const clean=text.replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();if(clean){add("user",clean);const answer=await window.saeed.chat(clean);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);speakSaeed(answer)}}}}catch(err){window.saeed.reportDiagnostic("ERROR","LOCAL STT PTT",err.message);$("status").textContent="STT error: "+err.message}finally{try{pttCtx?.close()}catch{}pttCtx=null;pttStream=null;pttSource=null;pttProcessor=null;pttSamples=[]}}
-pttButton?.addEventListener("mousedown",pttStart);pttButton?.addEventListener("mouseup",pttStop);pttButton?.addEventListener("mouseleave",e=>{if(pttActive)pttStop(e)});pttButton?.addEventListener("touchstart",pttStart,{passive:false});pttButton?.addEventListener("touchend",pttStop,{passive:false});
 $("clearChat").onclick=async()=>{if(!confirm("Clear this conversation?"))return;try{const ok=await window.saeed.clearHistory();if(ok){messages.innerHTML='<div class="welcome"><div class="suggestions"><button data-prompt="Open File Explorer">Open File Explorer</button><button data-prompt="Show my computer information">Computer info</button><button data-prompt="Check my computer health">Computer health</button><button data-prompt="What is the local time?">Local time</button></div></div>';document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>{$("input").value=b.dataset.prompt||"";send()});$("status").textContent="Conversation cleared"}}catch(e){add("tool","Clear error: "+e.message)}};
