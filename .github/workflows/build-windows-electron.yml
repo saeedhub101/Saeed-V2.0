@@ -106,8 +106,49 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Generated ICO could not be inspected." }
           Write-Host "Native Windows icon generated from Saeed.png: $icon"
 
+      - name: Build bundled Offline Whisper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (Test-Path "build\whisper") { Remove-Item "build\whisper" -Recurse -Force }
+          if (Test-Path "build\whisper-src") { Remove-Item "build\whisper-src" -Recurse -Force }
+          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\whisper-src
+          Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-VC.zip" -OutFile "build\SDL2.zip"
+          7z x "build\SDL2.zip" -obuild\sdl2 | Out-Null
+          $sdl = (Get-ChildItem "build\sdl2" -Directory | Select-Object -First 1).FullName
+          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_SDL2=ON -DSDL2_DIR="$sdl\cmake" -DGGML_NATIVE=OFF
+          cmake --build build\whisper-src\build --config Release --target whisper-stream
+          New-Item -ItemType Directory -Force -Path build\whisper | Out-Null
+          $stream = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-stream.exe" | Select-Object -First 1
+          if (!$stream) { throw "whisper-stream.exe was not built." }
+          Copy-Item $stream.FullName "build\whisper\whisper-stream.exe" -Force
+          Get-ChildItem "build\whisper-src\build" -Recurse -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "build\whisper\$($_.Name)" -Force }
+          $sdlDll = Get-ChildItem $sdl -Recurse -Filter "SDL2.dll" | Select-Object -First 1
+          if (!$sdlDll) { throw "SDL2.dll was not found." }
+          Copy-Item $sdlDll.FullName "build\whisper\SDL2.dll" -Force
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile "build\whisper\ggml-base-q5_1.bin"
+          $size = (Get-Item "build\whisper\ggml-base-q5_1.bin").Length
+          if ($size -lt 50000000) { throw "Whisper model download is unexpectedly small: $size bytes" }
+          $hash = (Get-FileHash "build\whisper\ggml-base-q5_1.bin" -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "a3733eda680ef76256db5fc5dd9de8629e62c5e7") { throw "Whisper model SHA256 mismatch: $hash" }
+          & "build\whisper\whisper-stream.exe" --help | Out-File "build\whisper\whisper-help.txt"
+          if ($LASTEXITCODE -ne 0) { throw "Whisper stream binary failed its startup/help check." }
+          Write-Host "OFFLINE_WHISPER_READY modelBytes=$size sha256=$hash"
+
       - name: Build Windows installer
         run: npm run build
+
+      - name: Verify bundled Offline Whisper
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach($p in @("build\whisper\whisper-stream.exe","build\whisper\SDL2.dll","build\whisper\ggml-base-q5_1.bin")){
+            if(!(Test-Path $p -PathType Leaf)){throw "Missing Offline Whisper component: $p"}
+          }
+          $modelBytes=(Get-Item "build\whisper\ggml-base-q5_1.bin").Length
+          if($modelBytes -lt 50000000){throw "Bundled Whisper model is too small."}
+          Write-Host "WHISPER_MODEL_BYTES=$modelBytes"
+          Write-Host "OFFLINE_WHISPER_ASSETS=PASS"
 
       - name: Verify Chat taskbar entry and on-demand lifecycle contract
         shell: pwsh
