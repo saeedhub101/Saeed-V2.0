@@ -30,7 +30,7 @@ contextBridge.exposeInMainWorld("saeed",{
  onShowSettings:f=>ipcRenderer.on("settings:show",()=>f()),
  startRealtime:o=>ipcRenderer.invoke("realtime:start",o||{}),
  stopRealtime:()=>ipcRenderer.invoke("realtime:stop"),
- setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),
+ setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),setPttState:active=>ipcRenderer.send("mic:ptt",Boolean(active)),onPttState:f=>ipcRenderer.on("mic:ptt",(_,active)=>f(Boolean(active))),
  onMicMode:f=>ipcRenderer.on("mic:mode",(_,mode)=>f(mode)),
  sendRealtimeAudio:b=>ipcRenderer.invoke("realtime:audio",b),
  sendRealtimeText:t=>ipcRenderer.invoke("realtime:text",t),
