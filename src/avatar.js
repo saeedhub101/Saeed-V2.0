@@ -129,6 +129,7 @@ async function loadDiagnosticObject(){try{installDiagnosticObject()}catch(e){
 window.saeedAvatarLoadData=async data=>{try{const gltf=await ensureGLTFLoader();if(!gltf)throw new Error("GLTFLoader unavailable; see 3D Status");const bytes=data?.byteLength!=null?data:data?.buffer||data;const size=data?.byteLength||data?.length||0;runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"loading",detail:"Selected GLB is parsed for diagnostics only",size};report("INFO","GLB SELECTED PROBE","Selected GLB will be parsed but NOT displayed",{size});await gltf.parseAsync(bytes,"");runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"ready",detail:"Selected GLB parsed successfully; intentionally not displayed",parsed:true,displayed:false};report("INFO","GLB SELECTED PROBE","Selected GLB parsed successfully; diagnostic object remains displayed");}catch(e){runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"error",detail:"Selected GLB parse failed: "+e.message,displayed:false};report("ERROR","GLB SELECTED PROBE",e.message)}refreshOverall()};
 window.saeedAvatar={get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))},reloadDiagnostic:()=>{renderedReportSent=false;runtime3D.lastError="";runtime3D.components.testObject={...runtime3D.components.testObject,state:"loading",detail:"Reloading diagnostic 3D object"};installDiagnosticObject();return true}};
 loadDiagnosticObject();
+ensureGLTFLoader();
 
 function smoothTurnTo(yaw){
  bodyYawTarget=Number(yaw)||0;
