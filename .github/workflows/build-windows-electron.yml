@@ -405,6 +405,108 @@ jobs:
             Get-Process | Where-Object { $_.Path -like "$appDir\\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
           }
 
+      - name: Measure CPU usage with process-tree timing (new independent test)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $appPath = (Resolve-Path "dist\\win-unpacked\\Saeed AI.exe").Path
+          $appDir = Split-Path $appPath
+          $debugPort = 9233
+          $stdoutLog = Join-Path $PWD "dist\\cpu-tree-test.stdout.log"
+          $stderrLog = Join-Path $PWD "dist\\cpu-tree-test.stderr.log"
+          $report = Join-Path $PWD "dist\\cpu-tree-report.json"
+          $proc = Start-Process -FilePath $appPath -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+
+          function Get-ProcessTree([int]$rootPid) {
+            $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+            $known = @{$rootPid = $true}
+            do {
+              $changed = $false
+              foreach ($p in $all) {
+                $pid = [int]$p.ProcessId
+                $parent = [int]$p.ParentProcessId
+                if (-not $known.ContainsKey($pid) -and $known.ContainsKey($parent)) {
+                  $known[$pid] = $true
+                  $changed = $true
+                }
+              }
+            } while ($changed)
+            return @($known.Keys | ForEach-Object {[int]$_})
+          }
+
+          function Get-TreeCpuSnapshot([int[]]$ids) {
+            $now = Get-Date
+            $rows = @()
+            foreach ($id in $ids) {
+              try {
+                $p = Get-Process -Id $id -ErrorAction Stop
+                $rows += [pscustomobject]@{
+                  pid = $id
+                  name = $p.ProcessName
+                  cpuTimeSeconds = [double]$p.TotalProcessorTime.TotalSeconds
+                }
+              } catch {}
+            }
+            [pscustomobject]@{timestamp=$now;rows=$rows}
+          }
+
+          try {
+            Start-Sleep -Seconds 8
+            $ids = @(Get-ProcessTree $proc.Id)
+            if (-not $ids.Count) { throw "No Saeed process tree was found." }
+
+            $s1 = Get-TreeCpuSnapshot $ids
+            Start-Sleep -Seconds 2
+            $ids2 = @(Get-ProcessTree $proc.Id)
+            $s2 = Get-TreeCpuSnapshot $ids2
+
+            $wallSeconds = ($s2.timestamp - $s1.timestamp).TotalSeconds
+            if ($wallSeconds -le 0) { throw "CPU timing interval was invalid." }
+
+            $first = @{}
+            foreach ($row in $s1.rows) { $first[$row.pid] = $row }
+            $logicalProcessors = [Environment]::ProcessorCount
+            $details = @()
+            foreach ($row in $s2.rows) {
+              if ($first.ContainsKey($row.pid)) {
+                $delta = [Math]::Max(0, $row.cpuTimeSeconds - $first[$row.pid].cpuTimeSeconds)
+                $pct = ($delta / $wallSeconds) * 100 / $logicalProcessors
+                $details += [pscustomobject]@{pid=$row.pid;name=$row.name;cpuPercent=[Math]::Round($pct,2);cpuTimeDeltaSeconds=[Math]::Round($delta,4)}
+              }
+            }
+
+            if (-not $details.Count) { throw "No stable Saeed processes were available for CPU timing." }
+
+            $total = ($details | Measure-Object -Property cpuPercent -Sum).Sum
+            $max = ($details | Measure-Object -Property cpuPercent -Maximum).Maximum
+            $result = [ordered]@{
+              test = "built-program-cpu-process-tree-delta"
+              logicalProcessors = $logicalProcessors
+              rootPid = $proc.Id
+              processCount = $details.Count
+              totalCpuPercent = [Math]::Round([double]$total,2)
+              maxProcessCpuPercent = [Math]::Round([double]$max,2)
+              intervalSeconds = [Math]::Round($wallSeconds,3)
+              processes = $details
+              measuredAtUtc = (Get-Date).ToUniversalTime().ToString("o")
+            }
+            $result | ConvertTo-Json -Depth 8 | Set-Content $report -Encoding UTF8
+
+            Write-Host "CPU PROCESS-TREE TIMING TEST"
+            Write-Host "Root PID: $($result.rootPid)"
+            Write-Host "Saeed processes measured: $($result.processCount)"
+            foreach ($row in $details | Sort-Object cpuPercent -Descending) {
+              Write-Host ("PID {0} {1}: {2}%" -f $row.pid,$row.name,$row.cpuPercent)
+            }
+            Write-Host ("Total Saeed CPU: " + $result.totalCpuPercent + "%")
+            Write-Host ("Maximum single-process CPU: " + $result.maxProcessCpuPercent + "%")
+            Write-Host "CPU_PROCESS_TREE_CHECK=PASS"
+          }
+          finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($appDir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
       - name: Measure RAM usage of built program
         shell: pwsh
         run: |
@@ -474,6 +576,72 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
+      - name: Verify graceful shutdown leaves no Saeed processes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $app = (Resolve-Path "dist\\win-unpacked\\Saeed AI.exe").Path
+          $dir = Split-Path $app
+          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=9234" -PassThru
+          try {
+            Start-Sleep -Seconds 8
+            if ($proc.HasExited) { throw "Saeed exited before the shutdown test." }
+            $windows = @(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) })
+            if (-not $windows.Count) { throw "No Saeed processes were found before shutdown." }
+            $handles = @($windows | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -ExpandProperty MainWindowHandle)
+            if (-not $handles.Count) { throw "No Saeed native window handle was found for graceful-close testing." }
+            Add-Type @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class SaeedWindowCloser {
+            [DllImport("user32.dll", SetLastError=true)]
+            public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+          }
+          '@
+            foreach ($h in $handles) {
+              [void][SaeedWindowCloser]::PostMessage([IntPtr]$h,0x0010,[IntPtr]0,[IntPtr]0)
+            }
+            $deadline=(Get-Date).AddSeconds(15)
+            do {
+              $left=@(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) })
+              if(-not $left.Count){break}
+              Start-Sleep -Milliseconds 500
+            } while((Get-Date)-lt $deadline)
+            if($left.Count){throw "Saeed processes remained after graceful window close: "+(($left|Select-Object -ExpandProperty Id)-join ",")}
+            Write-Host "GRACEFUL_SHUTDOWN_CHECK=PASS"
+          }
+          finally {
+            if($proc -and -not $proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue}
+            Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Verify installer uninstall removes selected install directory and all Saeed AppData
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $installer = @(Get-ChildItem "dist" -Filter "*.exe" -File | Where-Object { $_.Name -notlike "*uninstaller*" })[0]
+          if(-not $installer){throw "Installer EXE was not found for uninstall test."}
+          $installDir = Join-Path $env:RUNNER_TEMP "saeed-custom-install"
+          if(Test-Path $installDir){Remove-Item $installDir -Recurse -Force}
+          $appDataPaths=@(
+            (Join-Path $env:APPDATA "Saeed AI"),
+            (Join-Path $env:LOCALAPPDATA "Saeed AI"),
+            (Join-Path $env:LOCALAPPDATA "Saeed AI-updater"),
+            (Join-Path $env:APPDATA "Saeed AI-updater")
+          )
+          foreach($p in $appDataPaths){
+            New-Item -ItemType Directory -Path $p -Force | Out-Null
+            Set-Content -Path (Join-Path $p "uninstall-test-marker.txt") -Value "Saeed uninstall test" -Encoding UTF8
+          }
+          Start-Process -FilePath $installer.FullName -ArgumentList @("/S",("/D="+$installDir)) -Wait -NoNewWindow
+          $uninstaller=Join-Path $installDir "Uninstall Saeed AI.exe"
+          if(-not (Test-Path $uninstaller)){throw "Uninstaller was not created in the selected installation directory: $installDir"}
+          Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($installDir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Process -FilePath $uninstaller -ArgumentList @("/S",("_?="+$installDir)) -Wait -NoNewWindow
+          if(Test-Path $installDir){throw "Selected installation directory was not completely removed: $installDir"}
+          foreach($p in $appDataPaths){if(Test-Path $p){throw "Saeed AppData remained after uninstall: $p"}}
+          Write-Host "UNINSTALL_CLEANUP_CHECK=PASS"
+
       - name: Upload verified build and diagnostics
         uses: actions/upload-artifact@v4
         with:
@@ -488,6 +656,9 @@ jobs:
             dist/cpu-test.stdout.log
             dist/cpu-test.stderr.log
             dist/cpu-report.json
+            dist/cpu-tree-test.stdout.log
+            dist/cpu-tree-test.stderr.log
+            dist/cpu-tree-report.json
             dist/chat-test.stdout.log
             dist/chat-test.stderr.log
             dist/latest.yml
