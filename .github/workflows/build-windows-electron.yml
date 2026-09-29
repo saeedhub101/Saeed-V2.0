@@ -120,47 +120,48 @@ jobs:
           $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
           try {
             @'
-const http = require("http");
-const WebSocket = require("ws");
-const port = Number(process.argv[2]);
-const expression = String(process.argv[3] || "");
-const getTargets = () => new Promise((resolve,reject) => {
-  http.get(`http://127.0.0.1:${port}/json`, res => {
-    let data=""; res.setEncoding("utf8");
-    res.on("data", c => data += c);
-    res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
-  }).on("error", reject);
-});
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-(async() => {
-  let target = null;
-  for(let i=0;i<30;i++){
-    try{
-      const targets = await getTargets();
-      target = targets.find(x => x.type === "page" && x.webSocketDebuggerUrl && ((x.url||"").includes("index.html") || x.title === "Saeed AI"));
-      if(target) break;
-    }catch{}
-    await sleep(1000);
-  }
-  if(!target) throw new Error("Saeed did not expose the chat Chromium page.");
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
-  const value = await new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),15000);
-    ws.on("message",raw=>{
-      try{
-        const m=JSON.parse(raw.toString());
-        if(m.id!==1) return;
-        clearTimeout(timer);
-        if(m.error) reject(new Error(m.error.message||"CDP error"));
-        else resolve(m.result?.result?.value);
-      }catch(e){reject(e);}
-    });
-    ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
-  });
-  ws.close();
-  process.stdout.write(String(value));
-})().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
+          const http = require("http");
+          const WebSocket = require("ws");
+          const port = Number(process.argv[2]);
+          const expression = String(process.argv[3] || "");
+          const getTargets = () => new Promise((resolve,reject) => {
+            http.get(`http://127.0.0.1:${port}/json`, res => {
+              let data="";
+              res.setEncoding("utf8");
+              res.on("data", chunk => data += chunk);
+              res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+            }).on("error", reject);
+          });
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          (async()=>{
+            let target=null;
+            for(let i=0;i<30;i++){
+              try{
+                const targets=await getTargets();
+                target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&(((x.url||"").includes("index.html"))||x.title==="Saeed AI"));
+                if(target)break;
+              }catch{}
+              await sleep(1000);
+            }
+            if(!target)throw new Error("Saeed did not expose the chat Chromium page.");
+            const ws=new WebSocket(target.webSocketDebuggerUrl);
+            await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
+            const value=await new Promise((resolve,reject)=>{
+              const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
+              ws.on("message",raw=>{
+                try{
+                  const m=JSON.parse(raw.toString());
+                  if(m.id!==1)return;
+                  clearTimeout(timer);
+                  if(m.error)reject(new Error(m.error.message||"CDP error"));
+                  else resolve(m.result?.result?.value);
+                }catch(e){reject(e);}
+              });
+              ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
+            });
+            ws.close();
+            process.stdout.write(String(value));
+          })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
 '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-smoke.cjs") -Encoding UTF8
             $expression = 'JSON.stringify({title:document.title,panel:!!document.querySelector("#panel"),panelVisible:document.querySelector("#panel")?.classList.contains("visible"),welcome:document.body?.innerText?.includes("مرحبًا"),closeButton:!!document.querySelector("#closeChat")})'
             $json = & node (Join-Path $PWD "dist\cdp-smoke.cjs") $debugPort $expression
@@ -193,73 +194,50 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
           try {
             Start-Sleep -Seconds 5
             @'
-const http = require("http");
-const WebSocket = require("ws");
-const port = Number(process.argv[2]);
-const expression = String(process.argv[3] || "");
-const getTargets = () => new Promise((resolve,reject) => {
-  http.get(`http://127.0.0.1:${port}/json`, res => {
-    let data="";
-    res.setEncoding("utf8");
-    res.on("data", chunk => data += chunk);
-    res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
-  }).on("error", reject);
-});
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-(async()=>{
-  let target=null;
-  for(let i=0;i<30;i++){
-    try{
-      const targets=await getTargets();
-      target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&(((x.url||"").includes("index.html"))||x.title==="Saeed AI"));
-      if(target)break;
-    }catch{}
-    await sleep(1000);
-  }
-  if(!target)throw new Error("Saeed did not expose the chat Chromium page.");
-  const ws=new WebSocket(target.webSocketDebuggerUrl);
-  await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
-  const value=await new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
-    ws.on("message",raw=>{
-      try{
-        const m=JSON.parse(raw.toString());
-        if(m.id!==1)return;
-        clearTimeout(timer);
-        if(m.error)reject(new Error(m.error.message||"CDP error"));
-        else resolve(m.result?.result?.value);
-      }catch(e){reject(e);}
-    });
-    ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
-  });
-  ws.close();
-  process.stdout.write(String(value));
-})().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
+          const http = require("http");
+          const WebSocket = require("ws");
+          const port = Number(process.argv[2]);
+          const expression = String(process.argv[3] || "");
+          const getTargets = () => new Promise((resolve,reject) => {
+            http.get(`http://127.0.0.1:${port}/json`, res => {
+              let data="";
+              res.setEncoding("utf8");
+              res.on("data", chunk => data += chunk);
+              res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+            }).on("error", reject);
+          });
+          const sleep = ms => new Promise(r => setTimeout(r, ms));
+          (async()=>{
+            let target=null;
+            for(let i=0;i<30;i++){
+              try{
+                const targets=await getTargets();
+                target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&(((x.url||"").includes("index.html"))||x.title==="Saeed AI"));
+                if(target)break;
+              }catch{}
+              await sleep(1000);
+            }
+            if(!target)throw new Error("Saeed did not expose the chat Chromium page.");
+            const ws=new WebSocket(target.webSocketDebuggerUrl);
+            await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
+            const value=await new Promise((resolve,reject)=>{
+              const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
+              ws.on("message",raw=>{
+                try{
+                  const m=JSON.parse(raw.toString());
+                  if(m.id!==1)return;
+                  clearTimeout(timer);
+                  if(m.error)reject(new Error(m.error.message||"CDP error"));
+                  else resolve(m.result?.result?.value);
+                }catch(e){reject(e);}
+              });
+              ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
+            });
+            ws.close();
+            process.stdout.write(String(value));
+          })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
 '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-chat-test.cjs") -Encoding UTF8
-            $js = @'
-(async()=>{
-  const input=document.querySelector("#input");
-  const send=document.querySelector("#send");
-  if(!input||!send)throw new Error("Chat controls missing");
-  let speechCalls=0;
-  const fakeSpeech={
-    cancel(){},
-    speak(u){speechCalls++;u.onstart?.();u.onend?.();}
-  };
-  Object.defineProperty(window,"speechSynthesis",{value:fakeSpeech,configurable:true});
-  input.value="What time is it?";
-  send.click();
-  for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));}
-  const texts=[...document.querySelectorAll("#messages .assistant")].map(x=>x.innerText);
-  const answer=texts[texts.length-1]||"";
-  return JSON.stringify({
-    answer,
-    speechCalls,
-    apiPrompt:/API key|Open settings/i.test(answer),
-    hasTime:/\b\d{1,2}:\d{2}\b/.test(answer)
-  });
-})()
-'@
+            $js = '(async()=>{const input=document.querySelector("#input");const send=document.querySelector("#send");if(!input||!send)throw new Error("Chat controls missing");let speechCalls=0;const fakeSpeech={cancel(){},speak(u){speechCalls++;u.onstart?.();u.onend?.()}};Object.defineProperty(window,"speechSynthesis",{value:fakeSpeech,configurable:true});input.value="What time is it?";send.click();for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));}const texts=[...document.querySelectorAll("#messages .assistant")].map(x=>x.innerText);const answer=texts[texts.length-1]||"";return JSON.stringify({answer,speechCalls,apiPrompt:/API key|Open settings/i.test(answer),hasTime:/\b\d{1,2}:\d{2}\b/.test(answer)});})()'
             $json = & node (Join-Path $PWD "dist\cdp-chat-test.cjs") $debugPort $js
             if ($LASTEXITCODE -ne 0) { throw "CDP chat response test failed." }
             $value = $json | ConvertFrom-Json
