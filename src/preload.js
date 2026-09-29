@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld("saeed",{
  checkForUpdates:()=>ipcRenderer.invoke("update:check"),
  installUpdate:()=>ipcRenderer.invoke("update:install"),
  downloadUpdate:()=>ipcRenderer.invoke("update:download"),
- getHistory:()=>ipcRenderer.invoke("history:get"),
+ getHistory:()=>ipcRenderer.invoke("history:get"), clearHistory:()=>ipcRenderer.invoke("history:clear"),
  getSettings:()=>ipcRenderer.invoke("settings:get"),
  setSettings:s=>ipcRenderer.invoke("settings:set",s),
  reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),reportMicLevel:level=>ipcRenderer.send("mic:level",Number(level)||0),onMicLevel:f=>ipcRenderer.on("mic:level",(_,level)=>f(level)),
