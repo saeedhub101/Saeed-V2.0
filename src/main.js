@@ -186,14 +186,15 @@ async function runCiRuntimeSmoke(){
   await wait(3500);
   const threeD=await request3DStatus().catch(e=>({overall:{state:"error",detail:e.message},components:{}}));
   report.checks.glbRuntime={pass:Boolean(threeD?.components?.selectedGlb?.displayed),overall:threeD?.overall,selectedGlb:threeD?.components?.selectedGlb,metrics:threeD?.metrics,viewport:threeD?.viewport};
-  const brainStart=Date.now();const answer=await agent.run("what time is it");report.checks.brain={pass:Boolean(answer&&String(answer).length),elapsedMs:Date.now()-brainStart,answer};
-  report.checks.chat={pass:Boolean(answer&&String(answer).length),path:"IPC agent.run/local brain path"};
+  const agentBefore=resourceSnapshot("before-agent-test");const brainStart=Date.now();const answer=await agent.run("what time is it");const agentAfter=resourceSnapshot("after-agent-test");report.checks.brain={pass:Boolean(answer&&String(answer).length),elapsedMs:Date.now()-brainStart,answer,resourceDelta:{rssMB:+(agentAfter.rssMB-agentBefore.rssMB).toFixed(1),heapUsedMB:+(agentAfter.heapUsedMB-agentBefore.heapUsedMB).toFixed(1),cpuUserMs:agentAfter.cpuUserMs-agentBefore.cpuUserMs,cpuSystemMs:agentAfter.cpuSystemMs-agentBefore.cpuSystemMs}};
+  const localBrainBefore=resourceSnapshot("before-local-brain-test");const localBrainStart=Date.now();const localBrainAnswer=await agent.run("who are you");const localBrainAfter=resourceSnapshot("after-local-brain-test");report.checks.localBrain={pass:Boolean(localBrainAnswer&&String(localBrainAnswer).length),elapsedMs:Date.now()-localBrainStart,answer:localBrainAnswer,resourceDelta:{rssMB:+(localBrainAfter.rssMB-localBrainBefore.rssMB).toFixed(1),heapUsedMB:+(localBrainAfter.heapUsedMB-localBrainBefore.heapUsedMB).toFixed(1),cpuUserMs:localBrainAfter.cpuUserMs-localBrainBefore.cpuUserMs,cpuSystemMs:localBrainAfter.cpuSystemMs-localBrainBefore.cpuSystemMs}};
+  report.checks.chat={pass:Boolean(answer&&String(answer).length),path:"IPC agent.run/local routing path"};
   const tts=await characterWin?.webContents.executeJavaScript('JSON.stringify({speechSynthesis:typeof speechSynthesis!=="undefined",voices:typeof speechSynthesis!=="undefined"?speechSynthesis.getVoices().length:0})').catch(e=>JSON.stringify({error:e.message}));
   report.checks.tts=JSON.parse(tts||"{}");report.checks.tts.pass=Boolean(report.checks.tts.speechSynthesis);
-  setMicMode("on");await wait(3000);report.checks.micOn={pass:currentMicMode==="on",diagnostic:diagnosticState.mic,sttProvider:agent?.settings?.sttProvider||"unknown"};setMicMode("off");await wait(300);
+  const micBefore=resourceSnapshot("before-mic-on");setMicMode("on");await wait(3000);const micAfter=resourceSnapshot("after-mic-on");report.checks.micOn={pass:currentMicMode==="on"&&diagnosticState.mic.state!=="error",diagnostic:diagnosticState.mic,sttProvider:agent?.settings?.sttProvider||"unknown",resourceDelta:{rssMB:+(micAfter.rssMB-micBefore.rssMB).toFixed(1),heapUsedMB:+(micAfter.heapUsedMB-micBefore.heapUsedMB).toFixed(1),cpuUserMs:micAfter.cpuUserMs-micBefore.cpuUserMs,cpuSystemMs:micAfter.cpuSystemMs-micBefore.cpuSystemMs}};setMicMode("off");await wait(300);
   report.resourcesAfter=resourceReport();report.finishedAt=new Date().toISOString();
  }catch(e){report.error=e.message;report.pass=false}
- report.pass=Boolean(report.checks.glbFile?.pass&&report.checks.brain?.pass&&report.checks.chat?.pass&&report.checks.tts?.pass&&report.checks.glbRuntime?.pass);
+ report.pass=Boolean(report.checks.glbFile?.pass&&report.checks.brain?.pass&&report.checks.localBrain?.pass&&report.checks.chat?.pass&&report.checks.tts?.pass&&report.checks.glbRuntime?.pass);
  const target=process.env.SAEED_CI_REPORT;if(target){try{fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8")}catch(e){console.error("CI report write failed:",e.message)}}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
  setMicMode("off");stopResourceProbe();setTimeout(()=>app.quit(),250);
 }
