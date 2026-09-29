@@ -167,7 +167,7 @@ function nod(){
 window.saeedAvatar={
  setState,move,turn,gesture,lookAt,nod,
  stop(){if(moveTimer){clearTimeout(moveTimer);moveTimer=null}avatarState="idle";return playAnimation("idle")},
- setMood(mood){root.rotation.z=0;root.position.y=mood==="sleep"?-.05:0;root.scale.setScalar(mood==="excited"?1.04:mood==="sad"?.97:1);if(mood==="alert")root.rotation.z=.02},
+  setMood(mood){root.rotation.z=0;root.scale.setScalar(mood==="excited"?1.04:mood==="sad"?.97:1);if(mood==="alert")root.rotation.z=.02},
  play(name,options){return playAnimation(name,options)},
  hasAnimation(name){return Boolean(findClip(name))},
  getAnimations(){return clips.map(c=>c.name)},
@@ -185,7 +185,7 @@ let renderLoopStarted=false;function frame(){
  proceduralBody(facialTime);
  Object.keys(visemeTargets).forEach(k=>{visemeValues[k]+=(visemeTargets[k]-visemeValues[k])*Math.min(1,dt*18);setMorph(k,visemeValues[k])});
  if(mixer)mixer.update(dt);
- else root.position.y=Math.sin(performance.now()/900)*.025;
+ 
  if(moveTimer&&performance.now()<moveEnd){
   root.position.x+=dt*.22*moveDirection;
   if(root.position.x>.7)root.position.x=-.7;
