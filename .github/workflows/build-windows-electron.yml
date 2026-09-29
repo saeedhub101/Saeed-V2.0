@@ -162,7 +162,7 @@ jobs:
             ws.close();
             process.stdout.write(String(value));
           })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
-'@ | Set-Content -Path (Join-Path $PWD "dist\cdp-smoke.cjs") -Encoding UTF8
+          '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-smoke.cjs") -Encoding UTF8
             $expression = 'JSON.stringify({title:document.title,panel:!!document.querySelector("#panel"),panelVisible:document.querySelector("#panel")?.classList.contains("visible"),welcome:document.body?.innerText?.includes("مرحبًا"),closeButton:!!document.querySelector("#closeChat")})'
             $json = & node (Join-Path $PWD "dist\cdp-smoke.cjs") $debugPort $expression
             if ($LASTEXITCODE -ne 0) { throw "CDP chat smoke failed." }
@@ -236,7 +236,7 @@ jobs:
             ws.close();
             process.stdout.write(String(value));
           })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
-'@ | Set-Content -Path (Join-Path $PWD "dist\cdp-chat-test.cjs") -Encoding UTF8
+          '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-chat-test.cjs") -Encoding UTF8
             $js = '(async()=>{const input=document.querySelector("#input");const send=document.querySelector("#send");if(!input||!send)throw new Error("Chat controls missing");let speechCalls=0;const fakeSpeech={cancel(){},speak(u){speechCalls++;u.onstart?.();u.onend?.()}};Object.defineProperty(window,"speechSynthesis",{value:fakeSpeech,configurable:true});input.value="What time is it?";send.click();for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));}const texts=[...document.querySelectorAll("#messages .assistant")].map(x=>x.innerText);const answer=texts[texts.length-1]||"";return JSON.stringify({answer,speechCalls,apiPrompt:/API key|Open settings/i.test(answer),hasTime:/\b\d{1,2}:\d{2}\b/.test(answer)});})()'
             $json = & node (Join-Path $PWD "dist\cdp-chat-test.cjs") $debugPort $js
             if ($LASTEXITCODE -ne 0) { throw "CDP chat response test failed." }
