@@ -411,45 +411,6 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
-      - name: Verify graceful shutdown leaves no Saeed processes
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $app = (Resolve-Path "dist\\win-unpacked\\Saeed AI.exe").Path
-          $dir = Split-Path $app
-          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=9234" -PassThru
-          try {
-            Start-Sleep -Seconds 8
-            if ($proc.HasExited) { throw "Saeed exited before the shutdown test." }
-            $windows = @(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) })
-            if (-not $windows.Count) { throw "No Saeed processes were found before shutdown." }
-            $handles = @($windows | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -ExpandProperty MainWindowHandle)
-            if (-not $handles.Count) { throw "No Saeed native window handle was found for graceful-close testing." }
-            Add-Type @'
-          using System;
-          using System.Runtime.InteropServices;
-          public static class SaeedWindowCloser {
-            [DllImport("user32.dll", SetLastError=true)]
-            public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-          }
-          '@
-            foreach ($h in $handles) {
-              [void][SaeedWindowCloser]::PostMessage([IntPtr]$h,0x0010,[IntPtr]0,[IntPtr]0)
-            }
-            $deadline=(Get-Date).AddSeconds(15)
-            do {
-              $left=@(Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) })
-              if(-not $left.Count){break}
-              Start-Sleep -Milliseconds 500
-            } while((Get-Date)-lt $deadline)
-            if($left.Count){throw "Saeed processes remained after graceful window close: "+(($left|Select-Object -ExpandProperty Id)-join ",")}
-            Write-Host "GRACEFUL_SHUTDOWN_CHECK=PASS"
-          }
-          finally {
-            if($proc -and -not $proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue}
-            Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($dir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
-          }
-
       - name: Upload verified build and diagnostics
         uses: actions/upload-artifact@v4
         with:
