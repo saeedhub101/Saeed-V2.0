@@ -637,7 +637,7 @@ jobs:
           $uninstaller=Join-Path $installDir "Uninstall Saeed AI.exe"
           if(-not (Test-Path $uninstaller)){throw "Uninstaller was not created in the selected installation directory: $installDir"}
           Get-Process | Where-Object { $_.Path -and $_.Path.StartsWith($installDir,[StringComparison]::OrdinalIgnoreCase) } | Stop-Process -Force -ErrorAction SilentlyContinue
-          Start-Process -FilePath $uninstaller -ArgumentList @("/S",("_?="+$installDir)) -Wait -NoNewWindow
+          Start-Process -FilePath $uninstaller -ArgumentList @("/S") -Wait -NoNewWindow
           if(Test-Path $installDir){throw "Selected installation directory was not completely removed: $installDir"}
           foreach($p in $appDataPaths){if(Test-Path $p){throw "Saeed AppData remained after uninstall: $p"}}
           Write-Host "UNINSTALL_CLEANUP_CHECK=PASS"
