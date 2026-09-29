@@ -55,7 +55,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/realtime.js","src/tools.js")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/local-brain.js","src/realtime.js","src/tools.js","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) {
             if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" }
           }
@@ -214,7 +214,7 @@ jobs:
           $debugPort = 9227
           $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
           try {
-            Start-Sleep -Seconds 6
+            Start-Sleep -Seconds 12
             $expression = 'JSON.stringify({title:document.title,frame:!!document.querySelector("#characterFrame"),canvas:!!document.querySelector("#avatar"),avatarApi:!!window.saeedAvatar,status:window.saeedAvatar?.get3DStatus?.(),bootstrap:window.saeed3DBootstrap})'
             $json = & node (Join-Path $PWD "dist\\cdp-smoke.cjs") $debugPort $expression "character.html"
             if ($LASTEXITCODE -ne 0) { throw "CDP 3D smoke failed." }
