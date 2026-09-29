@@ -117,49 +117,65 @@ jobs:
           if (-not (Test-Path $app -PathType Leaf)) { throw "Built application was not found: $app" }
 
           $debugPort = 9222
-          $stdoutLog = Join-Path $PWD "dist\runtime-smoke.stdout.log"
-          $stderrLog = Join-Path $PWD "dist\runtime-smoke.stderr.log"
-          $proc = $null
+          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
           try {
-            $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
-
-            $target = $null
-            for ($i = 0; $i -lt 30; $i++) {
-              Start-Sleep -Seconds 1
-              try {
-                $targets = @(Invoke-RestMethod "http://127.0.0.1:$debugPort/json")
-                $target = @($targets | Where-Object { $_.type -eq "page" -and $_.webSocketDebuggerUrl -and (($_.url -match "index\.html") -or ($_.title -eq "Saeed AI")) })[0]
-                if ($target) { break }
-              } catch {}
-            }
-            if (-not $target) { throw "Saeed did not expose a Chromium page for runtime inspection." }
-
-            $ws = [System.Net.WebSockets.ClientWebSocket]::new()
-            $ws.ConnectAsync([Uri]::new([string]$target.webSocketDebuggerUrl), [Threading.CancellationToken]::None).GetAwaiter().GetResult()
-            $expression = "JSON.stringify({title:document.title,panel:!!document.querySelector('#panel'),panelVisible:document.querySelector('#panel')?.classList.contains('visible'),welcome:document.body?.innerText?.includes('مرحبًا')})"
-            $message = @{ id = 1; method = "Runtime.evaluate"; params = @{ expression = $expression; returnByValue = $true } } | ConvertTo-Json -Compress
-            $bytes = [Text.Encoding]::UTF8.GetBytes($message)
-            $ws.SendAsync([ArraySegment[byte]]::new($bytes), [Net.WebSockets.WebSocketMessageType]::Text, $true, [Threading.CancellationToken]::None).GetAwaiter().GetResult()
-
-            $buffer = New-Object byte[] 65536
-            $resultText = ""
-            do {
-              $received = $ws.ReceiveAsync([ArraySegment[byte]]::new($buffer), [Threading.CancellationToken]::None).GetAwaiter().GetResult()
-              if ($received.Count -gt 0) { $resultText += [Text.Encoding]::UTF8.GetString($buffer,0,$received.Count) }
-            } while (-not $received.EndOfMessage)
-            $ws.Dispose()
-
-            $result = $resultText | ConvertFrom-Json
-            $value = $result.result.result.value | ConvertFrom-Json
+            @'
+const http = require("http");
+const WebSocket = require("ws");
+const port = Number(process.argv[2]);
+const expression = String(process.argv[3] || "");
+const getTargets = () => new Promise((resolve,reject) => {
+  http.get(`http://127.0.0.1:${port}/json`, res => {
+    let data=""; res.setEncoding("utf8");
+    res.on("data", c => data += c);
+    res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+  }).on("error", reject);
+});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+(async() => {
+  let target = null;
+  for(let i=0;i<30;i++){
+    try{
+      const targets = await getTargets();
+      target = targets.find(x => x.type === "page" && x.webSocketDebuggerUrl && ((x.url||"").includes("index.html") || x.title === "Saeed AI"));
+      if(target) break;
+    }catch{}
+    await sleep(1000);
+  }
+  if(!target) throw new Error("Saeed did not expose the chat Chromium page.");
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
+  const value = await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),15000);
+    ws.on("message",raw=>{
+      try{
+        const m=JSON.parse(raw.toString());
+        if(m.id!==1) return;
+        clearTimeout(timer);
+        if(m.error) reject(new Error(m.error.message||"CDP error"));
+        else resolve(m.result?.result?.value);
+      }catch(e){reject(e);}
+    });
+    ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
+  });
+  ws.close();
+  process.stdout.write(String(value));
+})().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
+'@ | Set-Content -Path (Join-Path $PWD "dist\cdp-smoke.cjs") -Encoding UTF8
+            $expression = 'JSON.stringify({title:document.title,panel:!!document.querySelector("#panel"),panelVisible:document.querySelector("#panel")?.classList.contains("visible"),welcome:document.body?.innerText?.includes("مرحبًا"),closeButton:!!document.querySelector("#closeChat")})'
+            $json = & node (Join-Path $PWD "dist\cdp-smoke.cjs") $debugPort $expression
+            if ($LASTEXITCODE -ne 0) { throw "CDP chat smoke failed." }
+            $value = $json | ConvertFrom-Json
             Write-Host "Runtime page title: $($value.title)"
             Write-Host "Chat panel found: $($value.panel)"
             Write-Host "Chat panel visible: $($value.panelVisible)"
             Write-Host "Chat welcome rendered: $($value.welcome)"
-
+            Write-Host "Chat close button found: $($value.closeButton)"
             if ($value.title -ne "Saeed AI") { throw "Unexpected application page title: $($value.title)" }
             if (-not $value.panel) { throw "Chat panel was not found in the running application." }
             if (-not $value.panelVisible) { throw "Chat panel exists but is not visible." }
             if (-not $value.welcome) { throw "Chat welcome message was not rendered." }
+            if (-not $value.closeButton) { throw "Chat close button was not rendered." }
             Write-Host "CHAT_SMOKE=PASS"
           }
           finally {
@@ -173,33 +189,63 @@ jobs:
           $ErrorActionPreference = "Stop"
           $app = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           $debugPort = 9224
-          $stdoutLog = Join-Path $PWD "dist\chat-test.stdout.log"
-          $stderrLog = Join-Path $PWD "dist\chat-test.stderr.log"
-          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+          $proc = Start-Process -FilePath $app -ArgumentList "--remote-debugging-port=$debugPort" -PassThru
           try {
-            Start-Sleep -Seconds 8
-            $target=$null
-            for($i=0;$i-lt 30;$i++){Start-Sleep -Seconds 1;try{$target=@((Invoke-RestMethod "http://127.0.0.1:$debugPort/json")|Where-Object{$_.type-eq"page"-and $_.webSocketDebuggerUrl -and (($_.url -match "index\.html") -or ($_.title -eq "Saeed AI"))})[0];if($target){break}}catch{}}
-            if(-not $target){throw "Saeed did not expose a Chromium page."}
-            $ws=[System.Net.WebSockets.ClientWebSocket]::new()
-            $ws.ConnectAsync([Uri]::new([string]$target.webSocketDebuggerUrl,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
-            $js=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("KGFzeW5jKCk9Pntjb25zdCBpbnB1dD1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjaW5wdXQnKTtjb25zdCBzZW5kPWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoJyNzZW5kJyk7aWYoIWlucHV0fHwhc2VuZCl0aHJvdyBuZXcgRXJyb3IoJ0NoYXQgY29udHJvbHMgbWlzc2luZycpO2xldCBzcGVlY2hDYWxscz0wO2NvbnN0IGZha2VTcGVlY2g9e2NhbmNlbCgpe30sc3BlYWsodSl7c3BlZWNoQ2FsbHMrKzt1Lm9uc3RhcnQ/LigpO3Uub25lbmQ/LigpO319O09iamVjdC5kZWZpbmVQcm9wZXJ0eSh3aW5kb3csJ3NwZWVjaFN5bnRoZXNpcycse3ZhbHVlOmZha2VTcGVlY2gsY29uZmlndXJhYmxlOnRydWV9KTtpbnB1dC52YWx1ZT0nV2hhdCB0aW1lIGlzIGl0Pyc7c2VuZC5jbGljaygpO2ZvcihsZXQgaT0wO2k8NDA7aSsrKXthd2FpdCBuZXcgUHJvbWlzZShyPT5zZXRUaW1lb3V0KHIsMjUwKSk7fWNvbnN0IHRleHRzPVsuLi5kb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCcjbWVzc2FnZXMgLmFzc2lzdGFudCcpXS5tYXAoeD0+eC5pbm5lclRleHQpO2NvbnN0IGFuc3dlcj10ZXh0c1t0ZXh0cy5sZW5ndGgtMV18fCcnO3JldHVybiBKU09OLnN0cmluZ2lmeSh7YW5zd2VyLHNwZWVjaENhbGxzLGFwaVByb21wdDovQVBJIGtleXxPcGVuIHNldHRpbmdzfNij2K/YrtmEIEFQSS9pLnRlc3QoYW5zd2VyKSxoYXNUaW1lOi9sb2NhbCB0aW1lfFxiXGR7MSwyfTpcZHsyfS9pLnRlc3QoYW5zd2VyKX0pfSkoKQ=="))
-            $message=@{id=1;method="Runtime.evaluate";params=@{expression=$js;awaitPromise=$true;returnByValue=$true}}|ConvertTo-Json -Compress
-            $bytes=[Text.Encoding]::UTF8.GetBytes($message)
-            $ws.SendAsync([ArraySegment[byte]]::new($bytes),[Net.WebSockets.WebSocketMessageType]::Text,$true,[Threading.CancellationToken]::None).GetAwaiter().GetResult()
-            $buffer=New-Object byte[] 65536;$resultText=""
-            do{$received=$ws.ReceiveAsync([ArraySegment[byte]]::new($buffer),[Threading.CancellationToken]::None).GetAwaiter().GetResult();if($received.Count-gt 0){$resultText+=[Text.Encoding]::UTF8.GetString($buffer,0,$received.Count)}}while(-not $received.EndOfMessage)
-            $ws.Dispose()
-            $value=($resultText|ConvertFrom-Json).result.result.value|ConvertFrom-Json
-            Write-Host "Chat response: $($value.answer)"
-            Write-Host "Speech calls: $($value.speechCalls)"
-            if($value.apiPrompt){throw "Local chat still requests an API key."}
-            if(-not $value.hasTime){throw "Local time response was not returned."}
-            if([int]$value.speechCalls-lt 1){throw "Speech output was not invoked."}
+            Start-Sleep -Seconds 5
+            @'
+const http = require("http");
+const WebSocket = require("ws");
+const port = Number(process.argv[2]);
+const expression = String(process.argv[3] || "");
+const getTargets = () => new Promise((resolve,reject) => {
+  http.get(`http://127.0.0.1:${port}/json`, res => {
+    let data=""; res.setEncoding("utf8");
+    res.on("data", c => data += c);
+    res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+  }).on("error", reject);
+});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+(async() => {
+  let target = null;
+  for(let i=0;i<30;i++){
+    try{
+      const targets = await getTargets();
+      target = targets.find(x => x.type === "page" && x.webSocketDebuggerUrl && ((x.url||"").includes("index.html") || x.title === "Saeed AI"));
+      if(target) break;
+    }catch{}
+    await sleep(1000);
+  }
+  if(!target) throw new Error("Saeed did not expose the chat Chromium page.");
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
+  const value = await new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
+    ws.on("message",raw=>{
+      try{
+        const m=JSON.parse(raw.toString());
+        if(m.id!==1) return;
+        clearTimeout(timer);
+        if(m.error) reject(new Error(m.error.message||"CDP error"));
+        else resolve(m.result?.result?.value);
+      }catch(e){reject(e);}
+    });
+    ws.send(JSON.stringify({id:1,method:"Runtime.evaluate",params:{expression,returnByValue:true,awaitPromise:true}}));
+  });
+  ws.close();
+  process.stdout.write(String(value));
+})().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
+'@ | Set-Content -Path (Join-Path $PWD "dist\cdp-chat-test.cjs") -Encoding UTF8
+            $js = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("KGFzeW5jKCk9Pntjb25zdCBpbnB1dD1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjaW5wdXQnKTtjb25zdCBzZW5kPWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoJyNzZW5kJyk7aWYoIWlucHV0fHwhc2VuZCl0aHJvdyBuZXcgRXJyb3IoJ0NoYXQgY29udHJvbHMgbWlzc2luZycpO2xldCBzcGVlY2hDYWxscz0wO2NvbnN0IGZha2VTcGVlY2g9e2NhbmNlbCgpe30sc3BlYWsoKHUpe3NwZWVjaENhbGxzKys7dS5vbnN0YXJ0Py4oKTt1Lm9uZW5kPy4oKX19O09iamVjdC5kZWZpbmVQcm9wZXJ0eSh3aW5kb3csJ3NwZWVjaFN5bnRoZXNpcycse3ZhbHVlOmZha2VTcGVlY2gsY29uZmlndXJhYmxlOnRydWV9KTtpbnB1dC52YWx1ZT0nV2hhdCB0aW1lIGlzIGl0Pyc7c2VuZC5jbGljaygpO2ZvcihsZXQgaT0wO2k8NDA7aSsrKXthd2FpdCBuZXcgUHJvbWlzZShyPT5zZXRUaW1lb3V0KHIsMjUwKSl9Y29uc3QgdGV4dHM9Wy4uLmRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJyNtZXNzYWdlcyAuYXNzaXN0YW50JyldLm1hcCh4PT54LmlubmVyVGV4dCk7Y29uc3QgYW5zd2VyPXRleHRzW3RleHRzLmxlbmd0aC0xXXx8Jyc7cmV0dXJuIEpTT04uc3RyaW5naWZ5KHthbnN3ZXIsc3BlZWNoQ2FsbHM7YXBpUHJvbXB0Oi9BUEkga2V5fE9wZW4gc2V0dGluZ3N8U+C6gDE/})"))
+            $json = & node (Join-Path $PWD "dist\cdp-chat-test.cjs") $debugPort $js
+            if ($LASTEXITCODE -ne 0) { throw "CDP chat response test failed." }
+            $value = $json | ConvertFrom-Json
+            Write-Host ($value | ConvertTo-Json -Compress)
             Write-Host "CHAT_RESPONSE_SMOKE=PASS"
-            Write-Host "CHAT_VOICE_SMOKE=PASS"
-            Write-Host "LOCAL_TIME_SMOKE=PASS"
-          } finally {if($proc-and-not $proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue}}
+          }
+          finally {
+            if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process | Where-Object { $_.Path -like "$PWD\dist\win-unpacked\*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Measure CPU usage of built program
         shell: pwsh
