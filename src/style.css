@@ -15,7 +15,8 @@ button{border:0;border-radius:9px;background:#182230;color:#fff;padding:9px 12px
 #panel:hover{box-shadow:0 14px 38px rgba(30,45,65,.19)}
 #panel.collapsed{width:210px;height:58px;overflow:hidden}
 #panel:not(.visible){opacity:.97}
-#panel>header{height:68px;flex:0 0 68px;padding:0 14px 0 18px;display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.98);border-bottom:1px solid #e1e6ee}
+#panel>header{height:68px;flex:0 0 68px;padding:0 14px 0 18px;display:flex;align-items:center;gap:11px;background:rgba(255,255,255,.98);border-bottom:1px solid #e1e6ee;-webkit-app-region:drag;cursor:move}
+#panel>header button,#panel>header .no-drag,#input,#send,#capture{ -webkit-app-region:no-drag }
 #panel>header strong{font-size:16px;font-weight:750;letter-spacing:0}
 #panel>header strong:before{content:"S";display:inline-grid;place-items:center;width:38px;height:38px;margin-right:10px;border-radius:12px;background:#182230;color:#fff;font-size:20px;font-weight:800;vertical-align:middle;box-shadow:0 4px 12px rgba(24,34,48,.16)}
 #panel>header small{flex:1;color:#7b8797;font-size:11px}
