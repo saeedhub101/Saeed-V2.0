@@ -31,7 +31,7 @@
       "allowToChangeInstallationDirectory": true,
       "include": "build/installer.nsh"
     },
-    "buildVersion": "2.9.0",
+    "buildVersion": "3.0.0",
     "icon": "assets/saeed.ico",
     "extraResources": [
       {
