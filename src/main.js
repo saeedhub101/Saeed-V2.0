@@ -1,5 +1,5 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
-const path=require("path"),fs=require("fs"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
+const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
 
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
@@ -23,7 +23,7 @@ function configureMediaPermissions(){
 let chatWin,characterWin,agent,tray,realtime,localWhisper,statusWin,threeDStatusWin;
 const pending3DQueries=new Map();
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
-const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
+const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
 function diagnostic(level,stage,message,meta={}){
  const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
  try{fs.mkdirSync(path.dirname(diagnosticFile),{recursive:true});fs.appendFileSync(diagnosticFile,JSON.stringify(event)+"\n")}catch(e){console.error("Diagnostics write failed:",e)}
@@ -42,7 +42,7 @@ function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail
  if((s.startsWith("3D")||s.startsWith("THREE")||s.includes("WEBGL")||s.includes("GLTF")||s.includes("CANVAS")||s.includes("RENDER LOOP"))&&diagnosticState.threeD){diagnosticState.threeD.lastEvent={time:e.time,level:e.level,stage:e.stage,message:e.message}}
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);
 }
-function diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
+let cpuTimer=null;\nfunction updateCpuMetrics(){try{const metrics=app.getAppMetrics();const logical=Math.max(1,os.cpus().length);const total=metrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const percent=Math.max(0,total/logical);diagnosticState.cpu={state:"active",percent,detail:`Saeed CPU ${percent.toFixed(1)}% across ${logical} logical processors`,processCount:metrics.length,lastUpdated:new Date().toISOString()};if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("cpu:metrics",diagnosticState.cpu)}catch(e){diagnosticState.cpu={state:"error",percent:0,detail:e.message,lastUpdated:new Date().toISOString()};diagnostic("ERROR","CPU METRICS",e.message)}}\nfunction diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
 
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
 // This code defines the official Saeed Windows application/taskbar icon source.
@@ -133,7 +133,7 @@ async function createCharacterWindow(){
  characterWin.show();
 }
 function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=false;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";chatWin?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version,releaseDate:info.releaseDate||null,releaseNotes:info.releaseNotes||null})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";chatWin?.webContents.send("update:state","error",e?.message||String(e))})}
-app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
+app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");updateCpuMetrics();cpuTimer=setInterval(updateCpuMetrics,1000);
  configureUpdater();
  if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
@@ -166,7 +166,7 @@ ipcMain.handle("chat",(_,payload)=>{
  return agent.run(String(data.text||""),data.image||null);
 });
 ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState,file:diagnosticFile}));ipcMain.handle("diagnostic:open-log",()=>{openDiagnosticsLog();return true});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState,file:diagnosticFile}));ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("diagnostic:open-log",()=>{openDiagnosticsLog();return true});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  agent.settings={...(s||{})};
@@ -255,4 +255,4 @@ app.on("before-quit",()=>{
  for(const win of [chatWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
-app.on("will-quit",()=>{globalShortcut.unregisterAll();try{stopRealtime()}catch{}});
+app.on("will-quit",()=>{globalShortcut.unregisterAll();try{stopRealtime()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
