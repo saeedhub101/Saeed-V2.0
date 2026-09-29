@@ -223,11 +223,11 @@ function startRealtime(options={}){
     const name=String(event.name||"");
     let args={};
     try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
-    chatWin?.webContents.send("agent:event",{type:"tool",name,args,source:"realtime"});
+    voiceBroadcast("agent:event",{type:"tool",name,args,source:"realtime"});
     let out;
     try{out=await registry.call(name,args)}catch(e){out={ok:false,error:e.message}};
-    if(out?.ok===false)chatWin?.webContents.send("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
-    else chatWin?.webContents.send("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
+    if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
+    else voiceBroadcast("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
    }
    else if(event.type==="response.done")voiceBroadcast("realtime:done",event.response?.status||"completed");
