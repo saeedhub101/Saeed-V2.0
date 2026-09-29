@@ -199,33 +199,34 @@ const port = Number(process.argv[2]);
 const expression = String(process.argv[3] || "");
 const getTargets = () => new Promise((resolve,reject) => {
   http.get(`http://127.0.0.1:${port}/json`, res => {
-    let data=""; res.setEncoding("utf8");
-    res.on("data", c => data += c);
+    let data="";
+    res.setEncoding("utf8");
+    res.on("data", chunk => data += chunk);
     res.on("end", () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
   }).on("error", reject);
 });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-(async() => {
-  let target = null;
+(async()=>{
+  let target=null;
   for(let i=0;i<30;i++){
     try{
-      const targets = await getTargets();
-      target = targets.find(x => x.type === "page" && x.webSocketDebuggerUrl && ((x.url||"").includes("index.html") || x.title === "Saeed AI"));
-      if(target) break;
+      const targets=await getTargets();
+      target=targets.find(x=>x.type==="page"&&x.webSocketDebuggerUrl&&(((x.url||"").includes("index.html"))||x.title==="Saeed AI"));
+      if(target)break;
     }catch{}
     await sleep(1000);
   }
-  if(!target) throw new Error("Saeed did not expose the chat Chromium page.");
-  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  if(!target)throw new Error("Saeed did not expose the chat Chromium page.");
+  const ws=new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((resolve,reject)=>{ws.once("open",resolve);ws.once("error",reject);});
-  const value = await new Promise((resolve,reject)=>{
+  const value=await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(new Error("CDP Runtime.evaluate timed out")),30000);
     ws.on("message",raw=>{
       try{
         const m=JSON.parse(raw.toString());
-        if(m.id!==1) return;
+        if(m.id!==1)return;
         clearTimeout(timer);
-        if(m.error) reject(new Error(m.error.message||"CDP error"));
+        if(m.error)reject(new Error(m.error.message||"CDP error"));
         else resolve(m.result?.result?.value);
       }catch(e){reject(e);}
     });
@@ -235,11 +236,37 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   process.stdout.write(String(value));
 })().catch(e=>{console.error(e.stack||String(e));process.exit(1);});
 '@ | Set-Content -Path (Join-Path $PWD "dist\cdp-chat-test.cjs") -Encoding UTF8
-            $js = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String("KGFzeW5jKCk9Pntjb25zdCBpbnB1dD1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjaW5wdXQnKTtjb25zdCBzZW5kPWRvY3VtZW50LnF1ZXJ5U2VsZWN0b3IoJyNzZW5kJyk7aWYoIWlucHV0fHwhc2VuZCl0aHJvdyBuZXcgRXJyb3IoJ0NoYXQgY29udHJvbHMgbWlzc2luZycpO2xldCBzcGVlY2hDYWxscz0wO2NvbnN0IGZha2VTcGVlY2g9e2NhbmNlbCgpe30sc3BlZWNoKHUpe3NwZWVjaENhbGxzKys7dS5vbnN0YXJ0Py4oKTt1Lm9uZW5kPy4oKX19O09iamVjdC5kZWZpbmVQcm9wZXJ0eSh3aW5kb3csJ3NwZWVjaFN5bnRoZXNpcyJse3ZhbHVlOmZha2VTcGVlY2gsY29uZmlndXJhYmxlOnRydWV9KTtpbnB1dC52YWx1ZT0nV2hhdCB0aW1lIGlzIGl0Pyc7c2VuZC5jbGljaygpO2ZvcihsZXQgaT0wO2k8NDA7aSsrKXthd2FpdCBuZXcgUHJvbWlzZShyPT5zZXRUaW1lb3V0KHIsMjUwKSl9Y29uc3QgdGV4dHM9Wy4uLmRvY3VtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJyNtZXNzYWdlcyAuYXNzaXN0YW50JyldLm1hcCh4PT54LmlubmVyVGV4dCk7Y29uc3QgYW5zd2VyPXRleHRzW3RleHRzLmxlbmd0aC0xXXx8Jyc7cmV0dXJuIEpTT04uc3RyaW5naWZ5KHthbnN3ZXIsc3BlZWNoQ2FsbHMsYXBpUHJvbXB0Oi9BUEkga2V5fE9wZW4gc2V0dGluZ3MvaS50ZXN0KGFuc3dlciksaGFzVGltZTovXGJcZHsxLDJ9OlxkezJ9XGIvLnRlc3QoYW5zd2VyKX0pO30pKCk="))
+            $js = @'
+(async()=>{
+  const input=document.querySelector("#input");
+  const send=document.querySelector("#send");
+  if(!input||!send)throw new Error("Chat controls missing");
+  let speechCalls=0;
+  const fakeSpeech={
+    cancel(){},
+    speak(u){speechCalls++;u.onstart?.();u.onend?.();}
+  };
+  Object.defineProperty(window,"speechSynthesis",{value:fakeSpeech,configurable:true});
+  input.value="What time is it?";
+  send.click();
+  for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));}
+  const texts=[...document.querySelectorAll("#messages .assistant")].map(x=>x.innerText);
+  const answer=texts[texts.length-1]||"";
+  return JSON.stringify({
+    answer,
+    speechCalls,
+    apiPrompt:/API key|Open settings/i.test(answer),
+    hasTime:/\b\d{1,2}:\d{2}\b/.test(answer)
+  });
+})()
+'@
             $json = & node (Join-Path $PWD "dist\cdp-chat-test.cjs") $debugPort $js
             if ($LASTEXITCODE -ne 0) { throw "CDP chat response test failed." }
             $value = $json | ConvertFrom-Json
             Write-Host ($value | ConvertTo-Json -Compress)
+            if ($value.apiPrompt) { throw "Chat asked for API configuration instead of returning a time response." }
+            if (-not $value.hasTime) { throw "Chat response did not contain a local time." }
+            if ([int]$value.speechCalls -lt 1) { throw "Local speech synthesis was not invoked." }
             Write-Host "CHAT_RESPONSE_SMOKE=PASS"
           }
           finally {
