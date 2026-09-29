@@ -193,8 +193,11 @@ ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(leve
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  const previous={...agent.settings};
- agent.settings={...(s||{})};
- const mode=String(agent.settings.brainMode||"auto");
+ agent.settings={...previous,...(s||{}),brainMode:"auto"};
+ delete agent.settings.alwaysListening;
+ if(agent.settings.micMode==="always"||agent.settings.micMode==="ptt")agent.settings.micMode="on";
+ if(agent.settings.micMode!=="on")agent.settings.micMode="off";
+ const mode="auto";
  let micMode=String(agent.settings.micMode||currentMicMode||"off");
  
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
