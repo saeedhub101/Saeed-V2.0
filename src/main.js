@@ -20,13 +20,13 @@ function configureMediaPermissions(){
 }
 
 
-let win,agent,tray,realtime,statusWin;
+let win,chatWin,characterWin,agent,tray,realtime,statusWin;
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""}};
 function diagnostic(level,stage,message,meta={}){
  const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
  try{fs.mkdirSync(path.dirname(diagnosticFile),{recursive:true});fs.appendFileSync(diagnosticFile,JSON.stringify(event)+"\n")}catch(e){console.error("Diagnostics write failed:",e)}
- if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:event",event);if(win&&!win.isDestroyed())win.webContents.send("diagnostic:event",event);updateDiagnosticState(event);return event;
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:event",event);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("diagnostic:event",event);if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("diagnostic:event",event);updateDiagnosticState(event);return event;
 }
 function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail=e.level==="ERROR";
  if(s.includes("MIC")){diagnosticState.mic.state=fail?"error":"active";diagnosticState.mic.detail=e.message;if(e.meta?.level!=null)diagnosticState.mic.level=Number(e.meta.level)||0}
@@ -61,89 +61,72 @@ async function captureScreen(){
  const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:1920,height:1080}});
  return sources[0]?.thumbnail.toDataURL()||null;
 }
-function displayForWindow(){
- if(!win)return screen.getPrimaryDisplay();
- const [x,y]=win.getPosition();
- const [w,h]=win.getSize();
+function displayForWindow(target=characterWin){
+ if(!target)return screen.getPrimaryDisplay();
+ const [x,y]=target.getPosition();const [w,h]=target.getSize();
  return screen.getDisplayMatching({x,y,width:w,height:h})||screen.getDisplayNearestPoint({x:x+w/2,y:y+h/2})||screen.getPrimaryDisplay();
 }
-function fitWindowToDisplay(display=displayForWindow(),{bottomRight=false}={}){
- if(!win)return;
- const area=display.workArea;
- const width=Math.min(WINDOW.width,Math.max(WINDOW.minWidth,area.width));
- const height=Math.min(WINDOW.height,Math.max(WINDOW.minHeight,area.height));
- if(win.getSize()[0]!==width||win.getSize()[1]!==height)win.setSize(width,height,false);
- const margin=18;
- const [x0,y0]=win.getPosition();
- const x=bottomRight?area.x+Math.max(0,area.width-width-margin):Math.max(area.x,Math.min(x0,area.x+Math.max(0,area.width-width)));
- const y=bottomRight?area.y+Math.max(0,area.height-height-margin):Math.max(area.y,Math.min(y0,area.y+Math.max(0,area.height-height)));
- win.setPosition(Math.round(x),Math.round(y),false);
+function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}){
+ if(!characterWin)return;
+ const area=display.workArea;const [w,h]=characterWin.getSize();const margin=18;
+ const [x0,y0]=characterWin.getPosition();
+ const x=bottomRight?area.x+Math.max(0,area.width-w-margin):Math.max(area.x,Math.min(x0,area.x+Math.max(0,area.width-w)));
+ const y=bottomRight?area.y+Math.max(0,area.height-h-margin):Math.max(area.y,Math.min(y0,area.y+Math.max(0,area.height-h)));
+ characterWin.setPosition(Math.round(x),Math.round(y),false);
 }
-function placeBottomRight(){
- if(!win)return;
- const display=screen.getPrimaryDisplay();
- fitWindowToDisplay(display,{bottomRight:true});
-}
-function keepWindowVisible(){
- if(!win)return;
- const display=displayForWindow();
- fitWindowToDisplay(display);
-}
-function showChat(){keepWindowVisible();win?.show();win?.focus();win?.webContents.send("chat:show")}
+function showChat(){if(!chatWin||chatWin.isDestroyed())return;chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}
+function closeChat(){if(chatWin&&!chatWin.isDestroyed())chatWin.hide()}
+function showCharacter(){if(!characterWin||characterWin.isDestroyed())return;characterWin.show();characterWin.focus()}
 function showStatus(){if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile});return}statusWin=new BrowserWindow({width:820,height:620,minWidth:620,minHeight:420,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 function openDiagnosticsLog(){require("electron").shell.openPath(diagnosticFile).catch(e=>diagnostic("ERROR","DIAGNOSTICS LOG",e.message))}
-function chooseCharacter(){dialog.showOpenDialog(win,{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file);win?.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB SELECTED","Character GLB selected",{name:path.basename(file),size:data.length})}catch(e){diagnostic("ERROR","GLB SELECTED",e.message)}})}
-function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};win?.webContents.send("mic:mode",value);if(value==="off"||String(agent?.settings?.brainMode||"auto")!=="realtime")stopRealtime();else startRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
-function setSaeedSize(size){const m={small:[600,400],medium:[760,480],large:[980,620]};const v=m[size]||m.medium;win?.setSize(v[0],v[1],true)}
+function chooseCharacter(){dialog.showOpenDialog(characterWin||chatWin,{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file);characterWin?.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB SELECTED","Character GLB selected",{name:path.basename(file),size:data.length})}catch(e){diagnostic("ERROR","GLB SELECTED",e.message)}})}
+function setMicMode(mode){const value=String(mode||"always");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:value==="always"};chatWin?.webContents.send("mic:mode",value);if(value==="off"||String(agent?.settings?.brainMode||"auto")!=="realtime")stopRealtime();else startRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
+function setSaeedSize(size){const m={small:[360,440],medium:[430,520],large:[520,620]};const v=m[size]||m.medium;characterWin?.setSize(v[0],v[1],true)}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
-  {label:"فتح المحادثة",click:showChat},
-  {label:"إخفاء Saeed",click:()=>win?.hide()},
+  {label:"Chat Me",click:showChat},
+  {label:"Hide Saeed",click:()=>characterWin?.hide()},
   {type:"separator"},
-  {label:"التقاط الشاشة",click:async()=>{const image=await captureScreen();showChat();win?.webContents.send("screen:capture",image)}},
-  {label:"الإعدادات…",click:()=>{showChat();win?.webContents.send("settings:show")}},
-  {type:"separator"},
-  {label:"خروج",click:()=>app.quit()}
+  {label:"Change Character (GLB)",click:chooseCharacter},
+  {label:"Settings",click:()=>{showChat();chatWin?.webContents.send("settings:show")}},
+  {type:"separator"},{label:"Quit",click:()=>app.quit()}
  ]);
- menu.popup({window:win});
+ menu.popup({window:characterWin});
 }
 async function createWindow(){
- win=new BrowserWindow({
-  name:"saeed-main",
-  width:WINDOW.width,height:WINDOW.height,minWidth:WINDOW.minWidth,minHeight:WINDOW.minHeight,
-  frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,
-  icon:windowsIconPath(),
-  webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}
- });
- win.setIcon(windowsIconPath());
- if(process.platform==="win32")win.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI"});
- win.setAlwaysOnTop(true,"floating");
- const registry=new ToolRegistry({
-  captureScreen,userDataPath:app.getPath("userData"),
-  confirm:({name,args})=>new Promise(resolve=>{
-   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-   confirmations.set(id,resolve);showChat();win?.webContents.send("agent:confirm",{id,name,args});
-  })
- });
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);win?.webContents.send("agent:event",e)}});
- win.on("closed",()=>{win=null});
- win.webContents.on("context-menu",()=>contextMenu());
- win.on("move",keepWindowVisible);
- await win.loadFile(path.join(__dirname,"index.html"));
- placeBottomRight();
- win.show();
+ chatWin=new BrowserWindow({name:"saeed-chat",width:760,height:560,minWidth:520,minHeight:360,frame:false,transparent:true,alwaysOnTop:false,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
+ chatWin.setIcon(windowsIconPath());
+ if(process.platform==="win32")chatWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Chat"});
+ chatWin.on("closed",()=>{chatWin=null});
+ chatWin.on("close",e=>{if(!app.isQuitting()){e.preventDefault();chatWin.hide()}});
+ chatWin.webContents.on("context-menu",()=>contextMenu());
+ await chatWin.loadFile(path.join(__dirname,"index.html"));
+ chatWin.show();
+ characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
+ characterWin.setIcon(windowsIconPath());
+ if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
+ characterWin.on("closed",()=>{characterWin=null});
+ characterWin.on("close",e=>{if(!app.isQuitting()){e.preventDefault();characterWin.hide()}});
+ characterWin.webContents.on("context-menu",()=>contextMenu());
+ await characterWin.loadFile(path.join(__dirname,"character.html"));
+ fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
+ characterWin.show();
+ const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:({name,args})=>new Promise(resolve=>{
+  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);showChat();chatWin?.webContents.send("agent:confirm",{id,name,args});
+ })});
+ agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);chatWin?.webContents.send("agent:event",e)}});
 }
-function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";win?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";win?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";win?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>win?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";win?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";win?.webContents.send("update:state","error",e?.message||String(e))})}
-app.whenReady().then(async()=>{diagnostic("INFO","APPLICATION","Diagnostics system started");
+function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=true;autoUpdater.on("checking-for-update",()=>{updateState="checking";chatWin?.webContents.send("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";win?.webContents.send("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";chatWin?.webContents.send("update:available",{version:info.version})});autoUpdater.on("download-progress",p=>chatWin?.webContents.send("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";chatWin?.webContents.send("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";win?.webContents.send("update:state","error",e?.message||String(e))})}
+app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
  configureUpdater();
  try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
  try{
   tray=new Tray(trayIcon());
   tray.setToolTip("Saeed AI");
   tray.setContextMenu(Menu.buildFromTemplate([
-   {label:"Show Saeed",click:showChat},{label:"Chat",click:showChat},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>win?.hide()},
+   {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
    {type:"separator"},{label:"Always Listening",type:"radio",checked:true,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic Off",type:"radio",click:()=>setMicMode("off")},
-   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:()=>{showChat();win?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
+   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:()=>autoUpdater.checkForUpdates().catch(e=>diagnostic("ERROR","UPDATE",e.message))},{label:"Settings",click:()=>{showChat();chatWin?.webContents.send("settings:show")}},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
    {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
   ]));
  }catch(e){console.error("Tray failed:",e)}
@@ -152,9 +135,9 @@ app.whenReady().then(async()=>{diagnostic("INFO","APPLICATION","Diagnostics syst
   try{const image=await captureScreen();showChat();win?.webContents.send("screen:capture",image)}
   catch(e){console.error("Screen capture failed:",e)}
  });
- const refresh=()=>{if(win)fitWindowToDisplay(displayForWindow())};
+ const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
  screen.on("display-added",refresh);
- screen.on("display-removed",()=>{if(win)keepWindowVisible()});
+ screen.on("display-removed",()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())});
  screen.on("display-metrics-changed",refresh);
 });
 ipcMain.handle("chat",(_,payload)=>{
@@ -178,7 +161,7 @@ ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
 ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});
-ipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");win?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
+ipcMain.handle("mic:mode",(_,mode)=>{const value=String(mode||"always");chatWin?.webContents.send("mic:mode",value);diagnostic("INFO","MIC MODE","Microphone mode requested: "+value);return true});
 ipcMain.handle("capture",()=>captureScreen());
 ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateState="checking";win?.webContents.send("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return {ok:false,state:"error",message:e.message}}});
 ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";win?.webContents.send("update:state","error",e.message);return false}});
@@ -230,17 +213,17 @@ function startRealtime(options={}){
  return true;
 }
 ipcMain.on("window:move-by",(_,dx,dy)=>{
- if(!win)return;
- const [x,y]=win.getPosition(),[w,h]=win.getSize();
+ if(!characterWin)return;
+ const [x,y]=characterWin.getPosition(),[w,h]=characterWin.getSize();
  const nextX=x+Math.round(Number(dx)||0),nextY=y+Math.round(Number(dy)||0);
  const center={x:nextX+w/2,y:nextY+h/2};
  const d=screen.getDisplayNearestPoint(center)||screen.getPrimaryDisplay();
  const a=d.workArea;
  const nx=Math.max(a.x,Math.min(nextX,a.x+Math.max(0,a.width-w)));
  const ny=Math.max(a.y,Math.min(nextY,a.y+Math.max(0,a.height-h)));
- win.setPosition(nx,ny,true);
+ characterWin.setPosition(nx,ny,true);
 });
 ipcMain.on("window:show-chat",showChat);
-app.on("activate",()=>{if(BrowserWindow.getAllWindows().length===0)createWindow().catch(e=>console.error(e))});
+app.on("activate",()=>{if(!chatWin||chatWin.isDestroyed())createWindow().catch(e=>console.error(e))});
 app.on("window-all-closed",e=>e.preventDefault());
-app.on("will-quit",()=>globalShortcut.unregisterAll());
+app.on("before-quit",()=>{app.isQuitting=true});app.on("will-quit",()=>globalShortcut.unregisterAll());
