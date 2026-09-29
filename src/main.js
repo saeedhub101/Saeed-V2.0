@@ -114,7 +114,7 @@ async function createChatWindow(){
 }
 async function createWindow(){
  await createCharacterWindow();
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:({name,args})=>new Promise(resolve=>{
+ const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:({name,args})=>new Promise(async resolve=>{
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);await showChat();chatWin?.webContents.send("agent:confirm",{id,name,args});
  })});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);chatWin?.webContents.send("agent:event",e)}});
