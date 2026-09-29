@@ -83,10 +83,11 @@ class Agent{
   }
   if(mode!=="api"){
    const local=await this.localIntent(text);
-   if(local!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain handled the request"});return local;}
+   if(local!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Built-in local intent handled the request"});return local;}
+   if(this.localBrain){try{const handled=await this.localBrain.handle(text);if(handled!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL","message":"Offline computer brain handled the request"});this.history.push({role:"user",content:String(text)},{role:"assistant",content:handled});this.saveHistory();this.onEvent({type:"answer",text:handled,source:"local-brain"});return handled;}}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message});}}
    if(mode==="local"){
-    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain has no handler for this request"});
-    return "The selected Local brain mode does not have a local skill for this request.";
+    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Offline computer brain has no handler for this request"});
+    return "I can handle common Windows computer tasks offline, but this request needs a broader model or an API connection.";
    }
   }
   if(!s.apiKey&&s.provider!=="ollama"){
