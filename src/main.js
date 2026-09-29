@@ -74,7 +74,6 @@ if(!singleInstanceLock)app.quit();
 else app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
 let updateState="idle",updateUiRequested=false;
 const confirmations=new Map();
-const WINDOW={width:760,height:480,minWidth:360,minHeight:260};
 
 async function captureScreen(){
  const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:1920,height:1080}});
