@@ -1,64 +1,71 @@
 # Saeed AI
 
-Saeed AI is a Windows desktop AI agent and 3D companion built with **Electron, Chromium, HTML/CSS/JavaScript, and Three.js**.
+Saeed AI is a Windows desktop AI companion and computer agent built with **Electron + Chromium + HTML/CSS/JavaScript + Three.js/WebGL**.
 
-The current repository is an Electron application. The old native C++/Win32 application, WebView2 utility-window implementation, and legacy repair/build files are no longer part of the current architecture.
+The current architecture is lifecycle-based: the 3D character is ready when the application starts, while microphone, speech processing, external API work, agent execution, and secondary windows are activated only when needed.
 
-## Current architecture
+## Startup lifecycle
 
-```
-Saeed AI
-├── Electron main process
-│   └── src/main.js
-├── Secure renderer bridge
-│   └── src/preload.js
-├── HTML/CSS/JavaScript UI
-│   ├── src/index.html
-│   ├── src/style.css
-│   └── src/renderer.js
-├── 3D character
-│   └── src/avatar.js + assets/Saeed_AI-3D.glb
-├── Agent system
-│   ├── src/agent.js
-│   ├── src/tools.js
-│   ├── src/computer.js
-│   └── src/memory.js
-└── Realtime voice
-    └── src/realtime.js
-```
+When Saeed starts:
 
-### What each layer does
+- The 3D character is visible and its Three.js/WebGL renderer remains active.
+- The microphone is **OFF**.
+- No microphone capture stream is running.
+- STT is not processing audio.
+- TTS is idle.
+- No external API connection is opened.
+- No agent task is executing.
+- Chat, Status, Performance, and 3D Status windows do not exist in the background.
+- The tray and character remain available.
 
-- **Electron/Chromium:** owns the Windows desktop application, window lifecycle, tray integration, screen capture, IPC, updates, and packaged EXE.
-- **HTML/CSS/JavaScript:** provides the current chat interface, settings UI, controls, status displays, and application interaction.
-- **Three.js/WebGL:** renders and controls the GLB character.
-- **Agent:** handles local conversation, persistent history/settings, tool selection, confirmations, and model/API interaction.
-- **Computer tools:** provide Windows-oriented operations such as screen capture and computer interaction exposed through the agent tool layer.
-- **Realtime:** provides realtime voice/audio integration and realtime tool calls when configured.
+The saved microphone preference does not automatically reopen the microphone at startup. The user explicitly turns the microphone ON.
 
-**Chromium is provided by Electron. It is not a separate browser application.**
+## Voice lifecycle
 
-There is **no C++ build path in the current application**, and C++ source files are not required to build the current Windows EXE.
+There is one authoritative microphone state:
 
-## Current application
+- **Mic ON** — starts microphone capture and the voice lifecycle.
+- **Mic OFF** — completely stops microphone/STT/voice resources.
 
-The current app provides:
+There is no **Always Listening** requirement or separate Always Listening mode.
 
-- Desktop chat with persistent conversation history.
-- Always Listening configuration; the main process enforces `alwaysListening: true` and `micMode: "always"` when settings are saved.
-- Realtime voice/audio integration when the required API configuration is available.
-- LLM/API settings with separate API-key fields and masked public settings.
-- Local agent execution and tool calling.
-- Confirmation handling for sensitive agent operations.
-- Screen capture.
-- Persistent memory and task data under Electron's user-data directory.
-- Three.js GLB avatar loading and animation/behavior support.
-- Character movement, gestures, facial morph/viseme handling, blinking, eye behavior, and procedural behavior when the loaded character supports the required rig/features.
-- System tray controls.
-- Always-on-top desktop window behavior and work-area boundary handling.
-- Automatic update checking/downloading/installing through `electron-updater` in installed builds.
+When Mic ON is active:
 
-The application currently uses one Electron desktop window containing the HTML UI and 3D surface. Chat/settings are implemented in the current renderer UI; they are **not** native C++/Win32 windows.
+1. Microphone capture starts.
+2. Local Whisper STT is used by default.
+3. A recognized sentence enters the same Agent path used by Chat.
+4. The Local Brain is checked first.
+5. If the Local Brain can handle the request, local Agent/tools execute it.
+6. If the Local Brain cannot handle it, the external LLM/API is requested.
+7. Tool results are verified through the normal Agent path.
+8. Saeed replies through the configured TTS path.
+9. Listening continues until Mic OFF.
+
+Mic OFF must stop the microphone stream, audio context, STT processing, timers, and voice resources.
+
+## Local-first intelligence
+
+The normal request path is:
+
+**User input → Local Brain → Local Agent/tools → verify → answer**
+
+If the Local Brain has no safe/appropriate handler:
+
+**User input → external LLM/API → Agent tools → verify → answer**
+
+The external API is therefore **on demand**, not a startup service.
+
+The Agent and Local Brain objects may exist in a lightweight ready state at startup. They do not continuously poll, process tasks, or make network requests.
+
+## Secondary windows
+
+Chat, Status, Performance, and 3D Status are independent Electron windows.
+
+They are created only when opened, initialized when created, and **destroyed when X is pressed**. They are recreated fresh on the next open.
+
+Closing a secondary window must not leave its renderer, timers, listeners, audio resources, or background polling running.
+
+The 3D character is different: it is the permanent visible Saeed surface and remains alive while the application is running.
 
 ## 3D character
 
@@ -66,202 +73,61 @@ The current default character is:
 
 `assets/Saeed_AI-3D.glb`
 
-The runtime loads the GLB with Three.js and attempts to work with different humanoid rigs rather than requiring the old `avatar.html` runtime.
+The runtime is Three.js/WebGL based and handles GLB loading, humanoid rig detection, animation/idle behavior, eye/head movement, blinking, facial morphs/visemes when available, expressions, gestures, sizing, movement, and renderer diagnostics.
 
-The avatar code supports, where the asset provides the required data:
+If an optional GLB capability is missing, the renderer falls back instead of starting a second character runtime.
 
-- humanoid bone detection;
-- camera/model framing;
-- animation clip selection and playback;
-- idle/procedural body behavior;
-- eye/head movement;
-- blinking;
-- facial morphs;
-- speech visemes;
-- expressions;
-- gestures;
-- movement and turning.
+## Agent and permissions
 
-If a particular GLB does not provide a required bone, morph target, or animation, the runtime can skip that capability instead of requiring a second character system.
+- `src/agent.js` — local-first Agent routing, persistent settings/history, and external model execution.
+- `src/local-brain.js` — offline intent routing.
+- `src/tools.js` — tool registry.
+- `src/computer.js` — Windows computer operations.
+- `src/memory.js` — persistent memory.
 
-## Agent and tools
+Sensitive or destructive computer operations remain confirmation-gated. The permission model is independent from the microphone lifecycle.
 
-The agent is implemented in `src/agent.js`.
+## Voice implementation
 
-The tool registry is implemented in `src/tools.js` and currently connects agent requests to capabilities including computer operations and memory/task operations.
+The default local STT engine is the bundled Whisper CLI plus the bundled model.
 
-`src/computer.js` contains the computer-execution layer.
+The renderer owns live microphone capture and reports a real microphone level while the microphone is ON. Audio is sent to local transcription in local-first mode.
 
-`src/memory.js` provides persistent memory storage.
+Optional realtime API support remains in `src/realtime.js`; it is not opened automatically at startup.
 
-Conversation history and settings are stored through Electron's user-data path rather than inside the repository.
+The default TTS path is the local browser speech-synthesis path already used by the application. API-backed voice providers remain configurable.
 
-The agent is designed to verify important operations instead of treating a tool call alone as proof that an action succeeded.
+## UI control rule
 
-Sensitive/destructive operations can require an explicit confirmation from the user before execution.
+There must be one source of truth for each runtime service.
 
-## Voice
+In particular:
 
-`src/realtime.js` implements the realtime voice connection.
+- Mic ON/OFF changes the actual microphone lifecycle, not only a label.
+- Status reflects the real microphone state and live input level.
+- Tray microphone state reflects the same state.
+- Closing a secondary window destroys it rather than merely hiding it.
+- Update UI is transient and appears only during an update operation/check.
+- Chat, Status, Performance, and 3D Status must not silently start background services just because their windows were opened.
 
-The main process connects realtime audio/transcription events to the renderer and can expose registered agent tools to the realtime model.
+## Application icon
 
-API configuration is stored through the application's settings system. Public settings returned to the renderer do not expose the stored API keys.
+The authoritative artwork is:
 
-## Application icon and Windows system-tray icon — DO NOT REMOVE OR REPLACE
+- `assets/saeed.png` — master artwork.
+- `assets/saeed.ico` — native Windows ICO generated from the PNG.
 
-The Saeed icon implementation is an intentional part of the current architecture. **Do not remove it, replace it with an automatically generated Electron icon, or change the source/creation method without deliberately redesigning the icon system and updating this section.**
+The official Windows build workflow generates the ICO before packaging. `src/main.js` uses the same resolved icon for the application window, taskbar identity, and tray.
 
-### Authoritative icon source
-
-The master artwork is:
-
-`assets/saeed.png`
-
-This PNG is the source artwork. The Windows EXE and Windows desktop/taskbar icon use a native Windows ICO generated from this PNG.
-
-The generated native icon is:
-
-`assets/saeed.ico`
-
-The build configuration uses:
-
-`assets/saeed.ico`
-
-as the application icon. This is deliberate: Electron Builder must consume the pre-generated ICO instead of converting the PNG itself.
-
-### Exact method used to create `saeed.ico`
-
-The official Windows build workflow is:
-
-`.github/workflows/build-windows-electron.yml`
-
-Before `npm run build`, the workflow runs ImageMagick using the following exact method:
-
-```powershell
-$source = "assets/saeed.png"
-$icon = "assets/saeed.ico"
-
-if (!(Test-Path $source)) {
-  throw "Source Saeed PNG is missing: $source"
-}
-
-if (!(Get-Command magick -ErrorAction SilentlyContinue)) {
-  choco install imagemagick --yes --no-progress
-}
-
-& magick $source -background none -define icon:auto-resize=256,128,64,48,32,16 $icon
-
-if ($LASTEXITCODE -ne 0) {
-  throw "ImageMagick failed to generate $icon"
-}
-
-if (!(Test-Path $icon)) {
-  throw "Saeed.ico was not generated from Saeed.png."
-}
-
-$bytes = (Get-Item $icon).Length
-
-if ($bytes -lt 1000) {
-  throw "Windows icon is unexpectedly small: $bytes bytes"
-}
-
-& magick identify $icon
-
-if ($LASTEXITCODE -ne 0) {
-  throw "Generated ICO could not be inspected."
-}
-
-Write-Host "Native Windows icon generated from Saeed.png: $icon"
-```
-
-This produces a multi-size native Windows ICO containing **256, 128, 64, 48, 32, and 16 pixel** icon sizes.
-
-### How the application uses the icon
-
-The authoritative runtime implementation is in `src/main.js`.
-
-The icon path is resolved by `windowsIconPath()`:
-
-1. Look for `assets/saeed.ico`.
-2. If the ICO is unavailable, fall back to `assets/saeed.png`.
-
-The same resolved icon is intentionally used for:
-
-- the Electron BrowserWindow icon;
-- the Windows application icon;
-- the Windows taskbar/application identity through `setAppDetails()`;
-- the system-tray icon.
-
-The relevant implementation must remain conceptually equivalent to:
-
-```js
-// AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
-// This code defines the official Saeed Windows application/taskbar icon source.
-function windowsIconPath(){
- const ico=path.join(__dirname,"..","assets","saeed.ico");
- const png=path.join(__dirname,"..","assets","saeed.png");
- return fs.existsSync(ico)?ico:png;
-}
-
-// AUTHORITATIVE SAEED SYSTEM TRAY ICON CODE — DO NOT REMOVE OR REPLACE.
-// The tray icon must use the same authoritative Saeed icon source.
-function trayIcon(){
- return nativeImage.createFromPath(windowsIconPath());
-}
-```
-
-The window also deliberately uses the same source:
-
-```js
-icon:windowsIconPath()
-win.setIcon(windowsIconPath())
-
-if(process.platform==="win32"){
- win.setAppDetails({
-  appId:"ai.saeed.desktop",
-  appIconPath:windowsIconPath(),
-  appIconIndex:0,
-  relaunchCommand:process.execPath,
-  relaunchDisplayName:"Saeed AI"
- });
-}
-```
-
-The system tray is created from that same icon:
-
-```js
-tray=new Tray(trayIcon());
-tray.setToolTip("Saeed AI");
-```
-
-### Icon preservation rules
-
-The following rules are mandatory for future changes:
-
-1. **Do not delete `assets/saeed.png`.** It is the master icon artwork.
-2. **Do not remove the ImageMagick PNG-to-ICO step from the official Windows build workflow.**
-3. **Do not change `build.icon` away from `assets/saeed.ico` unless the icon architecture is intentionally redesigned.**
-4. **Do not replace `windowsIconPath()` with another icon path without updating this README and deliberately validating the EXE/taskbar/tray result.**
-5. **Do not replace `trayIcon()` with a different icon source.** The tray must use the same authoritative Saeed icon.
-6. **Do not allow Electron Builder to generate the Windows icon directly from the PNG.** The native ICO is intentionally generated first.
-7. Any future icon change must be tested in a Windows build and verified for the **EXE, installed application/taskbar identity, and system tray**.
-8. If an agent modifies `src/main.js`, `package.json`, `assets/saeed.png`, `assets/saeed.ico`, or the Windows build workflow, it must preserve this icon architecture unless the user explicitly requests a redesign.
-
-The comments marked **AUTHORITATIVE SAEED ICON CODE** and **AUTHORITATIVE SAEED SYSTEM TRAY ICON CODE** are code-level preservation markers for future developers/agents.
+Do not replace this icon architecture without deliberately redesigning and testing the Windows EXE, taskbar identity, and tray icon.
 
 ## Updates
 
 The application uses `electron-updater`.
 
-The current updater flow is:
+Update checking/downloading is on demand. The character update panel is hidden while idle and appears only while an update operation has UI state to show.
 
-1. Check for an update.
-2. Report update state to the UI.
-3. Download an available update when requested.
-4. Install it when requested/restarted according to the updater state.
-
-There is no separate native C++ updater executable in the current architecture.
+There is no separate native C++ updater.
 
 ## Build
 
@@ -269,100 +135,52 @@ The official Windows workflow is:
 
 `.github/workflows/build-windows-electron.yml`
 
-It is named **Saeed AI — Windows Build** and is the single official Windows build workflow.
+It is named **Saeed AI — Windows Build** and is the only Windows build workflow.
 
-It runs for changes to the relevant application/build files on `main`, and it can also be started manually with GitHub Actions.
+It validates the repository, installs dependencies, validates JavaScript, creates the native Saeed ICO, builds the bundled offline Whisper CLI/model, builds the Windows NSIS installer, verifies the installer/updater metadata, and uploads the verified EXE artifact.
 
-The workflow performs, among other checks:
-
-- version validation;
-- repository structure validation;
-- dependency pin validation;
-- JavaScript syntax tests;
-- Always Listening contract checks;
-- native Saeed PNG-to-ICO icon generation;
-- Electron Windows packaging;
-- built-program chat smoke testing;
-- chat/response/voice checks;
-- CPU, RAM, and GPU checks where the Windows runner supports them;
-- installer validation;
-- artifact upload.
-
-A normal test/fix build does not automatically become a GitHub Release. Release publication is separately gated by the workflow.
+A normal test/fix build does not become a GitHub Release. Release publication remains explicitly gated.
 
 ## Local development
 
-Requirements:
-
-- Windows
-- Node.js compatible with the repository workflow
-- npm
-
-Install dependencies:
+Requirements: Windows, Node.js compatible with the workflow, and npm.
 
 ```powershell
 npm install
-```
-
-Run the application:
-
-```powershell
 npm start
-```
-
-Run JavaScript validation:
-
-```powershell
 npm test
-```
-
-Build the Windows installer:
-
-```powershell
 npm run build
 ```
 
-The package configuration uses Electron Builder to produce the Windows NSIS installer.
+## Important files
 
-## Repository structure
+- `package.json`
+- `src/main.js`
+- `src/preload.js`
+- `src/index.html` / `src/renderer.js`
+- `src/status.html` / `src/status.js`
+- `src/performance.html` / `src/performance.js`
+- `src/character.html` / `src/avatar.js`
+- `src/3d-status.html` / `src/3d-status.js`
+- `src/agent.js`
+- `src/local-brain.js`
+- `src/tools.js` / `src/computer.js`
+- `src/memory.js`
+- `src/realtime.js`
+- `assets/Saeed_AI-3D.glb`
+- `assets/saeed.png` / `assets/saeed.ico`
+- `.github/workflows/build-windows-electron.yml`
 
-Important current files:
+## Architecture rules
 
-- `package.json` — Electron project, dependencies, scripts, and Windows packaging configuration.
-- `VERSION` — official product version source; currently `2.1`.
-- `src/main.js` — Electron main process and **authoritative application/taskbar/tray icon implementation**.
-- `src/preload.js` — renderer/main-process bridge.
-- `src/index.html` — current UI markup.
-- `src/style.css` — current UI styling.
-- `src/renderer.js` — renderer-side chat/settings/voice interaction.
-- `src/avatar.js` — Three.js GLB character runtime.
-- `src/agent.js` — agent and persistent conversation/settings logic.
-- `src/tools.js` — agent tool registry.
-- `src/computer.js` — computer-operation layer.
-- `src/memory.js` — persistent memory layer.
-- `src/realtime.js` — realtime voice/API integration.
-- `assets/Saeed_AI-3D.glb` — current default 3D character.
-- `assets/saeed.png` — **master Saeed icon artwork**.
-- `assets/saeed.ico` — **native Windows ICO generated from the master PNG**.
-- `.github/workflows/build-windows-electron.yml` — official Windows build and **authoritative PNG-to-ICO creation method**.
-
-## Architecture rule
-
-There must be one coherent current application architecture.
-
-The current source of truth is:
-
-**Electron + Chromium + HTML/CSS/JavaScript + Three.js/WebGL + the current Agent/Tools/Memory/Realtime modules.**
-
-Do not reintroduce the deleted native C++ application, old WebView2 utility-window architecture, duplicate avatar runtime, duplicate agent system, duplicate memory system, or obsolete build/repair workflows unless the architecture is deliberately redesigned and the current repository is updated as a whole.
-
-The repository and Git history are the source of truth for the implementation.
-
-
-## v3.3 Release Scope
-
-- Performance is the replacement control center for the former Settings surface.
-- Status microphone controls and the Windows taskbar share one live microphone state.
-- Chat has a rebuilt desktop UI while preserving the existing voice/API runtime paths.
-- The offline computer brain now routes a broader set of Windows intents locally.
-- The 3D character path remains GLB-first and uses the bundled Saeed character asset.
+1. Keep one coherent Electron + Three.js/WebGL architecture.
+2. Do not reintroduce the deleted C++/Win32 or old WebView2 application paths.
+3. Do not create duplicate character, agent, memory, or microphone runtimes.
+4. Keep the 3D character alive; keep secondary windows on-demand and destroy them on close.
+5. Keep the microphone OFF at startup.
+6. Use one Mic ON/OFF controller and synchronize every UI surface to it.
+7. Use Local Brain first; call an external API only when the local path cannot handle the request.
+8. Do not start API connections, STT, TTS processing, or agent tasks merely because the application started.
+9. Do not reintroduce an Always Listening contract or automatically reopen the microphone from saved settings.
+10. Preserve the working Chat/API/voice paths while repairing unrelated 3D code unless a lifecycle change requires touching them.
+11. The repository and current source code are the implementation source of truth; this README describes the intended architecture and must stay synchronized with it.
