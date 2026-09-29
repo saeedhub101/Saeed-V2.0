@@ -177,12 +177,33 @@ async function createCharacterWindow(){
  characterWin.show();
 }
 function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=false;autoUpdater.on("checking-for-update",()=>{updateState="checking";if(updateUiRequested)voiceBroadcast("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";if(updateUiRequested){voiceBroadcast("update:state","latest");setTimeout(()=>{updateUiRequested=false;voiceBroadcast("update:state","idle")},3200)}});autoUpdater.on("update-available",info=>{updateState="available";if(updateUiRequested)voiceBroadcast("update:available",{version:info.version,releaseDate:info.releaseDate||null,releaseNotes:info.releaseNotes||null})});autoUpdater.on("download-progress",p=>{if(updateUiRequested)voiceBroadcast("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond})});autoUpdater.on("update-downloaded",info=>{updateState="downloaded";if(updateUiRequested){voiceBroadcast("update:downloaded",{version:info.version});setTimeout(()=>{updateUiRequested=false;voiceBroadcast("update:state","idle")},3200)}});autoUpdater.on("error",e=>{updateState="error";if(updateUiRequested){voiceBroadcast("update:state","error",e?.message||String(e));setTimeout(()=>{updateUiRequested=false;voiceBroadcast("update:state","idle")},3200)}})}
-app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");
+async function runCiRuntimeSmoke(){
+ const report={startedAt:new Date().toISOString(),checks:{},resources:resourceReport()};
+ const wait=ms=>new Promise(r=>setTimeout(r,ms));
+ try{
+  const glb=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");
+  report.checks.glbFile={pass:fs.existsSync(glb),path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
+  await wait(3500);
+  const threeD=await request3DStatus().catch(e=>({overall:{state:"error",detail:e.message},components:{}}));
+  report.checks.glbRuntime={pass:Boolean(threeD?.components?.selectedGlb?.displayed),overall:threeD?.overall,selectedGlb:threeD?.components?.selectedGlb,metrics:threeD?.metrics,viewport:threeD?.viewport};
+  const brainStart=Date.now();const answer=await agent.run("what time is it");report.checks.brain={pass:Boolean(answer&&String(answer).length),elapsedMs:Date.now()-brainStart,answer};
+  report.checks.chat={pass:Boolean(answer&&String(answer).length),path:"IPC agent.run/local brain path"};
+  const tts=await characterWin?.webContents.executeJavaScript('JSON.stringify({speechSynthesis:typeof speechSynthesis!=="undefined",voices:typeof speechSynthesis!=="undefined"?speechSynthesis.getVoices().length:0})').catch(e=>JSON.stringify({error:e.message}));
+  report.checks.tts=JSON.parse(tts||"{}");report.checks.tts.pass=Boolean(report.checks.tts.speechSynthesis);
+  setMicMode("on");await wait(3000);report.checks.micOn={pass:currentMicMode==="on",diagnostic:diagnosticState.mic,sttProvider:agent?.settings?.sttProvider||"unknown"};setMicMode("off");await wait(300);
+  report.resourcesAfter=resourceReport();report.finishedAt=new Date().toISOString();
+ }catch(e){report.error=e.message;report.pass=false}
+ report.pass=Boolean(report.checks.glbFile?.pass&&report.checks.brain?.pass&&report.checks.chat?.pass&&report.checks.tts?.pass&&report.checks.glbRuntime?.pass);
+ const target=process.env.SAEED_CI_REPORT;if(target){try{fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8")}catch(e){console.error("CI report write failed:",e.message)}}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
+ setMicMode("off");stopResourceProbe();setTimeout(()=>app.quit(),250);
+}
+app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");if(process.env.SAEED_CI_SMOKE==="1")startResourceProbe();
  configureUpdater();
  if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
  try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off",brainMode:"auto"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
  if(process.argv.includes("--3d-status"))show3DStatus(); else if(process.argv.includes("--chat"))void showChat();
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
+ if(process.env.SAEED_CI_SMOKE==="1")void runCiRuntimeSmoke();
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
   try{const image=await captureScreen();await showChat();chatWin?.webContents.send("screen:capture",image)}
