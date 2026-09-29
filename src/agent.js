@@ -5,8 +5,9 @@ class Agent{
   this.registry=registry;this.onEvent=onEvent;this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");
   fs.mkdirSync(this.dir,{recursive:true});
-  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:32,alwaysListening:true,micMode:"always",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"local-whisper",ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,speakResponses:true,language:"en",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin"});
+  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:32,alwaysListening:false,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:2,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,speakResponses:true,language:"en",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin"});
   this._settings={...raw,
+   ...(Number(raw.voiceControlVersion||0)<2?{alwaysListening:false,micMode:"off",streamingMode:"off",voiceControlVersion:2}:{}),
    apiKey:this.decryptKey(raw.apiKey),
    sttApiKey:this.decryptKey(raw.sttApiKey),
    ttsApiKey:this.decryptKey(raw.ttsApiKey),
