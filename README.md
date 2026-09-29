@@ -57,6 +57,8 @@ The external API is therefore **on demand**, not a startup service.
 
 The Agent and Local Brain objects may exist in a lightweight ready state at startup. They do not continuously poll, process tasks, or make network requests.
 
+The Agent remains the lightweight orchestrator rather than a collection of permanently running specialist agents. Specialized capabilities should normally be represented by focused modules/tools (for example office, accounting, graphics, browser, and computer tools) and invoked only when needed. Splitting every capability into separate always-loaded agents would add code and runtime overhead without reducing the installed program size, so that structure is intentionally deferred unless a concrete capability requires it.
+
 ## Secondary windows
 
 Chat, Status, Performance, and 3D Status are independent Electron windows.
@@ -160,7 +162,9 @@ npm run build
 - `src/index.html` / `src/renderer.js`
 - `src/status.html` / `src/status.js`
 - `src/performance.html` / `src/performance.js`
-- `src/character.html` / `src/avatar.js`
+- `src/character.html` / `src/avatar.js` — permanent character surface and 3D renderer.
+- `src/character-controls.js` — small, focused character-window controls such as the microphone toggle.
+- `src/character-voice.js` — microphone/STT/TTS lifecycle.
 - `src/3d-status.html` / `src/3d-status.js`
 - `src/agent.js`
 - `src/local-brain.js`
