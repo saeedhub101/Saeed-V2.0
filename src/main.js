@@ -74,6 +74,18 @@ if(!singleInstanceLock)app.quit();
 else app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
 let updateState="idle",updateUiRequested=false;
 const confirmations=new Map();
+let resourceProbeTimer=null;
+const resourceProbeSamples=[];
+function resourceSnapshot(label="sample"){
+ const usage=process.memoryUsage(), cpu=process.cpuUsage();
+ const rss=Math.round(usage.rss/1048576), heapUsed=Math.round(usage.heapUsed/1048576), external=Math.round(usage.external/1048576);
+ const sample={time:new Date().toISOString(),label,pid:process.pid,cpuUserMs:Math.round(cpu.user/1000),cpuSystemMs:Math.round(cpu.system/1000),rssMB:rss,heapUsedMB:heapUsed,heapTotalMB:Math.round(usage.heapTotal/1048576),externalMB:external,platform:process.platform};
+ resourceProbeSamples.push(sample);if(resourceProbeSamples.length>120)resourceProbeSamples.shift();return sample;
+}
+function startResourceProbe(){if(resourceProbeTimer)return;resourceSnapshot("startup");resourceProbeTimer=setInterval(()=>resourceSnapshot("interval"),1000);resourceProbeTimer.unref?.()}
+function stopResourceProbe(){if(resourceProbeTimer){clearInterval(resourceProbeTimer);resourceProbeTimer=null}}
+function resourceReport(){return {process:resourceSnapshot("report"),samples:[...resourceProbeSamples]}}
+
 
 async function captureScreen(){
  const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:1920,height:1080}});
@@ -189,7 +201,7 @@ ipcMain.handle("chat",(_,payload)=>{
  return agent.run(String(data.text||""),data.image||null);
 });
 ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  const previous={...agent.settings};
