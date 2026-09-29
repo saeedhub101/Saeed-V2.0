@@ -243,5 +243,11 @@ ipcMain.on("window:show-chat",()=>{void showChat()});
 ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}});
 
 app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>console.error(e))});
-app.on("window-all-closed",e=>e.preventDefault());
-app.on("before-quit",()=>{app.isQuitting=true});app.on("will-quit",()=>globalShortcut.unregisterAll());
+app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});
+app.on("before-quit",()=>{
+ app.isQuitting=true;
+ try{stopRealtime()}catch(e){console.error("Realtime shutdown failed:",e)}
+ for(const win of [chatWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
+ try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
+});
+app.on("will-quit",()=>{globalShortcut.unregisterAll();try{stopRealtime()}catch{}});
