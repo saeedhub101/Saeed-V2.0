@@ -1,5 +1,5 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
-const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{autoUpdater}=require("electron-updater");
+const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{autoUpdater}=require("electron-updater");
 
 process.on("uncaughtException",e=>console.error("Saeed uncaught:",e));
 process.on("unhandledRejection",e=>console.error("Saeed rejection:",e));
@@ -20,7 +20,7 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,settingsWin,agent,tray,realtime,localWhisper,statusWin,threeDStatusWin;
+let chatWin,characterWin,performanceWin,agent,tray,realtime,localWhisper,statusWin,threeDStatusWin;
 const pending3DQueries=new Map();
 const diagnosticFile=path.join(app.getPath("userData"),"diagnostics.jsonl");
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
@@ -86,7 +86,7 @@ function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}
 }
 async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
 function closeChat(){if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}}
-async function showSettings(){try{if(settingsWin&&!settingsWin.isDestroyed()){settingsWin.show();settingsWin.focus();settingsWin.webContents.send("settings:show");return}settingsWin=new BrowserWindow({width:900,height:700,minWidth:760,minHeight:560,title:"Saeed Settings",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});settingsWin.setIcon(windowsIconPath());settingsWin.on("closed",()=>{settingsWin=null});await settingsWin.loadFile(path.join(__dirname,"index.html"),{query:{settings:"1"}});settingsWin.show();settingsWin.focus();settingsWin.webContents.send("settings:show")}catch(e){diagnostic("ERROR","SETTINGS WINDOW",e.message)}}
+async function showPerformance(){try{if(performanceWin&&!performanceWin.isDestroyed()){performanceWin.show();performanceWin.focus();return}performanceWin=new BrowserWindow({width:900,height:700,minWidth:700,minHeight:520,title:"Saeed Performance",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});performanceWin.setIcon(windowsIconPath());performanceWin.on("closed",()=>{performanceWin=null});await performanceWin.loadFile(path.join(__dirname,"performance.html"));performanceWin.show();performanceWin.focus()}catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}}
 function showCharacter(){if(!characterWin||characterWin.isDestroyed())return;characterWin.show();characterWin.focus()}
 function showStatus(){if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile});return}statusWin=new BrowserWindow({width:820,height:620,minWidth:620,minHeight:420,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState,file:diagnosticFile})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 function openDiagnosticsLog(){require("electron").shell.openPath(diagnosticFile).catch(e=>diagnostic("ERROR","DIAGNOSTICS LOG",e.message))}
@@ -96,63 +96,8 @@ function whisperRuntimePaths(){const root=app.isPackaged?process.resourcesPath:p
 function voiceBroadcast(channel,...args){for(const win of [characterWin,chatWin]){if(win&&!win.isDestroyed())win.webContents.send(channel,...args)}}
 function stopLocalWhisper(){if(localWhisper){try{localWhisper.kill()}catch{}localWhisper=null}diagnostic("INFO","LOCAL STT STOP","Offline Whisper stopped");voiceBroadcast("local-stt:state","disconnected")}
 function startLocalWhisper(){const s=agent?.settings||{};if(s.micMode==="off"||s.sttProvider!=="whisper"){stopLocalWhisper();return false}const p=whisperRuntimePaths();if(!fs.existsSync(p.exe)||!fs.existsSync(p.model)){diagnostic("ERROR","LOCAL STT","Bundled Whisper engine/model is missing",{exe:p.exe,model:p.model});voiceBroadcast("local-stt:state","error","Whisper engine/model is missing from this build");return false}stopLocalWhisper();const args=["-m",p.model,"-t",String(Math.max(2,Math.min(8,Number(s.whisperThreads)||4))),"--step","0","--length","5000","-vth","0.6"];if(s.sttLanguage&&s.sttLanguage!=="auto")args.push("-l",String(s.sttLanguage));try{localWhisper=spawn(p.exe,args,{cwd:path.dirname(p.exe),windowsHide:true});voiceBroadcast("local-stt:state","starting");let block="";const line=d=>{const x=String(d||"").replace(/\x1b\[[0-9;]*[A-Za-z]/g,"").trim();if(!x)return;if(x.startsWith("### Transcription")&&x.includes("START")){block="";return}if(x.startsWith("### Transcription")&&x.includes("END")){const text=block.replace(/\[[^\]]+-->[^\]]+\]/g,"").replace(/\s+/g," ").replace(/^[\s\.,!?؟،؛:]+/,"").trim();block="";if(text){diagnostic("INFO","LOCAL STT RESULT",text);voiceBroadcast("local-stt:result",{text})}return}if(!x.startsWith("[Start speaking]")&&!x.startsWith("system_info"))block+=(block?" ":"")+x};localWhisper.stdout.setEncoding("utf8");localWhisper.stdout.on("data",d=>String(d).split(/\r?\n/).forEach(line));localWhisper.stderr.setEncoding("utf8");localWhisper.stderr.on("data",d=>diagnostic("INFO","LOCAL STT ENGINE",String(d).trim().slice(-1000)));localWhisper.on("error",e=>{localWhisper=null;diagnostic("ERROR","LOCAL STT PROCESS",e.message);voiceBroadcast("local-stt:state","error",e.message)});localWhisper.on("close",(code,signal)=>{localWhisper=null;diagnostic(code===0?"INFO":"ERROR","LOCAL STT EXIT","Offline Whisper exited",{code,signal});voiceBroadcast("local-stt:state",code===0?"disconnected":"error",code===0?"Whisper stopped":"Whisper exited with code "+code)});voiceBroadcast("local-stt:state","connected");diagnostic("INFO","LOCAL STT CONNECTED","Bundled Whisper streaming engine is active");return true}catch(e){diagnostic("ERROR","LOCAL STT START",e.message);voiceBroadcast("local-stt:state","error",e.message);return false}}
-function setMicMode(mode){const value=String(mode||"off");if(agent)agent.settings={...agent.settings,micMode:value,alwaysListening:false};voiceBroadcast("mic:mode",value);if(value==="off"){stopRealtime();stopLocalWhisper()}else if(value==="ptt"){stopLocalWhisper();if(String(agent?.settings?.brainMode||"auto")==="realtime")startRealtime();else stopRealtime()}else if(String(agent?.settings?.brainMode||"auto")==="realtime"){startRealtime()}else if(agent?.settings?.sttProvider==="whisper"){startLocalWhisper()}else stopRealtime();diagnostic("INFO","MIC MODE","Microphone mode: "+value)}
-function setSaeedSize(size){const m={small:[360,440],medium:[430,520],large:[520,620]};const v=m[size]||m.medium;characterWin?.setSize(v[0],v[1],true)}
-function contextMenu(){
- const menu=Menu.buildFromTemplate([
-  {label:"Chat Me",click:showChat},
-  {label:"3D Status",click:show3DStatus},
-  {label:"Hide Saeed",click:()=>characterWin?.hide()},
-  {type:"separator"},
-  {label:"Change Character (GLB)",click:chooseCharacter},
-  {label:"Settings",click:showSettings},
-  {type:"separator"},{label:"Quit",click:()=>app.quit()}
- ]);
- menu.popup({window:characterWin});
-}
-async function createChatWindow(){
- if(chatWin&&!chatWin.isDestroyed())return chatWin;
- chatWin=new BrowserWindow({name:"saeed-chat",width:760,height:560,minWidth:520,minHeight:360,frame:false,transparent:true,alwaysOnTop:false,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
- chatWin.setIcon(windowsIconPath());
- if(process.platform==="win32")chatWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Chat"});
- chatWin.on("closed",()=>{chatWin=null});
- chatWin.webContents.on("context-menu",()=>contextMenu());
- chatWin.setIgnoreMouseEvents(false);
- await chatWin.loadFile(path.join(__dirname,"index.html"));
- return chatWin;
-}
-async function createWindow(){
- await createCharacterWindow();
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),confirm:async({name,args})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name,args});});}});
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});
-}
-async function createCharacterWindow(){
- characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
- characterWin.setIcon(windowsIconPath());
- if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
- characterWin.on("closed",()=>{characterWin=null});
- characterWin.on("close",e=>{if(!app.isQuitting()){e.preventDefault();characterWin.hide()}});
- characterWin.webContents.on("context-menu",()=>contextMenu());
- await characterWin.loadFile(path.join(__dirname,"character.html"));
- fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
- characterWin.show();
-}
-function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=false;autoUpdater.on("checking-for-update",()=>{updateState="checking";voiceBroadcast("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";voiceBroadcast("update:state","latest")});autoUpdater.on("update-available",info=>{updateState="available";voiceBroadcast("update:available",{version:info.version,releaseDate:info.releaseDate||null,releaseNotes:info.releaseNotes||null})});autoUpdater.on("download-progress",p=>voiceBroadcast("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond}));autoUpdater.on("update-downloaded",info=>{updateState="downloaded";voiceBroadcast("update:downloaded",{version:info.version})});autoUpdater.on("error",e=>{updateState="error";voiceBroadcast("update:state","error",e?.message||String(e))})}
-app.whenReady().then(async()=>{app.isQuitting=false;diagnostic("INFO","APPLICATION","Diagnostics system started");updateCpuMetrics();cpuTimer=setInterval(updateCpuMetrics,1000);
- configureUpdater();
- if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
- try{await createWindow()}catch(e){console.error("Saeed startup failed:",e);app.quit();return}
- if(process.argv.includes("--3d-status"))show3DStatus(); else if(process.argv.includes("--chat"))void showChat();
- try{
-  tray=new Tray(trayIcon());
-  tray.setToolTip("Saeed AI");
-  tray.setContextMenu(Menu.buildFromTemplate([
-   {label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},
-   {type:"separator"},{label:"Mic ON — Live",type:"radio",checked:false,click:()=>setMicMode("always")},{label:"Push to Talk",type:"radio",click:()=>setMicMode("ptt")},{label:"Mic OFF",type:"radio",checked:true,click:()=>setMicMode("off")},
-   {label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:async()=>{try{await autoUpdater.checkForUpdates()}catch(e){diagnostic("ERROR","UPDATE",e.message)}}},{label:"Settings",click:showSettings},{label:"Open Diagnostics Log",click:openDiagnosticsLog},
-   {label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}
-  ]));
- }catch(e){console.error("Tray failed:",e)}
+let currentMicMode="off";
+function rebuildTray(){if(!tray)return;rebuildTray(); }catch(e){console.error("Tray failed:",e)}
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
   try{const image=await captureScreen();await showChat();chatWin?.webContents.send("screen:capture",image)}
@@ -280,7 +225,7 @@ app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)
 app.on("before-quit",()=>{
  app.isQuitting=true;
  try{stopRealtime();stopLocalWhisper()}catch(e){console.error("Voice shutdown failed:",e)}
- for(const win of [chatWin,settingsWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
+ for(const win of [chatWin,performanceWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{stopRealtime()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
