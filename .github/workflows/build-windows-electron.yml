@@ -89,10 +89,7 @@ jobs:
           if (Test-Path "build\whisper") { Remove-Item "build\whisper" -Recurse -Force }
           if (Test-Path "build\whisper-src") { Remove-Item "build\whisper-src" -Recurse -Force }
           git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\whisper-src
-          Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-VC.zip" -OutFile "build\SDL2.zip"
-          7z x "build\SDL2.zip" -obuild\sdl2 | Out-Null
-          $sdl = (Get-ChildItem "build\sdl2" -Directory | Select-Object -First 1).FullName
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_SDL2=ON -DWHISPER_BUILD_EXAMPLES=ON -DSDL2_DIR="$sdl\cmake" -DGGML_NATIVE=OFF
+          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
           cmake --build build\whisper-src\build --config Release --target whisper-cli
           New-Item -ItemType Directory -Force -Path build\whisper | Out-Null
           $cli = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
