@@ -116,13 +116,13 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-2.28.5/SDL2-devel-2.28.5-VC.zip" -OutFile "build\SDL2.zip"
           7z x "build\SDL2.zip" -obuild\sdl2 | Out-Null
           $sdl = (Get-ChildItem "build\sdl2" -Directory | Select-Object -First 1).FullName
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_SDL2=ON -DSDL2_DIR="$sdl\cmake" -DGGML_NATIVE=OFF
+          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_SDL2=ON -DWHISPER_BUILD_EXAMPLES=ON -DSDL2_DIR="$sdl\cmake" -DGGML_NATIVE=OFF
           cmake --build build\whisper-src\build --config Release --target whisper-stream
           New-Item -ItemType Directory -Force -Path build\whisper | Out-Null
           $stream = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-stream.exe" | Select-Object -First 1
           if (!$stream) { throw "whisper-stream.exe was not built." }
           Copy-Item $stream.FullName "build\whisper\whisper-stream.exe" -Force
-          Get-ChildItem "build\whisper-src\build" -Recurse -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "build\whisper\$($_.Name)" -Force }
+          Get-ChildItem "build\whisper-src\build\bin\Release" -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "build\whisper\$($_.Name)" -Force }
           $sdlDll = Get-ChildItem $sdl -Recurse -Filter "SDL2.dll" | Select-Object -First 1
           if (!$sdlDll) { throw "SDL2.dll was not found." }
           Copy-Item $sdlDll.FullName "build\whisper\SDL2.dll" -Force
