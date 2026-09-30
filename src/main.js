@@ -149,7 +149,7 @@ function setMicMode(mode){
  diagnostic("INFO","MIC MODE","Microphone mode: "+value);
  rebuildTray();
 }
-function setSaeedSize(size){const m={small:[300,360],medium:[430,520],large:[560,660]};const key=Object.prototype.hasOwnProperty.call(m,size)?size:"medium";const v=m[key];if(characterWin&&!characterWin.isDestroyed()){characterWin.setMinimumSize(300,360);characterWin.setSize(v[0],v[1],true);fitCharacterToDisplay(displayForWindow(),{bottomRight:false})}if(agent){agent.settings={...agent.settings,characterSize:key};agent.persistSettings()}}
+function setSaeedSize(size){const m={small:[300,360],medium:[430,520],large:[560,660]};const key=Object.prototype.hasOwnProperty.call(m,size)?size:"medium";const v=m[key];if(characterWin&&!characterWin.isDestroyed()){characterWin.setMinimumSize(300,360);characterWin.setMaximumSize(900,900);characterWin.setResizable(true);characterWin.setSize(v[0],v[1],false);fitCharacterToDisplay(displayForWindow(),{bottomRight:false});characterWin.webContents.send("character:size",key)}if(agent){agent.settings={...agent.settings,characterSize:key};agent.persistSettings()}}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
   {label:"Chat Me",click:showChat},
@@ -177,7 +177,7 @@ async function createWindow(){
  await createCharacterWindow();
  if(ciSmoke&&process.env.SAEED_CI_3D_OFF==="1")setTimeout(()=>void runCi3DBaseline(),800);
  const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name,args});});}});
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});agent.localBrain=new LocalBrain(registry);
+ agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});agent.localBrain=new LocalBrain(registry);if(agent.settings.characterSize)setSaeedSize(agent.settings.characterSize);
 }
 async function createCharacterWindow(){
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
