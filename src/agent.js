@@ -97,12 +97,14 @@ class Agent{
    if(this.localBrain){try{const brainMem=process.memoryUsage();const brainCpu=process.cpuUsage();const brainStart=Date.now();const handled=await this.localBrain.handle(text);const brainAfter=process.memoryUsage();const brainCpuAfter=process.cpuUsage(brainCpu);this.onEvent({type:"diagnostic",level:"INFO",stage:"RESOURCE LOCAL BRAIN",message:"Local brain resource sample",meta:{elapsedMs:Date.now()-brainStart,cpuUserMs:Math.round(brainCpuAfter.user/1000),cpuSystemMs:Math.round(brainCpuAfter.system/1000),heapDeltaMB:+((brainAfter.heapUsed-brainMem.heapUsed)/1048576).toFixed(2),rssMB:+(brainAfter.rss/1048576).toFixed(1)}});if(handled!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL","message":"Offline computer brain handled the request"});this.history.push({role:"user",content:String(text)},{role:"assistant",content:handled});this.saveHistory();this.onEvent({type:"answer",text:handled,source:"local-brain"});return handled;}}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message});}}
    if(mode==="local"){
     this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Offline computer brain has no handler for this request"});
-    return "I can handle common Windows computer tasks offline, but this request needs a broader model or an API connection.";
+    const answer="I can handle common Windows computer tasks offline, but this request needs the API brain. Please connect an API key in Settings.";
+    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local-fallback"});return answer;
    }
   }
   if(!s.apiKey&&s.provider!=="ollama"){
    this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT NOT READY",message:"LLM API key is missing"});
-   return "افتح الإعدادات وأدخل API key أو اختر Local.";
+   const answer="This request needs the API brain. Please connect an API key in Settings.";
+   this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"api-missing"});return answer;
   }
   const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Never claim success without evidence. Follow the Permissions settings exactly: Allow executes, Deny blocks, and Always ask requests approval. Do not impose any hidden permission rules. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."},...this.history.slice(-30),{role:"user",content:userContent}];
@@ -113,9 +115,9 @@ class Agent{
    const body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto",temperature:.1};
    let r;
    try{r=await fetch(base+"/chat/completions",{method:"POST",headers,body:JSON.stringify(body)})}
-   catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});throw new Error("تعذر الاتصال بمزود الذكاء الاصطناعي: "+e.message)}
-   if(!r.ok){await r.text();this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"});throw new Error("LLM HTTP "+r.status);}
-   const m=(await r.json()).choices?.[0]?.message;if(!m){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:"No model response"});throw new Error("No model response");}this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM RESPONSE RECEIVED",message:"LLM response received"});
+   catch(e){const answer="I could not reach the API brain. Please check your API key and connection in Settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});this.onEvent({type:"answer",text:answer,source:"api-error"});return answer}
+   if(!r.ok){await r.text();const answer=r.status===401||r.status===403?"The API brain rejected the API key. Please check or connect your API key in Settings.":"The API brain returned an error. Please check your API connection in Settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"});this.onEvent({type:"answer",text:answer,source:"api-http-error"});return answer}
+   const m=(await r.json()).choices?.[0]?.message;if(!m){const answer="The API brain did not return an answer. Please check your API settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:"No model response"});this.onEvent({type:"answer",text:answer,source:"api-no-response"});return answer}this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM RESPONSE RECEIVED",message:"LLM response received"});
    if(!m.tool_calls?.length){
     const answer=m.content||"";
     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;
