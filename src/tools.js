@@ -2,9 +2,12 @@ const os=require("os"),fs=require("fs"),path=require("path"),{Computer}=require(
 const {shell}=require("electron");
 
 class ToolRegistry{
- constructor({captureScreen,userDataPath,confirm}){this.computer=new Computer();this.captureScreen=captureScreen;this.confirm=confirm|| (async()=>false);this.userDataPath=userDataPath||process.cwd();this.memory=new Memory();this.taskFile=path.join(this.userDataPath,"tasks.json");this.tasks=this.loadTasks()}
+ constructor({captureScreen,userDataPath,confirm}){this.computer=null;this.memory=null;this.tasks=null;this.captureScreen=captureScreen;this.confirm=confirm|| (async()=>false);this.userDataPath=userDataPath||process.cwd();this.taskFile=path.join(this.userDataPath,"tasks.json")}
+ getComputer(){if(!this.computer)this.computer=new Computer();return this.computer}
+ getMemory(){if(!this.memory)this.memory=new Memory();return this.memory}
+ ensureTasks(){if(!this.tasks)this.tasks=this.loadTasks();return this.tasks}
  loadTasks(){try{return JSON.parse(fs.readFileSync(this.taskFile,"utf8"))}catch{return[]}}
- saveTasks(){fs.mkdirSync(this.userDataPath,{recursive:true});fs.writeFileSync(this.taskFile,JSON.stringify(this.tasks,null,2),"utf8")}
+ saveTasks(){const tasks=this.ensureTasks();fs.mkdirSync(this.userDataPath,{recursive:true});fs.writeFileSync(this.taskFile,JSON.stringify(tasks,null,2),"utf8")}
  schemas(){return[
  {type:"function",function:{name:"system_info",description:"Inspect CPU, memory, Windows version, architecture and uptime.",parameters:{type:"object",properties:{},required:[]}}},
  {type:"function",function:{name:"diagnose_computer",description:"Run a combined Windows health check: OS, CPU load, memory, disks, and top processes. Use this first for broad 'why is my computer slow/problem' requests.",parameters:{type:"object",properties:{},required:[]}}},
@@ -35,31 +38,31 @@ class ToolRegistry{
  ]}
  async call(n,a){try{
   if(n==="system_info")return{ok:true,platform:process.platform,release:os.release(),arch:process.arch,cpu:os.cpus().length,totalMemory:os.totalmem(),freeMemory:os.freemem(),uptime:os.uptime()};
-  if(n==="diagnose_computer")return this.computer.diagnose();
-  if(n==="active_window")return this.computer.activeWindow();
-  if(n==="list_windows")return this.computer.listWindows();
-  if(n==="focus_window")return this.computer.focusWindow(a.pid);
-  if(n==="process_list")return this.computer.processes();
-  if(n==="disk_info"){const r=await this.computer.powershell("Get-CimInstance Win32_LogicalDisk -Filter \"DriveType=3\" | Select DeviceID,Size,FreeSpace | ConvertTo-Json -Compress");try{return{ok:true,drives:JSON.parse(r.stdout)}}catch{return{ok:true,drives:[]}}}
-  if(n==="network_info"){const r=await this.computer.powershell("Get-NetIPConfiguration | Select InterfaceAlias,IPv4Address,IPv6Address,DNSServer | ConvertTo-Json -Compress");try{return{ok:true,adapters:JSON.parse(r.stdout)}}catch{return{ok:true,adapters:[]}}}
+  if(n==="diagnose_computer")return this.getComputer().diagnose();
+  if(n==="active_window")return this.getComputer().activeWindow();
+  if(n==="list_windows")return this.getComputer().listWindows();
+  if(n==="focus_window")return this.getComputer().focusWindow(a.pid);
+  if(n==="process_list")return this.getComputer().processes();
+  if(n==="disk_info"){const r=await this.getComputer().powershell("Get-CimInstance Win32_LogicalDisk -Filter \"DriveType=3\" | Select DeviceID,Size,FreeSpace | ConvertTo-Json -Compress");try{return{ok:true,drives:JSON.parse(r.stdout)}}catch{return{ok:true,drives:[]}}}
+  if(n==="network_info"){const r=await this.getComputer().powershell("Get-NetIPConfiguration | Select InterfaceAlias,IPv4Address,IPv6Address,DNSServer | ConvertTo-Json -Compress");try{return{ok:true,adapters:JSON.parse(r.stdout)}}catch{return{ok:true,adapters:[]}}}
   if(n==="list_directory")return{ok:true,files:fs.readdirSync(path.resolve(a.directory||"."),{withFileTypes:true}).map(x=>({name:x.name,directory:x.isDirectory()}))};
   if(n==="read_file")return{ok:true,content:fs.readFileSync(path.resolve(a.filePath),"utf8").slice(0,200000)};
   if(n==="write_file"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied the file change."};const p=path.resolve(a.filePath);fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,String(a.content),"utf8");return{ok:true,path:p,bytes:Buffer.byteLength(String(a.content))}};
-  if(n==="add_task"){const t={id:Date.now().toString(),title:String(a.title),done:false,created:new Date().toISOString()};this.tasks.push(t);this.saveTasks();return{ok:true,task:t}};
-  if(n==="list_tasks")return{ok:true,tasks:this.tasks};
-  if(n==="complete_task"){const t=this.tasks.find(x=>x.id===a.id);if(!t)return{ok:false,error:"Task not found"};t.done=true;t.completed=new Date().toISOString();this.saveTasks();return{ok:true,task:t}};
-  if(n==="remove_task"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied removing the task."};const before=this.tasks.length;this.tasks=this.tasks.filter(x=>x.id!==a.id);this.saveTasks();return{ok:this.tasks.length!==before}};
-  if(n==="open_application")return this.computer.openApp(a.application);
+  if(n==="add_task"){const tasks=this.ensureTasks();const t={id:Date.now().toString(),title:String(a.title),done:false,created:new Date().toISOString()};tasks.push(t);this.saveTasks();return{ok:true,task:t}};
+  if(n==="list_tasks")return{ok:true,tasks:this.ensureTasks()};
+  if(n==="complete_task"){const tasks=this.ensureTasks();const t=tasks.find(x=>x.id===a.id);if(!t)return{ok:false,error:"Task not found"};t.done=true;t.completed=new Date().toISOString();this.saveTasks();return{ok:true,task:t}};
+  if(n==="remove_task"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied removing the task."};const tasks=this.ensureTasks();const before=tasks.length;this.tasks=tasks.filter(x=>x.id!==a.id);this.saveTasks();return{ok:this.tasks.length!==before}};
+  if(n==="open_application")return this.getComputer().openApp(a.application);
   if(n==="reveal_file"){const p=path.resolve(a.filePath);if(!fs.existsSync(p))return{ok:false,error:"File not found"};shell.showItemInFolder(p);return{ok:true,path:p}}
   if(n==="open_url"){if(!/^https?:\/\//i.test(a.url))return{ok:false,error:"Only HTTP/HTTPS URLs are allowed"};await require("electron").shell.openExternal(a.url);return{ok:true,url:a.url}};
   if(n==="web_search"){const q=encodeURIComponent(a.query);const r=await fetch("https://html.duckduckgo.com/html/?q="+q,{headers:{"User-Agent":"SaeedAI/1.0"}});const html=await r.text();const out=[...html.matchAll(/result__a[^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/g)].slice(0,8).map(m=>({url:m[1],title:m[2].replace(/<[^>]+>/g,"")}));return{ok:true,results:out}};
   if(n==="screenshot")return{ok:true,image:await this.captureScreen()};
-  if(n==="mouse_move")return this.computer.mouseMove(a.x,a.y);
-  if(n==="mouse_click"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied the mouse click."};return this.computer.mouseClick(a.x,a.y,a.button||"left");}
-  if(n==="type_text"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied typing."};return this.computer.typeText(a.text);}
-  if(n==="key_press"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied the key press."};return this.computer.keyPress(a.key);}
-  if(n==="remember")return{ok:true,saved:this.memory.add(a.fact)};
-  if(n==="recall")return{ok:true,matches:this.memory.search(a.query)};
+  if(n==="mouse_move")return this.getComputer().mouseMove(a.x,a.y);
+  if(n==="mouse_click"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied the mouse click."};return this.getComputer().mouseClick(a.x,a.y,a.button||"left");}
+  if(n==="type_text"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied typing."};return this.getComputer().typeText(a.text);}
+  if(n==="key_press"){if(!(await this.confirm({name:n,args:a})))return{ok:false,error:"User denied the key press."};return this.getComputer().keyPress(a.key);}
+  if(n==="remember")return{ok:true,saved:this.getMemory().add(a.fact)};
+  if(n==="recall")return{ok:true,matches:this.getMemory().search(a.query)};
   return{ok:false,error:"Unknown tool"};
  }catch(e){return{ok:false,error:e.message}}}
 }
