@@ -1,5 +1,18 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
-const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process"),{Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{autoUpdater}=require("electron-updater");
+const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process");
+const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
+function ciWriteStartupReport(kind,error){
+ if(!ciSmoke||!process.env.SAEED_CI_REPORT)return;
+ try{
+  const target=process.env.SAEED_CI_REPORT;
+  fs.mkdirSync(path.dirname(target),{recursive:true});
+  fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.getAppPath(),resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
+ }catch(writeError){console.error("CI startup report write failed:",writeError)}
+}
+process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
+process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
+if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
+const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{autoUpdater}=require("electron-updater");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -67,17 +80,6 @@ function trayIcon(){
  return nativeImage.createFromPath(windowsIconPath());
 }
 app.setAppUserModelId("ai.saeed.desktop");
-const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
-function ciWriteStartupReport(kind,error){
- if(!ciSmoke||!process.env.SAEED_CI_REPORT)return;
- try{
-  const target=process.env.SAEED_CI_REPORT;
-  fs.mkdirSync(path.dirname(target),{recursive:true});
-  fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.getAppPath(),resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
- }catch(writeError){console.error("CI startup report write failed:",writeError)}
-}
-process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
-process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
