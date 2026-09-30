@@ -60,7 +60,7 @@ The current authoritative runtime character is assets/Saeed_Test-3D.glb.
 
 The character is loaded through the Three.js/WebGL renderer. The renderer uses the capabilities available in the GLB for rigging, animation, facial behavior, and interaction without creating a second character runtime.
 
-The 3D render loop is deliberately throttled to approximately 24 FPS so animation and procedural work are not executed unnecessarily at the display refresh rate.
+The 3D renderer does not run a permanent render loop. It renders only when the scene actually needs an update, such as initial character load, resize, or another explicit visual change.
 
 The renderer exposes live 3D status information for the 3D Status window, including component state and runtime render metrics.
 
