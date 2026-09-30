@@ -148,7 +148,9 @@ jobs:
           if (Test-Path $stdout) { Get-Content $stdout -Raw }
           if (Test-Path $stderr) { Get-Content $stderr -Raw }
           if (!(Test-Path $report)) {
-            $fallback = @{pass=$false;error="Runtime smoke process exited without producing its report.";exitCode=$code;stdout=(if(Test-Path $stdout){Get-Content $stdout -Raw}else{""});stderr=(if(Test-Path $stderr){Get-Content $stderr -Raw}else{""})}
+            $stdoutText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+            $stderrText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+            $fallback = @{pass=$false;error="Runtime smoke process exited without producing its report.";exitCode=$code;stdout=$stdoutText;stderr=$stderrText}
             $fallback | ConvertTo-Json -Depth 8 | Set-Content $report -Encoding UTF8
             throw "Runtime smoke test did not produce ci-runtime-report.json; diagnostic fallback was written."
           }
