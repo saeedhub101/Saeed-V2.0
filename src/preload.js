@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld("saeed",{
  capture:()=>ipcRenderer.invoke("capture"),
  checkForUpdates:()=>ipcRenderer.invoke("update:check"),
  installUpdate:()=>ipcRenderer.invoke("update:install"),
- downloadUpdate:()=>ipcRenderer.invoke("update:download"),
+ downloadUpdate:()=>ipcRenderer.invoke("update:download"),showUpdateStatus:()=>ipcRenderer.invoke("update:show-status"),closeUpdateToast:()=>ipcRenderer.invoke("update:toast-close"),getUpdateSnapshot:()=>ipcRenderer.invoke("update:snapshot"),
  showUpdateStatus:()=>ipcRenderer.invoke("update:show-status"),
  closeUpdateToast:()=>ipcRenderer.invoke("update:toast-close"),
  getUpdateSnapshot:()=>ipcRenderer.invoke("update:snapshot"),
