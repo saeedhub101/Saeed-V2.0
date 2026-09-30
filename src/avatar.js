@@ -15,7 +15,7 @@ const root=new THREE.Group();scene.add(root);
 
 
 let mixer=null,clips=[],actions=new Map(),activeAction=null,clock=new THREE.Clock();
-let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;
+let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;\nlet behaviorConfig={breathing:true,blinking:true,expressions:true,speechFace:true};
 let facialTime=0,blinkUntil=0,nextBlink=2+Math.random()*4,expression={smile:0,jawopen:0};
 let visemeValues={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTargets={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTimer=null;
 let model=null,bones=new Map(),boneBase=new Map(),loader=null,frameWindowStart=performance.now(),frameWindowCount=0;
@@ -77,7 +77,7 @@ function addBoneRotation(slot,x=0,y=0,z=0){
 }
 function proceduralBody(t){
  if(!bones.size)return;
- const moving=Boolean(moveTimer&&performance.now()<moveEnd),talking=avatarState==="talk",w=moving?Math.sin(t*10.5):0,sway=Math.sin(t*1.7);
+ const moving=Boolean(moveTimer&&performance.now()<moveEnd),talking=avatarState==="talk"&&behaviorConfig.speechFace,w=moving?Math.sin(t*10.5):0,sway=Math.sin(t*1.7);
  RESTORE_SLOTS.forEach(restoreBone);
  if(moving){
   addBoneRotation("leftThigh",w*.65);addBoneRotation("rightThigh",-w*.65);
@@ -85,7 +85,7 @@ function proceduralBody(t){
   addBoneRotation("leftFoot",Math.max(0,-w)*.45);addBoneRotation("rightFoot",Math.max(0,w)*.45);
   addBoneRotation("leftUpperArm",-w*.28);addBoneRotation("rightUpperArm",w*.28);
  }
- addBoneRotation("spine",0,0,sway*.018);addBoneRotation("chest",0,0,sway*.025);
+ if(behaviorConfig.breathing){addBoneRotation("spine",0,0,sway*.018);addBoneRotation("chest",0,0,sway*.025);}
  if(talking){
   const p=Math.sin(t*7.5),q=Math.sin(t*5.1+.8);
   addBoneRotation("leftUpperArm",-.12,0,p*.08);addBoneRotation("rightUpperArm",-.12,0,-p*.08);
@@ -216,7 +216,7 @@ function frame(){
  }
  bodyYaw+=(bodyYawTarget-bodyYaw)*Math.min(1,dt*4);
  root.rotation.y=bodyYaw;
- if(facialTime>=nextBlink){blink();nextBlink=facialTime+2.5+Math.random()*5}
+ if(behaviorConfig.blinking&&facialTime>=nextBlink){blink();nextBlink=facialTime+2.5+Math.random()*5}
  if(blinkUntil&&facialTime>=blinkUntil){setMorph("blink",0);blinkUntil=0}
  if(avatarState!=="talk"&&avatarState!=="think"){
   const breathe=(Math.sin(facialTime*1.8)+1)*.5;
