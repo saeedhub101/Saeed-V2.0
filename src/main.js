@@ -2,9 +2,9 @@ const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen
 const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
 function ciWriteStartupReport(kind,error){
- if(!ciSmoke||!process.env.SAEED_CI_REPORT)return;
+ if(!ciSmoke)return;
  try{
-  const target=process.env.SAEED_CI_REPORT;
+  const target=process.env.SAEED_CI_REPORT||path.join(process.cwd(),"dist","ci-runtime-report.json");
   fs.mkdirSync(path.dirname(target),{recursive:true});
   fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.isReady()?app.getAppPath():null,resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
  }catch(writeError){console.error("CI startup report write failed:",writeError)}
@@ -206,7 +206,7 @@ async function runCiRuntimeSmoke(){
   report.resourcesAfter=resourceReport();report.finishedAt=new Date().toISOString();
  }catch(e){report.error=e.message;report.pass=false}
  report.pass=Boolean(report.checks.glbFile?.pass&&report.checks.brain?.pass&&report.checks.localBrain?.pass&&report.checks.chat?.pass&&report.checks.tts?.pass&&report.checks.glbRuntime?.pass);
- const target=process.env.SAEED_CI_REPORT;if(target){try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8")}catch(e){console.error("CI report write failed:",e.message)}}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
+ const target=process.env.SAEED_CI_REPORT||path.join(process.cwd(),"dist","ci-runtime-report.json");try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8");console.log("SAEED_CI_REPORT_PATH",target)}catch(e){console.error("CI report write failed:",e.message)}console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify(report));
  setMicMode("off");stopResourceProbe();setTimeout(()=>app.quit(),250);
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
