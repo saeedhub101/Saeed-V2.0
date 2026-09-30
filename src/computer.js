@@ -35,8 +35,9 @@ class Computer{
   return this.powershell('$ws=New-Object -ComObject WScript.Shell;$ws.SendKeys("'+seq.replace(/"/g,'""')+'")');
  }
  async activeWindow(){
-  const ps='using System;using System.Text;using System.Runtime.InteropServices;public static class W{[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}';
-  const r=await this.powershell(ps);try{return{ok:true,window:JSON.parse(r.stdout)}}catch{return{ok:true,window:{raw:r.stdout}}}
+  const code='using System;using System.Text;using System.Runtime.InteropServices;public static class W{[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}';
+  const command="$sig='"+code+"';Add-Type $sig -ErrorAction Stop;$h=[W]::GetForegroundWindow();$s=New-Object Text.StringBuilder 1024;[W]::GetWindowText($h,$s,1024)|Out-Null;$p=0;[W]::GetWindowThreadProcessId($h,[ref]$p)|Out-Null;[pscustomobject]@{title=$s.ToString();pid=$p}|ConvertTo-Json -Compress";
+  const r=await this.powershell(command);try{return{ok:true,window:JSON.parse(r.stdout)}}catch{return{ok:true,window:{raw:r.stdout}}}
  }
  async listWindows(){
   const r=await this.powershell('Get-Process | Where-Object {$_.MainWindowHandle -ne 0} | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress');
