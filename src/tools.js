@@ -1,5 +1,6 @@
 const os=require("os"),fs=require("fs"),path=require("path"),{Computer}=require("./computer"),{Memory}=require("./memory");
 const {shell}=require("electron");
+const documentOfficeTools=require("./agent-tools");
 
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy}){this.computer=null;this.memory=null;this.tasks=null;this.captureScreen=captureScreen;this.confirm=confirm|| (async()=>false);this.permissionPolicy=permissionPolicy||(()=>"allow");this.userDataPath=userDataPath||process.cwd();this.taskFile=path.join(this.userDataPath,"tasks.json")}
@@ -9,7 +10,7 @@ class ToolRegistry{
  loadTasks(){try{return JSON.parse(fs.readFileSync(this.taskFile,"utf8"))}catch{return[]}}
  categoryFor(name){
  if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info"].includes(name))return "system";
- if(["list_directory","read_file","write_file","reveal_file"].includes(name))return "files";
+ if(["list_directory","read_file","write_file","reveal_file","inspect_document","extract_pdf_text","read_excel","write_excel"].includes(name))return "files";
  if(["open_application"].includes(name))return "applications";
  if(["network_info","open_url","web_search"].includes(name))return "network";
  if(["screenshot"].includes(name))return "screen";
@@ -54,6 +55,11 @@ saveTasks(){const tasks=this.ensureTasks();fs.mkdirSync(this.userDataPath,{recur
  return this.confirm({...request,permissionCategory:category});
 }
  async call(n,a){try{
+  if(["inspect_document","extract_pdf_text","read_excel","write_excel"].includes(n)){
+   const category=this.categoryFor(n);
+   if(!(await this.authorize(category,{name:n,args:a})))return{ok:false,error:"Permission denied for "+category+"."};
+   return documentOfficeTools.call(n,a);
+  }
   const category=this.categoryFor(n);
   if(!(await this.authorize(category,{name:n,args:a})))return{ok:false,error:"Permission denied for "+category+"."};
   if(n==="system_info")return{ok:true,platform:process.platform,release:os.release(),arch:process.arch,cpu:os.cpus().length,totalMemory:os.totalmem(),freeMemory:os.freemem(),uptime:os.uptime()};
