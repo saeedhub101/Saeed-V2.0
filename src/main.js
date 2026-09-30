@@ -244,10 +244,12 @@ app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready"
 });
 ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);const resolve=pending3DQueries.get(String(requestId||""));if(resolve)resolve(report)});
 ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
-ipcMain.handle("chat",(_,payload)=>{
+ipcMain.handle("chat",async(_,payload)=>{
  if(!agent)return {ok:false,error:"Saeed is still starting."};
  const data=typeof payload==="string"?{text:payload}:payload||{};
- return agent.run(String(data.text||""),data.image||null);
+ const result=await agent.run(String(data.text||""),data.image||null);
+ if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
+ return result;
 });
 ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});

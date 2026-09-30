@@ -1,26 +1,2 @@
-(()=>{
- const button=document.getElementById("micToggle");
- const icon=document.getElementById("micToggleIcon");
- const label=document.getElementById("micToggleLabel");
- if(!button||!icon||!label||!window.saeed)return;
- const render=mode=>{
-  const on=String(mode||"off")==="on";
-  button.classList.toggle("on",on);
-  button.classList.toggle("off",!on);
-  button.setAttribute("aria-pressed",String(on));
-  button.title=on?"Turn microphone OFF":"Turn microphone ON";
-  icon.textContent=on?"Ⅱ":"▶";
-  label.textContent=on?"MIC ON":"MIC OFF";
- };
- button.addEventListener("click",async e=>{
-  e.preventDefault();
-  e.stopPropagation();
-  const on=button.classList.contains("on");
-  button.disabled=true;
-  try{await window.saeed.setMicMode(on?"off":"on");}
-  catch(error){window.saeed.reportDiagnostic?.("ERROR","MIC BUTTON",error?.message||String(error));}
-  finally{button.disabled=false;}
- });
- window.saeed.onMicMode?.(render);
- window.addEventListener("load",async()=>{try{const s=await window.saeed.getSettings();render(s?.micMode||"off")}catch{render("off")}});
-})();
+(()=>{const button=document.getElementById("micToggle"),icon=document.getElementById("micToggleIcon"),label=document.getElementById("micToggleLabel");if(!button||!icon||!label||!window.saeed)return;const render=mode=>{const on=String(mode||"off")==="on";button.classList.toggle("on",on);button.classList.toggle("off",!on);button.setAttribute("aria-pressed",String(on));button.title=on?"Turn microphone OFF":"Turn microphone ON";icon.textContent=on?"Ⅱ":"▶";label.textContent=on?"MIC ON":"MIC OFF"};button.addEventListener("click",async e=>{e.preventDefault();e.stopPropagation();const on=button.classList.contains("on");button.disabled=true;try{await window.saeed.setMicMode(on?"off":"on")}catch(error){window.saeed.reportDiagnostic?.("ERROR","MIC BUTTON",error?.message||String(error))}finally{button.disabled=false}});window.saeed.onMicMode?.(render);
+const defaults={breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30};let policy={...defaults},nextIdleAt=0,lastEventAt=0,active=false;const merge=s=>{policy={...defaults,...(s?.characterBehavior||{})}};const interval=()=>{const f=policy.frequency==="rare"?[300000,600000]:policy.frequency==="frequent"?[60000,180000]:[120000,300000];return f[0]+Math.random()*(f[1]-f[0])};const has=n=>Boolean(window.saeedAvatar?.hasAnimation?.(n));const runIdle=()=>{if(!active||Date.now()<nextIdleAt||(!policy.random&&!policy.idle))return;const o=[];if(policy.walking)o.push("walk");if(policy.greeting&&(has("wave")||has("happy")))o.push("greet");if(policy.dancing&&has("dance"))o.push("dance");if(policy.idle)o.push("idle");if(!o.length){nextIdleAt=Date.now()+interval();return}const p=o[Math.floor(Math.random()*o.length)];if(p==="walk")window.saeedAvatar.move?.(Math.random()<.5?"left":"right",900+Math.random()*1000);else if(p==="greet")window.saeedAvatar.gesture?.(has("wave")?"wave":"happy");else if(p==="dance")window.saeedAvatar.play?.("dance",{loop:false});else window.saeedAvatar.gesture?.("happy");nextIdleAt=Date.now()+interval()};const trigger=type=>{if(!active||!policy.events||Date.now()-lastEventAt<Number(policy.eventCooldownSec||30)*1000)return false;lastEventAt=Date.now();const t=String(type||"").toLowerCase();if((t==="answer"||t==="notification")&&policy.expressions)return window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy");if((t==="greeting"||t==="prayer")&&policy.greeting)return window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy");return false};window.saeedCharacterBehavior={trigger,refresh:async()=>{try{merge(await window.saeed.getSettings());active=true;nextIdleAt=Date.now()+interval()}catch{active=false}}};window.saeed.onCharacterBehavior?.(trigger);window.addEventListener("load",async()=>{try{merge(await window.saeed.getSettings());active=true;nextIdleAt=Date.now()+interval();setInterval(runIdle,15000)}catch{active=false}})})();
