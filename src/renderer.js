@@ -21,22 +21,7 @@ async function send(){
 function renderAttachments(){$("attachments").textContent=attachments.length?attachments.map(a=>a.name).join(" • "):""}
 $("send").onclick=send;
 $("togglePanel").onclick=()=>window.saeed.minimizeChat();
-const chatPanel=$("panel");
-let chatMouseIgnored=false;
-function updateChatMousePassthrough(e){
- if(!chatPanel)return;
- const target=document.elementFromPoint(e.clientX,e.clientY);
- const inside=Boolean(target&&chatPanel.contains(target));
- const shouldIgnore=!inside;
- if(shouldIgnore!==chatMouseIgnored){
-  chatMouseIgnored=shouldIgnore;
-  window.saeed.setChatMousePassthrough(shouldIgnore);
- }
-}
-document.addEventListener("mousemove",updateChatMousePassthrough,{passive:true});
-chatPanel?.addEventListener("mouseenter",()=>{chatMouseIgnored=false;window.saeed.setChatMousePassthrough(false)});
-chatPanel?.addEventListener("mouseleave",()=>{chatMouseIgnored=true;window.saeed.setChatMousePassthrough(true)});
-$("input").ondblclick=()=>window.saeed.showChat();
+const chatPanel=$("panel");window.saeed.setChatMousePassthrough(false);$("input").ondblclick=()=>window.saeed.showChat();
 $("input").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
 $("closeChat").onclick=()=>window.saeed.closeChat();window.saeed.onDiagnostic(e=>{if(e.level==="ERROR")add("tool","[DIAGNOSTIC] ERROR | "+e.stage+" | "+e.message)});window.saeed.onCharacterSelected(data=>window.saeedAvatarLoadData?.(data));
 $("capture").onclick=async()=>{try{pendingImage=await window.saeed.capture();add("tool",pendingImage?"تم التقاط الشاشة. اكتب الآن ما تريد تحليله.":"تعذر التقاط الشاشة.")}catch(e){add("tool","تعذر التقاط الشاشة: "+e.message)}};
