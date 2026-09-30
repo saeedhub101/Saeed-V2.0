@@ -42,6 +42,8 @@ function playAnimation(name,{loop=true,crossFade=.18}={}){
 }
 
 let facialMeshes=[];
+let morphBindings=new Map();
+const RESTORE_SLOTS=["leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","spine","chest"];
 const visemeAliases={
  aa:["viseme_aa","aa","jawopen","mouthopen"],ee:["viseme_ee","ee"],oo:["viseme_oo","oo","ou"],
  oh:["viseme_oh","oh"],fv:["viseme_fv","fv"],mbp:["viseme_mbp","mbp","closed"],
@@ -76,7 +78,7 @@ function addBoneRotation(slot,x=0,y=0,z=0){
 function proceduralBody(t){
  if(!bones.size)return;
  const moving=Boolean(moveTimer&&performance.now()<moveEnd),talking=avatarState==="talk",w=moving?Math.sin(t*10.5):0,sway=Math.sin(t*1.7);
- ["leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","spine","chest"].forEach(restoreBone);
+ RESTORE_SLOTS.forEach(restoreBone);
  if(moving){
   addBoneRotation("leftThigh",w*.65);addBoneRotation("rightThigh",-w*.65);
   addBoneRotation("leftShin",-Math.max(0,-w)*.8);addBoneRotation("rightShin",Math.max(0,w)*.8);
@@ -91,10 +93,16 @@ function proceduralBody(t){
  }
 }
 function collectFacialMeshes(model){
- facialMeshes=[];model.traverse(o=>{if(o.isMesh&&o.morphTargetDictionary&&o.morphTargetInfluences)facialMeshes.push(o)});
+ facialMeshes=[];morphBindings=new Map();
+ model.traverse(o=>{if(!o.isMesh||!o.morphTargetDictionary||!o.morphTargetInfluences)return;facialMeshes.push(o);
+  for(const [name,keys] of Object.entries(visemeAliases))for(const key of keys){const i=o.morphTargetDictionary[key];if(i===undefined)continue;const list=morphBindings.get(name)||[];list.push([o,i]);morphBindings.set(name,list)}
+ });
 }
 function setMorph(name,value){
- const keys=visemeAliases[name]||[name],v=Math.max(0,Math.min(1,Number(value)||0));
+ const v=Math.max(0,Math.min(1,Number(value)||0));
+ const bindings=morphBindings.get(name);
+ if(bindings){for(const [mesh,index] of bindings)mesh.morphTargetInfluences[index]=v;return}
+ const keys=visemeAliases[name]||[name];
  for(const mesh of facialMeshes)for(const key of keys){const i=mesh.morphTargetDictionary[key];if(i!==undefined)mesh.morphTargetInfluences[i]=v}
 }
 function setViseme(name,value){const k=String(name||"").toLowerCase();if(visemeTargets[k]!==undefined)visemeTargets[k]=Math.max(0,Math.min(1,Number(value)||0));else setMorph(k,value)}
