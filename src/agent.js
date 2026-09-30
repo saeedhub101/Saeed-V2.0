@@ -5,8 +5,8 @@ class Agent{
   this.registry=registry;this.onEvent=onEvent;this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");
   fs.mkdirSync(this.dir,{recursive:true});
-  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:32,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,speakResponses:true,language:"en",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin"});
-  this._settings={...raw,
+  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:32,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,speakResponses:true,language:"en",permissions:{fileChanges:"ask",mouseKeyboard:"ask",network:"ask",credentials:"ask",destructive:"ask",privacy:"ask"},realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin"});
+  this._settings={...raw,permissions:{fileChanges:"ask",mouseKeyboard:"ask",network:"ask",credentials:"ask",destructive:"ask",privacy:"ask",...(raw.permissions||{})},
    micMode:"off",
    brainMode:"auto",
    streamingMode:"off",
@@ -36,7 +36,7 @@ class Agent{
    hasTtsApiKey:Boolean(this._settings.ttsApiKey),hasRealtimeApiKey:Boolean(this._settings.realtimeApiKey)}}
  set settings(v){
   const previous=this._settings||{},input=v||{},providerChanged=input.provider&&input.provider!==previous.provider;
-  this._settings={...previous,...input,brainMode:"auto"};
+  this._settings={...previous,...input,permissions:{...previous.permissions,...(input.permissions||{})},brainMode:"auto"};
   if(this._settings.micMode==="always"||this._settings.micMode==="ptt")this._settings.micMode="on";
   if(this._settings.micMode!=="on")this._settings.micMode="off";
   delete this._settings.alwaysListening;
