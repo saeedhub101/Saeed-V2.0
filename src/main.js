@@ -34,6 +34,7 @@ let chatWin,characterWin,performanceWin,agent,tray,realtime,statusWin,threeDStat
 let pendingCharacterData=null;
 const DEFAULT_PERMISSIONS={fileChanges:"ask",mouseKeyboard:"ask",network:"ask",credentials:"ask",destructive:"ask",privacy:"ask"};
 const pending3DQueries=new Map();
+function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"ask"}
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
 function diagnostic(level,stage,message,meta={}){
  const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
