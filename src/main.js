@@ -87,7 +87,8 @@ const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
 let updateState="idle",updateUiRequested=false;
-const confirmations=new Map();\nfunction permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"ask"}\nfunction authorizeSensitive(category,request){const policy=permissionPolicy(category);if(policy==="allow")return true;if(policy==="deny")return false;return request()}
+const confirmations=new Map();
+function authorizeSensitive(category,request){const policy=permissionPolicy(category);if(policy==="allow")return true;if(policy==="deny")return false;return request()}
 let resourceProbeTimer=null;
 const resourceProbeSamples=[];
 function getAppResourceMetrics(){const rawMetrics=app.getAppMetrics();return {rawMetrics,logical:Math.max(1,os.cpus().length)}}
