@@ -19,7 +19,7 @@ let mixer=null,clips=[],actions=new Map(),activeAction=null,clock=new THREE.Cloc
 let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;
 let facialTime=0,blinkUntil=0,nextBlink=2+Math.random()*4,expression={smile:0,jawopen:0};
 let visemeValues={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTargets={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTimer=null;
-let model=null,bones=new Map(),boneBase=new Map(),loader=null,diagnosticObject=null,renderedReportSent=false,frameWindowStart=performance.now(),frameWindowCount=0;
+let model=null,bones=new Map(),boneBase=new Map(),loader=null,frameWindowStart=performance.now(),frameWindowCount=0;
 let gltfLoaderPromise=null;
 async function ensureGLTFLoader(){if(loader)return loader;if(gltfLoaderPromise)return gltfLoaderPromise;runtime3D.components.gltfLoader.state="loading";runtime3D.components.gltfLoader.detail="Loading vendored GLTFLoader module";gltfLoaderPromise=import("./three/GLTFLoader.js").then(mod=>{loader=new mod.GLTFLoader();set3DState("gltfLoader","ready","GLTFLoader module loaded on demand");report("INFO","GLTFLOADER READY","GLTFLoader initialized successfully");return loader}).catch(e=>{set3DState("gltfLoader","error","GLTFLoader module failed: "+e.message);report("ERROR","GLTFLOADER","GLTFLoader module failed: "+e.message);return null});return gltfLoaderPromise}
 const lookTarget=new THREE.Vector3(0,1.5,1);
@@ -126,10 +126,7 @@ function installDiagnosticObject(){runtime3D.components.testObject={state:"loadi
 function fitLoadedModel(){if(!model)return;model.updateWorldMatrix(true,true);const box=new THREE.Box3().setFromObject(model,true);const rawSize=box.getSize(new THREE.Vector3());const targetHeight=3.75;const scale=targetHeight/Math.max(rawSize.y,0.001);model.scale.setScalar(scale);model.updateWorldMatrix(true,true);const fitted=new THREE.Box3().setFromObject(model,true);const size=fitted.getSize(new THREE.Vector3());const center=fitted.getCenter(new THREE.Vector3());model.position.x-=center.x;model.position.z-=center.z;model.position.y-=fitted.min.y;model.updateWorldMatrix(true,true);const box3=new THREE.Box3().setFromObject(model,true);const finalSize=box3.getSize(new THREE.Vector3());const finalCenter=box3.getCenter(new THREE.Vector3());const aspect=Math.max(.1,(canvas.clientWidth||430)/(canvas.clientHeight||520));camera.fov=30;const halfVertical=finalSize.y*.5;const halfHorizontal=finalSize.x*.5/Math.max(aspect,.01);const halfFit=Math.max(halfVertical,halfHorizontal)*1.018;const distance=halfFit/Math.tan(THREE.MathUtils.degToRad(camera.fov*.5));const depthPadding=finalSize.z*.12;camera.position.set(0,finalCenter.y,distance+depthPadding);camera.near=Math.max(.01,finalSize.length()/1000);camera.far=Math.max(100,finalSize.length()*12);camera.lookAt(finalCenter.x,finalCenter.y,finalCenter.z);camera.updateProjectionMatrix();let textureCount=0;const maxAniso=Math.min(4,renderer.capabilities.getMaxAnisotropy());model.traverse(o=>{if(!o.isMesh)return;const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(!m)continue;for(const key of ["map","normalMap","roughnessMap","metalnessMap","emissiveMap","aoMap"]){const tex=m[key];if(tex&&tex.isTexture){tex.anisotropy=maxAniso;tex.needsUpdate=true;textureCount++}}m.needsUpdate=true}});report("INFO","GLB FIT","Selected GLB framed from measured bounds with high-resolution rendering",{scale,rawDimensions:{x:rawSize.x,y:rawSize.y,z:rawSize.z},dimensions:{x:finalSize.x,y:finalSize.y,z:finalSize.z},cameraDistance:distance+depthPadding,fov:camera.fov,pixelRatio:renderer.getPixelRatio(),anisotropy:maxAniso,textureBindings:textureCount})}
 function disposeObject3D(object){if(!object)return;object.traverse(o=>{if(o.geometry?.dispose)o.geometry.dispose();const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(!m)continue;for(const key of ["map","normalMap","roughnessMap","metalnessMap","emissiveMap","aoMap","alphaMap"]){const tex=m[key];if(tex?.dispose)tex.dispose()}if(m.dispose)m.dispose()}})}
 async function displaySelectedGlb(parsed,name,size){if(!parsed?.scene)throw new Error("Selected GLB contains no scene");if(model){disposeObject3D(model);model=null}root.clear();diagnosticObject=null;model=parsed.scene;root.add(model);set3DState("scene","ready","Saeed GLB loaded into the Three.js scene");clips=Array.isArray(parsed.animations)?parsed.animations:[];mixer=clips.length?new THREE.AnimationMixer(model):null;actions.clear();activeAction=null;collectFacialMeshes(model);mapHumanoidBones(model);fitLoadedModel();const idle=playAnimation("idle")||playAnimation("stand")||playAnimation("breathing");runtime3D.components.testObject={state:"rendered",detail:"Saeed GLB is the displayed 3D object"};runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"ready",detail:"Saeed GLB parsed and displayed in the character window",size,name,parsed:true,displayed:true,animations:clips.map(x=>x.name),bones:Object.keys(mapHumanoidBones(model))};report("INFO","GLB DISPLAY","Saeed GLB is now displayed",{name,size,animations:clips.length,bones:bones.size,morphTargets:facialMeshes.length,idleAnimation:Boolean(idle)});refreshOverall()}
-async function loadDiagnosticObject(){try{installDiagnosticObject()}catch(e){
-  console.error("Diagnostic 3D object failed:",e);const message=document.getElementById("status");if(message)message.textContent="3D diagnostic object failed";runtime3D.lastError=e.message;runtime3D.components.testObject.state="error";runtime3D.components.testObject.detail="Diagnostic 3D object failed: "+e.message;refreshOverall();report("ERROR","3D TEST OBJECT",e.message);
- }
-}
+async function prepareSceneStatus(){try{installDiagnosticObject()}catch(e){console.error("3D scene initialization failed:",e);runtime3D.lastError=e.message;runtime3D.components.testObject.state="error";runtime3D.components.testObject.detail="3D scene initialization failed: "+e.message;refreshOverall()}}
 window.saeedAvatarLoadData=async data=>{try{const gltf=await ensureGLTFLoader();if(!gltf)throw new Error("GLTFLoader unavailable; see 3D Status");
  let bytes=data;
  if(data instanceof Uint8Array){bytes=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)}
@@ -138,7 +135,7 @@ window.saeedAvatarLoadData=async data=>{try{const gltf=await ensureGLTFLoader();
  else throw new Error("Selected GLB data is not an ArrayBuffer/Uint8Array");
  const size=bytes.byteLength;runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"loading",detail:"Selected GLB is being parsed and prepared for display",size};report("INFO","GLB SELECTED PROBE","Selected GLB normalized to ArrayBuffer and will be parsed",{size,inputType:data?.constructor?.name||typeof data});const parsed=await gltf.parseAsync(bytes,"");await displaySelectedGlb(parsed,"Selected Character",size);}catch(e){runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"error",detail:"Selected GLB parse failed: "+e.message,displayed:false};report("ERROR","GLB SELECTED PROBE",e.message)}refreshOverall()};
 window.saeedAvatar={get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))}};
-loadDiagnosticObject();
+prepareSceneStatus();
 
 function smoothTurnTo(yaw){
  bodyYawTarget=Number(yaw)||0;
@@ -197,7 +194,7 @@ window.saeedAvatar={
 function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.min(4096,r.width)),h=Math.max(1,Math.min(4096,r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);report("INFO","CANVAS","Canvas resized")}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);report("ERROR","CANVAS",e.message)}}try{new ResizeObserver(resize).observe(canvas);resize();report("INFO","CANVAS READY","Canvas initialized")}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);report("ERROR","CANVAS",e.message)}
 
 let renderLoopStarted=false,lastRenderTime=0;const targetFrameMs=1000/30;let renderHandle=0;let rendererActive=true;function frame(){
- if(!rendererActive||document.hidden){renderHandle=0;return} renderHandle=requestAnimationFrame(frame);if(!renderLoopStarted){renderLoopStarted=true;set3DState("renderLoop","active","requestAnimationFrame loop is running");report("INFO","RENDER LOOP","Render loop started");}
+ if(!rendererActive||document.hidden){renderHandle=0;return} renderHandle=requestAnimationFrame(frame);if(!renderLoopStarted){renderLoopStarted=true;set3DState("renderLoop","active","requestAnimationFrame loop is running");}
  const dt=clock.getDelta();facialTime+=dt;runtime3D.components.renderLoop.frames++;runtime3D.components.renderLoop.lastRenderAt=new Date().toISOString();frameWindowCount++;const now=performance.now();if(now-frameWindowStart>=1000){runtime3D.components.renderLoop.fps=frameWindowCount*1000/(now-frameWindowStart);frameWindowCount=0;frameWindowStart=now;}
  proceduralBody(facialTime);
  Object.keys(visemeTargets).forEach(k=>{visemeValues[k]+=(visemeTargets[k]-visemeValues[k])*Math.min(1,dt*18);setMorph(k,visemeValues[k])});
@@ -217,13 +214,12 @@ let renderLoopStarted=false,lastRenderTime=0;const targetFrameMs=1000/30;let ren
   root.position.y+=(breathe*.018-root.position.y)*Math.min(1,dt*2);
  }
  try{
-  if(diagnosticObject)diagnosticObject.rotation.y+=dt*.55;
   const renderNow=performance.now();
   if(renderNow-lastRenderTime<targetFrameMs)return;
   lastRenderTime=renderNow;
   renderer.render(scene,camera);
   runtime3D.metrics={drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,points:renderer.info.render.points,lines:renderer.info.render.lines,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures};
-  if(runtime3D.components.testObject.state==="ready"&&renderer.info.render.calls>0){runtime3D.components.testObject.state="rendered";runtime3D.components.testObject.detail="Diagnostic 3D object produced WebGL draw calls";if(!renderedReportSent){renderedReportSent=true;report("INFO","3D TEST OBJECT RENDERED","Standalone 3D object is rendered by WebGL",runtime3D.metrics)}refreshOverall()}
+  if(runtime3D.components.testObject.state==="loading"&&renderer.info.render.calls>0){runtime3D.components.testObject.state="rendered";runtime3D.components.testObject.detail="Active GLB scene produced WebGL draw calls";refreshOverall()}
  }catch(e){
   console.error("Saeed 3D renderer.render failed:",e);
   runtime3D.lastError=e.message;set3DState("renderLoop","error",e.message);
