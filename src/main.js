@@ -182,11 +182,25 @@ async function createCharacterWindow(){
  characterWin.on("closed",()=>{characterWin=null});
  characterWin.on("close",e=>{if(!app.isQuitting()){e.preventDefault();characterWin.hide()}});
  characterWin.webContents.on("context-menu",()=>contextMenu());
- await characterWin.loadFile(path.join(__dirname,"character.html"));
+ await characterWin.loadFile(path.join(__dirname,ciSmoke&&process.env.SAEED_CI_3D_OFF==="1"?"ci-3d-baseline.html":"character.html"));
  try{const bundled=path.join(__dirname,"..","assets","Saeed_AI-3D.glb");if(fs.existsSync(bundled)){const data=fs.readFileSync(bundled);characterWin.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB DEFAULT","Bundled Saeed_AI-3D.glb loaded as the default character",{size:data.length})}else diagnostic("ERROR","GLB DEFAULT","Bundled Saeed_AI-3D.glb is missing")}catch(e){diagnostic("ERROR","GLB DEFAULT",e.message)}
  fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
  characterWin.show();
 }
+async function runCi3DBaseline(){
+ if(!ciSmoke||process.env.SAEED_CI_3D_OFF!=="1")return;
+ const started=Date.now();
+ const samples=[];
+ const sample=label=>{samples.push({time:new Date().toISOString(),label,resource:resourceSnapshot(label),metrics:app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,name:m.name||"",cpuPercent:+(m.cpu?.percentCPUUsage||0).toFixed(2),workingSetMB:+((m.memory?.workingSetSize||0)/1024).toFixed(1),privateMB:+((m.memory?.privateBytes||0)/1024).toFixed(1)}))});};
+ sample("static-image-start");
+ await new Promise(r=>setTimeout(r,5000));
+ sample("static-image-5s");
+ const target=process.env.SAEED_CI_3D_BASELINE_REPORT||path.join(process.cwd(),"dist","ci-3d-baseline.json");
+ fs.mkdirSync(path.dirname(target),{recursive:true});
+ fs.writeFileSync(target,JSON.stringify({mode:"static-image-baseline",webgl:false,glb:false,renderLoop:false,durationMs:Date.now()-started,samples},null,2),"utf8");
+ app.quit();
+}
+
 function configureUpdater(){autoUpdater.autoDownload=false;autoUpdater.autoInstallOnAppQuit=false;autoUpdater.on("checking-for-update",()=>{updateState="checking";if(updateUiRequested)voiceBroadcast("update:state","checking")});autoUpdater.on("update-not-available",()=>{updateState="latest";if(updateUiRequested){voiceBroadcast("update:state","latest");setTimeout(()=>{updateUiRequested=false;voiceBroadcast("update:state","idle")},3200)}});autoUpdater.on("update-available",info=>{updateState="available";if(updateUiRequested)voiceBroadcast("update:available",{version:info.version,releaseDate:info.releaseDate||null,releaseNotes:info.releaseNotes||null})});autoUpdater.on("download-progress",p=>{if(updateUiRequested)voiceBroadcast("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond})});autoUpdater.on("update-downloaded",info=>{updateState="downloaded";if(updateUiRequested){voiceBroadcast("update:downloaded",{version:info.version});setTimeout(()=>{updateUiRequested=false;voiceBroadcast("update:state","idle")},3200)}});autoUpdater.on("error",e=>{updateState="error";if(updateUiRequested){voiceBroadcast("update:state","error",e?.message||String(e));setTimeout(()=>{updateUiRequested=false;voiceBroadcast("update:state","idle")},3200)}})}
 async function runCiRuntimeSmoke(){
  const report={startedAt:new Date().toISOString(),checks:{},resources:resourceReport()};
