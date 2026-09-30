@@ -21,7 +21,7 @@ let behaviorConfig={breathing:true,blinking:true,expressions:true,speechFace:tru
 let facialTime=0,blinkUntil=0,nextBlink=2+Math.random()*4,expression={smile:0,jawopen:0};
 let visemeValues={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTargets={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTimer=null;
 let model=null,bones=new Map(),boneBase=new Map(),loader=null,frameWindowStart=performance.now(),frameWindowCount=0;
-let gltfLoaderPromise=null;
+let gltfLoaderPromise=null,loadGeneration=0;
 function ensureGLTFLoader(){if(loader)return Promise.resolve(loader);try{runtime3D.components.gltfLoader.state="loading";runtime3D.components.gltfLoader.detail="Initializing bundled GLTFLoader";loader=new GLTFLoader();set3DState("gltfLoader","ready","Bundled GLTFLoader initialized without dynamic import");return Promise.resolve(loader)}catch(e){set3DState("gltfLoader","error","GLTFLoader initialization failed: "+e.message);return Promise.resolve(null)}}
 const lookTarget=new THREE.Vector3(0,1.5,1);
 
@@ -137,13 +137,13 @@ function disposeObject3D(object){if(!object)return;object.traverse(o=>{if(o.geom
 async function displaySelectedGlb(parsed,name,size){if(!parsed?.scene)throw new Error("Selected GLB contains no scene");if(model){disposeObject3D(model);model=null}root.clear();model=parsed.scene;root.add(model);set3DState("scene","ready","Saeed GLB loaded into the Three.js scene");clips=Array.isArray(parsed.animations)?parsed.animations:[];mixer=clips.length?new THREE.AnimationMixer(model):null;actions.clear();activeAction=null;collectFacialMeshes(model);mapHumanoidBones(model);fitLoadedModel();const idle=playAnimation("idle")||playAnimation("stand")||playAnimation("breathing");runtime3D.components.sceneContent={state:"rendered",detail:"Saeed GLB is the displayed 3D object"};runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"ready",detail:"Saeed GLB parsed and displayed in the character window",size,name,parsed:true,displayed:true,animations:clips.map(x=>x.name),bones:Object.keys(mapHumanoidBones(model))};refreshOverall()}
 async function prepareSceneStatus(){try{prepareSceneContent()}catch(e){console.error("3D scene initialization failed:",e);runtime3D.lastError=e.message;runtime3D.components.sceneContent.state="error";runtime3D.components.sceneContent.detail="3D scene initialization failed: "+e.message;refreshOverall()}}
 void ensureGLTFLoader();
-window.saeedAvatarLoadData=async data=>{try{const gltf=await ensureGLTFLoader();if(!gltf)throw new Error("GLTFLoader unavailable; see 3D Status");
+window.saeedAvatarLoadData=async (data,generation)=>{const requestGeneration=Number(generation)||++loadGeneration;loadGeneration=Math.max(loadGeneration,requestGeneration);try{const gltf=await ensureGLTFLoader();if(!gltf)throw new Error("GLTFLoader unavailable; see 3D Status");
  let bytes=data;
  if(data instanceof Uint8Array){bytes=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)}
  else if(data instanceof ArrayBuffer){bytes=data}
  else if(data?.buffer instanceof ArrayBuffer){const view=new Uint8Array(data.buffer,data.byteOffset||0,data.byteLength||data.buffer.byteLength);bytes=view.buffer.slice(view.byteOffset,view.byteOffset+view.byteLength)}
  else throw new Error("Selected GLB data is not an ArrayBuffer/Uint8Array");
- const size=bytes.byteLength;runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"loading",detail:"Selected GLB is being parsed and prepared for display",size};const parsed=await gltf.parseAsync(bytes,"");await displaySelectedGlb(parsed,"Selected Character",size);}catch(e){runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"error",detail:"Selected GLB parse failed: "+e.message,displayed:false};}refreshOverall()};
+ const size=bytes.byteLength;runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"loading",detail:"Selected GLB is being parsed and prepared for display",size};refreshOverall();const started=performance.now();const parsed=await gltf.parseAsync(bytes,"");if(requestGeneration!==loadGeneration)return;await displaySelectedGlb(parsed,"Selected Character",size);runtime3D.components.selectedGlb.loadMs=Math.round(performance.now()-started);}catch(e){runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"error",detail:"Selected GLB parse failed: "+e.message,displayed:false};}refreshOverall()};
 window.saeedAvatar={get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))}};
 prepareSceneStatus();
 
