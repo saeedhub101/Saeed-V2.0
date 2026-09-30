@@ -6,7 +6,7 @@ function schemas(){
     {type:"function",function:{name:"inspect_document",description:"Inspect a local document and extract readable content. Use this before summarizing a PDF or text document.",parameters:{type:"object",properties:{filePath:{type:"string"}},required:["filePath"]}}},
     {type:"function",function:{name:"extract_pdf_text",description:"Extract text from a local PDF for summarization or further processing.",parameters:{type:"object",properties:{filePath:{type:"string"}},required:["filePath"]}}},
     {type:"function",function:{name:"read_excel",description:"Read an Excel workbook or CSV-compatible spreadsheet and return worksheet rows for analysis.",parameters:{type:"object",properties:{filePath:{type:"string"},sheetName:{type:"string"}},required:["filePath"]}}},
-    {type:"function",function:{name:"write_excel",description:"Create or update an Excel workbook from structured rows. Prefer this native tool instead of mouse/keyboard Excel automation.",parameters:{type:"object",properties:{filePath:{type:"string"},rows:{type:"array",items:{type:"array"}},sheetName:{type:"string"},append:{type:"boolean"}},required:["filePath","rows"]}}}
+    {type:"function",function:{name:"write_excel",description:"Create or update an Excel workbook from structured rows. Prefer this native tool instead of mouse/keyboard Excel automation.",parameters:{type:"object",properties:{filePath:{type:"string"},rows:{type:"array",items:{}},sheetName:{type:"string"},append:{type:"boolean"}},required:["filePath","rows"]}}}
   ];
 }
 
