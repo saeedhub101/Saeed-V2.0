@@ -1,7 +1,7 @@
 {
   "name": "saeed-ai",
   "version": "3.9.0",
-  "description": "Saeed AI desktop agent",
+  "description": "Saeed AI desktop agent — 3D, Local Brain, Agent",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
