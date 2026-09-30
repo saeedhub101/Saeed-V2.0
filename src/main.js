@@ -6,7 +6,7 @@ function ciWriteStartupReport(kind,error){
  try{
   const target=process.env.SAEED_CI_REPORT;
   fs.mkdirSync(path.dirname(target),{recursive:true});
-  fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.getAppPath(),resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
+  fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.isReady()?app.getAppPath():null,resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
  }catch(writeError){console.error("CI startup report write failed:",writeError)}
 }
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
