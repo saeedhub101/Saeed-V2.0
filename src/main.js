@@ -91,7 +91,7 @@ function trayIcon(){
 app.setAppUserModelId("ai.saeed.desktop");
 const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
-else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{if(commandLine.includes("--3d-status"))show3DStatus();else if(commandLine.includes("--chat"))showChat();else showChat();});
+else if(!ciSmoke)app.on("second-instance",()=>{diagnostic("INFO","SECOND INSTANCE","Saeed is already running; keeping the existing instance and window state unchanged");});
 let updateState="idle",updateUiRequested=false;
 let resourceProbeTimer=null;
 const resourceProbeSamples=[];
