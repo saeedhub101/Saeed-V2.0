@@ -202,9 +202,9 @@ window.saeedAvatar={
  getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
 };
 
+let renderLoopStarted=false,lastRenderTime=0,rendererActive=true;
 function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.min(4096,r.width)),h=Math.max(1,Math.min(4096,r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);renderNow("resize");}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}}try{new ResizeObserver(resize).observe(canvas);resize();}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}
 
-let renderLoopStarted=false,lastRenderTime=0,rendererActive=true;
 function renderNow(reason="on-demand"){
  if(!rendererActive||document.hidden)return false;
  try{
