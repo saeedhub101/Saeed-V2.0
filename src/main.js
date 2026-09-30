@@ -30,7 +30,9 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,performanceWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin;\nlet pendingCharacterData=null;\nconst DEFAULT_PERMISSIONS={fileChanges:"ask",mouseKeyboard:"ask",network:"ask",credentials:"ask",destructive:"ask",privacy:"ask"};
+let chatWin,characterWin,performanceWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin;
+let pendingCharacterData=null;
+const DEFAULT_PERMISSIONS={fileChanges:"ask",mouseKeyboard:"ask",network:"ask",credentials:"ask",destructive:"ask",privacy:"ask"};
 const pending3DQueries=new Map();
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
 function diagnostic(level,stage,message,meta={}){
