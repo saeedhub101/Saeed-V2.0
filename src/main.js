@@ -316,6 +316,8 @@ ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,stat
 ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{showUpdateStatus();updateState="downloading";publishUpdate("update:state","downloading");await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";publishUpdate("update:state","error",e.message);return false}});
 ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
 ipcMain.handle("update:show-status",()=>showUpdateStatus());
+ipcMain.handle("update:toast-close",()=>{updateUiRequested=false;hideUpdateToast();return true});
+ipcMain.handle("update:snapshot",()=>({state:updateState,info:updateInfo,currentVersion:app.getVersion()}));
 ipcMain.handle("update:state",()=>updateState);
 
 ipcMain.handle("history:get",()=>agent?.history||[]);
