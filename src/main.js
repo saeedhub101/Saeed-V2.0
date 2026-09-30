@@ -184,7 +184,7 @@ async function createCharacterWindow(){
  characterWin.on("close",e=>{if(!app.isQuitting()){e.preventDefault();characterWin.hide()}});
  characterWin.webContents.on("context-menu",()=>contextMenu());
  await characterWin.loadFile(path.join(__dirname,ciSmoke&&process.env.SAEED_CI_3D_OFF==="1"?"ci-3d-baseline.html":"character.html"));
- try{const bundled=path.join(__dirname,"..","assets","Saeed_AI-3D.glb");if(fs.existsSync(bundled)){const data=fs.readFileSync(bundled);characterWin.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB DEFAULT","Bundled Saeed_AI-3D.glb loaded as the default character",{size:data.length})}else diagnostic("ERROR","GLB DEFAULT","Bundled Saeed_AI-3D.glb is missing")}catch(e){diagnostic("ERROR","GLB DEFAULT",e.message)}
+ try{const bundled=path.join(__dirname,"..","assets","Saeed_Test-3D.glb");if(fs.existsSync(bundled)){const data=fs.readFileSync(bundled);characterWin.webContents.send("character:selected",new Uint8Array(data));diagnostic("INFO","GLB DEFAULT","Bundled Saeed_Test-3D.glb loaded as the default character",{size:data.length})}else diagnostic("ERROR","GLB DEFAULT","Bundled Saeed_Test-3D.glb is missing")}catch(e){diagnostic("ERROR","GLB DEFAULT",e.message)}
  fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
  characterWin.show();
 }
@@ -207,7 +207,7 @@ async function runCiRuntimeSmoke(){
  const report={startedAt:new Date().toISOString(),checks:{},resources:resourceReport()};
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  try{
-  const glb=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");
+  const glb=path.join(app.getAppPath(),"assets","Saeed_Test-3D.glb");
   report.checks.glbFile={pass:fs.existsSync(glb),path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
   await wait(3500);
   const threeD=await request3DStatus().catch(e=>({overall:{state:"error",detail:e.message},components:{}}));
