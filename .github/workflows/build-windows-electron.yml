@@ -131,6 +131,23 @@ jobs:
       - name: Build Windows installer
         run: npm run build
 
+      - name: Isolated 3D static-image baseline
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Unpacked application EXE is missing: $exe" }
+          $baseline = Join-Path $PWD "dist\\ci-3d-baseline.json"
+          $env:SAEED_CI_SMOKE="1"
+          $env:SAEED_CI_3D_OFF="1"
+          $env:SAEED_CI_3D_BASELINE_REPORT=$baseline
+          if (Test-Path $baseline) { Remove-Item $baseline -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -WorkingDirectory $PWD -PassThru -Wait
+          if (!(Test-Path $baseline)) { throw "Static-image 3D baseline did not produce ci-3d-baseline.json (exit $($proc.ExitCode))." }
+          Get-Content $baseline -Raw
+          Remove-Item Env:SAEED_CI_3D_OFF -ErrorAction SilentlyContinue
+          Remove-Item Env:SAEED_CI_3D_BASELINE_REPORT -ErrorAction SilentlyContinue
+
       - name: Runtime application smoke test and resource report
         shell: powershell
         run: |
@@ -224,6 +241,7 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-runtime-report.json
+            dist/ci-3d-baseline.json
 
       - name: Publish official release from version tag
         if: startsWith(github.ref, 'refs/tags/v')
