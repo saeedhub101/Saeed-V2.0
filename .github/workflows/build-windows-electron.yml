@@ -11,6 +11,12 @@ on:
       - 'VERSION'
       - '.github/workflows/build-windows-electron.yml'
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish the verified build as the official release for VERSION"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -247,14 +253,15 @@ jobs:
             dist/latest.yml
 
 
-      - name: Publish official release from version tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Publish official release
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_release == true || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]'))
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="$(tr -d '\r\n ' < VERSION)"
           TAG="v${VERSION}"
+          echo "Release request accepted for $TAG"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists; uploading verified build assets instead of failing."
             gh release upload "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml --clobber
