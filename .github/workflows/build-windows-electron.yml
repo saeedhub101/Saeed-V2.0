@@ -230,7 +230,12 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
-      - name: Upload verified build and diagnostics
+      - name: Remove CI diagnostic report files from build artifacts
+        shell: powershell
+        run: |
+          Remove-Item "dist\\ci-runtime-report.json" -Force -ErrorAction SilentlyContinue
+          Remove-Item "dist\\ci-3d-baseline.json" -Force -ErrorAction SilentlyContinue
+      - name: Upload verified build
         uses: actions/upload-artifact@v4
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
@@ -240,8 +245,7 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
-            dist/ci-runtime-report.json
-            dist/ci-3d-baseline.json
+
 
       - name: Publish official release from version tag
         if: startsWith(github.ref, 'refs/tags/v')
