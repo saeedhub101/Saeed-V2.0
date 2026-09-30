@@ -27,5 +27,4 @@ window.saeed.onMicLevel?.(level=>{
  render();
 });
 window.saeed.onDiagnosticState(x=>{state=x||{};render()});
-window.saeed.onRealtimeState(()=>{});
 refresh();

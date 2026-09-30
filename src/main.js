@@ -19,12 +19,11 @@ const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealti
 function configureMediaPermissions(){
  try{
   session.defaultSession.setPermissionCheckHandler((webContents,permission,origin,details)=>{
-   if(permission==="media")return true;
-   return true;
+   return permission==="media";
   });
   session.defaultSession.setPermissionRequestHandler((webContents,permission,callback,details)=>{
    if(permission==="media"){diagnostic("INFO","MIC PERMISSION","Electron granted media permission",details||{});callback(true);return;}
-   callback(true);
+   callback(false);
   });
   diagnostic("INFO","MIC PERMISSION","Electron microphone/media permission handlers configured");
  }catch(e){diagnostic("ERROR","MIC PERMISSION",e.message)}
@@ -36,7 +35,8 @@ const pending3DQueries=new Map();
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
 function diagnostic(level,stage,message,meta={}){
  const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
- if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:event",event);if(threeDStatusWin&&!threeDStatusWin.isDestroyed())threeDStatusWin.webContents.send("diagnostic:event",event);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("diagnostic:event",event);if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("diagnostic:event",event);updateDiagnosticState(event);return event;
+ if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("diagnostic:event",event);
+ updateDiagnosticState(event);return event;
 }
 function publish3DStatus(report){if(!report)return;diagnosticState.threeD=report;diagnosticState.threeD.lastUpdated=new Date().toISOString();if(threeDStatusWin&&!threeDStatusWin.isDestroyed())threeDStatusWin.webContents.send("3d:status",diagnosticState.threeD)}
 function request3DStatus(){return new Promise(resolve=>{if(!characterWin||characterWin.isDestroyed()){const report={overall:{state:"error",detail:"3D character window is not available"},components:{},lastUpdated:new Date().toISOString()};publish3DStatus(report);resolve(report);return}const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);const timer=setTimeout(()=>{pending3DQueries.delete(id);const report={...diagnosticState.threeD,overall:{state:"error",detail:"3D renderer status query timed out"}};publish3DStatus(report);resolve(report)},1800);pending3DQueries.set(id,report=>{clearTimeout(timer);pending3DQueries.delete(id);publish3DStatus(report);resolve(report)});characterWin.webContents.send("3d:query",id)})}
@@ -63,7 +63,7 @@ function stopCpuMonitoring(){
  cpuTimer=null;
 }
 
-function updateCpuMetrics(){try{const metrics=app.getAppMetrics();const logical=Math.max(1,os.cpus().length);const total=metrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const percent=Math.max(0,total/logical);diagnosticState.cpu={state:"active",percent,detail:`Saeed CPU ${percent.toFixed(1)}% across ${logical} logical processors`,processCount:metrics.length,lastUpdated:new Date().toISOString()};if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("cpu:metrics",diagnosticState.cpu)}catch(e){diagnosticState.cpu={state:"error",percent:0,detail:e.message,lastUpdated:new Date().toISOString()};diagnostic("ERROR","CPU METRICS",e.message)}}
+function updateCpuMetrics(){try{const {rawMetrics:metrics,logical}=getAppResourceMetrics();const total=metrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const percent=Math.max(0,total/logical);diagnosticState.cpu={state:"active",percent,detail:`Saeed CPU ${percent.toFixed(1)}% across ${logical} logical processors`,processCount:metrics.length,lastUpdated:new Date().toISOString()};if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("cpu:metrics",diagnosticState.cpu)}catch(e){diagnosticState.cpu={state:"error",percent:0,detail:e.message,lastUpdated:new Date().toISOString()};diagnostic("ERROR","CPU METRICS",e.message)}}
 function diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
 
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
@@ -87,10 +87,11 @@ let updateState="idle",updateUiRequested=false;
 const confirmations=new Map();
 let resourceProbeTimer=null;
 const resourceProbeSamples=[];
+function getAppResourceMetrics(){const rawMetrics=app.getAppMetrics();return {rawMetrics,logical:Math.max(1,os.cpus().length)}}
 function resourceSnapshot(label="sample"){
  const usage=process.memoryUsage(), cpu=process.cpuUsage();
  const rss=Math.round(usage.rss/1048576), heapUsed=Math.round(usage.heapUsed/1048576), external=Math.round(usage.external/1048576);
- const windows=BrowserWindow.getAllWindows().map(w=>({title:w.getTitle(),url:w.webContents.getURL(),processId:w.webContents.getOSProcessId(),destroyed:w.isDestroyed()}));const rawMetrics=app.getAppMetrics();const logical=Math.max(1,os.cpus().length);const metrics=rawMetrics.map(m=>({pid:m.pid,type:m.type,name:m.name||"",serviceName:m.serviceName||"",cpuPercent:+(m.cpu?.percentCPUUsage||0).toFixed(2),cpuTotalSec:+(m.cpu?.cumulativeCPUUsage||0).toFixed(3),workingSetMB:+((m.memory?.workingSetSize||0)/1024).toFixed(1),privateMB:+((m.memory?.privateBytes||0)/1024).toFixed(1)}));const totalCpuRaw=rawMetrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const totalWorkingSetMB=rawMetrics.reduce((sum,m)=>sum+Number(m?.memory?.workingSetSize||0),0)/1024;const totalPrivateMB=rawMetrics.reduce((sum,m)=>sum+Number(m?.memory?.privateBytes||0),0)/1024;const sample={time:new Date().toISOString(),label,pid:process.pid,cpuUserMs:Math.round(cpu.user/1000),cpuSystemMs:Math.round(cpu.system/1000),rssMB:rss,heapUsedMB:heapUsed,heapTotalMB:Math.round(usage.heapTotal/1048576),externalMB:external,platform:process.platform,logicalProcessors:logical,saeedTotal:{cpuPercent:+(totalCpuRaw/logical).toFixed(2),cpuPercentRaw:+totalCpuRaw.toFixed(2),workingSetMB:+totalWorkingSetMB.toFixed(1),privateMB:+totalPrivateMB.toFixed(1),processCount:rawMetrics.length},windows,processes:metrics};
+ const windows=BrowserWindow.getAllWindows().map(w=>({title:w.getTitle(),url:w.webContents.getURL(),processId:w.webContents.getOSProcessId(),destroyed:w.isDestroyed()}));const {rawMetrics,logical}=getAppResourceMetrics();const metrics=rawMetrics.map(m=>({pid:m.pid,type:m.type,name:m.name||"",serviceName:m.serviceName||"",cpuPercent:+(m.cpu?.percentCPUUsage||0).toFixed(2),cpuTotalSec:+(m.cpu?.cumulativeCPUUsage||0).toFixed(3),workingSetMB:+((m.memory?.workingSetSize||0)/1024).toFixed(1),privateMB:+((m.memory?.privateBytes||0)/1024).toFixed(1)}));const totalCpuRaw=rawMetrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const totalWorkingSetMB=rawMetrics.reduce((sum,m)=>sum+Number(m?.memory?.workingSetSize||0),0)/1024;const totalPrivateMB=rawMetrics.reduce((sum,m)=>sum+Number(m?.memory?.privateBytes||0),0)/1024;const sample={time:new Date().toISOString(),label,pid:process.pid,cpuUserMs:Math.round(cpu.user/1000),cpuSystemMs:Math.round(cpu.system/1000),rssMB:rss,heapUsedMB:heapUsed,heapTotalMB:Math.round(usage.heapTotal/1048576),externalMB:external,platform:process.platform,logicalProcessors:logical,saeedTotal:{cpuPercent:+(totalCpuRaw/logical).toFixed(2),cpuPercentRaw:+totalCpuRaw.toFixed(2),workingSetMB:+totalWorkingSetMB.toFixed(1),privateMB:+totalPrivateMB.toFixed(1),processCount:rawMetrics.length},windows,processes:metrics};
  resourceProbeSamples.push(sample);if(resourceProbeSamples.length>120)resourceProbeSamples.shift();return sample;
 }
 function startResourceProbe(){if(resourceProbeTimer)return;resourceSnapshot("startup");resourceProbeTimer=setInterval(()=>resourceSnapshot("interval"),1000);resourceProbeTimer.unref?.()}
