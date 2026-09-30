@@ -194,6 +194,156 @@ The CI workflow is the authoritative Windows verification path because it also b
 - build/installer.nsh
 - .github/workflows/build-windows-electron.yml
 
+## File architecture and ownership map
+
+The source tree is organized by responsibility. **Agents must follow this map before creating, moving, or modifying files. Do not create duplicate implementations in arbitrary directories.** If a new capability belongs to an existing domain, add it to that domain's folder/module instead of creating a parallel runtime.
+
+### Authoritative directory map
+
+~~~text
+Saeed-V2.0/
+├── assets/                         # Runtime assets only
+│   ├── Saeed_Test-3D.glb          # Current default/fallback character
+│   └── saeed.png                  # Source application icon
+├── src/
+│   ├── main.js                    # Electron main process, windows, IPC, startup
+│   ├── preload.js                 # Renderer-safe IPC/API bridge
+│   ├── renderer.js                # Main renderer/UI orchestration
+│   ├── index.html                 # Main renderer document
+│   ├── agent.js                   # Agent brain/orchestration and tool coordination
+│   ├── local-brain.js             # Fast offline/local intent routing
+│   ├── tools.js                   # Central Tool Registry, schemas, permissions, dispatch
+│   ├── computer.js                # Low-level Windows computer/GUI operations
+│   ├── memory.js                  # Persistent Agent memory
+│   ├── realtime.js                # Optional realtime API transport
+│   ├── agent-tools/               # Structured specialist tools
+│   │   ├── index.js               # Tool registration/export boundary
+│   │   ├── document-tools.js      # PDF/document extraction and inspection
+│   │   └── office-tools.js        # Excel/spreadsheet reading and writing
+│   ├── avatar.js                  # Three.js/WebGL character renderer
+│   ├── character.html             # Character window
+│   ├── character-controls.js      # Character interaction/window controls
+│   ├── character-voice.js         # Character voice lifecycle
+│   ├── status.*                   # General runtime status
+│   ├── performance.*              # Performance/resource monitoring
+│   ├── 3d-status.*                # 3D renderer diagnostics
+│   ├── update-toast.*             # Transient update notification
+│   ├── update-status.*            # Dedicated update status/download window
+│   └── three/                     # Bundled Three.js runtime helpers
+│       ├── GLTFLoader.js
+│       └── BufferGeometryUtils.js
+├── build/                         # Build/installer resources, NOT Agent tools
+├── .github/workflows/             # CI/build automation only
+│   └── build-windows-electron.yml # The only Windows build workflow
+├── package.json                   # Dependencies/scripts/build config
+└── VERSION                        # Authoritative product release version
+~~~
+
+### Where an Agent must store new code
+
+| New capability | Correct location | Do not put it in |
+|---|---|---|
+| Agent reasoning/planning/orchestration | src/agent.js | main.js, renderer.js |
+| New local/offline intent | src/local-brain.js | a second brain file |
+| Generic tool registration/permissions | src/tools.js | duplicated tool registries |
+| PDF/document capability | src/agent-tools/document-tools.js | main.js, random utils.js |
+| Excel/Office capability | src/agent-tools/office-tools.js | GUI-only code in computer.js |
+| New specialist Agent tool family | src/agent-tools/ + index.js | a parallel Agent runtime |
+| Windows mouse/keyboard/process/window primitive | src/computer.js | agent.js |
+| Persistent Agent memory | src/memory.js | arbitrary JSON files under src/ |
+| 3D rendering | src/avatar.js | agent.js, renderer.js |
+| Character interaction | src/character-controls.js | avatar.js unless it is renderer logic |
+| Voice lifecycle | src/character-voice.js / existing voice path | a new microphone runtime |
+| Electron windows / IPC | src/main.js + src/preload.js | direct Electron access from renderer |
+| Window UI | matching .html/.js/.css files | main.js unless window creation/IPC is required |
+| Three.js loaders/helpers | src/three/ | another copy of Three.js |
+| Build/CI behavior | .github/workflows/ | application runtime code |
+| Installer customization | build/ | src/ |
+| Static runtime assets | assets/ | src/ |
+
+### Data/storage ownership
+
+**Source code belongs in the repository. User/runtime state belongs in Electron userData. Temporary CI/build data belongs in dist/ or the CI workspace and must not become application state.**
+
+~~~text
+Repository
+├── src/                  application source
+├── assets/               bundled runtime assets
+├── build/                installer/build resources
+└── .github/              CI/build automation
+
+Electron userData/
+├── characters/           selected/persisted character data
+├── tasks.json            Agent task state
+└── other existing        persistent application state
+
+dist/ / CI workspace       temporary build and verification output
+~~~
+
+**Never store user-specific runtime state inside src/ or assets/.** Do not overwrite the bundled default GLB when the user selects another character. Persist the selected character separately and restore it at startup.
+
+### Agent tool lifecycle
+
+Agent tools are **on-demand capabilities**, not permanently running services.
+
+~~~text
+User request
+    ↓
+Local Brain / Agent
+    ↓
+Select only the required tool(s)
+    ↓
+Central Tool Registry permission check
+    ↓
+Execute
+    ↓
+Observe / verify
+    ↓
+Use another tool only if required
+    ↓
+Return result
+    ↓
+Release temporary resources / end task
+~~~
+
+Rules:
+
+1. Do not initialize specialist libraries at startup unless the architecture requires it.
+2. Prefer lazy loading for heavy optional dependencies.
+3. Prefer native structured tools over GUI automation when a reliable structured API exists.
+4. Use GUI automation as a fallback when no suitable structured tool exists.
+5. Tools must return clear results/errors; the Agent decides whether another tool is needed.
+6. Do not create persistent workers, polling loops, or background services for one-shot Agent tasks.
+7. Do not create duplicate implementations of existing capabilities.
+8. New specialist tool families belong under src/agent-tools/, are exported through index.js, then registered by src/tools.js.
+9. Permissions belong to the central Tool Registry; specialist tools must not create a second permission system.
+10. Important file operations must be verified after execution.
+
+### Resource-efficiency rules
+
+- No permanent Agent loop. The Agent runs when a request requires it.
+- No continuous 3D render loop. Render only when the scene actually needs updating.
+- No unnecessary API calls. Use Local Brain first where appropriate.
+- No unnecessary GUI automation. Use direct file/API operations first.
+- No loading every specialist library at startup. Load capabilities when requested.
+- No duplicated state stores. Use the existing memory/task/userData mechanisms.
+- No speculative tool creation. Create/use a tool because the current request requires it.
+- Bound Agent/tool execution with safe step/resource limits.
+- Verify, then finish. Do not keep a session alive after the task is complete.
+
+### File retrieval rule for future Agents
+
+Before implementing a task, an Agent must:
+
+1. Read this README.
+2. Locate the existing owner of the capability in the map above.
+3. Read that owner file and directly related modules.
+4. Reuse existing interfaces before creating a new one.
+5. Put new files only in the directory assigned to that responsibility.
+6. Update this README whenever the architecture or ownership map changes.
+
+If an existing capability already has an authoritative file, **modify that file instead of creating a second file with similar responsibility.**
+
 ## Architecture rules
 
 1. Keep one coherent Electron + Three.js/WebGL application architecture.
