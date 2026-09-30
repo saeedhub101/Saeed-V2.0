@@ -15,7 +15,8 @@ const root=new THREE.Group();scene.add(root);
 
 
 let mixer=null,clips=[],actions=new Map(),activeAction=null,clock=new THREE.Clock();
-let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;\nlet behaviorConfig={breathing:true,blinking:true,expressions:true,speechFace:true};
+let avatarState="idle",moveTimer=null,moveEnd=0,moveDirection=1,bodyYaw=0,bodyYawTarget=0,gestureTimer=null;
+let behaviorConfig={breathing:true,blinking:true,expressions:true,speechFace:true};
 let facialTime=0,blinkUntil=0,nextBlink=2+Math.random()*4,expression={smile:0,jawopen:0};
 let visemeValues={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTargets={aa:0,ee:0,oo:0,oh:0,fv:0,mbp:0},visemeTimer=null;
 let model=null,bones=new Map(),boneBase=new Map(),loader=null,frameWindowStart=performance.now(),frameWindowCount=0;
