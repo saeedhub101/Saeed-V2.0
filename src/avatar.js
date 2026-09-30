@@ -134,7 +134,7 @@ function resetVisemes(){["aa","ee","oo","oh","fv","mbp"].forEach(v=>{visemeTarge
 function prepareSceneContent(){runtime3D.components.sceneContent={state:"loading",detail:"Waiting for the selected Saeed GLB"};set3DState("scene","loading","Waiting for the selected Saeed GLB");refreshOverall()}
 function fitLoadedModel(){if(!model)return;model.updateWorldMatrix(true,true);const box=new THREE.Box3().setFromObject(model,true);const rawSize=box.getSize(new THREE.Vector3());const targetHeight=3.75;const scale=targetHeight/Math.max(rawSize.y,0.001);model.scale.setScalar(scale);model.updateWorldMatrix(true,true);const fitted=new THREE.Box3().setFromObject(model,true);const size=fitted.getSize(new THREE.Vector3());const center=fitted.getCenter(new THREE.Vector3());model.position.x-=center.x;model.position.z-=center.z;model.position.y-=fitted.min.y;model.updateWorldMatrix(true,true);const box3=new THREE.Box3().setFromObject(model,true);const finalSize=box3.getSize(new THREE.Vector3());const finalCenter=box3.getCenter(new THREE.Vector3());const aspect=Math.max(.1,(canvas.clientWidth||430)/(canvas.clientHeight||520));camera.fov=30;const halfVertical=finalSize.y*.5;const halfHorizontal=finalSize.x*.5/Math.max(aspect,.01);const halfFit=Math.max(halfVertical,halfHorizontal)*1.018;const distance=halfFit/Math.tan(THREE.MathUtils.degToRad(camera.fov*.5));const depthPadding=finalSize.z*.12;camera.position.set(0,finalCenter.y,distance+depthPadding);camera.near=Math.max(.01,finalSize.length()/1000);camera.far=Math.max(100,finalSize.length()*12);camera.lookAt(finalCenter.x,finalCenter.y,finalCenter.z);camera.updateProjectionMatrix();let textureCount=0;const maxAniso=Math.min(4,renderer.capabilities.getMaxAnisotropy());model.traverse(o=>{if(!o.isMesh)return;const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(!m)continue;for(const key of ["map","normalMap","roughnessMap","metalnessMap","emissiveMap","aoMap"]){const tex=m[key];if(tex&&tex.isTexture){tex.anisotropy=maxAniso;tex.needsUpdate=true;textureCount++}}m.needsUpdate=true}});}
 function disposeObject3D(object){if(!object)return;object.traverse(o=>{if(o.geometry?.dispose)o.geometry.dispose();const materials=Array.isArray(o.material)?o.material:[o.material];for(const m of materials){if(!m)continue;for(const key of ["map","normalMap","roughnessMap","metalnessMap","emissiveMap","aoMap","alphaMap"]){const tex=m[key];if(tex?.dispose)tex.dispose()}if(m.dispose)m.dispose()}})}
-async function displaySelectedGlb(parsed,name,size){if(!parsed?.scene)throw new Error("Selected GLB contains no scene");if(model){disposeObject3D(model);model=null}root.clear();model=parsed.scene;root.add(model);set3DState("scene","ready","Saeed GLB loaded into the Three.js scene");clips=Array.isArray(parsed.animations)?parsed.animations:[];mixer=clips.length?new THREE.AnimationMixer(model):null;actions.clear();activeAction=null;collectFacialMeshes(model);mapHumanoidBones(model);fitLoadedModel();const idle=playAnimation("idle")||playAnimation("stand")||playAnimation("breathing");runtime3D.components.sceneContent={state:"rendered",detail:"Saeed GLB is the displayed 3D object"};runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"ready",detail:"Saeed GLB parsed and displayed in the character window",size,name,parsed:true,displayed:true,animations:clips.map(x=>x.name),bones:Object.keys(mapHumanoidBones(model))};refreshOverall()}
+async function displaySelectedGlb(parsed,name,size){if(!parsed?.scene)throw new Error("Selected GLB contains no scene");if(model){disposeObject3D(model);model=null}root.clear();model=parsed.scene;root.add(model);set3DState("scene","ready","Saeed GLB loaded into the Three.js scene");clips=Array.isArray(parsed.animations)?parsed.animations:[];mixer=clips.length?new THREE.AnimationMixer(model):null;actions.clear();activeAction=null;collectFacialMeshes(model);mapHumanoidBones(model);fitLoadedModel();const idle=playAnimation("idle")||playAnimation("stand")||playAnimation("breathing");runtime3D.components.sceneContent={state:"rendered",detail:"Saeed GLB is the displayed 3D object"};runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"ready",detail:"Saeed GLB parsed and displayed in the character window",size,name,parsed:true,displayed:true,animations:clips.map(x=>x.name),bones:Object.keys(mapHumanoidBones(model))};refreshOverall();renderNow("character-loaded")}
 async function prepareSceneStatus(){try{prepareSceneContent()}catch(e){console.error("3D scene initialization failed:",e);runtime3D.lastError=e.message;runtime3D.components.sceneContent.state="error";runtime3D.components.sceneContent.detail="3D scene initialization failed: "+e.message;refreshOverall()}}
 void ensureGLTFLoader();
 async function processGlbLoad(data,requestGeneration){activeGlbLoad=true;try{const gltf=await ensureGLTFLoader();if(!gltf)throw new Error("GLTFLoader unavailable; see 3D Status");
@@ -202,45 +202,47 @@ window.saeedAvatar={
  getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
 };
 
-function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.min(4096,r.width)),h=Math.max(1,Math.min(4096,r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}}try{new ResizeObserver(resize).observe(canvas);resize();}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}
+function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.min(4096,r.width)),h=Math.max(1,Math.min(4096,r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);renderNow("resize");}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}}try{new ResizeObserver(resize).observe(canvas);resize();}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}
 
-let renderLoopStarted=false,lastRenderTime=0;const targetFrameMs=1000/24;let renderHandle=0,renderTimer=0;let rendererActive=true;
-function scheduleFrame(){if(!rendererActive||document.hidden){renderHandle=0;renderTimer=0;return}if(renderHandle||renderTimer)return;renderTimer=setTimeout(()=>{renderTimer=0;if(rendererActive&&!document.hidden)renderHandle=requestAnimationFrame(frame)},targetFrameMs)}
-function frame(){
- renderHandle=0;if(!rendererActive||document.hidden){return}if(!renderLoopStarted){renderLoopStarted=true;set3DState("renderLoop","active","24 FPS throttled render loop is running");}
- const dt=clock.getDelta();facialTime+=dt;runtime3D.components.renderLoop.frames++;runtime3D.components.renderLoop.lastRenderAt=new Date().toISOString();frameWindowCount++;const now=performance.now();if(now-frameWindowStart>=1000){runtime3D.components.renderLoop.fps=frameWindowCount*1000/(now-frameWindowStart);frameWindowCount=0;frameWindowStart=now;}
- proceduralBody(facialTime);
- Object.keys(visemeTargets).forEach(k=>{visemeValues[k]+=(visemeTargets[k]-visemeValues[k])*Math.min(1,dt*18);setMorph(k,visemeValues[k])});
- if(mixer)mixer.update(dt);
- 
- if(moveTimer&&performance.now()<moveEnd){
-  root.position.x+=dt*.22*moveDirection;
-  if(root.position.x>.7)root.position.x=-.7;
-  if(root.position.x<-.7)root.position.x=.7;
- }
- bodyYaw+=(bodyYawTarget-bodyYaw)*Math.min(1,dt*4);
- root.rotation.y=bodyYaw;
- if(behaviorConfig.blinking&&facialTime>=nextBlink){blink();nextBlink=facialTime+2.5+Math.random()*5}
- if(blinkUntil&&facialTime>=blinkUntil){setMorph("blink",0);blinkUntil=0}
- if(avatarState!=="talk"&&avatarState!=="think"){
-  const breathe=(Math.sin(facialTime*1.8)+1)*.5;
-  root.position.y+=(breathe*.018-root.position.y)*Math.min(1,dt*2);
- }
+let renderLoopStarted=false,lastRenderTime=0,rendererActive=true;
+function renderNow(reason="on-demand"){
+ if(!rendererActive||document.hidden)return false;
  try{
-  const renderNow=performance.now();
-  if(renderNow-lastRenderTime<targetFrameMs)return;
-  lastRenderTime=renderNow;
+  const now=performance.now();
+  const dt=clock.getDelta();
+  facialTime+=dt;
+  runtime3D.components.renderLoop.frames++;
+  runtime3D.components.renderLoop.lastRenderAt=new Date().toISOString();
+  proceduralBody(facialTime);
+  Object.keys(visemeTargets).forEach(k=>{visemeValues[k]+=(visemeTargets[k]-visemeValues[k])*Math.min(1,dt*18);setMorph(k,visemeValues[k])});
+  if(mixer)mixer.update(dt);
+  if(moveTimer&&performance.now()<moveEnd){
+   root.position.x+=dt*.22*moveDirection;
+   if(root.position.x>.7)root.position.x=-.7;
+   if(root.position.x<-.7)root.position.x=.7;
+  }
+  bodyYaw+=(bodyYawTarget-bodyYaw)*Math.min(1,dt*4);
+  root.rotation.y=bodyYaw;
+  if(behaviorConfig.blinking&&facialTime>=nextBlink){blink();nextBlink=facialTime+2.5+Math.random()*5}
+  if(blinkUntil&&facialTime>=blinkUntil){setMorph("blink",0);blinkUntil=0}
+  if(avatarState!=="talk"&&avatarState!=="think"){
+   const breathe=(Math.sin(facialTime*1.8)+1)*.5;
+   root.position.y+=(breathe*.018-root.position.y)*Math.min(1,dt*2);
+  }
   renderer.render(scene,camera);
+  lastRenderTime=now;
   runtime3D.metrics={drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,points:renderer.info.render.points,lines:renderer.info.render.lines,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures};
+  if(!renderLoopStarted){renderLoopStarted=true;set3DState("renderLoop","ready","On-demand rendering is active; no continuous render loop is running")}
   if(runtime3D.components.sceneContent.state==="loading"&&renderer.info.render.calls>0){runtime3D.components.sceneContent.state="rendered";runtime3D.components.sceneContent.detail="Active GLB scene produced WebGL draw calls";refreshOverall()}
+  return true;
  }catch(e){
   console.error("Saeed 3D renderer.render failed:",e);
-  runtime3D.lastError=e.message;set3DState("renderLoop","error",e.message);
+  runtime3D.lastError=e.message;
+  set3DState("renderLoop","error",e.message);
   const message=document.getElementById("status");
   if(message)message.textContent="Saeed 3D renderer failed";
-  
+  return false;
  }
 }
-function syncRendererVisibility(){rendererActive=!document.hidden;if(!rendererActive){if(renderTimer)clearTimeout(renderTimer);renderTimer=0;renderHandle=0;return}if(!renderHandle&&!renderTimer)scheduleFrame()}
+function syncRendererVisibility(){rendererActive=!document.hidden}
 document.addEventListener("visibilitychange",syncRendererVisibility);
-scheduleFrame();
