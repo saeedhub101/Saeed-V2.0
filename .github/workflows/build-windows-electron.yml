@@ -140,9 +140,18 @@ jobs:
           $report = Join-Path $PWD "dist\ci-runtime-report.json"
           $env:SAEED_CI_SMOKE="1"
           $env:SAEED_CI_REPORT=$report
-          & $exe --ci-smoke
-          $code=$LASTEXITCODE
-          if (!(Test-Path $report)) { throw "Runtime smoke test did not produce ci-runtime-report.json" }
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-ci-smoke.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-ci-smoke.stderr.log"
+          if (Test-Path $report) { Remove-Item $report -Force }
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -WorkingDirectory $PWD -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $code = $proc.ExitCode
+          if (Test-Path $stdout) { Get-Content $stdout -Raw }
+          if (Test-Path $stderr) { Get-Content $stderr -Raw }
+          if (!(Test-Path $report)) {
+            $fallback = @{pass=$false;error="Runtime smoke process exited without producing its report.";exitCode=$code;stdout=(if(Test-Path $stdout){Get-Content $stdout -Raw}else{""});stderr=(if(Test-Path $stderr){Get-Content $stderr -Raw}else{""})}
+            $fallback | ConvertTo-Json -Depth 8 | Set-Content $report -Encoding UTF8
+            throw "Runtime smoke test did not produce ci-runtime-report.json; diagnostic fallback was written."
+          }
           Get-Content $report -Raw
           if ($code -ne 0) { throw "Runtime smoke process exited with code $code" }
           $json=Get-Content $report -Raw | ConvertFrom-Json
