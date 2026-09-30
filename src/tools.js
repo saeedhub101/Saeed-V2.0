@@ -20,7 +20,7 @@ class ToolRegistry{
  return "system";
 }
 saveTasks(){const tasks=this.ensureTasks();fs.mkdirSync(this.userDataPath,{recursive:true});fs.writeFileSync(this.taskFile,JSON.stringify(tasks,null,2),"utf8")}
- schemas(){return[
+ schemas(){return[...documentOfficeTools.schemas(),
  {type:"function",function:{name:"system_info",description:"Inspect CPU, memory, Windows version, architecture and uptime.",parameters:{type:"object",properties:{},required:[]}}},
  {type:"function",function:{name:"diagnose_computer",description:"Run a combined Windows health check: OS, CPU load, memory, disks, and top processes. Use this first for broad 'why is my computer slow/problem' requests.",parameters:{type:"object",properties:{},required:[]}}},
  {type:"function",function:{name:"active_window",description:"Inspect the currently focused Windows window and process id.",parameters:{type:"object",properties:{},required:[]}}},
