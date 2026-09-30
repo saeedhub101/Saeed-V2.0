@@ -48,5 +48,5 @@ contextBridge.exposeInMainWorld("saeed",{
  onUpdateState:f=>ipcRenderer.on("update:state",(_,state,message)=>f(state,message)),
  onUpdateAvailable:f=>ipcRenderer.on("update:available",(_,info)=>f(info)),
  onUpdateProgress:f=>ipcRenderer.on("update:progress",(_,info)=>f(info)),
- onUpdateDownloaded:f=>ipcRenderer.on("update:downloaded",(_,info)=>f(info)),onUpdateCheckUi:f=>ipcRenderer.on("update:check-ui",()=>f())
+ onUpdateDownloaded:f=>ipcRenderer.on("update:downloaded",(_,info)=>f(info)),onUpdateToast:f=>ipcRenderer.on("update-toast",(_,state,message)=>f(state,message)),onUpdateCheckUi:f=>ipcRenderer.on("update:check-ui",()=>f())
 });
