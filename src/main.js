@@ -188,7 +188,7 @@ async function createChatWindow(){
 async function createWindow(){
  await createCharacterWindow();
  if(ciSmoke&&process.env.SAEED_CI_3D_OFF==="1")setTimeout(()=>void runCi3DBaseline(),800);
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name,args});});}});
+ const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});agent.localBrain=new LocalBrain(registry);if(agent.settings.characterSize)setSaeedSize(agent.settings.characterSize);
 }
 async function createCharacterWindow(){
