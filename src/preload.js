@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld("saeed",{
  getUpdateSnapshot:()=>ipcRenderer.invoke("update:snapshot"),
  getHistory:()=>ipcRenderer.invoke("history:get"), clearHistory:()=>ipcRenderer.invoke("history:clear"),
  getSettings:()=>ipcRenderer.invoke("settings:get"),
- setSettings:s=>ipcRenderer.invoke("settings:set",s),
+ setSettings:s=>ipcRenderer.invoke("settings:set",s),clearAllApis:()=>ipcRenderer.invoke("api:clear-all"),
  reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),reportMicLevel:level=>ipcRenderer.send("mic:level",Number(level)||0),onMicLevel:f=>ipcRenderer.on("mic:level",(_,level)=>f(level)),
  getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),testApiConnection:service=>ipcRenderer.invoke("api-status:test",service),testAllApiConnections:()=>ipcRenderer.invoke("api-status:test-all"),getCpuMetrics:()=>ipcRenderer.invoke("cpu:metrics"),getResourceSnapshot:()=>ipcRenderer.invoke("resource:snapshot"),onCpuMetrics:f=>ipcRenderer.on("cpu:metrics",(_,e)=>f(e)),
  
