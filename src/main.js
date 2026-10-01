@@ -271,7 +271,7 @@ ipcMain.handle("chat",async(_,payload)=>{
  return result;
 });
 ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showSettings();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>testApiConnection(String(service||"")));ipcMain.handle("api-status:test-all",()=>testAllApiConnections());ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showSettings();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  const previous={...agent.settings};
