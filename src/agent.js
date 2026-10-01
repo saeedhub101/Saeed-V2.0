@@ -90,28 +90,71 @@ class Agent{
   }
   const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Prefer native structured document/office tools (inspect_document, extract_pdf_text, read_excel, write_excel) before GUI automation whenever the task involves PDFs, spreadsheets, or document content. Use GUI automation only when a native tool cannot complete the requested action. Never claim success without evidence. Follow the Permissions settings exactly: Allow executes, Deny blocks, and Always ask requests approval. Do not impose any hidden permission rules. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."},...this.history.slice(-30),{role:"user",content:userContent}];
-  const sessionId=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION START",message:"Tool session started",meta:{sessionId}});for(let step=0;step<(Math.min(100,Math.max(1,Number(s.maxSteps)||32)));step++){
+  const sessionId=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION START",message:"Tool session started",meta:{sessionId}});
+  const isAnthropic=String(s.provider||"").toLowerCase()==="anthropic";
+  const anthropicSystem=messages[0]?.content||"";
+  const anthropicMessages=isAnthropic?messages.slice(1).map(m=>({role:m.role,content:m.content})):null;
+  const anthropicTools=isAnthropic?this.registry.schemas().map(t=>({name:t.function?.name,description:t.function?.description||"",input_schema:t.function?.parameters||{type:"object",properties:{},required:[]}})).filter(t=>t.name):null;
+  if(isAnthropic&&image){
+   const match=String(image).match(/^data:([^;]+);base64,(.+)$/);
+   if(match){
+    const last=anthropicMessages[anthropicMessages.length-1];
+    if(last?.role==="user"&&typeof last.content==="string"){last.content=[{type:"text",text:last.content},{type:"image",source:{type:"base64",media_type:match[1],data:match[2]}}]}
+   }
+  }
+  for(let step=0;step<(Math.min(100,Math.max(1,Number(s.maxSteps)||32)));step++){
    this.onEvent({type:"thinking",step});
    const d=this.providerDefaults(s.provider),base=(s.baseUrl||d.baseUrl||"http://localhost:11434/v1").replace(/\/$/,"");
-   const headers={"Content-Type":"application/json"};if(s.apiKey)headers.Authorization="Bearer "+s.apiKey;
-   const body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto"};
-   let r;
-   try{r=await fetch(base+"/chat/completions",{method:"POST",headers,body:JSON.stringify(body)})}
+   let r,body,headers={"Content-Type":"application/json"},url;
+   if(isAnthropic){
+    headers["x-api-key"]=String(s.apiKey||"");
+    headers["anthropic-version"]="2023-06-01";
+    body={model:s.model||d.model||"claude-sonnet-4-5",max_tokens:8192,system:anthropicSystem,messages:anthropicMessages,tools:anthropicTools,tool_choice:{type:"auto"}};
+    url=base+"/messages";
+   }else{
+    if(s.apiKey)headers.Authorization="Bearer "+s.apiKey;
+    body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto"};
+    url=base+"/chat/completions";
+   }
+   try{r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body)})}
    catch(e){const answer="I could not reach the API brain. Please check your API key and connection in Settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});this.onEvent({type:"answer",text:answer,source:"api-error"});return answer}
-   if(!r.ok){await r.text();const answer=r.status===401||r.status===403?"The API brain rejected the API key. Please check or connect your API key in Settings.":"The API brain returned an error. Please check your API connection in Settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"});this.onEvent({type:"answer",text:answer,source:"api-http-error"});return answer}
-   const m=(await r.json()).choices?.[0]?.message;if(!m){const answer="The API brain did not return an answer. Please check your API settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:"No model response"});this.onEvent({type:"answer",text:answer,source:"api-no-response"});return answer}this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM RESPONSE RECEIVED",message:"LLM response received"});
+   const responseText=await r.text();
+   if(!r.ok){
+    let detail="";try{const j=JSON.parse(responseText);detail=j?.error?.message||j?.error?.type||""}catch{}
+    const answer=r.status===401||r.status===403?"The API brain rejected the API key. Please check or connect your API key in Settings.":"The API brain returned an error. Please check your API connection in Settings.";
+    this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"+(detail?": "+detail:"")});
+    this.onEvent({type:"answer",text:answer,source:"api-http-error"});return answer
+   }
+   let parsed;try{parsed=JSON.parse(responseText)}catch(e){const answer="The API brain returned an invalid response. Please check your API settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});this.onEvent({type:"answer",text:answer,source:"api-invalid-response"});return answer}
+   const m=isAnthropic?{content:parsed?.content||[],tool_calls:(parsed?.content||[]).filter(x=>x?.type==="tool_use").map(x=>({id:x.id,function:{name:x.name,arguments:JSON.stringify(x.input||{})}}))}:{content:parsed?.choices?.[0]?.message?.content||"",tool_calls:parsed?.choices?.[0]?.message?.tool_calls||[]};
+   if(!m||(!m.content&&!m.tool_calls?.length)){const answer="The API brain did not return an answer. Please check your API settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:"No model response"});this.onEvent({type:"answer",text:answer,source:"api-no-response"});return answer}
+   this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM RESPONSE RECEIVED",message:"LLM response received"});
+   const answerText=isAnthropic?(m.content||[]).filter(x=>x?.type==="text").map(x=>x.text||"").join(""):m.content;
    if(!m.tool_calls?.length){
-    const answer=m.content||"";
+    const answer=answerText||"";
     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;
    }
-   messages.push(m);
+   if(isAnthropic)anthropicMessages.push({role:"assistant",content:m.content});
+   else messages.push(parsed.choices[0].message);
    for(const c of m.tool_calls||[]){
-    let a={};try{a=JSON.parse(c.function.arguments||"{}")}catch{messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify({ok:false,error:"Invalid tool arguments"})});continue}
+    let a={};try{a=JSON.parse(c.function.arguments||"{}")}catch{
+     const invalid={ok:false,error:"Invalid tool arguments"};
+     if(isAnthropic)anthropicMessages.push({role:"user",content:[{type:"tool_result",tool_use_id:c.id,content:JSON.stringify(invalid)}]});
+     else messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify(invalid)});
+     continue
+    }
     this.onEvent({type:"tool",name:c.function.name,args:a});
     let out;try{out=await this.registry.call(c.function.name,a)}catch(e){out={ok:false,error:e.message}}
     if(out?.ok===false)this.onEvent({type:"tool_error",name:c.function.name,error:out.error||"Tool failed"});
     else this.onEvent({type:"tool_result",name:c.function.name,result:out});
-    if(c.function.name==="screenshot"&&out.ok&&out.image){
+    if(isAnthropic){
+     const resultContent=[{type:"text",text:JSON.stringify(out)}];
+     if(c.function.name==="screenshot"&&out?.ok&&out.image){
+      const match=String(out.image).match(/^data:([^;]+);base64,(.+)$/);
+      if(match)resultContent.push({type:"image",source:{type:"base64",media_type:match[1],data:match[2]}});
+     }
+     anthropicMessages.push({role:"user",content:[{type:"tool_result",tool_use_id:c.id,content:resultContent}]});
+    }else if(c.function.name==="screenshot"&&out?.ok&&out.image){
      messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify({ok:true,description:"Screenshot captured."})});
      messages.push({role:"user",content:[{type:"text",text:"Inspect this current screen image and continue the task."},{type:"image_url",image_url:{url:out.image}}]});
     }else messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify(out)});
