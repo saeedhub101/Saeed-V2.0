@@ -154,46 +154,136 @@ jobs:
           Remove-Item Env:SAEED_CI_3D_OFF -ErrorAction SilentlyContinue
           Remove-Item Env:SAEED_CI_3D_BASELINE_REPORT -ErrorAction SilentlyContinue
 
-      - name: Runtime application smoke test and resource report
+      - name: Runtime application smoke test and detailed resource report
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
           if (!(Test-Path $exe)) { throw "Unpacked application EXE is missing: $exe" }
-          $report = Join-Path $PWD "dist\ci-runtime-report.json"
+          $report = Join-Path $PWD "dist\\ci-runtime-report.json"
+          $hostReport = Join-Path $PWD "dist\\ci-host-resource-report.json"
           $env:SAEED_CI_SMOKE="1"
           $env:SAEED_CI_REPORT=$report
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-ci-smoke.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-ci-smoke.stderr.log"
           if (Test-Path $report) { Remove-Item $report -Force }
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -WorkingDirectory $PWD -PassThru -Wait -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $code = $proc.ExitCode
+          if (Test-Path $hostReport) { Remove-Item $hostReport -Force }
+
+          function Get-DescendantPids([int]$RootPid) {
+            $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+            $seen = New-Object 'System.Collections.Generic.HashSet[int]'
+            $queue = New-Object System.Collections.Generic.Queue[int]
+            [void]$seen.Add($RootPid); $queue.Enqueue($RootPid)
+            while($queue.Count -gt 0) {
+              $parent=$queue.Dequeue()
+              foreach($p in $all | Where-Object { $_.ParentProcessId -eq $parent }) {
+                if($seen.Add([int]$p.ProcessId)) { $queue.Enqueue([int]$p.ProcessId) }
+              }
+            }
+            return @($seen)
+          }
+
+          function Get-HostSample([int]$RootPid,[string]$Label) {
+            $pids=@(Get-DescendantPids $RootPid)
+            $procs=@()
+            foreach($pid in $pids) {
+              try {
+                $p=Get-Process -Id $pid -ErrorAction Stop
+                $procs += [pscustomobject]@{
+                  pid=$p.Id; name=$p.ProcessName
+                  cpuSec=[math]::Round($p.CPU,3)
+                  workingSetMB=[math]::Round($p.WorkingSet64/1MB,1)
+                  privateMB=[math]::Round($p.PrivateMemorySize64/1MB,1)
+                  threads=$p.Threads.Count; handles=$p.HandleCount
+                }
+              } catch {}
+            }
+            $os=Get-CimInstance Win32_OperatingSystem
+            $cpu=Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average
+            $diskBytes=0; $netBytes=0; $gpuPercent=0
+            try { $diskBytes=[math]::Round((Get-Counter '\PhysicalDisk(_Total)\Disk Bytes/sec').CounterSamples[0].CookedValue,0) } catch {}
+            try {
+              $netBytes=[math]::Round((Get-Counter '\Network Interface(*)\Bytes Total/sec').CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum,0)
+            } catch {}
+            try { $gpuPercent=[math]::Round((Get-Counter '\GPU Engine(*)\Utilization Percentage').CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum,0) } catch {}
+            [pscustomobject]@{
+              time=(Get-Date).ToUniversalTime().ToString("o"); label=$Label
+              hostCpuPercent=[math]::Round($cpu.Average,1)
+              totalRamGB=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
+              freeRamGB=[math]::Round($os.FreePhysicalMemory/1MB,1)
+              availableRamGB=[math]::Round($os.FreePhysicalMemory/1MB,1)
+              diskBytesPerSec=$diskBytes; networkBytesPerSec=$netBytes; gpuEnginePercent=$gpuPercent
+              saeedProcesses=$procs
+              saeedWorkingSetMB=[math]::Round(($procs | Measure-Object workingSetMB -Sum).Sum,1)
+              saeedPrivateMB=[math]::Round(($procs | Measure-Object privateMB -Sum).Sum,1)
+              saeedThreads=[int](($procs | Measure-Object threads -Sum).Sum)
+              saeedHandles=[int](($procs | Measure-Object handles -Sum).Sum)
+            }
+          }
+
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $hostSamples=New-Object System.Collections.Generic.List[object]
+          $started=Get-Date
+          while(-not $proc.HasExited) {
+            $hostSamples.Add((Get-HostSample $proc.Id "runtime"))
+            Start-Sleep -Seconds 1
+            if(((Get-Date)-$started).TotalSeconds -gt 300) { try{$proc.Kill()}catch{}; throw "Runtime smoke exceeded 300 seconds." }
+          }
+          $exitCode=$proc.ExitCode
+          $hostSamples.Add((Get-HostSample $proc.Id "after-exit"))
           if (Test-Path $stdout) { Get-Content $stdout -Raw }
           if (Test-Path $stderr) { Get-Content $stderr -Raw }
+
+          $top=@()
+          try {
+            $top=Get-Process | Where-Object {$_.CPU -ne $null} | Sort-Object CPU -Descending | Select-Object -First 20 ProcessName,Id,CPU,WorkingSet64,PrivateMemorySize64,Threads,Handles |
+              ForEach-Object {[pscustomobject]@{name=$_.ProcessName;pid=$_.Id;cpuSec=[math]::Round($_.CPU,2);workingSetMB=[math]::Round($_.WorkingSet64/1MB,1);privateMB=[math]::Round($_.PrivateMemorySize64/1MB,1);threads=$_.Threads.Count;handles=$_.Handles}}
+          } catch {}
+
+          $hostSummary=[pscustomobject]@{
+            startedAt=$started.ToUniversalTime().ToString("o"); finishedAt=(Get-Date).ToUniversalTime().ToString("o")
+            sampleCount=$hostSamples.Count
+            peakHostCpuPercent=[math]::Round(($hostSamples.hostCpuPercent | Measure-Object -Maximum).Maximum,1)
+            peakHostRamUsedGB=[math]::Round((($hostSamples | ForEach-Object {$_.totalRamGB-$_.freeRamGB}) | Measure-Object -Maximum).Maximum,1)
+            peakSaeedWorkingSetMB=[math]::Round(($hostSamples.saeedWorkingSetMB | Measure-Object -Maximum).Maximum,1)
+            peakSaeedPrivateMB=[math]::Round(($hostSamples.saeedPrivateMB | Measure-Object -Maximum).Maximum,1)
+            peakSaeedThreads=[int](($hostSamples.saeedThreads | Measure-Object -Maximum).Maximum)
+            peakSaeedHandles=[int](($hostSamples.saeedHandles | Measure-Object -Maximum).Maximum)
+            peakGpuEnginePercent=[math]::Round(($hostSamples.gpuEnginePercent | Measure-Object -Maximum).Maximum,1)
+            peakDiskBytesPerSec=[math]::Round(($hostSamples.diskBytesPerSec | Measure-Object -Maximum).Maximum,0)
+            peakNetworkBytesPerSec=[math]::Round(($hostSamples.networkBytesPerSec | Measure-Object -Maximum).Maximum,0)
+          }
+          @{summary=$hostSummary;samples=$hostSamples;topProcessesAtEnd=$top}|ConvertTo-Json -Depth 10|Set-Content $hostReport -Encoding UTF8
+
           if (!(Test-Path $report)) {
             $stdoutText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
             $stderrText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
-            $fallback = @{pass=$false;error="Runtime smoke process exited without producing its report.";exitCode=$code;stdout=$stdoutText;stderr=$stderrText}
+            $fallback = @{pass=$false;error="Runtime smoke process exited without producing its report.";exitCode=$exitCode;stdout=$stdoutText;stderr=$stderrText}
             $fallback | ConvertTo-Json -Depth 8 | Set-Content $report -Encoding UTF8
             throw "Runtime smoke test did not produce ci-runtime-report.json; diagnostic fallback was written."
           }
           Get-Content $report -Raw
-          if ($code -ne 0) { throw "Runtime smoke process exited with code $code" }
+          Get-Content $hostReport -Raw
+          if ($exitCode -ne 0) { throw "Runtime smoke process exited with code $exitCode" }
           $json=Get-Content $report -Raw | ConvertFrom-Json
           if (-not $json.checks.glbFile.pass) { throw "GLB file check failed." }
           if (-not $json.checks.glbRuntime.pass) { throw "GLB runtime display check failed." }
           if (-not $json.checks.brain.pass) { throw "Agent/brain smoke test failed." }
           if (-not $json.checks.localBrain.pass) { throw "Local Brain smoke test failed." }
           if (-not $json.checks.chat.pass) { throw "Chat/Agent smoke test failed." }
-          if (-not $json.checks.tts.pass) { throw "TTS API smoke test failed." }
-          if (-not $json.checks.ttsResponse.pass) { throw "TTS response-path smoke test failed." }
+          if (-not $json.checks.tts.pass) { throw "TTS API availability smoke test failed." }
+          if (-not $json.checks.micOn.pass) { throw "Microphone ON lifecycle test failed." }
+          if (-not $json.checks.ttsResponse.pass) { throw "TTS response-path test with Mic ON failed." }
+          if (-not $json.checks.ttsMicOff.pass) { throw "TTS/Mic OFF regression test failed." }
           Write-Host "RUNTIME_GLB=PASS"
-          Write-Host "RUNTIME_AGENT=PASS"
+          Write-Host "RUNTIME_AGENT_BRAIN=PASS"
           Write-Host "RUNTIME_LOCAL_BRAIN=PASS"
           Write-Host "RUNTIME_CHAT=PASS"
           Write-Host "RUNTIME_TTS_API=PASS"
-          Write-Host "RUNTIME_TTS_RESPONSE_PATH=PASS"
-          if ($json.checks.micOn.pass) { Write-Host "RUNTIME_MIC_CAPTURE=PASS" } else { Write-Warning "RUNTIME_MIC_CAPTURE=UNAVAILABLE_OR_FAILED; see report." }
+          Write-Host "RUNTIME_MIC_ON=PASS"
+          Write-Host "RUNTIME_TTS_MIC_ON=PASS"
+          Write-Host "RUNTIME_TTS_MIC_OFF=PASS (current expected behavior)"
+          Write-Host "DETAILED_RESOURCE_REPORT=PASS"
 
       - name: Capture final build host CPU and RAM
         shell: powershell
@@ -236,11 +326,13 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
-      - name: Remove CI diagnostic report files from build artifacts
+      - name: Verify detailed CI reports
         shell: powershell
         run: |
-          Remove-Item "dist\\ci-runtime-report.json" -Force -ErrorAction SilentlyContinue
-          Remove-Item "dist\\ci-3d-baseline.json" -Force -ErrorAction SilentlyContinue
+          foreach($p in @("dist\\ci-runtime-report.json","dist\\ci-3d-baseline.json","dist\\ci-host-resource-report.json")) {
+            if (!(Test-Path $p)) { throw "Required CI report missing: $p" }
+            Write-Host "Verified report: $p"
+          }
       - name: Upload verified build
         uses: actions/upload-artifact@v4
         with:
