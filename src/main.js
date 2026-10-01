@@ -218,12 +218,18 @@ async function runCiAnimationSmoke(){
  const writeReport=()=>{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify({...report,finishedAt:new Date().toISOString()},null,2),"utf8")};
  try{
   if(!characterWin||characterWin.isDestroyed())throw new Error("Saeed character window was not created");
-  await new Promise(r=>setTimeout(r,2500));
-  const state=await characterWin.webContents.executeJavaScript('(()=>{const s=window.saeedAvatar?.get3DStatus?.();return {status:s,animations:window.saeedAvatar?.getAnimations?.()||[]};})()',true);
+  const readyDeadline=Date.now()+30000;
+  let state=null;
+  while(Date.now()<readyDeadline){
+   state=await characterWin.webContents.executeJavaScript('(()=>{const s=window.saeedAvatar?.get3DStatus?.();return {status:s,animations:window.saeedAvatar?.getAnimations?.()||[]};})()',true);
+   if(state?.status?.overall?.state==="ready"&&Array.isArray(state?.animations)&&state.animations.length>0)break;
+   await new Promise(r=>setTimeout(r,500));
+  }
   report.checks.characterWindow={pass:true,visible:characterWin.isVisible(),destroyed:characterWin.isDestroyed()};
   report.checks.renderer={pass:Boolean(state?.status?.overall?.state==="ready"),overall:state?.status?.overall||null};
   report.checks.animationsAvailable={pass:Array.isArray(state?.animations)&&state.animations.length>0,names:state?.animations||[]};
-  if(!report.checks.renderer.pass)throw new Error("3D renderer did not reach ready state");
+  if(!report.checks.renderer.pass)throw new Error("3D renderer did not reach ready state within 30 seconds: "+JSON.stringify(state?.status||null));
+  if(!report.checks.animationsAvailable.pass)throw new Error("Saeed GLB contains no animation clips within 30 seconds");
   if(!report.checks.animationsAvailable.pass)throw new Error("Saeed GLB contains no animation clips");
   const candidates=["idle","walk","think","talk","happy"];
   const available=candidates.filter(name=>state.animations.some(x=>String(x).toLowerCase().includes(name)));
