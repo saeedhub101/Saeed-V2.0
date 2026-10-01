@@ -343,6 +343,9 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
+            dist/ci-runtime-report.json
+            dist/ci-3d-baseline.json
+            dist/ci-host-resource-report.json
 
 
       - name: Publish official release
