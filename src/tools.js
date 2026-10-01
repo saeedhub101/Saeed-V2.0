@@ -12,7 +12,7 @@ class ToolRegistry{
  if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info"].includes(name))return "system";
  if(["list_directory","read_file","write_file","reveal_file","inspect_document","extract_pdf_text","read_excel","write_excel"].includes(name))return "files";
  if(["open_application"].includes(name))return "applications";
- if(["network_info","open_url","web_search"].includes(name))return "network";
+ if(["network_info","open_url","web_search","fetch_web_page"].includes(name))return "network";
  if(["screenshot"].includes(name))return "screen";
  if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return "mouseKeyboard";
  if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget"].includes(name))return "tasksMemory";
