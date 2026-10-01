@@ -2,16 +2,32 @@
 const defaults={breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30};
 let policy={...defaults},active=false,nextIdleAt=0,lastEventAt=0,intervalHandle=0;
 const PRIORITY={idle:10,emotion:30,event:60,speaking:80,prayer:100};
+const AUTONOMOUS_IDLE_MS=90_000;
+const AUTONOMOUS_TICK_MS=60_000;
+const AUTONOMOUS_WANDER_CHANCE=0.18;
+const AUTONOMOUS_GESTURE_CHANCE=0.12;
+let lastUserActivity=Date.now(),lastAutonomousAt=0;
 const activeMotion={name:"idle",priority:0,token:0,until:0};
 const merge=s=>{policy={...defaults,...(s?.characterBehavior||{})};window.saeedAvatar?.setBehaviorConfig?.(policy);return policy};
 const idleDelay=()=>{const range=policy.frequency==="rare"?[300000,600000]:policy.frequency==="frequent"?[60000,180000]:[120000,300000];return range[0]+Math.random()*(range[1]-range[0])};
 const has=n=>Boolean(window.saeedAvatar?.hasAnimation?.(n));
 const release=(expectedToken=0)=>{if(expectedToken&&activeMotion.token!==expectedToken)return false;activeMotion.name="idle";activeMotion.priority=0;activeMotion.until=0;window.saeedAvatar?.idle?.();return true};
 const request=(name,priority,duration,run)=>{const now=Date.now();if(activeMotion.priority>priority&&now<activeMotion.until)return false;const token=++activeMotion.token;activeMotion.name=name;activeMotion.priority=priority;activeMotion.until=duration?now+duration:0;const ok=run();if(!ok){release(token);return false}if(duration)setTimeout(()=>release(token),duration+120);return true};
-const chooseIdle=()=>{if(!active||!policy.idle&&!policy.random)return;if(Date.now()<nextIdleAt)return;const options=[];if(policy.walking&&has("walk"))options.push("walk");if(policy.greeting&&has("wave"))options.push("wave");if(policy.dancing&&has("dance"))options.push("dance");if(policy.idle&&policy.random)options.push("idle");if(!options.length){nextIdleAt=Date.now()+idleDelay();return}const pick=options[Math.floor(Math.random()*options.length)];if(pick==="walk")request("walk",PRIORITY.idle,1600,()=>window.saeedAvatar?.move?.(Math.random()<.5?"left":"right",1600));else if(pick==="wave")request("wave",PRIORITY.idle,1400,()=>window.saeedAvatar?.gesture?.("wave"));else if(pick==="dance")request("dance",PRIORITY.idle,2600,()=>window.saeedAvatar?.play?.("dance",{loop:false}));else request("idle",PRIORITY.idle,900,()=>window.saeedAvatar?.idle?.());nextIdleAt=Date.now()+idleDelay()};
+const markUserActivity=()=>{lastUserActivity=Date.now();nextIdleAt=Math.max(nextIdleAt,lastUserActivity+idleDelay())};
+const chooseIdle=()=>{if(!active||!policy.idle&&!policy.random)return;const now=Date.now();if(now-lastUserActivity<AUTONOMOUS_IDLE_MS)return;if(activeMotion.priority>=PRIORITY.speaking)return;if(now<nextIdleAt)return;const options=[];if(policy.walking&&has("walk"))options.push("walk");if(policy.greeting&&has("wave"))options.push("wave");if(policy.dancing&&has("dance"))options.push("dance");if(policy.idle&&policy.random)options.push("idle");if(!options.length){nextIdleAt=Date.now()+idleDelay();return}const autonomousPick=Math.random();let pick;
+if(autonomousPick<AUTONOMOUS_WANDER_CHANCE&&policy.walking&&has("walk"))pick="walk";
+else if(autonomousPick<AUTONOMOUS_WANDER_CHANCE+AUTONOMOUS_GESTURE_CHANCE){const gestures=["wave","happy","acknowledge","pleased","gestureup","gestureleft","gestureright","lookup","lookdown"];const available=gestures.filter(has);pick=available.length?available[Math.floor(Math.random()*available.length)]:"idle";}
+else pick="idle";
+if(pick==="walk")request("walk",PRIORITY.idle,1600,()=>window.saeedAvatar?.move?.(Math.random()<.5?"left":"right",1600));
+else if(pick!=="idle")request(pick,PRIORITY.idle,1400,()=>window.saeedAvatar?.gesture?.(pick));
+else request("idle",PRIORITY.idle,900,()=>window.saeedAvatar?.idle?.());
+lastAutonomousAt=now;nextIdleAt=now+idleDelay();
+if(pick!=="idle"&&typeof window.saeedCharacterVoice?.autonomousSpeak==="function"&&Math.random()<0.25)window.saeedCharacterVoice.autonomousSpeak(pick);};
 const trigger=type=>{const t=typeof type==="object"?String(type?.type||""):String(type||"");const key=t.toLowerCase();if(key==="settings"){return refresh()};if(!active||!policy.events)return false;const now=Date.now();if(now-lastEventAt<Math.max(5,Number(policy.eventCooldownSec)||30)*1000&&key!=="speech-start"&&key!=="speech-end")return false;lastEventAt=now;if(key==="speech-start")return request("speaking",PRIORITY.speaking,0,()=>window.saeedAvatar?.talk?.());if(key==="speech-end"){activeMotion.priority=0;activeMotion.until=0;nextIdleAt=Date.now()+idleDelay();return window.saeedAvatar?.idle?.()??false}if(key==="prayer")return request("prayer",PRIORITY.prayer,3000,()=>window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy"));if(key==="greeting")return request("greeting",PRIORITY.event,1400,()=>window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy"));if(key==="notification"||key==="answer")return request("event",PRIORITY.event,1200,()=>window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy"));return false};
-async function refresh(){try{merge(await window.saeed.getSettings());active=true;nextIdleAt=Date.now()+idleDelay();if(!intervalHandle)intervalHandle=setInterval(chooseIdle,15000);return true}catch{active=false;return false}}
-window.saeedCharacterBehavior={trigger,refresh,getState:()=>({...activeMotion,policy:{...policy}})};
+async function refresh(){try{merge(await window.saeed.getSettings());active=true;markUserActivity();if(!intervalHandle)intervalHandle=setInterval(chooseIdle,AUTONOMOUS_TICK_MS);return true}catch{active=false;return false}}
+window.saeedCharacterBehavior={trigger,refresh,markUserActivity,getState:()=>({...activeMotion,policy:{...policy},idleMs:Math.max(0,Date.now()-lastUserActivity),lastAutonomousAt})};
 window.saeed.onCharacterBehavior?.(e=>{if(e==="settings"||e?.type==="settings")refresh();else trigger(e)});
+["pointerdown","pointermove","keydown","wheel"].forEach(type=>window.addEventListener(type,markUserActivity,{passive:true}));
+window.saeed.onEvent?.(()=>markUserActivity());
 window.addEventListener("load",refresh);
 })();
