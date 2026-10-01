@@ -135,7 +135,7 @@ jobs:
           Write-Host "HOST_RAM_FREE_GB=$free"
 
       - name: Build Windows installer
-        run: npm run build
+        run: npm run dist
 
       - name: Isolated 3D static-image baseline
         shell: powershell
