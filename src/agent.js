@@ -93,7 +93,7 @@ class Agent{
    this.onEvent({type:"thinking",step});
    const d=this.providerDefaults(s.provider),base=(s.baseUrl||d.baseUrl||"http://localhost:11434/v1").replace(/\/$/,"");
    const headers={"Content-Type":"application/json"};if(s.apiKey)headers.Authorization="Bearer "+s.apiKey;
-   const body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto",temperature:.1};
+   const body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto"};
    let r;
    try{r=await fetch(base+"/chat/completions",{method:"POST",headers,body:JSON.stringify(body)})}
    catch(e){const answer="I could not reach the API brain. Please check your API key and connection in Settings.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});this.onEvent({type:"answer",text:answer,source:"api-error"});return answer}
