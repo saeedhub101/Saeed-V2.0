@@ -208,9 +208,9 @@ jobs:
           function Get-HostSample([int]$RootPid,[string]$Label) {
             $pids=@(Get-DescendantPids $RootPid)
             $procs=@()
-            foreach($pid in $pids) {
+            foreach($procId in $pids) {
               try {
-                $p=Get-Process -Id $pid -ErrorAction Stop
+                $p=Get-Process -Id $procId -ErrorAction Stop
                 $procs += [pscustomobject]@{
                   pid=$p.Id; name=$p.ProcessName
                   cpuSec=[math]::Round($p.CPU,3)
