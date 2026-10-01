@@ -67,6 +67,25 @@ jobs:
       - name: Static JavaScript validation
         run: npm test
 
+      - name: Comprehensive source validation
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $js = @(Get-ChildItem "src" -Recurse -Filter "*.js" -File)
+          if ($js.Count -eq 0) { throw "No JavaScript source files found." }
+          foreach($file in $js) {
+            node --check $file.FullName
+            if($LASTEXITCODE -ne 0){ throw "JavaScript syntax validation failed: $($file.FullName)" }
+          }
+          $html = @(Get-ChildItem "src" -Recurse -Filter "*.html" -File)
+          $css = @(Get-ChildItem "src" -Recurse -Filter "*.css" -File)
+          Write-Host "Validated JS files: $($js.Count)"
+          Write-Host "HTML files present: $($html.Count)"
+          Write-Host "CSS files present: $($css.Count)"
+          $pkg=Get-Content "package.json" -Raw|ConvertFrom-Json
+          foreach($dep in @($pkg.dependencies.PSObject.Properties.Name+$pkg.devDependencies.PSObject.Properties.Name)){if(-not(Test-Path "node_modules\\$dep")){throw "Installed dependency missing: $dep"}}
+          npm ls --depth=0
+
       - name: Prepare native Windows icon
         shell: pwsh
         run: |
@@ -136,6 +155,26 @@ jobs:
 
       - name: Build Windows installer
         run: npm run dist
+
+      - name: Verify packaged runtime assets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = Join-Path $PWD "dist\\win-unpacked"
+          $required = @(
+            "Saeed AI.exe",
+            "resources\\app.asar",
+            "resources\\whisper\\whisper-cli.exe",
+            "resources\\whisper\\ggml-base-q5_1.bin"
+          )
+          foreach($rel in $required){$p=Join-Path $root $rel;if(!(Test-Path $p -PathType Leaf)){throw "Packaged runtime asset missing: $p";}}
+          $model=Get-Item (Join-Path $root "resources\\whisper\\ggml-base-q5_1.bin")
+          if($model.Length -lt 50000000){throw "Packaged Whisper model is unexpectedly small: $($model.Length) bytes"}
+          & (Join-Path $root "resources\\whisper\\whisper-cli.exe") --help | Out-File (Join-Path $env:RUNNER_TEMP "packaged-whisper-help.txt")
+          if($LASTEXITCODE -ne 0){throw "Packaged Whisper executable failed startup/help check."}
+          Write-Host "PACKAGED_APP_ASAR=PASS"
+          Write-Host "PACKAGED_WHISPER_EXE=PASS"
+          Write-Host "PACKAGED_WHISPER_MODEL=PASS"
 
       - name: Isolated 3D static-image baseline
         shell: powershell
