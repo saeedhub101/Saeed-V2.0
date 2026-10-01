@@ -193,6 +193,7 @@ window.saeedAvatar={
  
  stop(){if(moveTimer){clearTimeout(moveTimer);moveTimer=null}avatarState="idle";return playAnimation("idle")},
   setMood(mood){root.rotation.z=0;root.scale.setScalar(mood==="excited"?1.04:mood==="sad"?.97:1);if(mood==="alert")root.rotation.z=.02},
+ setBehaviorConfig(config){behaviorConfig={...behaviorConfig,...(config||{})};return {...behaviorConfig}},
  play(name,options){return playAnimation(name,options)},
  hasAnimation(name){return Boolean(findClip(name))},
  getAnimations(){return clips.map(c=>c.name)},
