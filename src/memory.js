@@ -6,7 +6,7 @@ class Memory{
   if(!Array.isArray(this.data))this.data=[];
  }
  save(){fs.mkdirSync(path.dirname(this.file),{recursive:true});fs.writeFileSync(this.file,JSON.stringify(this.data,null,2),"utf8")}
- add(text,tags=[]){this.data.push({id:Date.now().toString(),text:String(text),tags:Array.isArray(tags)?tags:[],created:new Date().toISOString()});this.save();return this.data.at(-1)}
- search(q){const words=String(q||"").toLowerCase().split(/\s+/).filter(Boolean);if(!words.length)return[];return this.data.filter(x=>words.some(w=>(String(x.text)+" "+(Array.isArray(x.tags)?x.tags.join(" "):"")).toLowerCase().includes(w))).slice(-20)}
+ add(text,tags=[]){const value=String(text||"").trim();if(!value)return null;const existing=this.search(value).find(x=>x.text.toLowerCase()===value.toLowerCase());if(existing)return existing;const item={id:Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,6),text:value,tags:Array.isArray(tags)?tags.map(String):[],created:new Date().toISOString(),updated:new Date().toISOString()};this.data.push(item);this.save();return item}
+ search(q){const raw=String(q||"").trim().toLowerCase(),words=raw.split(/\s+/).filter(w=>w.length>1);if(!words.length)return[];return this.data.map(x=>{const hay=(String(x.text)+" "+(Array.isArray(x.tags)?x.tags.join(" "):"")).toLowerCase();const score=words.reduce((n,w)=>n+(hay.includes(w)?1:0),0)+(raw&&hay.includes(raw)?2:0);return{...x,_score:score}}).filter(x=>x._score>0).sort((a,b)=>(b._score-a._score)||String(b.updated||b.created).localeCompare(String(a.updated||a.created))).slice(0,20).map(({_score,...x})=>x)}
 }
 module.exports={Memory};
