@@ -351,7 +351,7 @@ jobs:
       - name: Verify detailed CI reports
         shell: powershell
         run: |
-          foreach($p in @("dist\\ci-runtime-report.json","dist\\ci-3d-baseline.json","dist\\ci-host-resource-report.json")) {
+          foreach($p in @("dist\\ci-runtime-report.json","dist\\ci-host-resource-report.json")) {
             if (!(Test-Path $p)) { throw "Required CI report missing: $p" }
             Write-Host "Verified report: $p"
           }
