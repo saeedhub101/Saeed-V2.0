@@ -39,7 +39,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  window.saeed.onRealtimeUserFinal(async t=>{if(t){const clean=cleanText(t);if(!clean)return;report("INFO","STT RECEIVE TEXT","Realtime speech received",{text:clean});if(!micEnabled)return;try{window.saeedAvatar?.setState?.("think");await window.saeed.chat(clean)}catch(e){report("ERROR","BRAIN ROUTER","Realtime transcript could not reach the brain: "+e.message)}}});
  window.saeed.onRealtimeError(e=>report("ERROR","REALTIME API ERROR",String(e)));
  window.saeed.onLocalSttState((state,message)=>{report(state==="error"?"ERROR":"INFO","LOCAL STT STATE",String(message||state));if(state==="error")window.saeedAvatar?.setState?.("alert")});
- window.saeed.onEvent(async e=>{if(e?.type==="thinking")window.saeedAvatar?.setState?.("think");if(e?.type==="answer"&&e.text){try{const cfg=await window.saeed.getSettings();if(cfg?.speakResponses===false)return}catch{}window.saeedAvatar?.setState?.("talk");window.saeedAvatar?.nod?.();speak(e.text)}});
+ window.saeed.onEvent(e=>{if(e?.type==="thinking")window.saeedAvatar?.setState?.("think");if(e?.type==="answer"&&e.text){window.saeedAvatar?.setState?.("talk");window.saeedAvatar?.nod?.();speak(e.text)}});
  window.addEventListener("load",async()=>{refreshRmsSettings();try{const cfg=await window.saeed.getSettings();report("INFO","VOICE READY","Voice control is user-activated; microphone starts only after an explicit Mic ON action",{micMode:cfg?.micMode||"off"})}catch(e){report("ERROR","VOICE STARTUP",e.message)}});
 })();
 
