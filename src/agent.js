@@ -88,7 +88,8 @@ class Agent{
    const answer="This request needs the API brain. Please connect an API key in Settings.";
    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"api-missing"});return answer;
   }
-  this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN API",message:"API brain selected: "+String(s.provider||"openai")+" / "+String(s.model||this.providerDefaults(s.provider).model||"unknown"),meta:{provider:String(s.provider||"openai"),model:String(s.model||this.providerDefaults(s.provider).model||"unknown"),endpoint:String(s.baseUrl||this.providerDefaults(s.provider).baseUrl||"")}});\n  const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
+  this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN API",message:"API brain selected: "+String(s.provider||"openai")+" / "+String(s.model||this.providerDefaults(s.provider).model||"unknown"),meta:{provider:String(s.provider||"openai"),model:String(s.model||this.providerDefaults(s.provider).model||"unknown"),endpoint:String(s.baseUrl||this.providerDefaults(s.provider).baseUrl||"")}});
+  const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Prefer native structured document/office tools (inspect_document, extract_pdf_text, read_excel, write_excel) before GUI automation whenever the task involves PDFs, spreadsheets, or document content. Use GUI automation only when a native tool cannot complete the requested action. Never claim success without evidence. Follow the Permissions settings exactly: Allow executes, Deny blocks, and Always ask requests approval. Do not impose any hidden permission rules. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."},...this.history.slice(-30),{role:"user",content:userContent}];
   const sessionId=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION START",message:"Tool session started",meta:{sessionId}});
   const isAnthropic=String(s.provider||"").toLowerCase()==="anthropic";
@@ -121,7 +122,8 @@ class Agent{
    const responseText=await r.text();
    if(!r.ok){
     let detail="";try{const j=JSON.parse(responseText);detail=j?.error?.message||j?.error?.type||""}catch{}
-    const transient=r.status===408||r.status===409||r.status===425||r.status===429||r.status>=500;\n    const answer=r.status===401||r.status===403?"The API brain rejected the API key. Please check or connect your API key in Settings.":transient?"The API provider is temporarily unavailable. Please try again.":"The API brain returned an error. Please check your API connection in Settings.";
+    const transient=r.status===408||r.status===409||r.status===425||r.status===429||r.status>=500;
+    const answer=r.status===401||r.status===403?"The API brain rejected the API key. Please check or connect your API key in Settings.":transient?"The API provider is temporarily unavailable. Please try again.":"The API brain returned an error. Please check your API connection in Settings.";
     this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"+(detail?": "+detail:"")});
     this.onEvent({type:"answer",text:answer,source:"api-http-error"});return answer
    }
@@ -160,7 +162,8 @@ class Agent{
     }else messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify(out)});
    }
   }
-  this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT STEP LIMIT",message:"Agent reached the safe execution step limit",meta:{maxSteps:Number(s.maxSteps)||32}});\n  const answer="I reached the safe execution limit before completing the task. The completed steps were preserved; you can ask me to continue.";this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Tool session reached its safe step limit",meta:{sessionId}});
+  this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT STEP LIMIT",message:"Agent reached the safe execution step limit",meta:{maxSteps:Number(s.maxSteps)||32}});
+  const answer="I reached the safe execution limit before completing the task. The completed steps were preserved; you can ask me to continue.";this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Tool session reached its safe step limit",meta:{sessionId}});
   this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();return answer;
  }
 }
