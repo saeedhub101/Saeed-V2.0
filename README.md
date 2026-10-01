@@ -17,6 +17,8 @@ Saeed AI is a Windows desktop AI companion and computer agent built as one Elect
 - Local speech input: bundled Whisper CLI/model built by CI and invoked by src/main.js.
 - Voice lifecycle: src/character-voice.js.
 - Main process and IPC: src/main.js and src/preload.js.
+- Autonomous brain boundary: src/autonomous/brain-supervisor.js, default-brain.js, context.js, tasks.js, and feelings.js.
+- Character behavior layers: src/character-animation-controller.js, character-interaction.js, and character-feelings.js.
 
 Old C++/Win32, C# desktop, Tauri/WebView2, duplicate character runtimes, and obsolete 3D reload-test APIs are not part of the current architecture.
 
@@ -131,7 +133,7 @@ Normal push and manual test builds do not create a GitHub Release. Release publi
 
 VERSION is the authoritative release version in MAJOR.MINOR form.
 
-The current product version is 3.3 and the Windows package/build version is 3.3.0.
+The current product version is 3.9 and the Windows package/build version is 3.9.0.
 
 A GitHub Actions build number is a CI run number, not a product release version.
 
@@ -224,6 +226,12 @@ Saeed-V2.0/
 │   ├── character.html             # Character window
 │   ├── character-controls.js      # Character interaction/window controls
 │   ├── character-voice.js         # Character voice lifecycle
+│   ├── autonomous/                # Separate autonomous behavior system
+│   │   ├── brain-supervisor.js    # Controller selection/lifecycle
+│   │   ├── default-brain.js       # Lightweight idle decision scheduler
+│   │   ├── context.js             # Brain capability boundary
+│   │   ├── tasks.js               # Existing task-store adapter
+│   │   └── feelings.js            # Persistent mood adapter
 │   ├── status.*                   # General runtime status
 │   ├── performance.*              # Performance/resource monitoring
 │   ├── 3d-status.*                # 3D renderer diagnostics
