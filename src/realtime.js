@@ -12,6 +12,7 @@ class OpenAIRealtime {
     this.stopped = true;
     this.retryTimer = null;
     this.retryMs = 3000;
+    this.voiceRouting = "controller";
   }
 
   start(key, options = {}) {
@@ -20,6 +21,7 @@ class OpenAIRealtime {
     this.voice = options.voice || "marin";
     this.instructions = options.instructions || this.instructions;
     this.tools = Array.isArray(options.tools) ? options.tools : [];
+    this.voiceRouting = options.voiceRouting === "direct" ? "direct" : "controller";
     this.stopped = false;
     this.clearRetry();
     this.connect();
@@ -100,7 +102,7 @@ class OpenAIRealtime {
                 type:"semantic_vad",
                 eagerness:"high",
                 interrupt_response:true,
-                create_response:false
+                create_response:this.voiceRouting==="direct"
               }
             },
             output:{format:{type:"audio/pcm", rate:24000}, voice:this.voice}
