@@ -103,7 +103,7 @@ Diagnostic events are not broadcast indiscriminately to every renderer.
 
 Application resource monitoring uses a centralized Electron application-metrics collection path so different monitoring features do not repeatedly collect the same metrics independently.
 
-CI diagnostic reports are temporary verification files and are removed before build artifacts are uploaded.
+CI diagnostic reports are preserved with the verified build artifact so CPU, RAM, process, GPU, disk, network, brain, voice, STT/TTS and 3D verification results can be inspected after the build.
 
 ## Updates
 
@@ -369,3 +369,13 @@ If an existing capability already has an authoritative file, **modify that file 
 13. Preserve working Chat/API/voice behavior when making unrelated 3D or performance changes.
 14. Keep CI diagnostic reports temporary and remove them before artifacts are uploaded.
 15. Treat the current source tree, package configuration, workflow, VERSION, and this README as the authoritative project description.
+
+
+## Release 3.10
+
+- Organized character right-click controls into compact Voice, Character, Diagnostics, and Updates/Settings submenus.
+- Added grouped Windows taskbar Jump List actions for Chat, Performance, Settings, microphone, character size, Status, and 3D Status.
+- Added live Performance resource breakdown by Electron process, including CPU, Working Set, Private Memory and process count.
+- Added a live Diagnostics panel for Mic, Brain API, Local Brain, Whisper/STT, TTS, GLB, CPU and 3D state.
+- Added microphone mode control to Settings and Performance.
+- Preserved local Whisper/STT and existing TTS behavior.
