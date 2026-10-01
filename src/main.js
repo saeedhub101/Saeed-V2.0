@@ -292,6 +292,7 @@ ipcMain.handle("settings:set",(_,s)=>{
  return agent.publicSettings();
 });
 ipcMain.handle("realtime:start",(_,options={})=>{startRealtime(options);return true});
+ipcMain.handle("api:clear-all",async()=>{if(agent){agent.settings={...agent.settings,apiKey:"",sttApiKey:"",ttsApiKey:"",realtimeApiKey:"",realtimeEnabled:false,micMode:"off"};agent.persistSettings()}try{stopRealtime()}catch{}currentMicMode="off";diagnostic("INFO","API RESET","All stored API keys cleared and Realtime disabled");return agent?.publicSettings()||null});
 ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
 ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
 ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
@@ -408,7 +409,7 @@ function startRealtime(options={}){
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
   }
  });
- realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools});
+ realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:s.voiceRouting||"controller"});
  return true;
 }
 ipcMain.on("window:move-by",(_,dx,dy)=>{
