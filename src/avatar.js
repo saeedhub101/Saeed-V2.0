@@ -159,7 +159,7 @@ function move(direction="forward",duration=1200){
  const d=String(direction).toLowerCase();
  moveDirection=(d==="left"||d==="backward"||d==="back")?-1:1;
  smoothTurnTo(d==="left"?-Math.PI/2:d==="right"?Math.PI/2:d==="backward"||d==="back"?Math.PI:bodyYawTarget);
- playAnimation("walk");
+ playAnimation("walk");wakeRender(Number(duration)||1200);
  const ms=Math.max(150,Number(duration)||1200);moveEnd=performance.now()+ms;
  if(moveTimer)clearTimeout(moveTimer);
  moveTimer=setTimeout(()=>{moveTimer=null;avatarState="idle";playAnimation("idle")},ms);
@@ -168,7 +168,7 @@ function move(direction="forward",duration=1200){
 function gesture(name="happy"){
  if(gestureTimer)clearTimeout(gestureTimer);
  const ok=playAnimation(name,{loop:false,crossFade:.15});
- gestureTimer=setTimeout(()=>playAnimation(avatarState==="talk"?"talk":"idle"),1200);return ok;
+ gestureTimer=setTimeout(()=>{playAnimation(avatarState==="talk"?"talk":"idle");wakeRender(250)},1200);wakeRender(1250);return ok;
 }
 function lookAt(x=0,y=1.5,z=1){
  lookTarget.set(Number(x)||0,Number(y)||1.5,Number(z)||1);
@@ -182,9 +182,10 @@ function turn(direction){
  smoothTurnTo(yaw);return true;
 }
 function nod(){
+ wakeRender(300);
  const head=bones.get("head"),baseBone=boneBase.get("head");
- if(head&&baseBone){head.rotation.x=baseBone.x+.12;setTimeout(()=>head.rotation.set(baseBone.x,baseBone.y,baseBone.z),180);return true;}
- const baseRoot=root.rotation.x;root.rotation.x=baseRoot+.12;setTimeout(()=>root.rotation.x=baseRoot,180);return true;
+ if(head&&baseBone){head.rotation.x=baseBone.x+.12;setTimeout(()=>{head.rotation.set(baseBone.x,baseBone.y,baseBone.z);wakeRender(120)},180);return true;}
+ const baseRoot=root.rotation.x;root.rotation.x=baseRoot+.12;setTimeout(()=>{root.rotation.x=baseRoot;wakeRender(120)},180);return true;
 }
 window.saeedAvatar={
  setState,move,turn,gesture,lookAt,nod,
@@ -196,12 +197,14 @@ window.saeedAvatar={
  hasAnimation(name){return Boolean(findClip(name))},
  getAnimations(){return clips.map(c=>c.name)},
  getBones(){return Object.fromEntries([...bones].map(([k,b])=>[k,b.name]))},
- walk(){return playAnimation("walk")},idle(){return playAnimation("idle")},talk(){return playAnimation("talk")},think(){return playAnimation("think")},
+ walk(){const ok=playAnimation("walk");wakeRender(1200);return ok},idle(){return playAnimation("idle")},talk(){const ok=playAnimation("talk");wakeRender(1200);return ok},think(){const ok=playAnimation("think");wakeRender(1200);return ok},
  setViseme,playVisemeTimeline,resetVisemes,setExpression,blink,setMorph,
  getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
 };
 
-let renderLoopStarted=false,lastRenderTime=0,rendererActive=true;
+let renderLoopStarted=false,lastRenderTime=0,rendererActive=true,renderFrameId=0,renderUntil=0;
+function wakeRender(ms=1200){const until=performance.now()+Math.max(80,Number(ms)||1200);renderUntil=Math.max(renderUntil,until);if(!renderFrameId&&!document.hidden)renderFrameId=requestAnimationFrame(renderFrame)}
+function renderFrame(){renderFrameId=0;if(document.hidden||!rendererActive)return;if(performance.now()<=renderUntil){renderNow("active-behavior");if(performance.now()<=renderUntil&&!document.hidden&&rendererActive)renderFrameId=requestAnimationFrame(renderFrame)}}
 function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.min(4096,r.width)),h=Math.max(1,Math.min(4096,r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);renderNow("resize");}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}}try{new ResizeObserver(resize).observe(canvas);resize();}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}
 
 function renderNow(reason="on-demand"){
@@ -243,5 +246,5 @@ function renderNow(reason="on-demand"){
   return false;
  }
 }
-function syncRendererVisibility(){rendererActive=!document.hidden}
+function syncRendererVisibility(){rendererActive=!document.hidden;if(rendererActive&&performance.now()<renderUntil&&!renderFrameId)renderFrameId=requestAnimationFrame(renderFrame);else if(!rendererActive&&renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}
 document.addEventListener("visibilitychange",syncRendererVisibility);
