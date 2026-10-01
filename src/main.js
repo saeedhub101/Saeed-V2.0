@@ -288,7 +288,7 @@ async function runCiRuntimeSmoke(){
  const target=process.env.SAEED_CI_REPORT||path.join(process.cwd(),"dist","ci-runtime-report.json");
  try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8");console.log("SAEED_CI_REPORT_PATH",target)}catch(e){console.error("CI report write failed:",e.message)}
  console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,glbFile:report.checks?.glbFile?.pass,startedAt:report.startedAt,finishedAt:report.finishedAt}));
- stopResourceProbe();setTimeout(()=>app.exit(0),250);
+ stopResourceProbe();setTimeout(()=>process.exit(0),250);
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
