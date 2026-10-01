@@ -157,12 +157,15 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $log = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.log"
-          $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", "." -PassThru -RedirectStandardOutput $log -RedirectStandardError $log
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.stderr.log"
+          $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", "." -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           try {
             Start-Sleep -Seconds 12
             if ($proc.HasExited) {
-              $output = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+              $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+              $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+              $output = "$outText`n$errText"
               throw "Application smoke test failed: Electron exited early with code $($proc.ExitCode). $output"
             }
             Write-Host "PRE_BUILD_APPLICATION_SMOKE=PASS"
