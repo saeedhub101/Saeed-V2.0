@@ -1,5 +1,5 @@
 const documents=require("./document-tools");
-const office=require("./office-tools");
+const office=require("./office-tools");\nconst browser=require("./browser-tools");
 
 function schemas(){
   return [
@@ -14,7 +14,7 @@ async function call(name,args){
   if(name==="inspect_document")return documents.inspectDocument(args.filePath);
   if(name==="extract_pdf_text")return documents.extractPdf(args.filePath);
   if(name==="read_excel")return office.readSpreadsheet(args.filePath,args.sheetName||"");
-  if(name==="write_excel")return office.writeSpreadsheet(args.filePath,args.rows,args.sheetName||"Sheet1",Boolean(args.append));
+  if(name==="write_excel")return office.writeSpreadsheet(args.filePath,args.rows,args.sheetName||"Sheet1",Boolean(args.append));\n  if(name==="fetch_web_page")return browser.fetchPage(args.url);
   return {ok:false,error:"Unknown document/office tool: "+name};
 }
 
