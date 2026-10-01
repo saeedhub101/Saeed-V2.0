@@ -287,7 +287,8 @@ ipcMain.handle("settings:set",(_,s)=>{
  
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(Object.prototype.hasOwnProperty.call(s||{},"characterBehavior"))characterWin?.webContents.send("character:behavior","settings");
- if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});\n if(brainSupervisor)void brainSupervisor.refresh?.();
+ if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});
+ if(brainSupervisor)void brainSupervisor.refresh?.();
  diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
  return agent.publicSettings();
 });
