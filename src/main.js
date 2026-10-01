@@ -91,7 +91,7 @@ function trayIcon(){
 app.setAppUserModelId("ai.saeed.desktop");
 const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
-else if(!ciSmoke)app.on("second-instance",()=>{diagnostic("INFO","SECOND INSTANCE","Saeed is already running; keeping the existing instance and window state unchanged");});
+else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 let updateState="idle",updateUiRequested=false,updateStatusWin=null,updateInfo=null;
 let resourceProbeTimer=null;
 const resourceProbeSamples=[];
@@ -140,7 +140,9 @@ function chooseCharacter(){dialog.showOpenDialog(characterWin||chatWin,{title:"C
 function whisperRuntimePaths(){const root=app.isPackaged?process.resourcesPath:path.join(__dirname,"..","build");return{exe:path.join(root,"whisper","whisper-cli.exe"),model:path.join(root,"whisper","ggml-base-q5_1.bin")}}
 function voiceBroadcast(channel,...args){for(const win of [characterWin,chatWin]){if(win&&!win.isDestroyed())win.webContents.send(channel,...args)}}
 let currentMicMode="off";
-function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"3D Status",click:show3DStatus},{label:"Status",click:showStatus},{label:"Hide Saeed",click:()=>characterWin?.hide()},{type:"separator"},{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")},{label:"Change Character (GLB)",click:chooseCharacter},{label:"Check for Updates",click:async()=>{if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");await autoUpdater.checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}},{label:"Performance",click:showPerformance},{label:"Settings",click:showSettings},{label:"Saeed Size",submenu:[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}]))}
+function updateNow(){if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");void autoUpdater.checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}
+function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
+function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:()=>characterWin?.hide()}]},{label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")}]},{label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},{label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},{label:"Updates",submenu:[{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},{type:"separator"},{label:"Quit",click:()=>app.quit()}]))}
 async function setMicMode(mode,fromUser=false){
  const value=String(mode||"off")==="on"?"on":"off";
  if(value==="on"){
@@ -169,12 +171,11 @@ async function setMicMode(mode,fromUser=false){
 function setSaeedSize(size){const m={small:[300,360],medium:[430,520],large:[560,660]};const key=Object.prototype.hasOwnProperty.call(m,size)?size:"medium";const v=m[key];if(characterWin&&!characterWin.isDestroyed()){const d=displayForWindow();const a=d.workArea;const margin=18;const [oldX,oldY]=characterWin.getPosition();const [oldW,oldH]=characterWin.getSize();const oldRight=oldX+oldW,oldBottom=oldY+oldH;const x=Math.max(a.x,Math.min(oldRight-v[0],a.x+a.width-v[0]-margin));const y=Math.max(a.y,Math.min(oldBottom-v[1],a.y+a.height-v[1]-margin));characterWin.setMinimumSize(300,360);characterWin.setMaximumSize(900,900);characterWin.setResizable(true);characterWin.setSize(v[0],v[1],false);characterWin.setPosition(Math.round(x),Math.round(y),false);characterWin.webContents.send("character:size",key)}if(agent){agent.settings={...agent.settings,characterSize:key};agent.persistSettings()}}
 function contextMenu(){
  const menu=Menu.buildFromTemplate([
-  {label:"Chat Me",click:showChat},
-  {label:"3D Status",click:show3DStatus},
-  {label:"Hide Saeed",click:()=>characterWin?.hide()},
-  {type:"separator"},
-  {label:"Change Character (GLB)",click:chooseCharacter},
-  {label:"Performance",click:showPerformance},
+  {label:"Saeed",submenu:[{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:()=>characterWin?.hide()}]},
+  {label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")}]},
+  {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},
+  {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
+  {label:"Updates & Settings",submenu:[{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},
   {type:"separator"},{label:"Quit",click:()=>app.quit()}
  ]);
  menu.popup({window:characterWin});
@@ -190,6 +191,7 @@ async function createChatWindow(){
  await chatWin.loadFile(path.join(__dirname,"index.html"));
  return chatWin;
 }
+function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
 async function createWindow(){
  await createCharacterWindow();
  if(ciSmoke&&process.env.SAEED_CI_3D_OFF==="1")setTimeout(()=>void runCi3DBaseline(),800);
@@ -257,9 +259,9 @@ async function runCiRuntimeSmoke(){
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
- if(process.platform==="win32")app.setUserTasks([{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open live 3D renderer and GLB status"}]);
+ if(process.platform==="win32"){app.setJumpList([{type:"tasks",items:[{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--performance",iconPath:windowsIconPath(),iconIndex:0,title:"Performance",description:"Open Saeed Performance"},{program:process.execPath,arguments:"--settings",iconPath:windowsIconPath(),iconIndex:0,title:"Settings",description:"Open Saeed Settings"},{program:process.execPath,arguments:"--mic-on",iconPath:windowsIconPath(),iconIndex:0,title:"Mic ON",description:"Enable Saeed microphone"},{program:process.execPath,arguments:"--mic-off",iconPath:windowsIconPath(),iconIndex:0,title:"Mic OFF",description:"Disable Saeed microphone"}]},{type:"custom",name:"Character",items:[{program:process.execPath,arguments:"--size-small",iconPath:windowsIconPath(),iconIndex:0,title:"Small",description:"Set character size to Small"},{program:process.execPath,arguments:"--size-medium",iconPath:windowsIconPath(),iconIndex:0,title:"Medium",description:"Set character size to Medium"},{program:process.execPath,arguments:"--size-large",iconPath:windowsIconPath(),iconIndex:0,title:"Large",description:"Set character size to Large"}]},{type:"custom",name:"Diagnostics",items:[{program:process.execPath,arguments:"--status",iconPath:windowsIconPath(),iconIndex:0,title:"Status",description:"Open live Saeed status"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open 3D renderer status"}]}]);}
  try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off",brainMode:"auto"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
- if(process.argv.includes("--3d-status"))show3DStatus(); else if(process.argv.includes("--chat"))void showChat();
+ if(process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
  if(ciSmoke)void runCiRuntimeSmoke();
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
