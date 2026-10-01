@@ -148,6 +148,7 @@ class Agent{
     }
     this.onEvent({type:"tool",name:c.function.name,args:a});
     let out;try{out=await this.registry.call(c.function.name,a)}catch(e){out={ok:false,error:e.message}}
+    if(out?.ok===false&&["web_search","fetch_web_page","network_info","read_file","inspect_document","extract_pdf_text","read_excel"].includes(c.function.name)){this.onEvent({type:"diagnostic",level:"INFO",stage:"TOOL RETRY",message:"Retrying safe read/network tool after failure",meta:{tool:c.function.name}});try{const retry=await this.registry.call(c.function.name,a);if(retry?.ok!==false)out=retry}catch{}}
     if(out?.ok===false)this.onEvent({type:"tool_error",name:c.function.name,error:out.error||"Tool failed"});
     else this.onEvent({type:"tool_result",name:c.function.name,result:out});
     if(isAnthropic){
