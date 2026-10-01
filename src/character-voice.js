@@ -28,7 +28,6 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  mic=new RealtimeMic();
  let rmsSettingsTimer=null;
  async function refreshRmsSettings(){try{const s=await window.saeed.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(s?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.09))}catch{}}
- window.saeedCharacterVoice={speakAutonomous:text=>speak(text)};
  window.saeed.onCharacterBehavior?.(e=>{if(e?.type==="idle-thought"&&e.text)speak(e.text)});
  window.saeed.onMicMode(async mode=>{const m=String(mode||"off");micEnabled=m==="on";try{if(m==="off"){mic.stop();if(rmsSettingsTimer){clearInterval(rmsSettingsTimer);rmsSettingsTimer=null}return}const cfg=await window.saeed.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(cfg?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(cfg?.micSpeechRms)||0.09));if(!rmsSettingsTimer)rmsSettingsTimer=setInterval(refreshRmsSettings,1000);const realtime=cfg?.sttProvider!=="whisper";if(realtime)await window.saeed.startRealtime?.();await mic.start("on",realtime)}catch(e){report("ERROR","MIC START FAILURE",e.message,{mode:m});if(m==="on"){try{await window.saeed.setMicMode("off")}catch{}}}});
  window.saeed.onRealtimeState((state,message)=>{if(state==="connected")report("INFO","STT ACTIVE","Realtime speech-to-text connected");else if(state==="error")report("ERROR","REALTIME API ERROR",String(message||state));});
