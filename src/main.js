@@ -268,7 +268,7 @@ ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);con
 ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
 ipcMain.handle("chat",async(_,payload)=>{
  if(!agent)return {ok:false,error:"Saeed is still starting."};
- const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();
+ const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"user-input",text:String(data.text||"")});
  const result=await agent.run(String(data.text||""),data.image||null);
  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
  return result;
