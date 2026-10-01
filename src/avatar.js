@@ -199,7 +199,7 @@ window.saeedAvatar={
  getBones(){return Object.fromEntries([...bones].map(([k,b])=>[k,b.name]))},
  walk(){const ok=playAnimation("walk");wakeRender(1200);return ok},idle(){return playAnimation("idle")},talk(){const ok=playAnimation("talk");wakeRender(1200);return ok},think(){const ok=playAnimation("think");wakeRender(1200);return ok},
  setViseme,playVisemeTimeline,resetVisemes,setExpression,blink,setMorph,
- getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
+ wakeRender,getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
 };
 
 let renderLoopStarted=false,lastRenderTime=0,rendererActive=true,renderFrameId=0,renderUntil=0;
