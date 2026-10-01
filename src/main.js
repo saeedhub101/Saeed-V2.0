@@ -195,7 +195,7 @@ async function createChatWindow(){
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
 async function createWindow(){
  await createCharacterWindow();
- if(ciSmoke&&process.env.SAEED_CI_3D_OFF==="1")setTimeout(()=>void runCi3DBaseline(),800);
+ if(ciSmoke)void runCiAnimationSmoke();
  const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});voiceMuted=Boolean(agent.settings.voiceMuted);agent.localBrain=new LocalBrain(registry);setSaeedSize(agent.settings.characterSize||"medium");brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
 }
@@ -206,11 +206,50 @@ async function createCharacterWindow(){
  characterWin.on("closed",()=>{characterWin=null});
  characterWin.on("close",()=>{if(!app.isQuitting())diagnostic("INFO","WINDOW","Saeed character window closed");});
  characterWin.webContents.on("context-menu",()=>contextMenu());
- await characterWin.loadFile(path.join(__dirname,ciSmoke&&process.env.SAEED_CI_3D_OFF==="1"?"ci-3d-baseline.html":"character.html"));
- try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){if(ciSmoke){diagnostic("INFO","GLB CI","Packaged GLB file verified; smoke test does not load/render the GLB to avoid coupling CI startup to the 3D renderer",{size:source.size,path:source.path})}else{pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
+ await characterWin.loadFile(path.join(__dirname,"character.html"));
+ try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
  fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
  characterWin.show();
 }
+async function runCiAnimationSmoke(){
+ if(!ciSmoke)return;
+ const report={startedAt:new Date().toISOString(),checks:{},animations:[],movement:{}};
+ const target=process.env.SAEED_CI_ANIMATION_REPORT||path.join(process.cwd(),"dist","ci-animation-smoke.json");
+ const writeReport=()=>{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify({...report,finishedAt:new Date().toISOString()},null,2),"utf8")};
+ try{
+  if(!characterWin||characterWin.isDestroyed())throw new Error("Saeed character window was not created");
+  await new Promise(r=>setTimeout(r,2500));
+  const state=await characterWin.webContents.executeJavaScript('(()=>{const s=window.saeedAvatar?.get3DStatus?.();return {status:s,animations:window.saeedAvatar?.getAnimations?.()||[]};})()',true);
+  report.checks.characterWindow={pass:true,visible:characterWin.isVisible(),destroyed:characterWin.isDestroyed()};
+  report.checks.renderer={pass:Boolean(state?.status?.overall?.state==="ready"),overall:state?.status?.overall||null};
+  report.checks.animationsAvailable={pass:Array.isArray(state?.animations)&&state.animations.length>0,names:state?.animations||[]};
+  if(!report.checks.renderer.pass)throw new Error("3D renderer did not reach ready state");
+  if(!report.checks.animationsAvailable.pass)throw new Error("Saeed GLB contains no animation clips");
+  const candidates=["idle","walk","think","talk","happy"];
+  const available=candidates.filter(name=>state.animations.some(x=>String(x).toLowerCase().includes(name)));
+  if(available.length<2)throw new Error("Expected at least two usable Saeed animation clips; found: "+available.join(", "));
+  for(const name of available){
+   const before=await characterWin.capturePage();
+   const startedAnimation=await characterWin.webContents.executeJavaScript('window.saeedAvatar.play('+JSON.stringify(name)+',{loop:false})',true);
+   await new Promise(r=>setTimeout(r,650));
+   const after=await characterWin.capturePage();
+   const changed=!before.isEmpty()&&!after.isEmpty()&&!before.toPNG().equals(after.toPNG());
+   report.animations.push({name,started:Boolean(startedAnimation),visibleFrameChanged:changed});
+   if(!startedAnimation||!changed)throw new Error("Animation did not visibly advance: "+name);
+  }
+  const moveBefore=await characterWin.capturePage();
+  const moveStarted=await characterWin.webContents.executeJavaScript('window.saeedAvatar.move("left",900)',true);
+  await new Promise(r=>setTimeout(r,450));
+  const moveAfter=await characterWin.capturePage();
+  const moveChanged=!moveBefore.isEmpty()&&!moveAfter.isEmpty()&&!moveBefore.toPNG().equals(moveAfter.toPNG());
+  report.movement={pass:Boolean(moveStarted&&moveChanged),started:Boolean(moveStarted),visibleFrameChanged:moveChanged};
+  if(!moveStarted||!moveChanged)throw new Error("Saeed movement test did not produce visible motion");
+  report.checks.notIdle={pass:true,detail:"Saeed was driven through multiple non-idle animation clips and movement during the smoke test"};
+  report.pass=true;writeReport();console.log("SAEED_CI_ANIMATION_SMOKE=PASS",JSON.stringify(report));
+  setTimeout(()=>void runCiRuntimeSmoke(),250);
+ }catch(e){report.pass=false;report.error=String(e?.stack||e);try{writeReport()}catch{};console.error("SAEED_CI_ANIMATION_SMOKE=FAIL",report.error);process.exitCode=1;setTimeout(()=>app.exit(1),100);}
+}
+
 async function runCi3DBaseline(){
  if(!ciSmoke||process.env.SAEED_CI_3D_OFF!=="1")return;
  const started=Date.now();
@@ -251,7 +290,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready"
  if(process.platform==="win32"){try{app.setJumpList([{type:"tasks",items:[{program:process.execPath,arguments:"--show-saeed",iconPath:windowsIconPath(),iconIndex:0,title:"Show Saeed",description:"Show the Saeed character"},{program:process.execPath,arguments:"--chat",iconPath:windowsIconPath(),iconIndex:0,title:"Chat Me",description:"Open Saeed Chat"},{program:process.execPath,arguments:"--performance",iconPath:windowsIconPath(),iconIndex:0,title:"Performance",description:"Open Saeed Performance"},{program:process.execPath,arguments:"--settings",iconPath:windowsIconPath(),iconIndex:0,title:"Settings",description:"Open Saeed Settings"},{program:process.execPath,arguments:"--mic-on",iconPath:windowsIconPath(),iconIndex:0,title:"Mic ON",description:"Enable Saeed microphone"},{program:process.execPath,arguments:"--mic-off",iconPath:windowsIconPath(),iconIndex:0,title:"Mic OFF",description:"Disable Saeed microphone"},{type:"separator"},{program:process.execPath,arguments:"--exit",iconPath:windowsIconPath(),iconIndex:0,title:"Exit",description:"Exit Saeed"}]},{type:"custom",name:"Character",items:[{program:process.execPath,arguments:"--size-small",iconPath:windowsIconPath(),iconIndex:0,title:"Small",description:"Set character size to Small"},{program:process.execPath,arguments:"--size-medium",iconPath:windowsIconPath(),iconIndex:0,title:"Medium",description:"Set character size to Medium"},{program:process.execPath,arguments:"--size-large",iconPath:windowsIconPath(),iconIndex:0,title:"Large",description:"Set character size to Large"}]},{type:"custom",name:"Diagnostics",items:[{program:process.execPath,arguments:"--status",iconPath:windowsIconPath(),iconIndex:0,title:"Status",description:"Open live Saeed status"},{program:process.execPath,arguments:"--3d-status",iconPath:windowsIconPath(),iconIndex:0,title:"3D Status",description:"Open 3D renderer status"}]}]);}catch(e){console.error("Jump List setup failed:",e.message);}}
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
- if(ciSmoke)void runCiRuntimeSmoke();
+ if(ciSmoke){/* runCiAnimationSmoke continues into the CI runtime phase */}
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
   try{const image=await captureScreen();await showChat();chatWin?.webContents.send("screen:capture",image)}
