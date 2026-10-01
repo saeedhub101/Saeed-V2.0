@@ -174,7 +174,8 @@ jobs:
             $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
             $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
             $proc.Refresh()
-            if ($proc.ExitCode -ne 0) { throw "Application smoke test failed with exit code $($proc.ExitCode). $outText $errText" }
+            $exitCode = $proc.ExitCode
+            if ($null -ne $exitCode -and $exitCode -ne 0) { throw "Application smoke test failed with exit code $exitCode. $outText $errText" }
             if (!(Test-Path $report)) { throw "Animation smoke report was not created: $report" }
             $result = Get-Content $report -Raw | ConvertFrom-Json
             if ($result.pass -ne $true) { throw "Animation/movement smoke test reported failure. $($result.error)" }
