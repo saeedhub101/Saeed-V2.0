@@ -338,10 +338,10 @@ async function testApiConnection(service){
    const provider=String(s.provider||"openai"), d=agent?.providerDefaults?.(provider)||{};
    result.provider=provider==="openai"?"OpenAI / GPT":provider==="anthropic"?"Anthropic / Claude":provider==="gemini"?"Google / Gemini":provider==="groq"?"Groq":provider==="ollama"?"Ollama":"OpenAI-compatible";
    result.model=String(s.model||d.model||"—"); result.endpoint=String(s.baseUrl||d.baseUrl||"—");
-   if(provider==="ollama"){url=result.endpoint.replace(/\\/$/,"")+"/models"}
+   if(provider==="ollama"){url=result.endpoint.replace(/\/$/,"")+"/models"}
    else if(provider==="anthropic"){url="https://api.anthropic.com/v1/models";headers={"x-api-key":String(s.apiKey||""),"anthropic-version":"2023-06-01"}}
-   else if(provider==="gemini"){url=result.endpoint.replace(/\\/$/,"")+"/models"; if(s.apiKey)url+="?key="+encodeURIComponent(s.apiKey)}
-   else {url=result.endpoint.replace(/\\/$/,"")+"/models";if(s.apiKey)headers.Authorization="Bearer "+s.apiKey}
+   else if(provider==="gemini"){url=result.endpoint.replace(/\/$/,"")+"/models"; if(s.apiKey)url+="?key="+encodeURIComponent(s.apiKey)}
+   else {url=result.endpoint.replace(/\/$/,"")+"/models";if(s.apiKey)headers.Authorization="Bearer "+s.apiKey}
   }else if(service==="stt"){
    result.provider=s.sttProvider==="openai"?"OpenAI Speech-to-Text":"Whisper — Local / Offline";result.model=s.sttModel||"whisper-local";result.endpoint=s.sttProvider==="openai"?"https://api.openai.com/v1/audio/transcriptions":"Local Whisper runtime";
    if(s.sttProvider!=="openai")return finish({connected:true,detail:"Local Whisper configured; no API connection required"});
