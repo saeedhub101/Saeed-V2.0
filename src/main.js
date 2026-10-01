@@ -177,7 +177,7 @@ function contextMenu(){
   {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},
   {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
   {label:"Updates & Settings",submenu:[{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},
-  {type:"separator"},{label:"Quit",click:()=>app.quit()}
+  {label:"Quit",click:()=>app.quit()}
  ]);
  menu.popup({window:characterWin});
 }
