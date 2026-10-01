@@ -64,24 +64,7 @@ class Agent{
   },null,2))}catch(e){console.error("Settings save failed:",e)}}
  saveHistory(){try{fs.writeFileSync(this.historyFile,JSON.stringify(this.history.slice(-200),null,2))}catch(e){console.error("History save failed:",e)}}
  clearHistory(){this.history=[];try{fs.writeFileSync(this.historyFile,"[]")}catch(e){console.error("History clear failed:",e)}}
- async localIntent(text){
-  const t=String(text||"").trim();
-  if(!t)return null;
-  const lower=t.toLowerCase();
-  if(/(?:what time is it|what's the time|current time|time is it|كم الساعة|الساعة كم|الوقت الآن|ما الوقت)/i.test(lower)){
-   const now=new Date();
-   const time=now.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-   const date=now.toLocaleDateString(undefined,{year:"numeric",month:"long",day:"numeric"});
-   const answer="The local time is "+time+" on "+date+".";
-   this.history.push({role:"user",content:t},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local"});return answer;
-  }
-  if(/(?:open|launch|start|show)\s+(?:my\s+)?(?:computer|this pc|file explorer)|(?:جهاز الكمبيوتر|هذا الكمبيوتر|الكمبيوتر)/i.test(lower)){
-   const out=await this.registry.call("open_application",{application:"explorer"});
-   const answer=out?.ok===false?("تعذر فتح جهاز الكمبيوتر: "+out.error):"تم فتح جهاز الكمبيوتر.";
-   this.history.push({role:"user",content:t},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local"});return answer;
-  }
-  return null;
- }
+
  async run(text,image=null){
   const s=this.settings;if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
   const mode=String(s.brainMode||"auto");
@@ -90,10 +73,6 @@ class Agent{
    return "Realtime mode is active. Use the microphone for the live conversation.";
   }
   if(mode!=="api"){
-   const localMem=process.memoryUsage();const localCpu=process.cpuUsage();const localStart=Date.now();
-   const local=await this.localIntent(text);
-   const localAfter=process.memoryUsage();const localCpuAfter=process.cpuUsage(localCpu);this.onEvent({type:"diagnostic",level:"INFO",stage:"RESOURCE LOCAL INTENT",message:"Local intent resource sample",meta:{elapsedMs:Date.now()-localStart,cpuUserMs:Math.round(localCpuAfter.user/1000),cpuSystemMs:Math.round(localCpuAfter.system/1000),heapDeltaMB:+((localAfter.heapUsed-localMem.heapUsed)/1048576).toFixed(2),rssMB:+(localAfter.rss/1048576).toFixed(1)}});
-   if(local!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Built-in local intent handled the request"});return local;}
    if(this.localBrain){try{const brainMem=process.memoryUsage();const brainCpu=process.cpuUsage();const brainStart=Date.now();const handled=await this.localBrain.handle(text);const brainAfter=process.memoryUsage();const brainCpuAfter=process.cpuUsage(brainCpu);this.onEvent({type:"diagnostic",level:"INFO",stage:"RESOURCE LOCAL BRAIN",message:"Local brain resource sample",meta:{elapsedMs:Date.now()-brainStart,cpuUserMs:Math.round(brainCpuAfter.user/1000),cpuSystemMs:Math.round(brainCpuAfter.system/1000),heapDeltaMB:+((brainAfter.heapUsed-brainMem.heapUsed)/1048576).toFixed(2),rssMB:+(brainAfter.rss/1048576).toFixed(1)}});if(handled!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL","message":"Offline computer brain handled the request"});this.history.push({role:"user",content:String(text)},{role:"assistant",content:handled});this.saveHistory();this.onEvent({type:"answer",text:handled,source:"local-brain"});return handled;}}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message});}}
    if(mode==="local"){
     this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Offline computer brain has no handler for this request"});
