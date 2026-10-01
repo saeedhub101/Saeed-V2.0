@@ -153,6 +153,24 @@ jobs:
           Write-Host "HOST_RAM_TOTAL_GB=$total"
           Write-Host "HOST_RAM_FREE_GB=$free"
 
+      - name: Pre-build application smoke test
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $log = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.log"
+          $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", "." -PassThru -RedirectStandardOutput $log -RedirectStandardError $log
+          try {
+            Start-Sleep -Seconds 12
+            if ($proc.HasExited) {
+              $output = if (Test-Path $log) { Get-Content $log -Raw } else { "" }
+              throw "Application smoke test failed: Electron exited early with code $($proc.ExitCode). $output"
+            }
+            Write-Host "PRE_BUILD_APPLICATION_SMOKE=PASS"
+            Write-Host "Electron process is running before packaging."
+          } finally {
+            if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+          }
+
       - name: Build Windows installer
         run: npm run dist
 
