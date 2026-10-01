@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld("saeed",{
  startRealtime:o=>ipcRenderer.invoke("realtime:start",o||{}),
  stopRealtime:()=>ipcRenderer.invoke("realtime:stop"),
  setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),
+ setVoiceMuted:muted=>ipcRenderer.invoke("voice:mute",Boolean(muted)),
  onMicMode:f=>ipcRenderer.on("mic:mode",(_,mode)=>f(mode)),
  sendRealtimeAudio:b=>ipcRenderer.invoke("realtime:audio",b),
  sendRealtimeText:t=>ipcRenderer.invoke("realtime:text",t),
