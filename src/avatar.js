@@ -33,14 +33,14 @@ function findClip(name){
  const q=String(name||"").toLowerCase(),names=aliases[q]||[q];
  return clips.find(x=>names.some(n=>x.name.toLowerCase().includes(n)));
 }
-function playAnimation(name,{loop=true,crossFade=.18}={}){
+function configuredRenderWakeMs(){return Number(window.saeedAnimationController?.getRenderWakeMs?.())||1200}\nfunction playAnimation(name,{loop=true,crossFade=.18}={}){
  if(!mixer)return false;
  const clip=findClip(name);if(!clip)return false;
  let action=actions.get(clip.uuid);
  if(!action){action=mixer.clipAction(clip);actions.set(clip.uuid,action)}
  if(activeAction&&activeAction!==action)activeAction.fadeOut(crossFade);
  action.reset().fadeIn(crossFade);action.setLoop(loop?THREE.LoopRepeat:THREE.LoopOnce,loop?Infinity:1);
- if(!loop)action.clampWhenFinished=true;action.play();activeAction=action;return true;
+ if(!loop)action.clampWhenFinished=true;action.play();activeAction=action;wakeRender(loop?Number.POSITIVE_INFINITY:Math.max(configuredRenderWakeMs(),120));return true;
 }
 
 let facialMeshes=[];
@@ -204,8 +204,8 @@ window.saeedAvatar={
 };
 
 let renderLoopStarted=false,lastRenderTime=0,rendererActive=true,renderFrameId=0,renderUntil=0;
-function wakeRender(ms=1200){const until=performance.now()+Math.max(80,Number(ms)||1200);renderUntil=Math.max(renderUntil,until);if(!renderFrameId&&!document.hidden)renderFrameId=requestAnimationFrame(renderFrame)}
-function renderFrame(){renderFrameId=0;if(document.hidden||!rendererActive)return;if(performance.now()<=renderUntil){renderNow("active-behavior");if(performance.now()<=renderUntil&&!document.hidden&&rendererActive)renderFrameId=requestAnimationFrame(renderFrame)}}
+let lastActiveFrame=0;\nfunction wakeRender(ms=1200){const duration=Number(ms);const until=duration===Number.POSITIVE_INFINITY?Number.POSITIVE_INFINITY:performance.now()+Math.max(80,duration||1200);renderUntil=Math.max(renderUntil,until);if(!renderFrameId&&!document.hidden)renderFrameId=requestAnimationFrame(renderFrame)}
+function renderFrame(now=performance.now()){renderFrameId=0;if(document.hidden||!rendererActive)return;if(now<=renderUntil){if(now-lastActiveFrame>=33){lastActiveFrame=now;renderNow("active-behavior")}if(now<=renderUntil&&!document.hidden&&rendererActive)renderFrameId=requestAnimationFrame(renderFrame)}}
 function resize(){try{const r=canvas.getBoundingClientRect(),w=Math.max(1,Math.min(4096,r.width)),h=Math.max(1,Math.min(4096,r.height));renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();runtime3D.viewport={width:Math.round(w),height:Math.round(h),pixelRatio:renderer.getPixelRatio()};set3DState("canvas","ready",`Canvas ${Math.round(w)}×${Math.round(h)}`);renderNow("resize");}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}}try{new ResizeObserver(resize).observe(canvas);resize();}catch(e){runtime3D.lastError=e.message;set3DState("canvas","error",e.message);}
 
 function renderNow(reason="on-demand"){
