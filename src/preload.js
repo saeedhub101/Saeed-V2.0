@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld("saeed",{
  reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),reportMicLevel:level=>ipcRenderer.send("mic:level",Number(level)||0),onMicLevel:f=>ipcRenderer.on("mic:level",(_,level)=>f(level)),
  getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),getCpuMetrics:()=>ipcRenderer.invoke("cpu:metrics"),onCpuMetrics:f=>ipcRenderer.on("cpu:metrics",(_,e)=>f(e)),
  
- showStatus:()=>ipcRenderer.invoke("status:show"), showPerformance:()=>ipcRenderer.invoke("performance:show"),
+ showStatus:()=>ipcRenderer.invoke("status:show"), showPerformance:()=>ipcRenderer.invoke("performance:show"), showSettings:()=>ipcRenderer.invoke("settings:show"),
  show3DStatus:()=>ipcRenderer.invoke("3d-status:show"),get3DStatus:()=>ipcRenderer.invoke("3d:query"),report3DStatus:(requestId,status)=>ipcRenderer.send("3d:status-report",requestId,status),on3DQuery:f=>ipcRenderer.on("3d:query",(_,id)=>f(id)),on3DStatus:f=>ipcRenderer.on("3d:status",(_,status)=>f(status)),
  onStatusSnapshot:f=>ipcRenderer.on("diagnostic:snapshot",(_,e)=>f(e)),
  onDiagnostic:f=>ipcRenderer.on("diagnostic:event",(_,e)=>f(e)),
