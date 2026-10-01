@@ -15,7 +15,9 @@ function render(){
  $("modeValue").textContent="Auto — Local first, API on demand";$("micValue").textContent=settings.micMode==="on"?"Mic ON":"Mic OFF";
 }
 function add(e){return;}async function refresh(){try{const x=await window.saeed.getDiagnosticSnapshot();state=x?.state||{};render();const s=await window.saeed.getSettings();settings=s||{};render()}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"STATUS",message:e.message})}}
-$("refresh").onclick=refresh;\n$("testAllApis").onclick=()=>testAllApis();\nrenderApi();
+$("refresh").onclick=refresh;
+$("testAllApis").onclick=()=>testAllApis();
+renderApi();
 async function setMic(mode){
  try{await window.saeed.setMicMode(mode);await refresh()}
  catch(e){console.error("Microphone control failed:",e);add({time:new Date().toISOString(),level:"ERROR",stage:"MIC CONTROL",message:e.message})}
