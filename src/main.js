@@ -12,7 +12,7 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{autoUpdater}=require("electron-updater");
+const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{autoUpdater}=require("electron-updater");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -30,7 +30,7 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,performanceWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin;
+let chatWin,characterWin,performanceWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor;
 let pendingCharacterData=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
@@ -193,7 +193,7 @@ async function createWindow(){
  await createCharacterWindow();
  if(ciSmoke&&process.env.SAEED_CI_3D_OFF==="1")setTimeout(()=>void runCi3DBaseline(),800);
  const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});agent.localBrain=new LocalBrain(registry);if(agent.settings.characterSize)setSaeedSize(agent.settings.characterSize);
+ agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)}});agent.localBrain=new LocalBrain(registry);if(agent.settings.characterSize)setSaeedSize(agent.settings.characterSize);brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
 }
 async function createCharacterWindow(){
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
@@ -268,12 +268,12 @@ ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);con
 ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
 ipcMain.handle("chat",async(_,payload)=>{
  if(!agent)return {ok:false,error:"Saeed is still starting."};
- const data=typeof payload==="string"?{text:payload}:payload||{};
+ const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();
  const result=await agent.run(String(data.text||""),data.image||null);
  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
  return result;
 });
-ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);
+ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
@@ -287,7 +287,7 @@ ipcMain.handle("settings:set",(_,s)=>{
  
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(Object.prototype.hasOwnProperty.call(s||{},"characterBehavior"))characterWin?.webContents.send("character:behavior","settings");
- if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});
+ if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});\n if(brainSupervisor)void brainSupervisor.refresh?.();
  diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
  return agent.publicSettings();
 });
