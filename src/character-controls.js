@@ -6,7 +6,9 @@ const AUTONOMOUS_IDLE_MS=90_000;
 const AUTONOMOUS_TICK_MS=60_000;
 const AUTONOMOUS_WANDER_CHANCE=0.18;
 const AUTONOMOUS_GESTURE_CHANCE=0.12;
-let lastUserActivity=Date.now(),lastAutonomousAt=0;
+const AUTONOMOUS_THOUGHT_CHANCE=0.12;
+const AUTONOMOUS_THOUGHT_MIN_GAP_MS=5*60_000;
+let lastUserActivity=Date.now(),lastAutonomousAt=0,lastAutonomousThoughtAt=0;
 const activeMotion={name:"idle",priority:0,token:0,until:0};
 const merge=s=>{policy={...defaults,...(s?.characterBehavior||{})};window.saeedAvatar?.setBehaviorConfig?.(policy);return policy};
 const idleDelay=()=>{const range=policy.frequency==="rare"?[300000,600000]:policy.frequency==="frequent"?[60000,180000]:[120000,300000];return range[0]+Math.random()*(range[1]-range[0])};
@@ -22,10 +24,11 @@ if(pick==="walk")request("walk",PRIORITY.idle,1600,()=>window.saeedAvatar?.move?
 else if(pick!=="idle")request(pick,PRIORITY.idle,1400,()=>window.saeedAvatar?.gesture?.(pick));
 else request("idle",PRIORITY.idle,900,()=>window.saeedAvatar?.idle?.());
 lastAutonomousAt=now;nextIdleAt=now+idleDelay();
-if(pick!=="idle"&&typeof window.saeedCharacterVoice?.autonomousSpeak==="function"&&Math.random()<0.25)window.saeedCharacterVoice.autonomousSpeak(pick);};
+if(Math.random()<AUTONOMOUS_THOUGHT_CHANCE&&now-lastAutonomousThoughtAt>=AUTONOMOUS_THOUGHT_MIN_GAP_MS&&typeof window.saeedCharacterVoice?.autonomousIdleThought==="function"){lastAutonomousThoughtAt=now;window.saeedCharacterVoice.autonomousIdleThought();}
+};
 const trigger=type=>{const t=typeof type==="object"?String(type?.type||""):String(type||"");const key=t.toLowerCase();if(key==="settings"){return refresh()};if(!active||!policy.events)return false;const now=Date.now();if(now-lastEventAt<Math.max(5,Number(policy.eventCooldownSec)||30)*1000&&key!=="speech-start"&&key!=="speech-end")return false;lastEventAt=now;if(key==="speech-start")return request("speaking",PRIORITY.speaking,0,()=>window.saeedAvatar?.talk?.());if(key==="speech-end"){activeMotion.priority=0;activeMotion.until=0;nextIdleAt=Date.now()+idleDelay();return window.saeedAvatar?.idle?.()??false}if(key==="prayer")return request("prayer",PRIORITY.prayer,3000,()=>window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy"));if(key==="greeting")return request("greeting",PRIORITY.event,1400,()=>window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy"));if(key==="notification"||key==="answer")return request("event",PRIORITY.event,1200,()=>window.saeedAvatar?.gesture?.(has("wave")?"wave":"happy"));return false};
 async function refresh(){try{merge(await window.saeed.getSettings());active=true;markUserActivity();if(!intervalHandle)intervalHandle=setInterval(chooseIdle,AUTONOMOUS_TICK_MS);return true}catch{active=false;return false}}
-window.saeedCharacterBehavior={trigger,refresh,markUserActivity,getState:()=>({...activeMotion,policy:{...policy},idleMs:Math.max(0,Date.now()-lastUserActivity),lastAutonomousAt})};
+window.saeedCharacterBehavior={trigger,refresh,markUserActivity,getState:()=>({...activeMotion,policy:{...policy},idleMs:Math.max(0,Date.now()-lastUserActivity),lastAutonomousAt,lastAutonomousThoughtAt})};
 window.saeed.onCharacterBehavior?.(e=>{if(e==="settings"||e?.type==="settings")refresh();else trigger(e)});
 ["pointerdown","pointermove","keydown","wheel"].forEach(type=>window.addEventListener(type,markUserActivity,{passive:true}));
 window.saeed.onEvent?.(()=>markUserActivity());
