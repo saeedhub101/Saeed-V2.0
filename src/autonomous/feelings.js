@@ -1,0 +1,1 @@
+class AutonomousFeelings{constructor({store,emit}){this.store=store;this.emit=emit;this.mood='cheerful'}async init(){try{const s=await this.store();this.mood=String(s?.mood||'cheerful')}catch{}}async set(mood){this.mood=String(mood||'cheerful');this.emit({type:'mood',mood:this.mood});return this.mood}get(){return this.mood}}module.exports={AutonomousFeelings};
