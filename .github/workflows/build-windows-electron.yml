@@ -29,7 +29,7 @@ jobs:
   build:
     name: Test and build Windows
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@v4
@@ -242,9 +242,9 @@ jobs:
             $diskBytes=0; $netBytes=0; $gpuPercent=0
             try { $diskBytes=[math]::Round((Get-Counter '\PhysicalDisk(_Total)\Disk Bytes/sec').CounterSamples[0].CookedValue,0) } catch {}
             try {
-              $netBytes=[math]::Round((Get-Counter '\Network Interface(*)\Bytes Total/sec').CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum,0)
+              try { $netBytes=[math]::Round(((Get-Counter '\Network Interface(*)\Bytes Total/sec').CounterSamples | Measure-Object -Property CookedValue -Sum).Sum,0) } catch { $netBytes=0 }
             } catch {}
-            try { $gpuPercent=[math]::Round((Get-Counter '\GPU Engine(*)\Utilization Percentage').CounterSamples | Measure-Object -Property CookedValue -Sum | Select-Object -ExpandProperty Sum,0) } catch {}
+            try { $gpuPercent=[math]::Round(((Get-Counter '\GPU Engine(*)\Utilization Percentage').CounterSamples | Measure-Object -Property CookedValue -Sum).Sum,0) } catch { $gpuPercent=0 }
             [pscustomobject]@{
               time=(Get-Date).ToUniversalTime().ToString("o"); label=$Label
               hostCpuPercent=[math]::Round($cpu.Average,1)
