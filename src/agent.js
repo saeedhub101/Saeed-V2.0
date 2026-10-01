@@ -25,7 +25,8 @@ class Agent{
   return {
    openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},
    anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-5"},
-   gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},\n   groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},
+   gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},
+   groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},
    "openai-compatible":{baseUrl:"",model:""}
   }[name]||{};
  }
