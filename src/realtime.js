@@ -100,7 +100,7 @@ class OpenAIRealtime {
                 type:"semantic_vad",
                 eagerness:"high",
                 interrupt_response:true,
-                create_response:true
+                create_response:false
               }
             },
             output:{format:{type:"audio/pcm", rate:24000}, voice:this.voice}
