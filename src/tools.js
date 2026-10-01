@@ -15,7 +15,7 @@ class ToolRegistry{
  if(["network_info","open_url","web_search"].includes(name))return "network";
  if(["screenshot"].includes(name))return "screen";
  if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return "mouseKeyboard";
- if(["add_task","list_tasks","complete_task","remember","recall"].includes(name))return "tasksMemory";
+ if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget"].includes(name))return "tasksMemory";
  if(["remove_task"].includes(name))return "destructive";
  return "system";
 }
@@ -46,7 +46,7 @@ saveTasks(){const tasks=this.ensureTasks();fs.mkdirSync(this.userDataPath,{recur
  {type:"function",function:{name:"type_text",description:"Type text into the currently focused application.",parameters:{type:"object",properties:{text:{type:"string"}},required:["text"]}}},
  {type:"function",function:{name:"key_press",description:"Press Windows keyboard keys. Examples: ENTER, ESC, CTRL+C, CTRL+V, ALT+F4.",parameters:{type:"object",properties:{key:{type:"string"}},required:["key"]}}},
  {type:"function",function:{name:"remember",description:"Remember a fact explicitly requested by the user.",parameters:{type:"object",properties:{fact:{type:"string"}},required:["fact"]}}},
- {type:"function",function:{name:"recall",description:"Search persistent memory.",parameters:{type:"object",properties:{query:{type:"string"}},required:["query"]}}}
+ {type:"function",function:{name:"recall",description:"Search persistent memory.",parameters:{type:"object",properties:{query:{type:"string"}},required:["query"]}}},{type:"function",function:{name:"list_memory",description:"List saved memory items.",parameters:{type:"object",properties:{limit:{type:"integer"}},required:[]}}},{type:"function",function:{name:"forget",description:"Forget saved memory matching an id or text fragment.",parameters:{type:"object",properties:{query:{type:"string"}},required:["query"]}}}
  ]}
  async authorize(category,request){
  const policy=this.permissionPolicy(category);
@@ -87,7 +87,7 @@ saveTasks(){const tasks=this.ensureTasks();fs.mkdirSync(this.userDataPath,{recur
   if(n==="type_text"){return this.getComputer().typeText(a.text);}
   if(n==="key_press"){return this.getComputer().keyPress(a.key);}
   if(n==="remember")return{ok:true,saved:this.getMemory().add(a.fact)};
-  if(n==="recall")return{ok:true,matches:this.getMemory().search(a.query)};
+  if(n==="recall")return{ok:true,matches:this.getMemory().search(a.query)};\n  if(n==="list_memory")return{ok:true,items:this.getMemory().list(a.limit)};\n  if(n==="forget")return{ok:true,...this.getMemory().forget(a.query)};
   return{ok:false,error:"Unknown tool"};
  }catch(e){return{ok:false,error:e.message}}}
 }
