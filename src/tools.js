@@ -87,7 +87,9 @@ saveTasks(){const tasks=this.ensureTasks();fs.mkdirSync(this.userDataPath,{recur
   if(n==="type_text"){return this.getComputer().typeText(a.text);}
   if(n==="key_press"){return this.getComputer().keyPress(a.key);}
   if(n==="remember")return{ok:true,saved:this.getMemory().add(a.fact)};
-  if(n==="recall")return{ok:true,matches:this.getMemory().search(a.query)};\n  if(n==="list_memory")return{ok:true,items:this.getMemory().list(a.limit)};\n  if(n==="forget")return{ok:true,...this.getMemory().forget(a.query)};
+  if(n==="recall")return{ok:true,matches:this.getMemory().search(a.query)};
+  if(n==="list_memory")return{ok:true,items:this.getMemory().list(a.limit)};
+  if(n==="forget")return{ok:true,...this.getMemory().forget(a.query)};
   return{ok:false,error:"Unknown tool"};
  }catch(e){return{ok:false,error:e.message}}}
 }
