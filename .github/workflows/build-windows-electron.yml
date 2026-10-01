@@ -23,7 +23,7 @@ permissions:
 
 concurrency:
   group: saeed-windows-build-main
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -58,7 +58,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/local-brain.js","src/realtime.js","src/tools.js","src/performance.html","src/performance.js","src/performance.css")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/character-feelings.js","src/character-animation-controller.js","src/character-interaction.js","src/character-controls.js","src/character-voice.js","src/autonomous/tasks.js","src/autonomous/feelings.js","src/autonomous/context.js","src/autonomous/default-brain.js","src/autonomous/brain-supervisor.js","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/local-brain.js","src/realtime.js","src/tools.js","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
