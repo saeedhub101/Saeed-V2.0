@@ -1,11 +1,10 @@
 {
-  "schemaVersion": 1,
-  "catalogVersion": 1,
+  "schemaVersion": 2,
+  "catalogVersion": 2,
   "generatedAt": "2026-10-03",
   "source": "Saeed official add-on catalog",
   "addons": [
     {
-      "schemaVersion": 1,
       "id": "word",
       "name": "Word / DOCX",
       "version": "9.8.1",
@@ -16,10 +15,11 @@
       "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip",
       "installType": "bundle",
       "status": "release-bundle",
-      "entry": "index.js"
+      "capabilities": [
+        "documents"
+      ]
     },
     {
-      "schemaVersion": 1,
       "id": "excel",
       "name": "Excel / XLSX",
       "version": "0.18.5",
@@ -29,10 +29,13 @@
       "sourceUrl": "https://www.npmjs.com/package/xlsx",
       "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip",
       "installType": "bundle",
-      "status": "release-bundle"
+      "status": "release-bundle",
+      "capabilities": [
+        "documents",
+        "spreadsheet"
+      ]
     },
     {
-      "schemaVersion": 1,
       "id": "pdf",
       "name": "PDF",
       "version": "1.1.1",
@@ -42,72 +45,283 @@
       "sourceUrl": "https://www.npmjs.com/package/pdf-parse",
       "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip",
       "installType": "bundle",
-      "status": "release-bundle"
+      "status": "release-bundle",
+      "capabilities": [
+        "documents",
+        "pdf"
+      ]
     },
     {
-      "schemaVersion": 1,
       "id": "ocr",
       "name": "OCR",
       "version": "6.0.1",
       "category": "Vision",
-      "description": "Offline OCR engine for image text and table extraction.",
+      "description": "Offline OCR engine for image text extraction.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/tesseract.js",
       "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip",
       "installType": "bundle",
-      "status": "release-bundle"
+      "status": "release-bundle",
+      "capabilities": [
+        "ocr",
+        "vision"
+      ]
     },
     {
-      "schemaVersion": 1,
       "id": "stt-whisper",
       "name": "Whisper STT",
       "version": "1.x",
       "category": "Speech to Text",
-      "description": "Local/offline speech recognition. Provider can be replaced later.",
+      "description": "Local/offline speech recognition provider.",
       "provider": "ggml-org",
       "sourceUrl": "https://github.com/ggml-org/whisper.cpp",
       "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-stt-whisper.zip",
       "installType": "bundle",
-      "status": "release-bundle"
+      "status": "release-bundle",
+      "capabilities": [
+        "speech-to-text"
+      ]
     },
     {
-      "schemaVersion": 1,
+      "id": "memory-core",
+      "name": "Memory Foundation",
+      "version": "1.0.0",
+      "category": "Memory",
+      "description": "Local conversation memory and knowledge-base foundation; embedding/vector/RAG providers can be added independently.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "memory",
+        "conversation-memory",
+        "knowledge-base"
+      ]
+    },
+    {
+      "id": "embedding-provider",
+      "name": "Embedding Provider",
+      "version": "1.0.0",
+      "category": "Memory",
+      "description": "Provider slot for local or API embedding models.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "embeddings"
+      ]
+    },
+    {
+      "id": "vector-store",
+      "name": "Vector Database",
+      "version": "1.0.0",
+      "category": "Memory",
+      "description": "Provider slot for local or remote vector databases.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "vector-store"
+      ]
+    },
+    {
+      "id": "rag-engine",
+      "name": "RAG Engine",
+      "version": "1.0.0",
+      "category": "Memory",
+      "description": "Provider slot for retrieval-augmented generation.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "rag"
+      ]
+    },
+    {
+      "id": "mcp-client",
+      "name": "MCP Client",
+      "version": "1.0.0",
+      "category": "MCP",
+      "description": "Model Context Protocol client and server registry with permissions.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "mcp-client",
+        "mcp-tools"
+      ]
+    },
+    {
+      "id": "email",
+      "name": "Email",
+      "version": "1.0.0",
+      "category": "Communication",
+      "description": "Email provider framework with IMAP, SMTP and POP3 support for Gmail, Yahoo, Outlook/Hotmail and custom servers.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "email",
+        "imap",
+        "smtp",
+        "pop3"
+      ]
+    },
+    {
+      "id": "llm-local",
+      "name": "Local LLM",
+      "version": "1.0.0",
+      "category": "LLM",
+      "description": "Provider slot for Llama, Qwen, Mistral, Gemma, DeepSeek, Phi, Ollama and other local runtimes.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "llm"
+      ]
+    },
+    {
       "id": "tts",
       "name": "TTS Providers",
-      "version": "1",
+      "version": "1.0.0",
       "category": "Text to Speech",
       "description": "Provider slot for local or API speech engines.",
       "provider": "Saeed",
-      "sourceUrl": null,
-      "downloadUrl": null,
       "installType": "provider",
-      "status": "provider-ready"
+      "status": "provider-ready",
+      "capabilities": [
+        "text-to-speech"
+      ]
     },
     {
-      "schemaVersion": 1,
-      "id": "llm-local",
-      "name": "Local LLM",
-      "version": "1",
-      "category": "LLM",
-      "description": "Provider slot for a future local language model/runtime.",
+      "id": "stt-provider",
+      "name": "STT Providers",
+      "version": "1.0.0",
+      "category": "Speech to Text",
+      "description": "Generic STT provider slot; Whisper is only one implementation.",
       "provider": "Saeed",
-      "sourceUrl": null,
-      "downloadUrl": null,
       "installType": "provider",
-      "status": "provider-ready"
+      "status": "provider-ready",
+      "capabilities": [
+        "speech-to-text"
+      ]
     },
     {
-      "schemaVersion": 1,
-      "id": "animation",
-      "name": "Animation Engine",
-      "version": "1",
+      "id": "vision",
+      "name": "Vision Providers",
+      "version": "1.0.0",
+      "category": "Vision",
+      "description": "Provider slot for image understanding and visual reasoning.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "vision"
+      ]
+    },
+    {
+      "id": "browser",
+      "name": "Browser Automation",
+      "version": "1.0.0",
+      "category": "Agent",
+      "description": "Provider slot for Playwright or other browser automation runtimes.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "browser"
+      ]
+    },
+    {
+      "id": "code-runtime",
+      "name": "Code Runtime",
+      "version": "1.0.0",
+      "category": "Agent",
+      "description": "Provider slot for isolated code execution and developer tools.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "code-runtime"
+      ]
+    },
+    {
+      "id": "search",
+      "name": "Search Providers",
+      "version": "1.0.0",
+      "category": "Search",
+      "description": "Provider slot for web, news and local search.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "search"
+      ]
+    },
+    {
+      "id": "calendar",
+      "name": "Calendar",
+      "version": "1.0.0",
+      "category": "Productivity",
+      "description": "Provider slot for calendar services.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "calendar"
+      ]
+    },
+    {
+      "id": "cloud-storage",
+      "name": "Cloud Storage",
+      "version": "1.0.0",
+      "category": "Storage",
+      "description": "Provider slot for OneDrive, Google Drive and other storage services.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "cloud-storage"
+      ]
+    },
+    {
+      "id": "messaging",
+      "name": "Messaging",
+      "version": "1.0.0",
+      "category": "Communication",
+      "description": "Provider slot for messaging services.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "messaging"
+      ]
+    },
+    {
+      "id": "translation",
+      "name": "Translation",
+      "version": "1.0.0",
+      "category": "Language",
+      "description": "Provider slot for local or API translation engines.",
+      "provider": "Saeed",
+      "installType": "provider",
+      "status": "provider-ready",
+      "capabilities": [
+        "translation"
+      ]
+    },
+    {
+      "id": "avatar-animation",
+      "name": "Avatar / Animation",
+      "version": "1.0.0",
       "category": "Character",
-      "description": "Provider slot for future animation/motion libraries.",
+      "description": "Provider slot for future character animation and motion libraries.",
       "provider": "Saeed",
-      "sourceUrl": null,
-      "downloadUrl": null,
       "installType": "provider",
-      "status": "provider-ready"
+      "status": "provider-ready",
+      "capabilities": [
+        "avatar",
+        "animation"
+      ]
     }
   ]
 }

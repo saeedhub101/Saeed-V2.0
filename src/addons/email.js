@@ -1,0 +1,10 @@
+const net=require("net"),tls=require("tls");
+const PROVIDERS={
+ gmail:{name:"Gmail",imap:{host:"imap.gmail.com",port:993,tls:true},smtp:{host:"smtp.gmail.com",port:465,tls:true},pop3:{host:"pop.gmail.com",port:995,tls:true},oauth:true},
+ yahoo:{name:"Yahoo",imap:{host:"imap.mail.yahoo.com",port:993,tls:true},smtp:{host:"smtp.mail.yahoo.com",port:465,tls:true},pop3:{host:"pop.mail.yahoo.com",port:995,tls:true},oauth:true},
+ hotmail:{name:"Outlook / Hotmail",imap:{host:"outlook.office365.com",port:993,tls:true},smtp:{host:"smtp.office365.com",port:587,tls:true},pop3:{host:"outlook.office365.com",port:995,tls:true},oauth:true},
+ custom:{name:"Others",oauth:false}
+};
+function provider(id){return PROVIDERS[String(id||"").toLowerCase()]||PROVIDERS.custom}
+function testTcp(config,timeout=7000){return new Promise((resolve,reject)=>{if(!config?.host||!config?.port)return reject(new Error("Host and port are required"));const done=()=>{try{s.destroy()}catch{}resolve(true)};const fail=e=>{try{s.destroy()}catch{}reject(e)};const s=config.tls?tls.connect({host:config.host,port:Number(config.port),servername:config.host,rejectUnauthorized:true},done):net.connect({host:config.host,port:Number(config.port)},done);s.setTimeout(timeout,()=>fail(new Error("Connection timed out")));s.on("error",fail)})}
+module.exports={PROVIDERS,provider,testTcp};
