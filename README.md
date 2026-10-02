@@ -1,383 +1,352 @@
 # Saeed AI
 
-Saeed AI is a Windows desktop AI companion and computer agent built as one Electron application with Three.js/WebGL for the permanent 3D character.
+Saeed AI is a Windows desktop AI companion and computer agent built as one Electron application with a Three.js/WebGL 3D character.
 
-## Current architecture
+## Authoritative architecture
 
-- Desktop runtime: Electron + Chromium.
+- Runtime: Electron + Chromium.
 - UI: HTML/CSS/JavaScript.
 - 3D: Three.js 0.180.0 + WebGL.
-- 3D loader: src/three/GLTFLoader.js.
-- Geometry utility: src/three/BufferGeometryUtils.js.
-- AI orchestration: src/agent.js.
-- Offline intent routing: src/local-brain.js.
-- Computer and general tools: src/computer.js and src/tools.js.
-- Persistent memory: src/memory.js.
-- Optional realtime API: src/realtime.js.
-- Local speech input: bundled Whisper CLI/model built by CI and invoked by src/main.js.
-- Voice lifecycle: src/character-voice.js.
-- Main process and IPC: src/main.js and src/preload.js.
-- Autonomous brain boundary: src/autonomous/brain-supervisor.js, default-brain.js, context.js, tasks.js, and feelings.js.
-- Character behavior layers: src/character-animation-controller.js, character-interaction.js, and character-feelings.js.
+- Character renderer: `src/avatar.js`.
+- AI orchestration: `src/agent.js`.
+- Brain routing: `src/task-router.js`, `src/brain-levels.js`.
+- Task lifecycle/planning: `src/task-engine.js`, `src/task-planner.js`.
+- Local/offline computer brain: `src/local-brain.js`.
+- Central tools and permissions: `src/tools/registry.js`.
+- Tool implementations: `src/tools/*.js`.
+- Windows primitives: `src/computer.js`.
+- Persistent memory: `src/memory.js`.
+- Voice lifecycle: `src/character-voice.js`.
+- Optional OpenAI Realtime transport: `src/realtime.js`.
+- Main process/IPC: `src/main.js`, `src/preload.js`.
+- Autonomous character behavior: `src/autonomous/*`.
+- Runtime diagnostics: Status, Performance and 3D Status windows.
 
-Old C++/Win32, C# desktop, Tauri/WebView2, duplicate character runtimes, and obsolete 3D reload-test APIs are not part of the current architecture.
+Old C++/Win32, C#, Tauri/WebView2, duplicate character runtimes, and obsolete isolated 3D test applications are not part of the architecture.
 
-## Startup behavior
+## Brain and task model
 
-- The 3D character window is available at startup.
-- The microphone is OFF by default.
-- No microphone capture stream or STT processing runs while Mic is OFF.
-- TTS is idle until a response is spoken.
-- Realtime API connections are not opened automatically.
-- No agent task continuously executes in the background.
-- Chat, Status, Performance, and 3D Status windows are created only when opened.
+Saeed has three user-selectable brain modes:
 
-The saved microphone setting must not silently reopen the microphone at startup. Microphone activation is an explicit user action.
+- **Local** — Local Brain is authoritative. It must not silently fall back to an API.
+- **API** — API Brain is authoritative and can use the Agent/tool system to execute computer tasks.
+- **Auto** — simple/local-capable work can stay local; complex work can be routed to the API brain.
 
-## Microphone and voice
+The Agent is an on-demand orchestrator. It is not a permanently running specialist-agent pool.
 
-The character window contains the authoritative MIC ON / MIC OFF control.
+Task execution uses:
 
-Mic OFF stops the complete microphone lifecycle, including the media stream, audio processing, microphone-level reporting, local speech buffering, transcription work, realtime audio transmission, and related voice resources.
+`TaskRouter → TaskPlanner → TaskEngine → Agent → ToolRegistry → tools`
 
-Mic ON starts Windows/Electron microphone capture and selects the configured STT path. With the local Whisper provider, captured speech is sent to the bundled offline Whisper runtime. With a realtime provider, the realtime connection is started when required. Recognized text enters the same Agent/Chat path used for normal text requests.
+Agent tools are created/used only when a request needs them and should be released when the task ends.
 
-The live microphone level is measured from the actual capture path; it is not a fixed placeholder.
+### Confirmation policy
 
-## Local-first request flow
+Routine safe operations do not require confirmation.
 
-Normal requests follow:
+Confirmation is reserved for destructive/sensitive operations, including:
 
-User input → Local Brain → Agent/tools → verification → response
+- deleting a file;
+- removing a saved task or memory;
+- overwriting an existing file;
+- other actions explicitly classified as destructive by the central permission policy.
 
-If Local Brain cannot handle the request safely or appropriately:
+Verification tools exist for deterministic checks, but routine actions must not be slowed down by unnecessary verification calls. Verification should be used when the result actually needs to be proven or when safety requires it.
 
-User input → configured external model/API → Agent/tools → verification → response
+### Step limits and recovery
 
-External API connections are on demand. The Agent is an orchestrator, not a collection of permanently running specialist agents.
+The Agent has a configurable step limit.
+
+When a task reaches the limit, Saeed can request a temporary increase for that task. The original configured limit is restored afterward.
+
+Task state stores the route, plan and completed/failed tool signatures so a paused task can be resumed without intentionally repeating completed actions.
+
+Resume is not a transactional rollback system: external side effects cannot be undone automatically, and image/task context that is not persisted must not be assumed recoverable.
+
+## Startup and resource lifecycle
+
+Startup must remain lightweight.
+
+- Microphone is OFF by default.
+- No microphone capture or STT processing runs while Mic is OFF.
+- Realtime connections are not opened unless their configured conditions require them.
+- TTS is idle until Saeed actually speaks.
+- Agent execution is on demand.
+- Heavy optional libraries should be lazy-loaded.
+- Secondary windows are created only when opened and are destroyed when closed.
+- No permanent background Agent loop is allowed.
+
+The autonomous character subsystem is separate from task execution. It uses delayed timers for optional idle movement/thought behavior; it must never become a continuous high-frequency polling loop or a hidden task executor.
+
+## Voice
+
+The character window provides the authoritative microphone control.
+
+Mic OFF stops microphone input resources. It must not mute Saeed's output voice.
+
+Mic ON starts capture and selects the configured STT path.
+
+Supported voice paths include:
+
+- Local Whisper STT using the bundled CI-built Whisper runtime.
+- API STT when configured.
+- Optional OpenAI Realtime transport.
+- Local browser TTS.
+- API TTS when configured.
+
+Realtime is a transport/voice path, not automatically the controlling brain. In controller mode, the transcript is passed into Saeed's configured brain/execution path.
+
+The microphone RMS thresholds are configurable. Speech interruption must stop Saeed speaking when real user speech is detected without reacting to tiny noise.
 
 ## 3D character
 
-The current authoritative runtime character is assets/Saeed_Test-3D.glb.
+The current authoritative bundled character is:
 
-The character is loaded through the Three.js/WebGL renderer. The renderer uses the capabilities available in the GLB for rigging, animation, facial behavior, and interaction without creating a second character runtime.
+`assets/Saeed_Test-3D.glb`
 
-The 3D renderer does not run a permanent render loop. It renders only when the scene actually needs an update, such as initial character load, resize, or another explicit visual change.
+The renderer loads the GLB through the bundled Three.js GLTFLoader.
 
-The renderer exposes live 3D status information for the 3D Status window, including component state and runtime render metrics.
+The 3D renderer should remain event-driven/on-demand rather than running an unrestricted permanent render loop. Rendering may temporarily wake for character animation, speech, interaction, resize, or another visual change and should return to idle afterward.
+
+The 3D Status window exposes runtime renderer metrics and state. The status window itself currently refreshes its displayed 3D state periodically; this is a UI monitoring operation and should not be confused with a permanent 3D render loop.
+
+Selected external characters are persisted under Electron `userData` and must not overwrite the bundled default GLB.
 
 ## Windows and UI
 
-### Character window
+### Character
 
-- Permanent visible Saeed surface.
-- Three.js/WebGL canvas.
-- Character surface can be dragged.
-- Double-clicking the character opens Chat.
-- Microphone control is available directly in the character window.
-- Update UI is transient and appears only while an update/check operation has relevant state.
+- Permanent Saeed surface.
+- Three.js/WebGL character.
+- Dragging support.
+- Double-click opens Chat.
+- Direct microphone control.
+- Character size and character selection controls.
 
 ### Secondary windows
 
-Chat, Status, Performance, and 3D Status are independent Electron windows. They are created when opened and destroyed when closed.
+- Chat.
+- Status.
+- Performance.
+- 3D Status.
+- Settings.
+- Transient update UI.
+- Independent task notifications.
 
-Opening a secondary window must not silently start microphone capture, STT, TTS, realtime networking, agent execution, or unnecessary background services.
+Closing a secondary window must not start or keep unnecessary microphone, STT, TTS, Realtime, Agent or polling services alive.
 
-## Agent, tools, and permissions
+## Tools
 
-- src/agent.js — request orchestration, settings/history, model execution, and tool coordination.
-- src/local-brain.js — local/offline intent handling.
-- src/tools/registry.js — central tool registry, schemas and permission dispatch.
-- src/tools/files.js — local file operations.
-- src/tools/office.js — PDF/Excel/document operations.
-- src/tools/windows.js — Windows/system operations.
-- src/tools/web.js — web/search operations.
-- src/tools/interaction.js — screen/mouse/keyboard operations.
-- src/tools/memory-tasks.js — memory and task operations.
-- src/tools.js — compatibility entry point only; do not add new tools here.
-- src/computer.js — Windows computer operations.
-- src/memory.js — persistent memory.
+There is one authoritative runtime registry:
 
-Sensitive or destructive computer operations remain confirmation-gated.
+`src/tools/registry.js`
 
-Electron permission handling explicitly supports media access and does not grant unrelated Chromium permissions by default.
+| Domain | Owner |
+|---|---|
+| Registry, schemas, permissions, dispatch | `src/tools/registry.js` |
+| Files | `src/tools/files.js` |
+| PDF / Excel / documents | `src/tools/office.js` |
+| Windows / system / applications | `src/tools/windows.js` + `src/computer.js` |
+| Web / search | `src/tools/web.js` |
+| Screen / mouse / keyboard | `src/tools/interaction.js` + `src/computer.js` |
+| Tasks / memory | `src/tools/memory-tasks.js` |
+| Deterministic verification | `src/tools/verification.js` |
+| Agent reasoning/tool loop | `src/agent.js` |
 
-## Diagnostics and performance
+`src/tools.js` and `src/agent-tools/index.js` are compatibility facades. They are not new homes for capabilities.
 
-Diagnostics have two purposes: live runtime state for Status/Performance/3D Status, and diagnostic events for the Chat diagnostics surface.
+Do not create duplicate tool implementations.
 
-Diagnostic events are not broadcast indiscriminately to every renderer.
+### Tool efficiency rules
 
-Application resource monitoring uses a centralized Electron application-metrics collection path so different monitoring features do not repeatedly collect the same metrics independently.
+1. Prefer a direct structured operation over GUI automation.
+2. Use the smallest sufficient tool.
+3. Do not call verification merely because a tool finished successfully.
+4. Read only the amount of file/document data required.
+5. Use bounded results for directory, Excel, web and process queries.
+6. Load heavy optional libraries only when their capability is requested.
+7. Do not create persistent workers for one-shot tasks.
+8. Parallelize only genuinely independent read-only operations.
+9. Stop the task as soon as the requested result is complete.
+10. Never hide a failed tool call behind a success message.
 
-CI diagnostic reports are preserved with the verified build artifact so CPU, RAM, process, GPU, disk, network, brain, voice, STT/TTS and 3D verification results can be inspected after the build.
+## Permissions
 
-## Updates
+Permissions are centralized in the Tool Registry.
 
-The application uses electron-updater. Update checking and downloading are on demand. The character update UI is transient and is not permanently displayed while idle.
+Permission categories include files, applications, system, network, screen, mouse/keyboard, microphone, tasks/memory, credentials and destructive actions.
 
-There is no separate native C++ updater.
+Sensitive/destructive actions are confirmation-gated. Normal safe actions should execute without unnecessary prompts.
 
-## Application icon
+Electron media permission is explicitly handled for the user-controlled microphone; unrelated Chromium permissions must not be granted broadly.
 
-The source artwork is assets/saeed.png.
+## Persistence
 
-The Windows ICO is generated from that PNG during the official Windows build, so the generated ICO is not required as a committed source file.
+User/runtime state belongs in Electron `userData`, not in `src/` or `assets/`.
 
-## Build system
+Important runtime state includes:
 
-There is exactly one Windows build workflow:
+- selected character data;
+- application settings;
+- tasks;
+- persistent memory;
+- resumable task state.
 
-.github/workflows/build-windows-electron.yml
+Bundled assets remain immutable application resources.
 
-Workflow name: Saeed AI — Windows Build
+## Diagnostics and performance monitoring
 
-The workflow checks the exact commit, validates VERSION/package identity, installs dependencies, validates JavaScript, generates the Windows ICO, builds and tests bundled offline Whisper, builds the NSIS installer, runs the application runtime smoke test and resource report, verifies the installer/updater metadata, removes temporary CI reports, and uploads the verified Windows artifact. Isolated 3D testing is not part of future build verification.
+Electron application metrics are collected through the main process.
 
-Normal push and manual test builds do not create a GitHub Release. Release publication is gated by a matching v* version tag.
+Performance monitoring must remain demand-driven. A status/performance view may sample metrics while that view is open, but closed windows must not leave unnecessary monitoring timers running.
 
-## Versioning
+Diagnostics are live runtime state, not a reason to create permanent logging/storage infrastructure.
 
-VERSION is the authoritative release version in MAJOR.MINOR form.
+CI reports are build artifacts, not persistent application data.
 
-The current product version is 3.9 and the Windows package/build version is 3.9.0.
+## Current repository layout
 
-A GitHub Actions build number is a CI run number, not a product release version.
-
-## Local development
-
-Requirements: Windows, Node.js 22.14.0 or a compatible version, and npm.
-
-Install: npm install
-
-Run: npm start
-
-Validate: npm test
-
-Build installer: npm run build
-
-The CI workflow is the authoritative Windows verification path because it also builds the bundled Whisper runtime, runs smoke tests, verifies the installer, and uploads the resulting artifact.
-
-## Important files
-
-### Application core
-
-- src/main.js
-- src/preload.js
-- src/index.html
-- src/renderer.js
-
-### Character and voice
-
-- src/character.html
-- src/avatar.js
-- src/character-controls.js
-- src/character-voice.js
-- assets/Saeed_Test-3D.glb
-- assets/saeed.png
-
-### Status and monitoring
-
-- src/status.html / src/status.js / src/status.css
-- src/performance.html / src/performance.js / src/performance.css
-- src/3d-status.html / src/3d-status.js / src/3d-status.css
-
-### Intelligence and tools
-
-- src/agent.js
-- src/local-brain.js
-- src/tools.js
-- src/computer.js
-- src/memory.js
-- src/realtime.js
-
-### Three.js runtime
-
-- src/three/GLTFLoader.js
-- src/three/BufferGeometryUtils.js
-
-### Packaging and CI
-
-- package.json
-- VERSION
-- build/installer.nsh
-- .github/workflows/build-windows-electron.yml
-
-## File architecture and ownership map
-
-The source tree is organized by responsibility. **Agents must follow this map before creating, moving, or modifying files. Do not create duplicate implementations in arbitrary directories.** If a new capability belongs to an existing domain, add it to that domain's folder/module instead of creating a parallel runtime.
-
-### Authoritative directory map
-
+```
 Saeed-V2.0/
-├── assets/                         # Runtime assets
+├── assets/
+│   ├── Saeed_Test-3D.glb
+│   └── saeed.png
 ├── src/
-│   ├── main.js                    # Electron main process, windows, IPC, startup
-│   ├── preload.js                 # Renderer-safe IPC/API bridge
-│   ├── renderer.js                # Main renderer/UI orchestration
-│   ├── agent.js                   # Agent orchestration and model/tool loop
-│   ├── local-brain.js             # Fast offline intent routing
-│   ├── brain-levels.js            # Brain-level classification
-│   ├── tools.js                   # Compatibility entry point only
+│   ├── main.js
+│   ├── preload.js
+│   ├── renderer.js
+│   ├── agent.js
+│   ├── brain-levels.js
+│   ├── local-brain.js
+│   ├── task-router.js
+│   ├── task-planner.js
+│   ├── task-engine.js
+│   ├── computer.js
+│   ├── memory.js
+│   ├── realtime.js
+│   ├── character-voice.js
+│   ├── avatar.js
 │   ├── tools/
-│   │   ├── registry.js            # Single registry + permissions + dispatch
-│   │   ├── files.js               # Filesystem tools
-│   │   ├── office.js               # PDF/Excel/document tools
-│   │   ├── windows.js              # Windows/system tools
-│   │   ├── web.js                  # Web/search tools
-│   │   ├── interaction.js          # Screen/mouse/keyboard tools
-│   │   └── memory-tasks.js         # Memory/task tools
-│   ├── computer.js                # Low-level Windows primitives
-│   ├── memory.js                  # Persistent memory implementation
-│   ├── agent-tools/index.js       # Legacy compatibility facade only
-│   ├── realtime.js                # Optional realtime API transport
-│   ├── character-voice.js         # Voice lifecycle
-│   ├── avatar.js                  # Three.js/WebGL character renderer
-│   ├── autonomous/                # Idle/autonomous behavior subsystem
-│   └── ...                         # UI/status/runtime modules
-├── build/                          # Build/installer resources
-├── .github/workflows/              # CI/build automation
+│   │   ├── registry.js
+│   │   ├── files.js
+│   │   ├── office.js
+│   │   ├── windows.js
+│   │   ├── web.js
+│   │   ├── interaction.js
+│   │   ├── memory-tasks.js
+│   │   └── verification.js
+│   ├── autonomous/
+│   └── UI/status modules
+├── build/
+├── tests/
 ├── package.json
-└── VERSION
+├── VERSION
+└── .github/workflows/build-windows-electron.yml
+```
 
-### Tool architecture and ownership
+## Packaging and dependencies
 
-There is one runtime tool registry: src/tools/registry.js. Tool implementations are split by domain so no giant agent.js or tools.js file accumulates unrelated capabilities.
+Current product version:
 
-| Capability | Owner |
-|---|---|
-| Tool registration, schemas, permissions, dispatch | src/tools/registry.js |
-| Files and opening/revealing files | src/tools/files.js |
-| PDF, Excel and document operations | src/tools/office.js |
-| Windows/system/application operations | src/tools/windows.js + src/computer.js |
-| Web/search | src/tools/web.js |
-| Screen/mouse/keyboard | src/tools/interaction.js + src/computer.js |
-| Memory/tasks | src/tools/memory-tasks.js |
-| Agent reasoning and tool loop | src/agent.js |
-| Fast offline intent routing | src/local-brain.js |
+- `VERSION`: **4.0**
+- `package.json`: **4.0.0**
+- Electron: **38.8.6**
+- Three.js: **0.180.0**
+- electron-builder: **26.15.3**
+- Whisper runtime/model are generated/downloaded during the Windows CI build.
 
-Do not create duplicate tool implementations. Add a capability to its existing domain module. src/tools.js and src/agent-tools/index.js are compatibility shims and should not become new tool homes.
+The packaged application currently includes the Offline Whisper runtime and model through Electron Builder `extraResources`. This is an important contributor to installed/package size and should be reconsidered before optimizing other areas.
 
-### Where new code belongs
+There is currently no committed `package-lock.json`; dependency installation uses `npm install`. Reproducible dependency locking should be considered before release hardening.
 
-| New capability | Correct location |
-|---|---|
-| Agent reasoning/orchestration | src/agent.js |
-| Local/offline intent | src/local-brain.js |
-| Filesystem | src/tools/files.js |
-| PDF/Excel/document | src/tools/office.js |
-| Windows/system | src/tools/windows.js / src/computer.js |
-| Web/search | src/tools/web.js |
-| Screen/mouse/keyboard | src/tools/interaction.js / src/computer.js |
-| Memory/tasks | src/tools/memory-tasks.js |
-| Tool permissions/dispatch | src/tools/registry.js |
-### Data/storage ownership
+The Windows ICO is generated from `assets/saeed.png` during the official CI build. A local installer build may therefore require the same icon-generation preparation used by CI.
 
-**Source code belongs in the repository. User/runtime state belongs in Electron userData. Temporary CI/build data belongs in dist/ or the CI workspace and must not become application state.**
+## Build and verification
 
-~~~text
-Repository
-├── src/                  application source
-├── assets/               bundled runtime assets
-├── build/                installer/build resources
-└── .github/              CI/build automation
+There is one Windows workflow:
 
-Electron userData/
-├── characters/           selected/persisted character data
-├── tasks.json            Agent task state
-└── other existing        persistent application state
+`.github/workflows/build-windows-electron.yml`
 
-dist/ / CI workspace       temporary build and verification output
-~~~
+Workflow name:
 
-**Never store user-specific runtime state inside src/ or assets/.** Do not overwrite the bundled default GLB when the user selects another character. Persist the selected character separately and restore it at startup.
+**Saeed AI — Windows Build**
 
-### Agent tool lifecycle
+The workflow currently performs:
 
-Agent tools are **on-demand capabilities**, not permanently running services.
+1. exact-commit checkout;
+2. VERSION/package identity validation;
+3. repository structure validation;
+4. dependency installation;
+5. JavaScript/tests;
+6. comprehensive source validation;
+7. Windows ICO generation;
+8. bundled Offline Whisper build and synthetic speech test;
+9. installer build;
+10. packaged Whisper/runtime asset checks;
+11. updater metadata validation;
+12. installer/release-output validation;
+13. artifact upload.
 
-~~~text
-User request
-    ↓
-Local Brain / Agent
-    ↓
-Select only the required tool(s)
-    ↓
-Central Tool Registry permission check
-    ↓
-Execute
-    ↓
-Observe / verify
-    ↓
-Use another tool only if required
-    ↓
-Return result
-    ↓
-Release temporary resources / end task
-~~~
+The workflow's **application runtime smoke/resource test is currently disabled**. It writes reports explicitly stating that GLB, brain, Chat, TTS, microphone and runtime resource checks were disabled. Therefore a successful CI build must not be interpreted as proof that the packaged application was fully exercised.
 
-Rules:
+Isolated 3D CI testing is intentionally not part of the workflow.
 
-1. Do not initialize specialist libraries at startup unless the architecture requires it.
-2. Prefer lazy loading for heavy optional dependencies.
-3. Prefer native structured tools over GUI automation when a reliable structured API exists.
-4. Use GUI automation as a fallback when no suitable structured tool exists.
-5. Tools must return clear results/errors; the Agent decides whether another tool is needed.
-6. Do not create persistent workers, polling loops, or background services for one-shot Agent tasks.
-7. Do not create duplicate implementations of existing capabilities.
-8. New specialist tool families belong under src/agent-tools/, are exported through index.js, then registered by src/tools.js.
-9. Permissions belong to the central Tool Registry; specialist tools must not create a second permission system.
-10. Important file operations must be verified after execution.
+Normal push/manual builds do not necessarily publish a GitHub Release. Official release publication is gated by the workflow's release conditions and matching VERSION/tag rules.
 
-### Resource-efficiency rules
+## Tests
 
-- No permanent Agent loop. The Agent runs when a request requires it.
-- No continuous 3D render loop. Render only when the scene actually needs updating.
-- No unnecessary API calls. Use Local Brain first where appropriate.
-- No unnecessary GUI automation. Use direct file/API operations first.
-- No loading every specialist library at startup. Load capabilities when requested.
-- No duplicated state stores. Use the existing memory/task/userData mechanisms.
-- No speculative tool creation. Create/use a tool because the current request requires it.
-- Bound Agent/tool execution with safe step/resource limits.
-- Verify, then finish. Do not keep a session alive after the task is complete.
+`npm test` performs syntax validation plus:
 
-### File retrieval rule for future Agents
+- `tests/task-architecture.js`
+- `tests/task-real.js`
 
-Before implementing a task, an Agent must:
+The tests cover routing, planning, task lifecycle, destructive confirmation and real local file operations.
+
+A CI failure must be investigated against the exact commit that the workflow checked out. Do not assume that a failure from an older commit describes the current `main`.
+
+## Development
+
+Requirements:
+
+- Windows.
+- Node.js 22.14.0 or compatible Node 22.
+- npm.
+
+Commands:
+
+```text
+npm install
+npm start
+npm test
+npm run build
+npm run dist
+```
+
+The CI workflow is the authoritative Windows packaging path because it also prepares the icon and builds the bundled Whisper runtime.
+
+## Performance principles
+
+Saeed should optimize in this order:
+
+1. **Do not run work that is not needed.**
+2. **Do not load code/resources before they are needed.**
+3. **Do not keep windows, timers, audio streams, WebSockets or workers alive when their feature is inactive.**
+4. **Do not duplicate data or monitoring.**
+5. **Do not send large context/results to an API when a small structured result is enough.**
+6. **Do not use GUI automation when a direct Windows/file/API operation exists.**
+7. **Do not optimize by arbitrarily reducing functionality; measure the actual bottleneck first.**
+8. **Measure CPU, RAM, startup time, installed size and task latency before and after each major optimization.**
+
+## Architecture change rule
+
+Before changing Saeed:
 
 1. Read this README.
-2. Locate the existing owner of the capability in the map above.
-3. Read that owner file and directly related modules.
-4. Reuse existing interfaces before creating a new one.
-5. Put new files only in the directory assigned to that responsibility.
-6. Update this README whenever the architecture or ownership map changes.
-
-If an existing capability already has an authoritative file, **modify that file instead of creating a second file with similar responsibility.**
-
-## Architecture rules
-
-1. Keep one coherent Electron + Three.js/WebGL application architecture.
-2. Keep assets/Saeed_Test-3D.glb as the current runtime character unless a deliberate replacement is made and tested.
-3. Do not reintroduce old C++/Win32, C# desktop, Tauri/WebView2, or duplicate 3D application paths.
-4. Keep one character runtime and one microphone/voice lifecycle.
-5. Keep the microphone OFF at startup unless the user explicitly turns it ON.
-6. Keep the live microphone level tied to the real capture path.
-7. Use Local Brain first for requests that can be handled locally; use external APIs only when required.
-8. Keep secondary windows on demand and destroy them when closed.
-9. Do not add permanent background polling or services merely to support a secondary window.
-10. Keep 3D animation and procedural work throttled rather than executing at unrestricted display refresh rate.
-11. Keep diagnostics live and purposeful; do not reintroduce obsolete diagnostic storage or reload-test APIs.
-12. Do not grant unrelated Chromium permissions broadly.
-13. Preserve working Chat/API/voice behavior when making unrelated 3D or performance changes.
-14. Keep CI diagnostic reports temporary and remove them before artifacts are uploaded.
-15. Treat the current source tree, package configuration, workflow, VERSION, and this README as the authoritative project description.
-
-
-## Release 3.10
-
-- Organized character right-click controls into compact Voice, Character, Diagnostics, and Updates/Settings submenus.
-- Added grouped Windows taskbar Jump List actions for Chat, Performance, Settings, microphone, character size, Status, and 3D Status.
-- Added live Performance resource breakdown by Electron process, including CPU, Working Set, Private Memory and process count.
-- Added a live Diagnostics panel for Mic, Brain API, Local Brain, Whisper/STT, TTS, GLB, CPU and 3D state.
-- Added microphone mode control to Settings and Performance.
-- Preserved local Whisper/STT and existing TTS behavior.
+2. Find the authoritative owner of the capability.
+3. Read that owner and its directly related modules.
+4. Reuse existing interfaces.
+5. Do not create duplicate runtimes.
+6. Keep heavy dependencies lazy.
+7. Keep user/runtime state outside the repository.
+8. Update this README when architecture or ownership changes.
+9. Do not modify unrelated systems while fixing one specific problem.
