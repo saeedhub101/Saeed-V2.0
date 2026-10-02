@@ -96,7 +96,7 @@ class Agent{
  getGlobalMemory(){return this.globalMemory.facts||[]}
 
  async run(text,image=null){
-  const s=this.settings;if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
+  const s=this.settings;this.rememberFromUserText(text);if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
   const mode=String(s.brainMode||"auto");
   if(mode==="realtime"){
    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN REALTIME",message:"Realtime mode is selected; voice streaming handles the conversation."});
