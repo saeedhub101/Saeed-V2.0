@@ -84,7 +84,11 @@ class Agent{
  newId(){return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9)}
  saveConversations(){try{fs.writeFileSync(this.chatsFile,JSON.stringify({conversations:this.conversations.map(x=>({...x,messages:x.messages.slice(-200)}))},null,2))}catch(e){console.error("Conversations save failed:",e)}}
  saveMemory(){try{fs.writeFileSync(this.memoryFile,JSON.stringify(this.globalMemory,null,2))}catch(e){console.error("Global memory save failed:",e)}}
- memoryContext(){const facts=this.globalMemory?.facts||[];return facts.length?"\n\nGlobal user memory (stable facts/preferences only; do not treat this as previous chat context):\n"+facts.map(x=>"- "+x.text).join("\n"):""}
+ memoryContext(){const facts=this.globalMemory?.facts||[];return facts.length?"
+
+Global user memory (stable facts/preferences only; do not treat this as previous chat context):
+"+facts.map(x=>"- "+x.text).join("
+"):""}
  rememberFromUserText(text){
   const s=String(text||"").trim();if(!s)return;
   const patterns=[/\bmy name is\s+(.{1,80})/i,/\bi live in\s+(.{1,80})/i,/\bi am from\s+(.{1,80})/i,/\bi prefer\s+(.{1,120})/i,/\bremember that\s+(.{1,180})/i,/\bplease remember\s+(.{1,180})/i,/تذكر(?:\s+أن)?\s+(.{1,180})/i,/احفظ(?:\s+أن)?\s+(.{1,180})/i,/أفضل\s+(.{1,120})/i,/اسمي\s+(.{1,80})/i,/أعيش في\s+(.{1,80})/i];
@@ -142,7 +146,16 @@ class Agent{
    }
   }
   let stepBudget=this.baseStepLimit();
-  for(let step=0;;step++){\n   if(step>=stepBudget){\n    const expanded=await this.askForMoreSteps(stepBudget,text);\n    if(expanded<=stepBudget){\n     this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Task stopped by user at the execution step limit",meta:{sessionId,stepLimit:stepBudget}});\n     const answer="تم إيقاف المهمة عند حد خطوات التنفيذ الحالي. يمكنك زيادة الحد من Performance أو السماح بالمتابعة عند الطلب.";\n     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;\n    }\n    stepBudget=expanded;\n   }
+  for(let step=0;;step++){
+   if(step>=stepBudget){
+    const expanded=await this.askForMoreSteps(stepBudget,text);
+    if(expanded<=stepBudget){
+     this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Task stopped by user at the execution step limit",meta:{sessionId,stepLimit:stepBudget}});
+     const answer="تم إيقاف المهمة عند حد خطوات التنفيذ الحالي. يمكنك زيادة الحد من Performance أو السماح بالمتابعة عند الطلب.";
+     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;
+    }
+    stepBudget=expanded;
+   }
    this.onEvent({type:"thinking",step});
    const d=this.providerDefaults(s.provider),base=(s.baseUrl||d.baseUrl||"http://localhost:11434/v1").replace(/\/$/,"");
    let r,body,headers={"Content-Type":"application/json"},url;
