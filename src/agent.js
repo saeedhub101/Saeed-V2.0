@@ -1,8 +1,8 @@
-const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{BrainLevelRouter}=require("./brain-levels");
+const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{BrainController}=require("./brain-controller");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
-  this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.taskContext=null;this.disposed=false;this.brainLevels=new BrainLevelRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain});this.dir=app.getPath("userData");
+  this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.taskContext=null;this.disposed=false;this.brainLevels=new BrainController({settings:()=>this.settings,getLocalBrain:()=>this.localBrain});this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
   const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:16,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
@@ -113,7 +113,7 @@ class Agent{
   let selectedBrain=options?.brain&&["api","local"].includes(String(options.brain))?String(options.brain):mode;
   if(options?.brain&&["api","local"].includes(String(options.brain))){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN CONTRACT",message:"TaskEngine selected brain: "+selectedBrain,meta:{selectedBrain,source:"task-engine"}})}
   if(selectedBrain==="auto"){
-   const nextLevel=await this.brainLevels.classify(text);
+   const nextLevel=await this.brainLevels.route(text);
    selectedBrain=nextLevel.name==="api"?"api":"local";
    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTER",message:"Auto brain selected "+selectedBrain+" for this request",meta:{mode,selectedBrain,...nextLevel}});
   }else{
