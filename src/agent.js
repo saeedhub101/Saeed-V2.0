@@ -54,7 +54,7 @@ class Agent{
    hasTtsApiKey:Boolean(this._settings.ttsApiKey),hasRealtimeApiKey:Boolean(this._settings.realtimeApiKey)}}
  set settings(v){
   const previous=this._settings||{},input=v||{},providerChanged=input.provider&&input.provider!==previous.provider;
-  this._settings={...previous,...input,permissions:{...previous.permissions,...(input.permissions||{})},brainMode:["api","local","auto"].includes(String(input.brainMode||""))?String(input.brainMode):String(previous.brainMode||"auto")};
+  this._settings={...previous,...input,permissions:{...previous.permissions,...(input.permissions||{})},brainMode:["api","local","auto"].includes(String(input.brainMode||""))?String(input.brainMode):String(previous.brainMode||"auto")};\n  this._settings.maxSteps=Math.max(1,Math.min(100,Number(this._settings.maxSteps)||16));
   if(this._settings.micMode==="always"||this._settings.micMode==="ptt")this._settings.micMode="on";
   if(this._settings.micMode!=="on")this._settings.micMode="off";
   delete this._settings.alwaysListening;
