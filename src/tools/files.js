@@ -10,7 +10,7 @@ function schemas(){return[
  {type:"function",function:{name:"reveal_file",description:"Show a specific local file in Windows File Explorer without opening it.",parameters:{type:"object",properties:{filePath:{type:"string"}},required:["filePath"]}}}
 ]}
 
-function call(name,a){
+async function call(name,a){
  const p=abs(a?.filePath);
  if(name==="list_directory"){
   const d=abs(a?.directory||"."); if(!fs.existsSync(d))return{ok:false,error:"Directory not found: "+d};
