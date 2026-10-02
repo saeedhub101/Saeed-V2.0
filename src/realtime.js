@@ -1,5 +1,7 @@
 const WebSocket = require("ws");
 
+// OpenAI GA Realtime WebSocket endpoint; the model is selected in the query string.
+
 class OpenAIRealtime {
   constructor(callbacks = {}) {
     this.ws = null;
