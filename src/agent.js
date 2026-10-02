@@ -151,6 +151,9 @@ class Agent{
      else messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify(invalid)});
      continue
     }
+    const actionName=String(c.function.name||"");
+    const actionText=actionName==="open_url"?"Okay, I’ll open that.":actionName==="open_application"?"Okay, I’ll open it.":actionName==="web_search"?"Okay, I’ll look that up.":actionName==="screenshot"?"Okay, I’ll check the screen.":actionName==="read_file"||actionName==="inspect_document"||actionName==="extract_pdf_text"||actionName==="read_excel"?"Okay, I’ll check that.":"Okay, I’ll do that.";
+    this.onEvent({type:"speech-status",text:actionText});
     this.onEvent({type:"tool",name:c.function.name,args:a});
     let out;try{out=await this.registry.call(c.function.name,a)}catch(e){out={ok:false,error:e.message}}
     if(out?.ok===false&&["web_search","fetch_web_page","network_info","read_file","inspect_document","extract_pdf_text","read_excel"].includes(c.function.name)){this.onEvent({type:"diagnostic",level:"INFO",stage:"TOOL RETRY",message:"Retrying safe read/network tool after failure",meta:{tool:c.function.name}});try{const retry=await this.registry.call(c.function.name,a);if(retry?.ok!==false)out=retry}catch{}}
