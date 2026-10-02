@@ -12,8 +12,9 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent/agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./voice/realtime"),{LocalBrain}=require("./brain/local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{TaskEngine}=require("./task-engine"),{autoUpdater}=require("electron-updater"),{createDiagnostics}=require("./core/diagnostics"),{DEFAULT_PERMISSIONS,permissionPolicy:resolvePermissionPolicy}=require("./core/permissions");
-const {WindowManager}=require("./windows/window-manager"),{VoiceController}=require("./voice/voice-controller"),{AppRuntime}=require("./core/app-runtime");
+const {createDiagnostics}=require("./core/diagnostics"),{permissionPolicy:resolvePermissionPolicy}=require("./core/permissions");
+const {WindowManager}=require("./windows/window-manager"),{AppRuntime}=require("./core/app-runtime");
+let autoUpdater=null;
 const windowManager=new WindowManager({preload:path.join(__dirname,"preload.js"),iconPath:null,baseDir:__dirname});
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
@@ -213,6 +214,12 @@ async function createChatWindow(){
 }
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
 async function createWindow(){
+ // Keep startup lightweight: load the agent/voice/brain stack only after the character window exists.
+ const {ToolRegistry}=require("./tools");
+ const {Agent}=require("./agent/agent");
+ const {LocalBrain}=require("./brain/local-brain");
+ const {BrainSupervisor}=require("./autonomous/brain-supervisor");
+ const {TaskEngine}=require("./task-engine");
  await createCharacterWindow();
  const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";const noticeId=id;const resolver=resolve;taskNotices.set(noticeId,resolver);showTaskNotice({id:noticeId,title:"Saeed needs your approval",message:`Saeed wants to perform: ${name}\n\nPermission: ${permissionLabel}\n\n${JSON.stringify(args||{},null,2)}`,actions:[{label:"Allow",value:true,primary:true},{label:"Reject",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(noticeId);if(r){taskNotices.delete(noticeId);r(ok)}});});}});
  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e);taskEngine?.observeAgentEvent?.(e);},requestStepIncrease:async({current,requested,task})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const resolver=resolve;taskNotices.set(id,resolver);showTaskNotice({id,title:"Saeed needs more execution steps",message:`تم تجاوز عدد الخطوات المسموح به (${current}). هل تريد زيادتها والمتابعة؟\n\nسيتم رفع الحد مؤقتًا لهذه المهمة فقط إلى ${requested}.`,actions:[{label:"زيادة والمتابعة",value:true,primary:true},{label:"إيقاف",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(id);if(r){taskNotices.delete(id);r(ok)}});});}});voiceMuted=Boolean(agent.settings.voiceMuted);agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});taskEngine=new TaskEngine({agent,userDataPath:app.getPath("userData"),emit:e=>{voiceBroadcast("agent:event",e);rebuildTray();if(e?.type==="task:start"){showTaskNotice({title:"Saeed — Task",message:String(e.text||"بدأت المهمة.")+"\\n\\nBrain: "+String(e.route?.brain||"auto"),kind:"progress"},{wait:false,timeoutMs:120000})}else if(e?.type==="task:progress"){showTaskNotice({title:"Saeed — Task in progress",message:"Phase: "+String(e.phase||"working")+"\\nStep: "+String(e.step||0)+(e.stepLimit?" / "+String(e.stepLimit):"")+(e.currentTool?"\\nTool: "+String(e.currentTool):""),kind:"progress"},{wait:false,timeoutMs:3000})}if(e?.type==="task:complete"){showTaskNotice({title:"Saeed",message:"✓ OK — تم الانتهاء من المهمة\n\n"+String(e.text||"")},{wait:false,timeoutMs:5000});if(!voiceMuted)voiceBroadcast("agent:event",{type:"speech-status",text:"تم الانتهاء من المهمة"})}else if(e?.type==="task:error"){showTaskNotice({title:"Saeed",message:"تعذر إكمال المهمة:\n\n"+String(e.error||"")},{wait:false,timeoutMs:5000})}}});setSaeedSize(agent.settings.characterSize||"small");brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
@@ -223,7 +230,7 @@ async function createCharacterWindow(){
  characterWin.setIcon(windowsIconPath());
  if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
  characterWin.on("closed",()=>{characterWin=null});
- characterWin.on("close",()=>{if(!app.isQuitting())diagnostic("INFO","WINDOW","Saeed character window closed");});
+ characterWin.on("close",()=>{if(!app.isQuitting)diagnostic("INFO","WINDOW","Saeed character window closed");});
  characterWin.webContents.on("context-menu",()=>contextMenu());
  try{await characterWin.loadFile(path.join(__dirname,"character.html"));}catch(e){
   diagnostic("ERROR","CHARACTER WINDOW LOAD",e.message);
@@ -255,6 +262,7 @@ function hideUpdateToast(){try{if(updateToastWin&&!updateToastWin.isDestroyed())
 function publishUpdate(event,...args){for(const win of [chatWin,updateStatusWin])if(win&&!win.isDestroyed())win.webContents.send(event,...args)}
 function showUpdateStatus(){try{if(!updateStatusWin||updateStatusWin.isDestroyed()){updateStatusWin=new BrowserWindow({width:520,height:360,minWidth:520,minHeight:360,maxWidth:520,maxHeight:360,title:"Saeed AI Update",show:false,resizable:false,center:true,backgroundColor:"#f5f7fb",icon:windowsIconPath(),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});updateStatusWin.setMenuBarVisibility(false);updateStatusWin.removeMenu();updateStatusWin.on("closed",()=>{updateStatusWin=null})}updateStatusWin.loadFile(path.join(__dirname,"update-status.html")).then(()=>{if(updateStatusWin&&!updateStatusWin.isDestroyed()){updateStatusWin.show();updateStatusWin.focus();updateStatusWin.webContents.send("update:status-snapshot",{state:updateState,info:updateInfo})}}).catch(e=>diagnostic("ERROR","UPDATE STATUS WINDOW",e.message));return true}catch(e){diagnostic("ERROR","UPDATE STATUS WINDOW",e.message);return false}}
 function configureUpdater(){
+ if(!autoUpdater)({autoUpdater}=require("electron-updater"));
  autoUpdater.autoDownload=false;
  autoUpdater.autoInstallOnAppQuit=false;
  // Keep the update feed explicit so every installed build checks the Saeed-V2.0 GitHub latest channel.
@@ -452,7 +460,7 @@ function startRealtime(options={}){
   description:t.function?.description||"",
   parameters:t.function?.parameters||{type:"object",properties:{},required:[]}
  })).filter(t=>t.name):[];
- realtime=new OpenAIRealtime({
+ const {OpenAIRealtime}=require("./voice/realtime"); realtime=new OpenAIRealtime({
   state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");voiceBroadcast("realtime:state",state,message)},
   event:async(event)=>{
    if(event.type==="response.output_audio.delta"&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received");voiceBroadcast("realtime:audio",event.delta);}
