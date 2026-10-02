@@ -321,14 +321,14 @@ ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(leve
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
  const previous={...agent.settings};
- agent.settings={...previous,...(s||{}),brainMode:"auto"};
+ agent.settings={...previous,...(s||{}),brainMode:["api","local","auto"].includes(String((s||{}).brainMode||""))?String((s||{}).brainMode):String(previous.brainMode||"auto")};
  delete agent.settings.alwaysListening;
  if(agent.settings.micMode==="always"||agent.settings.micMode==="ptt")agent.settings.micMode="on";
  if(agent.settings.micMode!=="on")agent.settings.micMode="off";
- const mode="auto";
+ const mode=String(agent.settings.brainMode||"auto");
  let micMode=String(agent.settings.micMode||currentMicMode||"off");
  
- if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
+ if(mode==="local"){agent.settings.micPath="whisper";agent.settings.voiceRouting="controller";if(agent.settings.realtimeEnabled){agent.settings.realtimeEnabled=false;stopRealtime();}}else if(mode==="auto"){agent.settings.micPath="whisper";agent.settings.voiceRouting="controller";if(agent.settings.realtimeEnabled){agent.settings.realtimeEnabled=false;stopRealtime();}}else if(mode==="api"){agent.settings.voiceRouting="direct";if(agent.settings.realtimeEnabled)agent.settings.micPath="realtime";} if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(Object.prototype.hasOwnProperty.call(s||{},"realtimeEnabled")&&previous.realtimeEnabled!==agent.settings.realtimeEnabled){if(agent.settings.realtimeEnabled===false){stopRealtime();if(micMode==="on")setMicMode("on");}else if(micMode==="on"&&agent.settings.micPath!=="whisper"){setMicMode("off").then(()=>setMicMode("on"));}}
  if(Object.prototype.hasOwnProperty.call(s||{},"characterSize"))setSaeedSize(agent.settings.characterSize);
  if(Object.prototype.hasOwnProperty.call(s||{},"displayMode")&&characterWin&&!characterWin.isDestroyed())characterWin.setAlwaysOnTop(agent.settings.displayMode==="always-on-top");
