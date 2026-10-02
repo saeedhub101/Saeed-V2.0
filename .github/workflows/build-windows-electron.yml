@@ -163,20 +163,11 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $root = Join-Path $PWD "dist\\win-unpacked"
-          $required = @(
-            "Saeed AI.exe",
-            "resources\\app.asar",
-            "resources\\whisper\\whisper-cli.exe",
-            "resources\\whisper\\ggml-base-q5_1.bin"
-          )
-          foreach($rel in $required){$p=Join-Path $root $rel;if(!(Test-Path $p -PathType Leaf)){throw "Packaged runtime asset missing: $p";}}
-          $model=Get-Item (Join-Path $root "resources\\whisper\\ggml-base-q5_1.bin")
-          if($model.Length -lt 50000000){throw "Packaged Whisper model is unexpectedly small: $($model.Length) bytes"}
-          & (Join-Path $root "resources\\whisper\\whisper-cli.exe") --help | Out-File (Join-Path $env:RUNNER_TEMP "packaged-whisper-help.txt")
-          if($LASTEXITCODE -ne 0){throw "Packaged Whisper executable failed startup/help check."}
+          $required = @("Saeed AI.exe","resources\\app.asar")
+          foreach($rel in $required){$p=Join-Path $root $rel;if(!(Test-Path $p -PathType Leaf)){throw "Packaged core asset missing: $p";}}
           Write-Host "PACKAGED_APP_ASAR=PASS"
-          Write-Host "PACKAGED_WHISPER_EXE=PASS"
-          Write-Host "PACKAGED_WHISPER_MODEL=PASS"
+          if(Test-Path (Join-Path $root "resources\\whisper")){throw "Whisper runtime must not be bundled inside Saeed Core."}
+          Write-Host "PACKAGED_CORE_HAS_NO_WHISPER=PASS"
 
       - name: Runtime application smoke test and detailed resource report
         shell: powershell
