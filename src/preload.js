@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld("saeed",{
  minimizeChat:()=>ipcRenderer.invoke("chat:minimize"),
  onEvent:f=>ipcRenderer.on("agent:event",(_,e)=>f(e)),
  onConfirmation:f=>ipcRenderer.on("agent:confirm",(_,e)=>f(e)),
- respondConfirmation:(id,approved)=>ipcRenderer.invoke("agent:confirm-response",id,approved),
+ respondConfirmation:(id,approved)=>ipcRenderer.invoke("agent:confirm-response",id,approved),respondTaskNotice:(id,approved)=>ipcRenderer.invoke("task:notice-response",id,approved),taskNoticeReady:id=>ipcRenderer.send("task:notice-ready",id),onTaskNotice:f=>ipcRenderer.on("task:notice",(_,e)=>f(e)),resumeLastTask:()=>ipcRenderer.invoke("task:resume"),
  onScreenCapture:f=>ipcRenderer.on("screen:capture",(_,e)=>f(e)),
  onShowChat:f=>ipcRenderer.on("chat:show",()=>f()),
  onShowPerformance:f=>ipcRenderer.on("performance:show",()=>f()),
