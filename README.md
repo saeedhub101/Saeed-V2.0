@@ -392,3 +392,9 @@ If an existing capability already has an authoritative file, **modify that file 
 - Added a live Diagnostics panel for Mic, Brain API, Local Brain, Whisper/STT, TTS, GLB, CPU and 3D state.
 - Added microphone mode control to Settings and Performance.
 - Preserved local Whisper/STT and existing TTS behavior.
+
+## Release 4.2
+
+- Introduced the removable Add-ons / Plug-ins architecture.
+- Core no longer packages Word/DOCX, Excel/XLSX, PDF, OCR, or local Whisper runtime libraries/models.
+- Optional libraries are delivered as separate installable bundles and can be removed independently.
