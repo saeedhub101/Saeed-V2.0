@@ -292,7 +292,6 @@ jobs:
             dist/latest.yml
             dist/ci-runtime-report.json
             dist/ci-host-resource-report.json
-            dist/ci-animation-smoke.json
 
 
       - name: Publish official release
