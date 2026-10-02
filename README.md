@@ -4,6 +4,17 @@ Saeed AI is a Windows desktop AI companion and computer agent built as one Elect
 
 ## Current architecture
 
+### Add-on / Plug-in architecture (authoritative)
+
+Saeed Core is intentionally kept free of optional specialist libraries. Optional capabilities are installed separately under the Electron userData `addons/` directory and are never written into `src/`, `assets/`, or the installed core `app.asar`.
+
+The Add-ons / Plug-ins window is opened from the tray and character context menu. It reads the official catalog at `src/addons/catalog.json`, shows installed state, and supports Install/Uninstall. Add-on packages are downloaded over HTTPS, extracted atomically, and can be removed without rebuilding or reinstalling Saeed.
+
+Add-ons use a versioned `manifest.json` contract. The runtime supports self-contained bundle add-ons and npm-backed development add-ons. Heavy libraries and native/model files must be shipped as self-contained release bundles for end users; they are lazy-loaded only when the corresponding capability is used.
+
+Current optional capability slots include Word/DOCX, Excel/XLSX, PDF, OCR, local Whisper STT, TTS providers, local LLM providers, and future character animation engines. STT/TTS/LLM are provider slots rather than hard-coded permanent implementations so another engine can replace Whisper or a future provider without changing the core architecture.
+
+
 - Desktop runtime: Electron + Chromium.
 - UI: HTML/CSS/JavaScript.
 - 3D: Three.js 0.180.0 + WebGL.
@@ -132,7 +143,7 @@ There is exactly one Windows build workflow:
 
 Workflow name: Saeed AI — Windows Build
 
-The workflow checks the exact commit, validates VERSION/package identity, installs dependencies, validates JavaScript, generates the Windows ICO, builds and tests bundled offline Whisper, builds the NSIS installer, runs the application runtime smoke test and resource report, verifies the installer/updater metadata, removes temporary CI reports, and uploads the verified Windows artifact. Isolated 3D testing is not part of future build verification.
+The workflow checks the exact commit, validates VERSION/package identity, installs core dependencies, validates JavaScript, generates the Windows ICO, builds the core NSIS installer, then builds and verifies optional add-on bundles separately, runs the application runtime smoke test and resource report, verifies the installer/updater metadata, removes temporary CI reports, and uploads the verified Windows artifact. Isolated 3D testing is not part of future build verification.
 
 Normal push and manual test builds do not create a GitHub Release. Release publication is gated by a matching v* version tag.
 
@@ -140,7 +151,7 @@ Normal push and manual test builds do not create a GitHub Release. Release publi
 
 VERSION is the authoritative release version in MAJOR.MINOR form.
 
-The current product version is 3.9 and the Windows package/build version is 3.9.0.
+The current product version is 4.2 and the Windows package/build version is 4.2.0.
 
 A GitHub Actions build number is a CI run number, not a product release version.
 
