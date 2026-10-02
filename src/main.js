@@ -157,14 +157,13 @@ async function setMicMode(mode,fromUser=false){
  voiceBroadcast("mic:mode",value);
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
  if(value==="off"){
-  stopRealtime();
-  diagnostic("INFO","STT DISCONNECTED","Speech-to-text is stopped");
-  diagnostic("INFO","TTS DISCONNECTED","Text-to-speech is idle");
-  voiceBroadcast("local-stt:state","disconnected","Microphone is off");
+  diagnostic("INFO","MIC INPUT","Microphone input is OFF; voice output and Realtime session remain independent");
+  voiceBroadcast("local-stt:state","disconnected","Microphone input is off");
  }else{
-  if(agent?.settings?.sttProvider==="whisper"){voiceBroadcast("local-stt:state","ready","Local Whisper ready");diagnostic("INFO","STT READY","Local Whisper is ready for microphone input");}
+  if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")startRealtime();
+  else if(agent?.settings?.sttProvider==="whisper"){voiceBroadcast("local-stt:state","ready","Local Whisper ready");diagnostic("INFO","STT READY","Local Whisper is ready for microphone input");}
+  else diagnostic("INFO","STT READY","Selected API STT is ready for microphone input");
   diagnostic("INFO","TTS READY","TTS is ready for voice replies");
-  if(String(agent?.settings?.brainMode||"auto")==="realtime")startRealtime();
  }
  diagnostic("INFO","MIC MODE","Microphone mode: "+value);
  rebuildTray();
@@ -338,9 +337,12 @@ ipcMain.handle("settings:set",(_,s)=>{
  if(agent.settings.micMode!=="on")agent.settings.micMode="off";
  const mode=String(agent.settings.brainMode||"auto");
  let micMode=String(agent.settings.micMode||currentMicMode||"off");
- 
- if(mode==="local"){agent.settings.realtimeEnabled=false;stopRealtime();}else if(mode==="auto"){agent.settings.realtimeEnabled=false;stopRealtime();} if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
- if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(Object.prototype.hasOwnProperty.call(s||{},"realtimeEnabled")&&previous.realtimeEnabled!==agent.settings.realtimeEnabled){if(mode!=="api")agent.settings.realtimeEnabled=false;if(agent.settings.realtimeEnabled===false){stopRealtime();if(micMode==="on")setMicMode("on");}else if(micMode==="on"&&agent.settings.micPath!=="whisper"){setMicMode("off").then(()=>setMicMode("on"));}}
+ const realtimeChanged=Object.prototype.hasOwnProperty.call(s||{},"realtimeEnabled")&&previous.realtimeEnabled!==agent.settings.realtimeEnabled;
+ const voiceConfigChanged=["sttProvider","sttModel","sttLanguage","ttsProvider","ttsModel","ttsVoice","voiceRouting","micPath","realtimeProvider","realtimeModel","realtimeVoice","micSpeechRms","micInterruptRms"].some(k=>Object.prototype.hasOwnProperty.call(s||{},k)&&previous[k]!==agent.settings[k]);
+ if(mode!=="api"&&agent.settings.realtimeEnabled)agent.settings.realtimeEnabled=false;
+ if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")stopRealtime();
+ if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
+ if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(realtimeChanged&&micMode==="on")setMicMode("off").then(()=>setMicMode("on"));
  if(Object.prototype.hasOwnProperty.call(s||{},"characterSize"))setSaeedSize(agent.settings.characterSize);
  if(Object.prototype.hasOwnProperty.call(s||{},"displayMode")&&characterWin&&!characterWin.isDestroyed())characterWin.setAlwaysOnTop(agent.settings.displayMode==="always-on-top");
  if(Object.prototype.hasOwnProperty.call(s||{},"characterBehavior")||Object.prototype.hasOwnProperty.call(s||{},"idleThoughtsEnabled")||Object.prototype.hasOwnProperty.call(s||{},"brainController")||Object.prototype.hasOwnProperty.call(s||{},"mood")||Object.prototype.hasOwnProperty.call(s||{},"appearance")||Object.prototype.hasOwnProperty.call(s||{},"zoom")||Object.prototype.hasOwnProperty.call(s||{},"muteSounds")||Object.prototype.hasOwnProperty.call(s||{},"brainMode")||Object.prototype.hasOwnProperty.call(s||{},"voiceRouting")||Object.prototype.hasOwnProperty.call(s||{},"ttsProvider"))characterWin?.webContents.send("character:behavior",{type:"settings",settings:agent.publicSettings()});
@@ -443,6 +445,8 @@ function stopRealtime(){
 }
 function startRealtime(options={}){
  const s=agent?.settings||{};
+ if(s.realtimeEnabled===false){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled in Voice settings");voiceBroadcast("realtime:state","disabled","Realtime is disabled.");return false}
+ if(s.micPath!=="realtime"){diagnostic("INFO","REALTIME BLOCKED","Realtime microphone path is disabled");voiceBroadcast("realtime:state","blocked","Microphone is using the selected STT provider.");return false}
  if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}if(String(s.brainMode||"auto")!=="api"){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled because Brain mode is "+String(s.brainMode||"auto")+"; requests must pass through the selected brain routing.");voiceBroadcast("realtime:state","blocked","Realtime requires Direct API brain mode.");return false}
  const key=s.realtimeApiKey||s.apiKey||"";
  if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");voiceBroadcast("realtime:state","not-configured","OpenAI API key is not configured.");return false}
