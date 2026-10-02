@@ -104,8 +104,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Generated ICO could not be inspected." }
           foreach ($size in @(256,128,64,48,32,16)) {
             $out = Join-Path $iconDir "saeed-$size.png"
-            & magick $icon -thumbnail "$($size)x$($size)" $out
-            if ($LASTEXITCODE -ne 0 -or !(Test-Path $out)) { throw "Failed to extract $size x $size icon." }
+            # Extract the exact embedded ICO frame instead of resizing the multi-frame
+            # ICO as a whole (ImageMagick treats the ICO as an image sequence).
+            & magick "${icon}[${size}x${size}]" -background none -alpha on $out
+            if ($LASTEXITCODE -ne 0 -or !(Test-Path $out)) {
+              throw "Failed to extract $size x $size icon."
+            }
           }
           Copy-Item $icon (Join-Path $iconDir "saeed.ico") -Force
           Write-Host "Saved generated icons:"
