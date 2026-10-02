@@ -38,7 +38,7 @@ class Agent{
  executionHints(text){return this.registry?.rankForTask?this.registry.rankForTask(String(text||"")):[]}
 
  async askForMoreSteps(current,task){
-  const requested=current+12;
+  const increment=Math.max(8,Math.ceil(current*0.5));const requested=Math.min(100,current+increment);
   this.onEvent({type:"step-limit-request",currentLimit:current,requestedLimit:requested,task:String(task||"")});
   try{return Boolean(await this.requestStepIncrease({current,requested,task:String(task||"")}))?requested:current}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT STEP LIMIT",message:e.message});return current}
  }
