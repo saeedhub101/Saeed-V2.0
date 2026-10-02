@@ -127,7 +127,9 @@ class OpenAIRealtime {
       errorReported = true;
       const status = response?.statusCode ? `HTTP ${response.statusCode}` : "HTTP unknown";
       const requestId = response?.headers?.["x-request-id"] ? String(response.headers["x-request-id"]) : "";
-      this.fail(`Realtime WebSocket handshake rejected (${status})${requestId ? ` [request ${requestId}]` : ""}`);
+      let body="";
+      response?.on?.("data",chunk=>{body+=String(chunk||"")});
+      response?.on?.("end",()=>this.fail(`Realtime WebSocket handshake rejected (${status})${requestId ? ` [request ${requestId}]` : ""}${body ? `: ${body.slice(0,300)}` : ""}`));
     });
 
     ws.on("error", e => {
