@@ -87,7 +87,14 @@ Opening a secondary window must not silently start microphone capture, STT, TTS,
 
 - src/agent.js — request orchestration, settings/history, model execution, and tool coordination.
 - src/local-brain.js — local/offline intent handling.
-- src/tools.js — tool registry and tool definitions.
+- src/tools/registry.js — central tool registry, schemas and permission dispatch.
+- src/tools/files.js — local file operations.
+- src/tools/office.js — PDF/Excel/document operations.
+- src/tools/windows.js — Windows/system operations.
+- src/tools/web.js — web/search operations.
+- src/tools/interaction.js — screen/mouse/keyboard operations.
+- src/tools/memory-tasks.js — memory and task operations.
+- src/tools.js — compatibility entry point only; do not add new tools here.
 - src/computer.js — Windows computer operations.
 - src/memory.js — persistent memory.
 
@@ -125,7 +132,7 @@ There is exactly one Windows build workflow:
 
 Workflow name: Saeed AI — Windows Build
 
-The workflow checks the exact commit, validates VERSION/package identity, installs dependencies, validates JavaScript, generates the Windows ICO, builds and tests bundled offline Whisper, builds the NSIS installer, runs the isolated 3D baseline, runs the application runtime smoke test and resource report, verifies the installer/updater metadata, removes temporary CI reports, and uploads the verified Windows artifact.
+The workflow checks the exact commit, validates VERSION/package identity, installs dependencies, validates JavaScript, generates the Windows ICO, builds and tests bundled offline Whisper, builds the NSIS installer, runs the application runtime smoke test and resource report, verifies the installer/updater metadata, removes temporary CI reports, and uploads the verified Windows artifact. Isolated 3D testing is not part of future build verification.
 
 Normal push and manual test builds do not create a GitHub Release. Release publication is gated by a matching v* version tag.
 
@@ -202,73 +209,68 @@ The source tree is organized by responsibility. **Agents must follow this map be
 
 ### Authoritative directory map
 
-~~~text
 Saeed-V2.0/
-├── assets/                         # Runtime assets only
-│   ├── Saeed_Test-3D.glb          # Current default/fallback character
-│   └── saeed.png                  # Source application icon
+├── assets/                         # Runtime assets
 ├── src/
 │   ├── main.js                    # Electron main process, windows, IPC, startup
 │   ├── preload.js                 # Renderer-safe IPC/API bridge
 │   ├── renderer.js                # Main renderer/UI orchestration
-│   ├── index.html                 # Main renderer document
-│   ├── agent.js                   # Agent brain/orchestration and tool coordination
-│   ├── local-brain.js             # Fast offline/local intent routing
-│   ├── tools.js                   # Central Tool Registry, schemas, permissions, dispatch
-│   ├── computer.js                # Low-level Windows computer/GUI operations
-│   ├── memory.js                  # Persistent Agent memory
+│   ├── agent.js                   # Agent orchestration and model/tool loop
+│   ├── local-brain.js             # Fast offline intent routing
+│   ├── brain-levels.js            # Brain-level classification
+│   ├── tools.js                   # Compatibility entry point only
+│   ├── tools/
+│   │   ├── registry.js            # Single registry + permissions + dispatch
+│   │   ├── files.js               # Filesystem tools
+│   │   ├── office.js               # PDF/Excel/document tools
+│   │   ├── windows.js              # Windows/system tools
+│   │   ├── web.js                  # Web/search tools
+│   │   ├── interaction.js          # Screen/mouse/keyboard tools
+│   │   └── memory-tasks.js         # Memory/task tools
+│   ├── computer.js                # Low-level Windows primitives
+│   ├── memory.js                  # Persistent memory implementation
+│   ├── agent-tools/index.js       # Legacy compatibility facade only
 │   ├── realtime.js                # Optional realtime API transport
-│   ├── agent-tools/               # Structured specialist tools
-│   │   ├── index.js               # Tool registration/export boundary
-│   │   ├── document-tools.js      # PDF/document extraction and inspection
-│   │   └── office-tools.js        # Excel/spreadsheet reading and writing
+│   ├── character-voice.js         # Voice lifecycle
 │   ├── avatar.js                  # Three.js/WebGL character renderer
-│   ├── character.html             # Character window
-│   ├── character-controls.js      # Character interaction/window controls
-│   ├── character-voice.js         # Character voice lifecycle
-│   ├── autonomous/                # Separate autonomous behavior system
-│   │   ├── brain-supervisor.js    # Controller selection/lifecycle
-│   │   ├── default-brain.js       # Lightweight idle decision scheduler
-│   │   ├── context.js             # Brain capability boundary
-│   │   ├── tasks.js               # Existing task-store adapter
-│   │   └── feelings.js            # Persistent mood adapter
-│   ├── status.*                   # General runtime status
-│   ├── performance.*              # Performance/resource monitoring
-│   ├── 3d-status.*                # 3D renderer diagnostics
-│   ├── update-toast.*             # Transient update notification
-│   ├── update-status.*            # Dedicated update status/download window
-│   └── three/                     # Bundled Three.js runtime helpers
-│       ├── GLTFLoader.js
-│       └── BufferGeometryUtils.js
-├── build/                         # Build/installer resources, NOT Agent tools
-├── .github/workflows/             # CI/build automation only
-│   └── build-windows-electron.yml # The only Windows build workflow
-├── package.json                   # Dependencies/scripts/build config
-└── VERSION                        # Authoritative product release version
-~~~
+│   ├── autonomous/                # Idle/autonomous behavior subsystem
+│   └── ...                         # UI/status/runtime modules
+├── build/                          # Build/installer resources
+├── .github/workflows/              # CI/build automation
+├── package.json
+└── VERSION
 
-### Where an Agent must store new code
+### Tool architecture and ownership
 
-| New capability | Correct location | Do not put it in |
-|---|---|---|
-| Agent reasoning/planning/orchestration | src/agent.js | main.js, renderer.js |
-| New local/offline intent | src/local-brain.js | a second brain file |
-| Generic tool registration/permissions | src/tools.js | duplicated tool registries |
-| PDF/document capability | src/agent-tools/document-tools.js | main.js, random utils.js |
-| Excel/Office capability | src/agent-tools/office-tools.js | GUI-only code in computer.js |
-| New specialist Agent tool family | src/agent-tools/ + index.js | a parallel Agent runtime |
-| Windows mouse/keyboard/process/window primitive | src/computer.js | agent.js |
-| Persistent Agent memory | src/memory.js | arbitrary JSON files under src/ |
-| 3D rendering | src/avatar.js | agent.js, renderer.js |
-| Character interaction | src/character-controls.js | avatar.js unless it is renderer logic |
-| Voice lifecycle | src/character-voice.js / existing voice path | a new microphone runtime |
-| Electron windows / IPC | src/main.js + src/preload.js | direct Electron access from renderer |
-| Window UI | matching .html/.js/.css files | main.js unless window creation/IPC is required |
-| Three.js loaders/helpers | src/three/ | another copy of Three.js |
-| Build/CI behavior | .github/workflows/ | application runtime code |
-| Installer customization | build/ | src/ |
-| Static runtime assets | assets/ | src/ |
+There is one runtime tool registry: src/tools/registry.js. Tool implementations are split by domain so no giant agent.js or tools.js file accumulates unrelated capabilities.
 
+| Capability | Owner |
+|---|---|
+| Tool registration, schemas, permissions, dispatch | src/tools/registry.js |
+| Files and opening/revealing files | src/tools/files.js |
+| PDF, Excel and document operations | src/tools/office.js |
+| Windows/system/application operations | src/tools/windows.js + src/computer.js |
+| Web/search | src/tools/web.js |
+| Screen/mouse/keyboard | src/tools/interaction.js + src/computer.js |
+| Memory/tasks | src/tools/memory-tasks.js |
+| Agent reasoning and tool loop | src/agent.js |
+| Fast offline intent routing | src/local-brain.js |
+
+Do not create duplicate tool implementations. Add a capability to its existing domain module. src/tools.js and src/agent-tools/index.js are compatibility shims and should not become new tool homes.
+
+### Where new code belongs
+
+| New capability | Correct location |
+|---|---|
+| Agent reasoning/orchestration | src/agent.js |
+| Local/offline intent | src/local-brain.js |
+| Filesystem | src/tools/files.js |
+| PDF/Excel/document | src/tools/office.js |
+| Windows/system | src/tools/windows.js / src/computer.js |
+| Web/search | src/tools/web.js |
+| Screen/mouse/keyboard | src/tools/interaction.js / src/computer.js |
+| Memory/tasks | src/tools/memory-tasks.js |
+| Tool permissions/dispatch | src/tools/registry.js |
 ### Data/storage ownership
 
 **Source code belongs in the repository. User/runtime state belongs in Electron userData. Temporary CI/build data belongs in dist/ or the CI workspace and must not become application state.**
