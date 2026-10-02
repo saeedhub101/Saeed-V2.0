@@ -270,19 +270,27 @@ function configureUpdater(){
  autoUpdater.on("error",e=>{updateState="error";publishUpdate("update:state","error",e?.message||String(e));if(updateUiRequested){showUpdateToast("error","Update check failed");setTimeout(()=>{updateUiRequested=false;hideUpdateToast()},3200)}})
 }
 async function runCiRuntimeSmoke(){
- const report={startedAt:new Date().toISOString(),checks:{},resources:resourceReport()};
+ const report={startedAt:new Date().toISOString(),checks:{},resourcesBefore:resourceReport()};
  try{
   const glb=path.join(app.getAppPath(),"assets","Saeed_Test-3D.glb");
-  report.checks.glbFile={pass:fs.existsSync(glb),path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
-  report.checks.runtimeChecks={pass:true,mode:"runtime GLB/agent/local brain/chat/TTS/mic checks disabled"};
+  const glbExists=fs.existsSync(glb);
+  report.checks.packagedApp={pass:Boolean(app.isPackaged),appPath:app.getAppPath(),resourcesPath:process.resourcesPath};
+  report.checks.glbFile={pass:glbExists,path:glb,size:glbExists?fs.statSync(glb).size:0};
+  report.checks.characterWindow={pass:Boolean(characterWin&&!characterWin.isDestroyed()),windows:BrowserWindow.getAllWindows().length};
+  report.checks.agent={pass:Boolean(agent&&taskEngine),brainMode:agent?.settings?.brainMode||null};
+  await new Promise(r=>setTimeout(r,5000));
   report.resourcesAfter=resourceReport();
+  const samples=resourceProbeSamples.filter(x=>x.label!=="report");
+  const cpu=samples.map(x=>Number(x.saeedTotal?.cpuPercent||0)).filter(Number.isFinite);
+  const ram=samples.map(x=>Number(x.saeedTotal?.workingSetMB||0)).filter(Number.isFinite);
+  report.resourceSummary={samples:samples.length,cpuAvgPercent:cpu.length?+(cpu.reduce((a,b)=>a+b,0)/cpu.length).toFixed(2):0,cpuMaxPercent:cpu.length?+Math.max(...cpu).toFixed(2):0,workingSetAvgMB:ram.length?+(ram.reduce((a,b)=>a+b,0)/ram.length).toFixed(1):0,workingSetMaxMB:ram.length?+Math.max(...ram).toFixed(1):0};
   report.finishedAt=new Date().toISOString();
-  report.pass=Boolean(report.checks.glbFile.pass);
+  report.pass=Object.values(report.checks).every(x=>x?.pass!==false)&&samples.length>=3;
  }catch(e){report.error=e.message;report.pass=false}
  const target=process.env.SAEED_CI_REPORT||path.join(process.cwd(),"dist","ci-runtime-report.json");
  try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8");console.log("SAEED_CI_REPORT_PATH",target)}catch(e){console.error("CI report write failed:",e.message)}
- console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,glbFile:report.checks?.glbFile?.pass,startedAt:report.startedAt,finishedAt:report.finishedAt}));
- stopResourceProbe();setTimeout(()=>process.exit(0),250);
+ console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,packagedApp:report.checks?.packagedApp?.pass,glbFile:report.checks?.glbFile?.pass,samples:report.resourceSummary?.samples,cpuMaxPercent:report.resourceSummary?.cpuMaxPercent,workingSetMaxMB:report.resourceSummary?.workingSetMaxMB}));
+ stopResourceProbe();setTimeout(()=>process.exit(report.pass?0:1),250);
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
