@@ -1,7 +1,7 @@
 (()=>{
  const cleanText=t=>String(t||"").replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();
  const report=(level,stage,message,meta)=>window.saeed?.reportDiagnostic?.(level,stage,message,meta);
- let mic=null,realtimeAssistant="",speechTimer=null,lastMicReport=0,micEnabled=false,voiceMuted=false,speechSuppressed=false,speechInterruptAt=0,speechInterruptFrames=0,micInterruptRms=0.09,micSpeechRms=0.09,lastRealtimeUserText="",lastRealtimeUserAt=0,voiceRouting="controller";
+ let mic=null,realtimeAssistant="",speechTimer=null,lastMicReport=0,micEnabled=false,voiceMuted=false,speechSuppressed=false,speechInterruptAt=0,speechInterruptFrames=0,micInterruptRms=0.09,micSpeechRms=0.09,lastRealtimeUserText="",lastRealtimeUserAt=0,voiceRouting="controller",ttsProvider="local",sttProvider="whisper";
  const phonemeMap={a:"aa",e:"ee",i:"ee",o:"oh",u:"oo",y:"ee",b:"mbp",m:"mbp",p:"mbp",f:"fv",v:"fv",q:"oh",w:"oo",j:"ee"};
  function stopRealtimePlayback(){if(!mic)return;try{for(const src of mic.audioSources||[])src.stop()}catch{}if(mic.audioSources)mic.audioSources.clear();mic.nextPlayTime=0}
  function stopSpeaking(){stopRealtimePlayback();window.saeedCharacterBehavior?.trigger?.("speech-end");if("speechSynthesis"in window)window.speechSynthesis.cancel();if(speechTimer){clearInterval(speechTimer);speechTimer=null}["aa","ee","oo","oh","fv","mbp"].forEach(v=>window.saeedAvatar?.setViseme?.(v,0))}
