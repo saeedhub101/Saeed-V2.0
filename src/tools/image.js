@@ -20,7 +20,8 @@ function schemas(){return[
 async function recognize(filePath,language){
  const lib=tesseract();
  if(!lib)return{ok:false,error:"OCR support is not installed. Install tesseract.js first."};
- const rawLang=String(language||"eng").trim()||"eng";\n const lang=rawLang.includes("+")?rawLang.split("+").map(x=>x.trim()).filter(Boolean):rawLang;\n const langLabel=Array.isArray(lang)?lang.join("+"):lang;
+ const rawLang=String(language||"eng").trim()||"eng";
+ const lang=rawLang.includes("+")?rawLang.split("+").map(x=>x.trim()).filter(Boolean):rawLang;
  let worker;
  try{
    worker=await lib.createWorker(lang);
@@ -30,7 +31,22 @@ async function recognize(filePath,language){
  finally{if(worker){try{await worker.terminate();}catch{}}}
 }
 
-function tsvToWords(tsv){\n const lines=String(tsv||"").split(/\\r?\\n/).filter(Boolean);\n if(lines.length<2)return[];\n const header=lines[0].split("\\t");\n const idx={};header.forEach((h,i)=>{idx[h]=i});\n return lines.slice(1).map(line=>line.split("\\t")).filter(r=>r.length>idx.text).map(r=>({text:r[idx.text],confidence:Number(r[idx.conf])||0,bbox:{x0:Number(r[idx.left])||0,y0:Number(r[idx.top])||0,x1:(Number(r[idx.left])||0)+(Number(r[idx.width])||0),y1:(Number(r[idx.top])||0)+(Number(r[idx.height])||0)}})).filter(w=>w.text.trim());\n}\n\nfunction wordsToTable(words,maxRows,maxCols){
+function tsvToWords(tsv){
+ const lines=String(tsv||"").split(/\r?\n/).filter(Boolean);
+ if(lines.length<2)return[];
+ const header=lines[0].split("\t");
+ const idx={};header.forEach((h,i)=>{idx[h]=i});
+ return lines.slice(1).map(line=>line.split("\t"))
+   .filter(r=>r.length>idx.text)
+   .map(r=>({text:r[idx.text],confidence:Number(r[idx.conf])||0,bbox:{
+     x0:Number(r[idx.left])||0,y0:Number(r[idx.top])||0,
+     x1:(Number(r[idx.left])||0)+(Number(r[idx.width])||0),
+     y1:(Number(r[idx.top])||0)+(Number(r[idx.height])||0)
+   }}))
+   .filter(w=>w.text.trim());
+}
+
+function wordsToTable(words,maxRows,maxCols){
  const clean=(Array.isArray(words)?words:[]).filter(w=>String(w?.text||"").trim() && w?.bbox);
  if(!clean.length)return{rows:[],rowCount:0,columnCount:0};
  const heights=clean.map(w=>Math.max(1,(w.bbox.y1-w.bbox.y0))).sort((a,b)=>a-b);
@@ -58,7 +74,8 @@ function tsvToWords(tsv){\n const lines=String(tsv||"").split(/\\r?\\n/).filter(
    return cells.map(c=>c.text);
  });
  const columnCount=Math.max(0,...rows.map(r=>r.length));
- return{rows:rows.map(r=>{const x=r.slice(0,clamp(Number(maxCols)||30,1,50));while(x.length<Math.min(columnCount,clamp(Number(maxCols)||30,1,50)))x.push("");return x;}),rowCount:rows.length,columnCount:Math.min(columnCount,clamp(Number(maxCols)||30,1,50))};
+ const limit=clamp(Number(maxCols)||30,1,50);
+ return{rows:rows.map(r=>{const x=r.slice(0,limit);while(x.length<Math.min(columnCount,limit))x.push("");return x;}),rowCount:rows.length,columnCount:Math.min(columnCount,limit)};
 }
 
 async function call(name,a={}){
