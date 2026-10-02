@@ -203,34 +203,44 @@ jobs:
           Write-Host "PACKAGED_WHISPER_EXE=PASS"
           Write-Host "PACKAGED_WHISPER_MODEL=PASS"
 
-      - name: Runtime application smoke test and detailed resource report
+      - name: Runtime packaged application smoke test and resource report
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
+          $root = Join-Path $PWD "dist\\win-unpacked"
+          $exe = Join-Path $root "Saeed AI.exe"
           $report = Join-Path $PWD "dist\\ci-runtime-report.json"
-          $hostReport = Join-Path $PWD "dist\\ci-host-resource-report.json"
-          @{
-            pass=$true
-            mode="runtime smoke feature checks disabled"
-            checks=@{
-              glbRuntime="disabled"
-              brain="disabled"
-              localBrain="disabled"
-              chat="disabled"
-              tts="disabled"
-              micOn="disabled"
-              ttsResponse="disabled"
-              ttsMicOff="disabled"
-            }
-          } | ConvertTo-Json -Depth 8 | Set-Content $report -Encoding UTF8
-          @{
-            mode="runtime application resource sampling disabled"
-            reason="Runtime application smoke checks were explicitly disabled."
-          } | ConvertTo-Json -Depth 8 | Set-Content $hostReport -Encoding UTF8
-          Get-Content $report -Raw
-          Write-Host "RUNTIME_APPLICATION_SMOKE=DISABLED"
-          Write-Host "RUNTIME_GLB_BRAIN_CHAT_TTS_MIC_CHECKS=DISABLED"
-          Write-Host "DETAILED_RESOURCE_REPORT=DISABLED"
+          if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged application EXE missing: $exe" }
+          if (Test-Path $report) { Remove-Item $report -Force }
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_REPORT = $report
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -PassThru -WindowStyle Hidden
+          try {
+            $deadline = (Get-Date).AddSeconds(60)
+            while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500; $proc.Refresh() }
+            if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; throw "Packaged runtime smoke test timed out after 60 seconds." }
+            if ($proc.ExitCode -ne 0) { throw "Packaged runtime smoke test exited with code $($proc.ExitCode)." }
+          } finally { if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue } }
+          if (!(Test-Path $report -PathType Leaf)) { throw "Runtime smoke report was not produced." }
+          $runtime = Get-Content $report -Raw | ConvertFrom-Json
+          if (-not $runtime.pass) { throw "Runtime smoke report indicates failure." }
+          if (-not $runtime.checks.packagedApp.pass) { throw "Packaged application check failed." }
+          if (-not $runtime.checks.glbFile.pass) { throw "Packaged GLB check failed." }
+          if (-not $runtime.checks.characterWindow.pass) { throw "Character window did not initialize." }
+          if (-not $runtime.checks.agent.pass) { throw "Agent/TaskEngine did not initialize." }
+          if ([int]$runtime.resourceSummary.samples -lt 3) { throw "Insufficient runtime resource samples." }
+          $runtime | ConvertTo-Json -Depth 12
+          Write-Host "RUNTIME_APPLICATION_SMOKE=PASS"
+          Write-Host "RUNTIME_RESOURCE_SAMPLES=$($runtime.resourceSummary.samples)"
+          Write-Host "RUNTIME_CPU_MAX_PERCENT=$($runtime.resourceSummary.cpuMaxPercent)"
+          Write-Host "RUNTIME_WORKING_SET_MAX_MB=$($runtime.resourceSummary.workingSetMaxMB)"
+
+      - name: Generate runtime host report
+        shell: powershell
+        run: |
+          $os=Get-CimInstance Win32_OperatingSystem
+          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
+          @{mode="packaged runtime smoke";hostCpuPercent=[math]::Round($cpu,1);freeRamGB=[math]::Round($os.FreePhysicalMemory/1MB,1);time=(Get-Date).ToUniversalTime().ToString("o")}|ConvertTo-Json|Set-Content "dist/ci-host-resource-report.json" -Encoding UTF8
 
       - name: Capture final build host CPU and RAM
         shell: powershell
