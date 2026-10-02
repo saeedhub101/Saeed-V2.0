@@ -60,8 +60,11 @@ function showTaskNotice(payload,{wait=true,timeoutMs=120000}={}){
  });
 }
 async function confirmPermission(category,request){
- const label={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"}[category]||category;
- return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const timer=setTimeout(()=>{if(!confirmations.has(id))return;confirmations.delete(id);resolve(false);diagnostic("INFO","AGENT CONFIRMATION","Confirmation timed out; operation denied",{id,name:request?.name||category});},120000);confirmations.set(id,approved=>{clearTimeout(timer);resolve(Boolean(approved))});chatWin?.webContents.send("agent:confirm",{id,name:request?.name||category,args:request?.args||{},permissionCategory:category,permissionLabel:label});});
+ const labels={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"};
+ const label=labels[category]||category;
+ const ok=await showTaskNotice({title:"Saeed needs your approval",message:`Saeed wants to perform: ${request?.name||category}\\n\\nPermission: ${label}\\n\\n${JSON.stringify(request?.args||{},null,2)}`,actions:[{label:"Allow",value:true,primary:true},{label:"Reject",value:false}]},{wait:true});
+ diagnostic("INFO","AGENT CONFIRMATION",ok?"Operation approved by user":"Operation denied by user",{name:request?.name||category,category});
+ return ok;
 }
 const pending3DQueries=new Map();
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
