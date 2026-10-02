@@ -12,7 +12,7 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent/agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./voice/realtime"),{LocalBrain}=require("./brain/local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{TaskEngine}=require("./task-engine"),{autoUpdater}=require("electron-updater"),{createDiagnostics}=require("./core/diagnostics");
+const {Agent}=require("./agent/agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./voice/realtime"),{LocalBrain}=require("./brain/local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{TaskEngine}=require("./task-engine"),{autoUpdater}=require("electron-updater"),{createDiagnostics}=require("./core/diagnostics"),{DEFAULT_PERMISSIONS,permissionPolicy:resolvePermissionPolicy}=require("./core/permissions");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -32,8 +32,7 @@ function configureMediaPermissions(){
 
 let chatWin,characterWin,performanceWin,settingsWin,emailWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,taskEngine,emailService,taskNoticeWin;
 let pendingCharacterData=null;
-const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
-function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
+const permissionPolicy=category=>resolvePermissionPolicy(agent,category);
 const confirmations=new Map(),taskNotices=new Map(),noticeQueue=[];
 function showTaskNotice(payload,{wait=true,timeoutMs=120000}={}){
  const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
