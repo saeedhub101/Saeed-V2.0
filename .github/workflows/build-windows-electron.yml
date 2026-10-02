@@ -102,11 +102,13 @@ jobs:
           if ((Get-Item $icon).Length -lt 1000) { throw "Windows icon is unexpectedly small." }
           & magick identify $icon
           if ($LASTEXITCODE -ne 0) { throw "Generated ICO could not be inspected." }
-          foreach ($size in @(256,128,64,48,32,16)) {
+          $sizes = @(256,128,64,48,32,16)
+          for ($index = 0; $index -lt $sizes.Count; $index++) {
+            $size = $sizes[$index]
             $out = Join-Path $iconDir "saeed-$size.png"
-            # Extract the exact embedded ICO frame instead of resizing the multi-frame
-            # ICO as a whole (ImageMagick treats the ICO as an image sequence).
-            & magick "${icon}[${size}x${size}]" -background none -alpha on $out
+            # ICO frames are indexed by image number in ImageMagick; use the
+            # verified frame order from identify rather than a WxH selector.
+            & magick "${icon}[$index]" -background none -alpha on $out
             if ($LASTEXITCODE -ne 0 -or !(Test-Path $out)) {
               throw "Failed to extract $size x $size icon."
             }
