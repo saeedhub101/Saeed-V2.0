@@ -1,12 +1,4 @@
-const fs=require("fs"),path=require("path");
-
-let Tesseract=null;
-function tesseract(){
-  if(Tesseract!==null)return Tesseract||null;
-  try{Tesseract=require("tesseract.js");}
-  catch{Tesseract=false;}
-  return Tesseract||null;
-}
+const fs=require("fs"),path=require("path");\nconst addons=require("../addons/manager");\nlet Tesseract=null;\nfunction tesseract(userDataPath){\n  if(Tesseract!==null)return Tesseract||null;\n  try{Tesseract=addons.requirePackage(userDataPath,"ocr","tesseract.js");}\n  catch{Tesseract=false;}\n  return Tesseract||null;\n}
 function abs(p){return path.resolve(String(p||""));}
 function supported(p){return [".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"].includes(path.extname(p).toLowerCase());}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
@@ -17,8 +9,8 @@ function schemas(){return[
  {type:"function",function:{name:"inspect_image",description:"Inspect a local image and extract its dimensions, OCR text, and detected table data when requested.",parameters:{type:"object",properties:{filePath:{type:"string"},language:{type:"string"},includeTable:{type:"boolean"}},required:["filePath"]}}}
 ]}
 
-async function recognize(filePath,language){
- const lib=tesseract();
+async function recognize(filePath,language,userDataPath){
+ const lib=tesseract(userDataPath);
  if(!lib)return{ok:false,error:"OCR support is not installed. Install tesseract.js first."};
  const rawLang=String(language||"eng").trim()||"eng";
  const lang=rawLang.includes("+")?rawLang.split("+").map(x=>x.trim()).filter(Boolean):rawLang;
@@ -78,11 +70,11 @@ function wordsToTable(words,maxRows,maxCols){
  return{rows:rows.map(r=>{const x=r.slice(0,limit);while(x.length<Math.min(columnCount,limit))x.push("");return x;}),rowCount:rows.length,columnCount:Math.min(columnCount,limit)};
 }
 
-async function call(name,a={}){
+async function call(name,a={},context={}){
  const p=abs(a.filePath);
  if(!fs.existsSync(p))return{ok:false,error:"File not found: "+p};
  if(!supported(p))return{ok:false,error:"Unsupported image type: "+path.extname(p)+". Supported: png, jpg, jpeg, webp, bmp, tif, tiff."};
- const r=await recognize(p,a.language);
+ const r=await recognize(p,a.language,context.userDataPath);
  if(!r.ok)return r;
  const text=String(r.data.text||"");
  if(name==="ocr_image")return{ok:true,path:p,type:"image",language:r.language,text:text.slice(0,clamp(Number(a.maxChars)||400000,1,1000000)),confidence:r.data.confidence??null};
