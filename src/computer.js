@@ -1,4 +1,4 @@
-const {execFile}=require("child_process"),{promisify}=require("util"),run=promisify(execFile),{clipboard}=require("electron");
+const {execFile,spawn}=require("child_process"),{promisify}=require("util"),run=promisify(execFile),{clipboard,shell}=require("electron");
 
 class Computer{
  async powershell(command){
@@ -9,14 +9,19 @@ class Computer{
  async openApp(app){
   const value=String(app||"").trim();
   if(!value)return{ok:false,error:"Application name is empty"};
-  const aliases={"my computer":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","this pc":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","file explorer":"Start-Process explorer.exe","windows explorer":"Start-Process explorer.exe","explorer":"Start-Process explorer.exe","calculator":"Start-Process calc.exe","calc":"Start-Process calc.exe","notepad":"Start-Process notepad.exe","command prompt":"Start-Process cmd.exe","cmd":"Start-Process cmd.exe","powershell":"Start-Process powershell.exe","task manager":"Start-Process taskmgr.exe","control panel":"Start-Process control.exe"};
+  const aliases={"my computer":["explorer.exe",["shell:MyComputerFolder"]],"this pc":["explorer.exe",["shell:MyComputerFolder"]],"file explorer":["explorer.exe",[]],"windows explorer":["explorer.exe",[]],"explorer":["explorer.exe",[]],"calculator":["calc.exe",[]],"calc":["calc.exe",[]],"notepad":["notepad.exe",[]],"command prompt":["cmd.exe",[]],"cmd":["cmd.exe",[]],"powershell":["powershell.exe",[]],"task manager":["taskmgr.exe",[]],"control panel":["control.exe",[]]};
   const key=value.toLowerCase().replace(/\s+/g," ").trim();
-  if(aliases[key])return this.powershell(aliases[key]);
-  if(/^https?:\/\//i.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");
-  if(/^[A-Za-z]:\\|^[\\/]/.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");
-  const known=await this.powershell("Get-Command '"+this.esc(value)+"' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source");
-  if(!known.stdout.trim())return{ok:false,error:"Application not found: "+value};
-  return this.powershell("Start-Process -FilePath '"+this.esc(known.stdout.trim())+"'");
+  if(/^https?:\/\//i.test(value)){try{await shell.openExternal(value);return{ok:true,opened:value}}catch(e){return{ok:false,error:e.message}}}
+  if(/^[A-Za-z]:\\|^[\\/]/.test(value)){try{const error=await shell.openPath(value);return error?{ok:false,error}:{ok:true,opened:value}}catch(e){return{ok:false,error:e.message}}}
+  const target=aliases[key];
+  if(target){try{const child=spawn(target[0],target[1],{detached:true,windowsHide:true,stdio:"ignore"});child.unref();return{ok:true,application:target[0]}}catch(e){return{ok:false,error:e.message}}}
+  try{
+   const found=await run("where.exe",[value],{windowsHide:true,maxBuffer:256*1024});
+   const executable=String(found.stdout||"").split(/\r?\n/).map(x=>x.trim()).find(Boolean);
+   if(!executable)return{ok:false,error:"Application not found: "+value};
+   const child=spawn(executable,[],{detached:true,windowsHide:true,stdio:"ignore"});child.unref();
+   return{ok:true,application:executable};
+  }catch{return{ok:false,error:"Application not found: "+value}}
  }
  async mouseMove(x,y){
   const X=Math.round(Number(x)),Y=Math.round(Number(y));if(!Number.isFinite(X)||!Number.isFinite(Y))return{ok:false,error:"Invalid coordinates"};
@@ -51,16 +56,30 @@ class Computer{
   const r=await this.powershell(command);try{return{ok:true,window:JSON.parse(r.stdout)}}catch{return{ok:true,window:{raw:r.stdout}}}
  }
  async listWindows(){
-  const r=await this.powershell('Get-Process | Where-Object {$_.MainWindowHandle -ne 0} | Select-Object Id,ProcessName,MainWindowTitle,MainWindowHandle | ConvertTo-Json -Compress');
-  try{return{ok:true,windows:JSON.parse(r.stdout)}}catch{return{ok:true,windows:[]}}
+  try{
+   const r=await run("tasklist.exe",["/V","/FO","CSV","/NH"],{windowsHide:true,maxBuffer:4*1024*1024});
+   const windows=[];
+   for(const line of String(r.stdout||"").split(/\r?\n/).filter(Boolean)){
+    const cols=[];const re=/"([^"]*)"/g;let m;while((m=re.exec(line)))cols.push(m[1]);
+    if(cols.length>=9&&cols[8]&&cols[8]!=="N/A")windows.push({ProcessName:cols[0],Id:Number(cols[1])||0,WorkingSet:cols[4],MainWindowTitle:cols[8]});
+   }
+   return{ok:true,windows};
+  }catch(e){return{ok:false,error:e.message,windows:[]}}
  }
  async focusWindow(pid){
   const p=Math.round(Number(pid));if(!Number.isFinite(p))return{ok:false,error:"Invalid pid"};
   return this.powershell('$p=Get-Process -Id '+p+' -ErrorAction Stop;Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.Interaction]::AppActivate($p.Id)');
  }
  async processes(){
-  const r=await this.powershell('Get-Process | Sort-Object CPU -Descending | Select-Object -First 100 Id,ProcessName,CPU,WorkingSet,Responding | ConvertTo-Json -Compress');
-  try{return{ok:true,processes:JSON.parse(r.stdout)}}catch{return{ok:true,processes:[]}}
+  try{
+   const r=await run("tasklist.exe",["/FO","CSV","/NH"],{windowsHide:true,maxBuffer:8*1024*1024});
+   const processes=[];
+   for(const line of String(r.stdout||"").split(/\r?\n/).filter(Boolean)){
+    const cols=[];const re=/"([^"]*)"/g;let m;while((m=re.exec(line)))cols.push(m[1]);
+    if(cols.length>=5)processes.push({Id:Number(cols[1])||0,ProcessName:cols[0],WorkingSet:cols[4],CPU:null,Responding:null});
+   }
+   return{ok:true,processes:processes.slice(0,100)};
+  }catch(e){return{ok:false,error:e.message,processes:[]}}
  }
  async diagnose(){
   const result={ok:true,timestamp:new Date().toISOString()};
