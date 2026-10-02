@@ -38,7 +38,7 @@ const confirmations=new Map();
 async function confirmPermission(category,request){
  const label={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"}[category]||category;
  await showChat();
- return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name:request?.name||category,args:request?.args||{},permissionCategory:category,permissionLabel:label});});
+ return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const timer=setTimeout(()=>{if(!confirmations.has(id))return;confirmations.delete(id);resolve(false);diagnostic("INFO","AGENT CONFIRMATION","Confirmation timed out; operation denied",{id,name:request?.name||category});},120000);confirmations.set(id,approved=>{clearTimeout(timer);resolve(Boolean(approved))});chatWin?.webContents.send("agent:confirm",{id,name:request?.name||category,args:request?.args||{},permissionCategory:category,permissionLabel:label});});
 }
 const pending3DQueries=new Map();
 const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
