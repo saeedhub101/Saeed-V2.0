@@ -1,4 +1,4 @@
-const fs=require("fs"),path=require("path");\nconst addons=require("../addons/manager");\nlet Tesseract=null;\nfunction tesseract(userDataPath){\n  if(Tesseract!==null)return Tesseract||null;\n  try{Tesseract=addons.requirePackage(userDataPath,"ocr","tesseract.js");}\n  catch{Tesseract=false;}\n  return Tesseract||null;\n}
+const fs=require("fs"),path=require("path");\nconst addons=require("../addons/manager");\nlet Tesseract=null;\nfunction tesseract(userDataPath){\n  if(Tesseract)return Tesseract;\n  try{Tesseract=addons.requirePackage(userDataPath,"ocr","tesseract.js");}\n  catch{return null;}\n  return Tesseract;\n}
 function abs(p){return path.resolve(String(p||""));}
 function supported(p){return [".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"].includes(path.extname(p).toLowerCase());}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
