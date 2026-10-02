@@ -6,7 +6,18 @@ class Computer{
   return {ok:true,stdout:r.stdout,stderr:r.stderr};
  }
  esc(s){return String(s).replace(/'/g,"''");}
- async openApp(app){const value=String(app||"").trim();if(!value)return{ok:false,error:"Application name is empty"};if(/^https?:\/\//i.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");if(/^[A-Za-z]:\\|^[\\/]/.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");const known=await this.powershell("Get-Command '"+this.esc(value)+"' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source");if(!known.stdout.trim())return{ok:false,error:"Application not found: "+value};return this.powershell("Start-Process -FilePath '"+this.esc(known.stdout.trim())+"'");}
+ async openApp(app){
+  const value=String(app||"").trim();
+  if(!value)return{ok:false,error:"Application name is empty"};
+  const aliases={"my computer":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","this pc":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","file explorer":"Start-Process explorer.exe","windows explorer":"Start-Process explorer.exe","explorer":"Start-Process explorer.exe","calculator":"Start-Process calc.exe","calc":"Start-Process calc.exe","notepad":"Start-Process notepad.exe","command prompt":"Start-Process cmd.exe","cmd":"Start-Process cmd.exe","powershell":"Start-Process powershell.exe","task manager":"Start-Process taskmgr.exe","control panel":"Start-Process control.exe"};
+  const key=value.toLowerCase().replace(/\s+/g," ").trim();
+  if(aliases[key])return this.powershell(aliases[key]);
+  if(/^https?:\/\//i.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");
+  if(/^[A-Za-z]:\\|^[\\/]/.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");
+  const known=await this.powershell("Get-Command '"+this.esc(value)+"' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source");
+  if(!known.stdout.trim())return{ok:false,error:"Application not found: "+value};
+  return this.powershell("Start-Process -FilePath '"+this.esc(known.stdout.trim())+"'");
+ }
  async mouseMove(x,y){
   const X=Math.round(Number(x)),Y=Math.round(Number(y));if(!Number.isFinite(X)||!Number.isFinite(Y))return{ok:false,error:"Invalid coordinates"};
   const code='using System;using System.Runtime.InteropServices;public static class M{[DllImport("user32.dll")]public static extern bool SetCursorPos(int X,int Y);}';
