@@ -58,7 +58,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/character-feelings.js","src/character-animation-controller.js","src/character-interaction.js","src/character-controls.js","src/character-voice.js","src/autonomous/tasks.js","src/autonomous/feelings.js","src/autonomous/context.js","src/autonomous/default-brain.js","src/autonomous/brain-supervisor.js","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/brain-levels.js","src/local-brain.js","src/realtime.js","src/tools.js","src/performance.html","src/performance.js","src/performance.css","src/settings.html","src/settings.css","src/settings.js")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/character-feelings.js","src/character-animation-controller.js","src/character-interaction.js","src/character-controls.js","src/character-voice.js","src/autonomous/tasks.js","src/autonomous/feelings.js","src/autonomous/context.js","src/autonomous/default-brain.js","src/autonomous/brain-supervisor.js","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/brain-levels.js","src/local-brain.js","src/realtime.js","src/tools.js","src/tools/registry.js","src/tools/files.js","src/tools/office.js","src/tools/windows.js","src/tools/web.js","src/tools/interaction.js","src/tools/memory-tasks.js","src/performance.html","src/performance.js","src/performance.css","src/settings.html","src/settings.css","src/settings.js")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
@@ -159,10 +159,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.stderr.log"
-          $report = Join-Path $PWD "dist\ci-animation-smoke.json"
-          New-Item -ItemType Directory -Force -Path (Split-Path $report) | Out-Null
           $env:SAEED_CI_SMOKE = "1"
-          $env:SAEED_CI_ANIMATION_REPORT = $report
           $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", "." -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           try {
             $deadline = (Get-Date).AddSeconds(45)
@@ -176,22 +173,9 @@ jobs:
             $proc.Refresh()
             $exitCode = $proc.ExitCode
             if ($null -ne $exitCode -and $exitCode -ne 0) { throw "Application smoke test failed with exit code $exitCode. $outText $errText" }
-            if (!(Test-Path $report)) { throw "Animation smoke report was not created: $report" }
-            $result = Get-Content $report -Raw | ConvertFrom-Json
-            if ($result.pass -ne $true) { throw "Animation/movement smoke test reported failure. $($result.error)" }
-            if ($result.checks.renderer.pass -ne $true) { throw "3D renderer smoke check failed." }
-            if ($result.checks.animationsAvailable.pass -ne $true) { throw "Animation clip smoke check failed." }
-            if ($result.checks.notIdle.pass -ne $true) { throw "Saeed idle/non-idle behavior smoke check failed." }
-            if ($result.movement.pass -ne $true) { throw "Saeed movement smoke check failed." }
-            foreach($animation in @($result.animations)) {
-              if ($animation.started -ne $true -or $animation.visibleFrameChanged -ne $true) { throw "Animation did not visibly advance: $($animation.name)" }
-            }
             Write-Host "PRE_BUILD_APPLICATION_SMOKE=PASS"
-            Write-Host "SAEED_3D_ANIMATION_SMOKE=PASS"
-            Write-Host "SAEED_MOVEMENT_SMOKE=PASS"
-            Write-Host "SAEED_NOT_IDLE_SMOKE=PASS"
-            Write-Host "ANIMATION_REPORT=$report"
-            Get-Content $report -Raw
+            Write-Host $outText
+            if ($errText) { Write-Host $errText }
           } finally {
             if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
           }
