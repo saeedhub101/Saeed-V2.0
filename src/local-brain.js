@@ -15,6 +15,29 @@ class LocalBrain{
 constructor(registry,onEvent){this.registry=registry;this.onEvent=typeof onEvent==="function"?onEvent:()=>{}}
 async call(name,args,answer){const actionText=name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.";this.onEvent({type:"speech-status",text:actionText});const out=await this.registry.call(name,args);return out?.ok===false?"I could not complete that: "+out.error:answer(out)}
 cleanTarget(s){return String(s||"").trim().replace(/[.?!؟،]+$/,"").replace(/^(my|the|this)\s+/i,"").trim()}
+canHandle(text){
+ const t=String(text||"").trim(),l=t.toLowerCase(); if(!t)return false;
+ return /(?:what(?:'s| is)\s+)?(?:the\s+)?(?:time|current time)|what time is it|كم الساعة|الساعة كم|الوقت الآن/i.test(l)
+  || /(?:today'?s date|what date is it|what day is it|تاريخ اليوم|ما هو تاريخ اليوم)/i.test(l)
+  || /^(who are you|what can you do|من انت|ماذا تستطيع)/i.test(l)
+  || /^(?:please\s+)?(?:open|launch|start|show|run|go to|visit|افتح|شغل|تشغيل|اذهب إلى)\s+.+$/i.test(t)
+  || /(?:documents folder|open documents|my documents|افتح المستندات)/i.test(l)
+  || /(?:downloads folder|open downloads|my downloads|افتح التنزيلات)/i.test(l)
+  || /(?:show|list|browse|what(?:'s| is) in).*(?:files|folder|directory|مجلد|ملفات)/i.test(l)
+  || /(?:computer info|system info|pc info|system information|specifications|specs|معلومات الجهاز|مواصفات الجهاز)/i.test(l)
+  || /(?:diagnose|diagnostic|health check|check my computer|computer problem|why is my computer slow|slow computer|تشخيص|فحص الجهاز|الجهاز بطيء|افحص الكمبيوتر)/i.test(l)
+  || /(?:disk|storage|free space|drive space|hard drive|مساحة القرص|مساحة التخزين|الهارد)/i.test(l)
+  || /(?:network|internet connection|ip address|wifi|ethernet|الشبكة|الانترنت|عنوان ip|الواي فاي)/i.test(l)
+  || /(?:running processes|processes|what is running|cpu usage|programs running|البرامج التي تعمل|العمليات|استهلاك المعالج)/i.test(l)
+  || /(?:active window|current window|what window|focused window|النافذة الحالية|ما هي النافذة)/i.test(l)
+  || /(?:list windows|open windows|windows open|visible windows|النوافذ المفتوحة)/i.test(l)
+  || /(?:screenshot|screen shot|capture my screen|take a screenshot|صورة للشاشة|لقطة شاشة|التقط الشاشة)/i.test(l)
+  || /(?:remember|save this|don't forget|تذكر|احفظ|لا تنس)/i.test(l)
+  || /(?:recall|what did i tell you|تذكر ماذا قلت|ماذا قلت لك)/i.test(l)
+  || /(?:my tasks|list tasks|show tasks|what are my tasks|مهامي|قائمة المهام)/i.test(l)
+  || /^(?:add|create|make)\s+(?:a\s+)?task\s+(?:to\s+)?.+$/i.test(t);
+}
+
 async handle(text){
 const t=String(text||"").trim(),l=t.toLowerCase();if(!t)return null;
 if(/(?:what(?:'s| is)\s+)?(?:the\s+)?(?:time|current time)|what time is it|كم الساعة|الساعة كم|الوقت الآن/i.test(l))
