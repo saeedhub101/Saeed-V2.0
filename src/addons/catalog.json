@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": 1,
+  "generatedAt": "2026-10-03",
+  "source": "Saeed official add-on catalog",
+  "addons": [
+    {
+      "schemaVersion": 1,
+      "id": "word",
+      "name": "Word / DOCX",
+      "version": "9.8.1",
+      "category": "Documents",
+      "description": "Create and edit DOCX documents.",
+      "provider": "npm",
+      "sourceUrl": "https://www.npmjs.com/package/docx",
+      "downloadUrl": "https://registry.npmjs.org/docx/-/docx-9.8.1.tgz",
+      "installType": "npm-package",
+      "status": "package-ready",
+      "entry": "index.js"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "excel",
+      "name": "Excel / XLSX",
+      "version": "0.18.5",
+      "category": "Documents",
+      "description": "Read, calculate and write Excel workbooks.",
+      "provider": "npm",
+      "sourceUrl": "https://www.npmjs.com/package/xlsx",
+      "downloadUrl": "https://registry.npmjs.org/xlsx/-/xlsx-0.18.5.tgz",
+      "installType": "npm-package",
+      "status": "package-ready"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "pdf",
+      "name": "PDF",
+      "version": "1.1.1",
+      "category": "Documents",
+      "description": "Extract text and metadata from PDF files.",
+      "provider": "npm",
+      "sourceUrl": "https://www.npmjs.com/package/pdf-parse",
+      "downloadUrl": "https://registry.npmjs.org/pdf-parse/-/pdf-parse-1.1.1.tgz",
+      "installType": "npm-package",
+      "status": "package-ready"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "ocr",
+      "name": "OCR",
+      "version": "6.0.1",
+      "category": "Vision",
+      "description": "Offline OCR engine for image text and table extraction.",
+      "provider": "npm",
+      "sourceUrl": "https://www.npmjs.com/package/tesseract.js",
+      "downloadUrl": "https://registry.npmjs.org/tesseract.js/-/tesseract.js-6.0.1.tgz",
+      "installType": "npm-package",
+      "status": "package-ready"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "stt-whisper",
+      "name": "Whisper STT",
+      "version": "1.x",
+      "category": "Speech to Text",
+      "description": "Local/offline speech recognition. Provider can be replaced later.",
+      "provider": "ggml-org",
+      "sourceUrl": "https://github.com/ggml-org/whisper.cpp",
+      "downloadUrl": null,
+      "installType": "bundle",
+      "status": "bundle-pending"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "tts",
+      "name": "TTS Providers",
+      "version": "1",
+      "category": "Text to Speech",
+      "description": "Provider slot for local or API speech engines.",
+      "provider": "Saeed",
+      "sourceUrl": null,
+      "downloadUrl": null,
+      "installType": "provider",
+      "status": "provider-ready"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "llm-local",
+      "name": "Local LLM",
+      "version": "1",
+      "category": "LLM",
+      "description": "Provider slot for a future local language model/runtime.",
+      "provider": "Saeed",
+      "sourceUrl": null,
+      "downloadUrl": null,
+      "installType": "provider",
+      "status": "provider-ready"
+    },
+    {
+      "schemaVersion": 1,
+      "id": "animation",
+      "name": "Animation Engine",
+      "version": "1",
+      "category": "Character",
+      "description": "Provider slot for future animation/motion libraries.",
+      "provider": "Saeed",
+      "sourceUrl": null,
+      "downloadUrl": null,
+      "installType": "provider",
+      "status": "provider-ready"
+    }
+  ]
+}
