@@ -6,7 +6,29 @@
  function stopRealtimePlayback(){if(!mic)return;try{for(const src of mic.audioSources||[])src.stop()}catch{}if(mic.audioSources)mic.audioSources.clear();mic.nextPlayTime=0}
  function stopSpeaking(){stopRealtimePlayback();window.saeedCharacterBehavior?.trigger?.("speech-end");if("speechSynthesis"in window)window.speechSynthesis.cancel();if(speechTimer){clearInterval(speechTimer);speechTimer=null}["aa","ee","oo","oh","fv","mbp"].forEach(v=>window.saeedAvatar?.setViseme?.(v,0))}
 function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)return;speechInterruptAt=performance.now();speechInterruptFrames=0;speechSuppressed=false;stopSpeaking();try{window.saeed.cancelRealtime?.()}catch{};report("INFO","TTS INTERRUPTED","Assistant speech stopped because user speech was detected",{reason})}
- function speak(text){if(!text||!("speechSynthesis"in window)||voiceMuted)return;stopSpeaking();speechSuppressed=true;const clean=String(text).replace(/[ *_#]/g,""),u=new SpeechSynthesisUtterance(clean);u.lang="en-US";u.rate=.98;u.pitch=1;const chars=Array.from(clean);let pos=0;u.onstart=()=>{speechSuppressed=true;window.saeedCharacterBehavior?.trigger?.("speech-start");window.saeedAvatar?.play?.("talk");speechTimer=setInterval(()=>{window.saeedAvatar?.wakeRender?.(350);if(pos>=chars.length){clearInterval(speechTimer);speechTimer=null;return}const ch=chars[pos++],v=phonemeMap[ch.toLowerCase()]||"aa";["aa","ee","oo","oh","fv","mbp"].forEach(x=>window.saeedAvatar?.setViseme?.(x,0));if(!/\s/.test(ch))window.saeedAvatar?.setViseme?.(v,.72)},Math.max(45,70/u.rate))};u.onend=()=>{speechSuppressed=false;stopSpeaking();window.saeedAvatar?.play?.("idle")};u.onerror=e=>{const kind=String(e?.error||"").toLowerCase();speechSuppressed=false;if(kind!=="interrupted")report("ERROR","TTS LOCAL ERROR",e?.error||"Local TTS failed");else report("INFO","TTS LOCAL INTERRUPTED","Local TTS speech was cancelled",{reason:"speech synthesis interruption"});stopSpeaking();window.saeedAvatar?.play?.("idle")};window.speechSynthesis.speak(u)}
+ function speakLocal(text){if(!text||!("speechSynthesis"in window)||voiceMuted)return;stopSpeaking();speechSuppressed=true;const clean=String(text).replace(/[ *_#]/g,""),u=new SpeechSynthesisUtterance(clean);u.lang="en-US";u.rate=.98;u.pitch=1;const chars=Array.from(clean);let pos=0;u.onstart=()=>{speechSuppressed=true;window.saeedCharacterBehavior?.trigger?.("speech-start");window.saeedAvatar?.play?.("talk");speechTimer=setInterval(()=>{window.saeedAvatar?.wakeRender?.(350);if(pos>=chars.length){clearInterval(speechTimer);speechTimer=null;return}const ch=chars[pos++],v=phonemeMap[ch.toLowerCase()]||"aa";["aa","ee","oo","oh","fv","mbp"].forEach(x=>window.saeedAvatar?.setViseme?.(x,0));if(!/\s/.test(ch))window.saeedAvatar?.setViseme?.(v,.72)},Math.max(45,70/u.rate))};u.onend=()=>{speechSuppressed=false;stopSpeaking();window.saeedAvatar?.play?.("idle")};u.onerror=e=>{const kind=String(e?.error||"").toLowerCase();speechSuppressed=false;if(kind!=="interrupted")report("ERROR","TTS LOCAL ERROR",e?.error||"Local TTS failed");else report("INFO","TTS LOCAL INTERRUPTED","Local TTS speech was cancelled",{reason:"speech synthesis interruption"});stopSpeaking();window.saeedAvatar?.play?.("idle")};window.speechSynthesis.speak(u)}
+ async function speakApi(text){
+  if(!text||voiceMuted)return;
+  stopSpeaking();speechSuppressed=true;
+  try{
+   const r=await window.saeed.ttsSpeak(text);
+   if(!r?.ok){speechSuppressed=false;report("ERROR","TTS API",r?.error||"OpenAI TTS failed");window.saeedAvatar?.play?.("idle");return}
+   if(!mic.playCtx)mic.playCtx=new AudioContext();
+   await mic.playCtx.resume();
+   const raw=Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0));
+   const buffer=await mic.playCtx.decodeAudioData(raw.buffer.slice(0));
+   const src=mic.playCtx.createBufferSource();src.buffer=buffer;src.connect(mic.playCtx.destination);mic.audioSources.add(src);
+   window.saeedCharacterBehavior?.trigger?.("speech-start");window.saeedAvatar?.play?.("talk");
+   src.onended=()=>{mic.audioSources.delete(src);if(mic.audioSources.size===0){speechSuppressed=false;window.saeedCharacterBehavior?.trigger?.("speech-end");window.saeedAvatar?.play?.("idle")}};
+   src.start();
+  }catch(e){speechSuppressed=false;report("ERROR","TTS API PLAYBACK",e.message);window.saeedAvatar?.play?.("idle")}
+ }
+ function speak(text){
+  if(!text||voiceMuted)return;
+  if(voiceRouting==="direct")return;
+  if(ttsProvider==="openai")return speakApi(text);
+  return speakLocal(text);
+ }
  class RealtimeMic{
   constructor(){this.stream=null;this.ctx=null;this.source=null;this.processor=null;this.monitorGain=null;this.active=false;this.generation=0;this.localSamples=[];this.localTranscribing=false;this.localSpeechActive=false;this.localLastSpeechAt=0;this.playCtx=null;this.nextPlayTime=0;this.audioSources=new Set()}
   async start(mode="on",sendAudio=true){
