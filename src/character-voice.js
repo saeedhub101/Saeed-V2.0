@@ -50,7 +50,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  }
  mic=new RealtimeMic();
  let rmsSettingsTimer=null;
- async function refreshRmsSettings(){try{const s=await window.saeed.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(s?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.09));voiceRouting=s?.voiceRouting==="direct"?"direct":"controller"}catch{}}
+ async function refreshRmsSettings(){try{const s=await window.saeed.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(s?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.09));voiceRouting=s?.voiceRouting==="direct"?"direct":"controller";ttsProvider=["openai","groq","elevenlabs"].includes(s?.ttsProvider)?s.ttsProvider:"local";sttProvider=["openai","groq","elevenlabs"].includes(s?.sttProvider)?s.sttProvider:"whisper"}catch{}}
  window.saeed.onCharacterBehavior?.(e=>{if(e?.type==="idle-thought"&&e.text)speak(e.text)});
  window.saeed.onVoiceMute(m=>{voiceMuted=Boolean(m);if(voiceMuted)stopSpeaking()});
   window.saeed.onVoiceStop(()=>stopSpeaking());
