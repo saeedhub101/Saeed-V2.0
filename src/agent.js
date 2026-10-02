@@ -84,11 +84,7 @@ class Agent{
  newId(){return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9)}
  saveConversations(){try{fs.writeFileSync(this.chatsFile,JSON.stringify({conversations:this.conversations.map(x=>({...x,messages:x.messages.slice(-200)}))},null,2))}catch(e){console.error("Conversations save failed:",e)}}
  saveMemory(){try{fs.writeFileSync(this.memoryFile,JSON.stringify(this.globalMemory,null,2))}catch(e){console.error("Global memory save failed:",e)}}
- memoryContext(){const facts=this.globalMemory?.facts||[];return facts.length?"
-
-Global user memory (stable facts/preferences only; do not treat this as previous chat context):
-"+facts.map(x=>"- "+x.text).join("
-"):""}
+ memoryContext(){const facts=this.globalMemory?.facts||[];return facts.length?"\n\nGlobal user memory (stable facts/preferences only; do not treat this as previous chat context):\n"+facts.map(x=>"- "+x.text).join("\n"):""}
  rememberFromUserText(text){
   const s=String(text||"").trim();if(!s)return;
   const patterns=[/\bmy name is\s+(.{1,80})/i,/\bi live in\s+(.{1,80})/i,/\bi am from\s+(.{1,80})/i,/\bi prefer\s+(.{1,120})/i,/\bremember that\s+(.{1,180})/i,/\bplease remember\s+(.{1,180})/i,/تذكر(?:\s+أن)?\s+(.{1,180})/i,/احفظ(?:\s+أن)?\s+(.{1,180})/i,/أفضل\s+(.{1,120})/i,/اسمي\s+(.{1,80})/i,/أعيش في\s+(.{1,80})/i];
