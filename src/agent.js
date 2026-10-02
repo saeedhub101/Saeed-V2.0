@@ -2,10 +2,10 @@ const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"
 
 class Agent{
  constructor({registry,onEvent}){
-  this.registry=registry;this.onEvent=onEvent;this.brainLevels=new BrainLevelRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain});this.dir=app.getPath("userData");
+  this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.brainLevels=new BrainLevelRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain});this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
-  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:12,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
+  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:16,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
   this._settings={...raw,permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow",...(raw.permissions||{})},
    micMode:"off",
    brainMode:String(raw.brainMode||"auto"),
@@ -134,7 +134,7 @@ class Agent{
     if(last?.role==="user"&&typeof last.content==="string"){last.content=[{type:"text",text:last.content},{type:"image",source:{type:"base64",media_type:match[1],data:match[2]}}]}
    }
   }
-  for(let step=0;step<(Math.min(20,Math.max(1,Number(s.maxSteps)||12)));step++){
+  let stepBudget=this.stepBudget(text);\n  for(let step=0;;step++){\n   if(step>=stepBudget){\n    const expanded=await this.askForMoreSteps(stepBudget,text);\n    if(expanded<=stepBudget)break;\n    stepBudget=expanded;\n   }
    this.onEvent({type:"thinking",step});
    const d=this.providerDefaults(s.provider),base=(s.baseUrl||d.baseUrl||"http://localhost:11434/v1").replace(/\/$/,"");
    let r,body,headers={"Content-Type":"application/json"},url;
@@ -152,7 +152,7 @@ class Agent{
     r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
    }catch(e){
     const timedOut=e?.name==="TimeoutError"||e?.name==="AbortError"||/timeout|aborted/i.test(String(e?.message||""));
-    this.onEvent({type:"diagnostic",level:"ERROR",stage:timedOut?"LLM REQUEST TIMEOUT":"LLM REQUEST FAILURE",message:timedOut?"LLM API request exceeded the 60 second timeout":e.message});
+    this.onEvent({type:"diagnostic",level:"ERROR",stage:timedOut?"LLM REQUEST TIMEOUT":"LLM REQUEST FAILURE",message:timedOut?"LLM API request timed out":e.message});
     const answer="I could not reach the API brain. Please check the provider, API key, and connection.";
     this.onEvent({type:"answer",text:answer,source:"api-error"});return answer;
    }
