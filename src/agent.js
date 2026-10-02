@@ -1,7 +1,7 @@
 const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{BrainLevelRouter}=require("./brain-levels");
 
 class Agent{
- constructor({registry,onEvent}){
+ constructor({registry,onEvent,requestStepIncrease}){
   this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.brainLevels=new BrainLevelRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain});this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
@@ -32,6 +32,12 @@ class Agent{
   this.newConversation();
  }
  readJson(file,fallback){try{return JSON.parse(fs.readFileSync(file,"utf8"))}catch{return fallback}}
+ baseStepLimit(){return Math.max(1,Math.min(100,Number(this.settings?.maxSteps)||16))}
+ async askForMoreSteps(current,task){
+  const requested=current+12;
+  this.onEvent({type:"step-limit-request",currentLimit:current,requestedLimit:requested,task:String(task||"")});
+  try{return Boolean(await this.requestStepIncrease({current,requested,task:String(task||"")}))?requested:current}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT STEP LIMIT",message:e.message});return current}
+ }
  providerDefaults(name){
   return {
    openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},
@@ -134,7 +140,7 @@ class Agent{
     if(last?.role==="user"&&typeof last.content==="string"){last.content=[{type:"text",text:last.content},{type:"image",source:{type:"base64",media_type:match[1],data:match[2]}}]}
    }
   }
-  let stepBudget=this.stepBudget(text);\n  for(let step=0;;step++){\n   if(step>=stepBudget){\n    const expanded=await this.askForMoreSteps(stepBudget,text);\n    if(expanded<=stepBudget)break;\n    stepBudget=expanded;\n   }
+  let stepBudget=this.baseStepLimit();\n  for(let step=0;;step++){\n   if(step>=stepBudget){\n    const expanded=await this.askForMoreSteps(stepBudget,text);\n    if(expanded<=stepBudget){\n     this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Task stopped by user at the execution step limit",meta:{sessionId,stepLimit:stepBudget}});\n     const answer="تم إيقاف المهمة عند حد خطوات التنفيذ الحالي. يمكنك زيادة الحد من Performance أو السماح بالمتابعة عند الطلب.";\n     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;\n    }\n    stepBudget=expanded;\n   }
    this.onEvent({type:"thinking",step});
    const d=this.providerDefaults(s.provider),base=(s.baseUrl||d.baseUrl||"http://localhost:11434/v1").replace(/\/$/,"");
    let r,body,headers={"Content-Type":"application/json"},url;
@@ -203,7 +209,7 @@ class Agent{
     }else messages.push({role:"tool",tool_call_id:c.id,content:JSON.stringify(out)});
    }
   }
-  this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT STEP LIMIT",message:"Agent reached the safe execution step limit",meta:{maxSteps:Math.min(20,Math.max(1,Number(s.maxSteps)||12))}});
+  this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT STEP LIMIT",message:"Agent reached the execution step limit",meta:{maxSteps:stepBudget}});
   const answer="I reached the safe execution limit before completing the task. The completed steps were preserved; you can ask me to continue.";this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Tool session reached its safe step limit",meta:{sessionId}});
   this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();return answer;
  }
