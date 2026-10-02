@@ -12,7 +12,7 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent/agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./voice/realtime"),{LocalBrain}=require("./brain/local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{TaskEngine}=require("./task-engine"),{autoUpdater}=require("electron-updater"),{createDiagnostics}=require("./core/diagnostics"),{DEFAULT_PERMISSIONS,permissionPolicy:resolvePermissionPolicy}=require("./core/permissions");\nconst {WindowManager}=require("./windows/window-manager"),{VoiceController}=require("./voice/voice-controller");\nconst windowManager=new WindowManager({preload:path.join(__dirname,"preload.js"),iconPath:null,baseDir:__dirname});
+const {Agent}=require("./agent/agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./voice/realtime"),{LocalBrain}=require("./brain/local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{TaskEngine}=require("./task-engine"),{autoUpdater}=require("electron-updater"),{createDiagnostics}=require("./core/diagnostics"),{DEFAULT_PERMISSIONS,permissionPolicy:resolvePermissionPolicy}=require("./core/permissions");\nconst {WindowManager}=require("./windows/window-manager"),{VoiceController}=require("./voice/voice-controller"),{AppRuntime}=require("./core/app-runtime");\nconst windowManager=new WindowManager({preload:path.join(__dirname,"preload.js"),iconPath:null,baseDir:__dirname});
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -99,9 +99,8 @@ function trayIcon(){
  return nativeImage.createFromPath(windowsIconPath());
 }
 app.setAppUserModelId("ai.saeed.desktop");
-const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
-if(!singleInstanceLock)app.quit();
-else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
+const appRuntime=new AppRuntime({app,ciSmoke});
+if(!appRuntime.acquireSingleInstance((event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100)}))app.quit();
 let updateState="idle",updateUiRequested=false,updateStatusWin=null,updateInfo=null;
 let resourceProbeTimer=null;
 const resourceProbeSamples=[];
