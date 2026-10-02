@@ -24,8 +24,8 @@ class EmailService{
  write(file,data){fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(data,null,2),"utf8")}
  providerFor(email){const domain=String(email||"").toLowerCase().split("@").pop();for(const [id,p] of Object.entries(PROVIDERS))if(p.domains.includes(domain))return id;return "others"}
  config(provider,email){if(provider!=="others")return PROVIDERS[provider];const a=this.accounts.accounts.find(x=>x.email===email);return a?.config||null}
- encrypt(v){try{return safeStorage.isEncryptionAvailable()?safeStorage.encryptString(String(v||"")).toString("base64"):String(v||"")}catch{return String(v||"")}}
- decrypt(v){try{return v&&safeStorage.isEncryptionAvailable()?safeStorage.decryptString(Buffer.from(v,"base64")):String(v||"")}catch{return String(v||"")}}
+ encrypt(v){if(!safeStorage.isEncryptionAvailable())throw new Error("OS secure storage is unavailable; email password was not stored.");try{return safeStorage.encryptString(String(v||"")).toString("base64")}catch(e){throw new Error("OS secure storage encryption failed: "+e.message)}}
+ decrypt(v){if(!v||!safeStorage.isEncryptionAvailable())throw new Error("OS secure storage is unavailable.");try{return safeStorage.decryptString(Buffer.from(v,"base64"))}catch(e){throw new Error("OS secure storage decryption failed: "+e.message)}}
  publicAccounts(){return this.accounts.accounts.map(a=>({id:a.id,email:a.email,provider:a.provider,label:a.label,protocol:a.protocol||"imap",connected:a.connected===true,lastSync:a.lastSync||null,calendarEvents:a.calendarEvents||0,contacts:a.contacts||0}))}
  find(email){return this.accounts.accounts.find(a=>a.email.toLowerCase()===String(email||"").toLowerCase())}
  save(){this.write(this.file,this.accounts)}
