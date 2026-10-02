@@ -12,7 +12,7 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{autoUpdater}=require("electron-updater");
+const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{TaskEngine}=require("./task-engine"),{autoUpdater}=require("electron-updater");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -30,14 +30,37 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,performanceWin,settingsWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor;
+let chatWin,characterWin,performanceWin,settingsWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,taskEngine,taskNoticeWin;
 let pendingCharacterData=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
-const confirmations=new Map();
+const confirmations=new Map(),taskNotices=new Map(),noticeQueue=[];
+function showTaskNotice(payload,{wait=true,timeoutMs=120000}={}){
+ const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+ const item={id,title:payload.title||"Saeed",message:String(payload.message||""),actions:payload.actions||[{label:"OK",value:true,primary:true}],autoClose:!wait};
+ const open=async()=>{
+  try{
+   if(!taskNoticeWin||taskNoticeWin.isDestroyed()){
+    taskNoticeWin=new BrowserWindow({width:430,height:250,minWidth:380,minHeight:210,maxWidth:520,maxHeight:320,frame:false,transparent:true,alwaysOnTop:true,skipTaskbar:true,resizable:false,show:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
+    taskNoticeWin.on("closed",()=>{taskNoticeWin=null});
+   }
+   const d=displayForWindow(characterWin),a=d.workArea;
+   taskNoticeWin.setPosition(a.x+a.width-450,a.y+a.height-280,false);
+   await taskNoticeWin.loadFile(path.join(__dirname,"task-notice.html"),{query:{id}});
+   taskNoticeWin.showInactive();
+   taskNoticeWin.webContents.send("task:notice",item);
+   if(!wait){setTimeout(()=>{try{taskNoticeWin?.hide()}catch{}},Math.max(1500,timeoutMs))}
+  }catch(e){diagnostic("ERROR","TASK NOTICE",e.message)}
+ };
+ if(!wait){void open();return Promise.resolve(true)}
+ return new Promise(resolve=>{
+  const timer=setTimeout(()=>{if(!taskNotices.has(id))return;taskNotices.delete(id);resolve(false);try{taskNoticeWin?.hide()}catch{}},timeoutMs);
+  taskNotices.set(id,approved=>{clearTimeout(timer);taskNotices.delete(id);try{taskNoticeWin?.hide()}catch{};resolve(Boolean(approved))});
+  void open();
+ });
+}
 async function confirmPermission(category,request){
  const label={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"}[category]||category;
- await showChat();
  return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const timer=setTimeout(()=>{if(!confirmations.has(id))return;confirmations.delete(id);resolve(false);diagnostic("INFO","AGENT CONFIRMATION","Confirmation timed out; operation denied",{id,name:request?.name||category});},120000);confirmations.set(id,approved=>{clearTimeout(timer);resolve(Boolean(approved))});chatWin?.webContents.send("agent:confirm",{id,name:request?.name||category,args:request?.args||{},permissionCategory:category,permissionLabel:label});});
 }
 const pending3DQueries=new Map();
@@ -195,8 +218,8 @@ function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exi
 async function createWindow(){
  await createCharacterWindow();
  if(ciSmoke)scheduleCiRuntimeSmoke();
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease:async({current,requested,task})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit",reason:"This task needs more execution steps. Allow an additional "+(requested-current)+" steps for this task?"});});}});voiceMuted=Boolean(agent.settings.voiceMuted);agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});setSaeedSize(agent.settings.characterSize||"small");brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
+ const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";const noticeId=id;const resolver=resolve;taskNotices.set(noticeId,resolver);showTaskNotice({id:noticeId,title:"Saeed needs your approval",message:`Saeed wants to perform: ${name}\n\nPermission: ${permissionLabel}\n\n${JSON.stringify(args||{},null,2)}`,actions:[{label:"Allow",value:true,primary:true},{label:"Reject",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(noticeId);if(r){taskNotices.delete(noticeId);r(ok)}});chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
+ agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e);if(taskEngine&&/^task:/.test(String(e?.type||"")))taskEngine.emit(e)},requestStepIncrease:async({current,requested,task})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const resolver=resolve;taskNotices.set(id,resolver);showTaskNotice({id,title:"Saeed needs more execution steps",message:`تم تجاوز عدد الخطوات المسموح به (${current}). هل تريد زيادتها والمتابعة؟\n\nسيتم رفع الحد مؤقتًا لهذه المهمة فقط إلى ${requested}.`,actions:[{label:"زيادة والمتابعة",value:true,primary:true},{label:"إيقاف",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(id);if(r){taskNotices.delete(id);r(ok)}});chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit"});});}});voiceMuted=Boolean(agent.settings.voiceMuted);agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});taskEngine=new TaskEngine({agent,userDataPath:app.getPath("userData"),emit:e=>{voiceBroadcast("agent:event",e);if(e?.type==="task:complete"){showTaskNotice({title:"Saeed",message:"✓ OK — تم الانتهاء من المهمة\n\n"+String(e.text||"")},{wait:false,timeoutMs:5000});if(!voiceMuted)voiceBroadcast("agent:event",{type:"speech-status",text:"تم الانتهاء من المهمة"})}else if(e?.type==="task:error"){showTaskNotice({title:"Saeed",message:"تعذر إكمال المهمة:\n\n"+String(e.error||"")},{wait:false,timeoutMs:5000})}}});setSaeedSize(agent.settings.characterSize||"small");brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
 }
 async function createCharacterWindow(){
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
@@ -279,7 +302,7 @@ ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show"
 ipcMain.handle("chat",async(_,payload)=>{
  if(!agent)return {ok:false,error:"Saeed is still starting."};
  const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"user-input",text:String(data.text||"")});
- const result=await agent.run(String(data.text||""),data.image||null);
+ const result=await taskEngine.run(String(data.text||""),data.image||null,{source:"chat"});
  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
  return result;
 });
@@ -349,10 +372,9 @@ ipcMain.handle("chat:memory",()=>agent?.getGlobalMemory?.()||[]);
 ipcMain.handle("chat:new",()=>{if(!agent)return null;const chat=agent.newConversation();chatWin?.webContents.send("chat:switched",chat,[]);return {chat,history:[]};});
 ipcMain.handle("chat:select",(_,id)=>{if(!agent)return null;const chat=agent.selectConversation(String(id||""));if(!chat)return null;const history=agent.history||[];chatWin?.webContents.send("chat:switched",chat,history);return {chat,history};});
 ipcMain.handle("history:clear",()=>{if(!agent)return false;agent.clearHistory();chatWin?.webContents.send("history:cleared");return true});
-ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
- const resolve=confirmations.get(id);if(!resolve)return false;
- confirmations.delete(id);resolve(Boolean(approved));return true;
-});
+ipcMain.handle("agent:confirm-response",(_,id,approved)=>{const resolve=confirmations.get(id)||taskNotices.get(id);if(!resolve)return false;confirmations.delete(id);taskNotices.delete(id);resolve(Boolean(approved));return true});
+ipcMain.handle("task:notice-response",(_,id,approved)=>{const resolve=taskNotices.get(String(id||""));if(!resolve)return false;taskNotices.delete(String(id||""));resolve(Boolean(approved));return true});
+ipcMain.handle("task:resume",async()=>taskEngine?.resumeLast?.()||{ok:false,reason:"task-engine-not-ready"});
 
 async function testApiConnection(service){
  const s=agent?.settings||{};
@@ -429,7 +451,7 @@ function startRealtime(options={}){
      if(transcript){
       brainSupervisor?.markActivity?.();
       try{
-       const result=await agent.run(transcript);
+       const result=await taskEngine.run(transcript,null,{source:"voice"});
        voiceBroadcast("agent:event",{type:"voice-task-complete",text:String(result||""),source:"realtime-controller"});
       }catch(e){
        diagnostic("ERROR","REALTIME CONTROLLER",e.message);
@@ -468,6 +490,7 @@ ipcMain.on("window:move-by",(_,dx,dy)=>{
  const ny=Math.max(a.y,Math.min(nextY,a.y+Math.max(0,a.height-h)));
  characterWin.setPosition(nx,ny,true);
 });
+ipcMain.on("task:notice-ready",(_,id)=>{const n=taskNotices.get(String(id||""));if(n&&taskNoticeWin&&!taskNoticeWin.isDestroyed())taskNoticeWin.webContents.send("task:notice",{id:String(id),title:"Saeed",message:"Waiting for your response."})});
 ipcMain.on("chat:move-by",(_,dx,dy)=>{if(!chatWin||chatWin.isDestroyed())return;const [x,y]=chatWin.getPosition(),[w,h]=chatWin.getSize();const nx=x+Math.round(Number(dx)||0),ny=y+Math.round(Number(dy)||0);const d=screen.getDisplayNearestPoint({x:nx+w/2,y:ny+h/2})||screen.getPrimaryDisplay(),a=d.workArea;chatWin.setPosition(Math.max(a.x,Math.min(nx,a.x+Math.max(0,a.width-w))),Math.max(a.y,Math.min(ny,a.y+Math.max(0,a.height-h))),true)});
 ipcMain.on("window:show-chat",()=>{void showChat()});
 ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.setIgnoreMouseEvents(false);chatWin.close()}});
@@ -477,7 +500,7 @@ app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)
 app.on("before-quit",()=>{
  app.isQuitting=true;
  try{stopRealtime()}catch(e){console.error("Voice shutdown failed:",e)}
- for(const win of [chatWin,performanceWin,settingsWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
+ for(const win of [chatWin,performanceWin,settingsWin,statusWin,threeDStatusWin,taskNoticeWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{stopRealtime()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
