@@ -13,9 +13,9 @@
       "description": "Create and edit DOCX documents.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/docx",
-      "downloadUrl": "https://registry.npmjs.org/docx/-/docx-9.8.1.tgz",
-      "installType": "npm-package",
-      "status": "package-ready",
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip",
+      "installType": "bundle",
+      "status": "release-bundle",
       "entry": "index.js"
     },
     {
@@ -27,9 +27,9 @@
       "description": "Read, calculate and write Excel workbooks.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/xlsx",
-      "downloadUrl": "https://registry.npmjs.org/xlsx/-/xlsx-0.18.5.tgz",
-      "installType": "npm-package",
-      "status": "package-ready"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip",
+      "installType": "bundle",
+      "status": "release-bundle"
     },
     {
       "schemaVersion": 1,
@@ -40,9 +40,9 @@
       "description": "Extract text and metadata from PDF files.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/pdf-parse",
-      "downloadUrl": "https://registry.npmjs.org/pdf-parse/-/pdf-parse-1.1.1.tgz",
-      "installType": "npm-package",
-      "status": "package-ready"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip",
+      "installType": "bundle",
+      "status": "release-bundle"
     },
     {
       "schemaVersion": 1,
@@ -53,9 +53,9 @@
       "description": "Offline OCR engine for image text and table extraction.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/tesseract.js",
-      "downloadUrl": "https://registry.npmjs.org/tesseract.js/-/tesseract.js-6.0.1.tgz",
-      "installType": "npm-package",
-      "status": "package-ready"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip",
+      "installType": "bundle",
+      "status": "release-bundle"
     },
     {
       "schemaVersion": 1,
@@ -66,9 +66,9 @@
       "description": "Local/offline speech recognition. Provider can be replaced later.",
       "provider": "ggml-org",
       "sourceUrl": "https://github.com/ggml-org/whisper.cpp",
-      "downloadUrl": null,
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-stt-whisper.zip",
       "installType": "bundle",
-      "status": "bundle-pending"
+      "status": "release-bundle"
     },
     {
       "schemaVersion": 1,
