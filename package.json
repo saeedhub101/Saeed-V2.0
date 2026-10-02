@@ -1,6 +1,6 @@
 {
   "name": "saeed-ai",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Saeed AI 3.10 desktop agent — 3D, Local Brain, Agent",
   "main": "src/main.js",
   "scripts": {
@@ -15,7 +15,8 @@
     "electron-updater": "6.6.2",
     "pdf-parse": "1.1.1",
     "xlsx": "0.18.5",
-    "tesseract.js": "6.0.1"
+    "tesseract.js": "6.0.1",
+    "docx": "9.8.1"
   },
   "devDependencies": {
     "electron-builder": "26.15.3",
@@ -35,7 +36,7 @@
       "allowToChangeInstallationDirectory": true,
       "include": "build/installer.nsh"
     },
-    "buildVersion": "4.0.0",
+    "buildVersion": "4.1.0",
     "icon": "assets/saeed.ico",
     "extraResources": [
       {
