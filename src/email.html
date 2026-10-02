@@ -1,0 +1,13 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width"><title>Saeed Email</title><link rel="stylesheet" href="email.css"></head><body>
+<header><div><span>SAEED AI</span><h1>Connect Email</h1><p>Connect your mailbox locally. Credentials stay encrypted on this computer.</p></div><button id="close">×</button></header>
+<nav id="providers"><button data-provider="gmail" class="active">Gmail</button><button data-provider="yahoo">Yahoo</button><button data-provider="hotmail">Hotmail</button><button data-provider="others">Others</button></nav>
+<main>
+<section class="card"><div id="providerInfo"></div>
+<label>Email address<input id="email" type="email" autocomplete="username" placeholder="you@example.com"></label>
+<label>Password / App password<input id="password" type="password" autocomplete="current-password" placeholder="Password or provider app password"></label>
+<label>Incoming protocol<select id="protocol"><option value="imap">IMAP — sync mail</option><option value="pop3">POP3 — download mail</option></select></label>
+<div id="otherFields" class="hidden"><label>IMAP server<input id="imapHost" placeholder="imap.example.com"></label><label>IMAP port<input id="imapPort" type="number" value="993"></label><label>POP3 server<input id="popHost" placeholder="pop.example.com"></label><label>POP3 port<input id="popPort" type="number" value="995"></label><label>SMTP server<input id="smtpHost" placeholder="smtp.example.com"></label><label>SMTP port<input id="smtpPort" type="number" value="587"></label></div>
+<button id="connect">Connect Email</button><p id="status"></p></section>
+<section class="card"><h2>Connected accounts</h2><div id="accounts">Loading…</div></section>
+<section class="card"><h2>What Saeed can learn</h2><p>IMAP can sync recent mail and inspect calendar (.ics) and contact (.vcf/.vcard) attachments. Detected calendar events are stored locally so Saeed can remind you on the event date.</p><p class="note">Provider calendars/contacts themselves are not part of POP3/IMAP/SMTP. Full Gmail, Yahoo or Microsoft calendar/contact APIs require their provider authorization flow.</p></section>
+</main><script src="email.js"></script></body></html>
