@@ -288,7 +288,7 @@ async function runCiRuntimeSmoke(){
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
  if(ciSmoke)scheduleCiRuntimeSmoke();
- try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
+ try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);diagnostic("ERROR","APPLICATION STARTUP",e.message);try{await createChatWindow();chatWin?.show();}catch(fallbackError){console.error("Saeed fallback window failed:",fallbackError);ciWriteStartupReport("fallback-window-failed",fallbackError);app.quit();return}}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
