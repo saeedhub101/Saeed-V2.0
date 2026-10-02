@@ -296,8 +296,7 @@ ipcMain.handle("settings:set",(_,s)=>{
  let micMode=String(agent.settings.micMode||currentMicMode||"off");
  const realtimeChanged=Object.prototype.hasOwnProperty.call(s||{},"realtimeEnabled")&&previous.realtimeEnabled!==agent.settings.realtimeEnabled;
  const voiceConfigChanged=["sttProvider","sttModel","sttLanguage","ttsProvider","ttsModel","ttsVoice","voiceRouting","micPath","realtimeProvider","realtimeModel","realtimeVoice","micSpeechRms","micInterruptRms"].some(k=>Object.prototype.hasOwnProperty.call(s||{},k)&&previous[k]!==agent.settings[k]);
- if(mode!=="api"&&agent.settings.realtimeEnabled)agent.settings.realtimeEnabled=false;
- if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")stopRealtime();
+ if(!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")stopRealtime();
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(realtimeChanged&&micMode==="on")setMicMode("off").then(()=>setMicMode("on"));
  if(Object.prototype.hasOwnProperty.call(s||{},"characterSize"))setSaeedSize(agent.settings.characterSize);
@@ -404,17 +403,17 @@ function startRealtime(options={}){
  const s=agent?.settings||{};
  if(s.realtimeEnabled===false){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled in Voice settings");voiceBroadcast("realtime:state","disabled","Realtime is disabled.");return false}
  if(s.micPath!=="realtime"){diagnostic("INFO","REALTIME BLOCKED","Realtime microphone path is disabled");voiceBroadcast("realtime:state","blocked","Microphone is using the selected STT provider.");return false}
- if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}if(String(s.brainMode||"auto")!=="api"){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled because Brain mode is "+String(s.brainMode||"auto")+"; requests must pass through the selected brain routing.");voiceBroadcast("realtime:state","blocked","Realtime requires Direct API brain mode.");return false}
+ if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}
  const key=s.realtimeApiKey||s.apiKey||"";
  if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");voiceBroadcast("realtime:state","not-configured","OpenAI API key is not configured.");return false}
  diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
  const registry=agent?.registry;
- const realtimeTools=(registry?.schemas()||[]).map(t=>({
+ const realtimeTools=String(s.voiceRouting||"controller")==="direct"?(registry?.schemas()||[]).map(t=>({
   type:"function",
   name:t.function?.name,
   description:t.function?.description||"",
   parameters:t.function?.parameters||{type:"object",properties:{},required:[]}
- })).filter(t=>t.name);
+ })).filter(t=>t.name):[];
  realtime=new OpenAIRealtime({
   state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");voiceBroadcast("realtime:state",state,message)},
   event:async(event)=>{
@@ -422,8 +421,23 @@ function startRealtime(options={}){
    else if(event.type==="response.output_audio_transcript.delta"&&event.delta)voiceBroadcast("realtime:assistant-delta",event.delta);
    else if(event.type==="response.output_audio_transcript.done"&&event.transcript)voiceBroadcast("realtime:assistant-final",event.transcript);
    else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)voiceBroadcast("realtime:user-delta",event.delta);
-   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)voiceBroadcast("realtime:user-final",event.transcript);
-   else if(event.type==="response.function_call_arguments.done"&&event.call_id){
+   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript){
+    voiceBroadcast("realtime:user-final",event.transcript);
+    if(String(agent?.settings?.voiceRouting||"controller")==="controller"){
+     const transcript=String(event.transcript||"").trim();
+     if(transcript){
+      brainSupervisor?.markActivity?.();
+      try{
+       const result=await agent.run(transcript);
+       voiceBroadcast("agent:event",{type:"voice-task-complete",text:String(result||""),source:"realtime-controller"});
+      }catch(e){
+       diagnostic("ERROR","REALTIME CONTROLLER",e.message);
+       voiceBroadcast("agent:event",{type:"voice-task-error",error:e.message,source:"realtime-controller"});
+      }
+     }
+    }
+   }
+   else if(event.type==="response.function_call_arguments.done"&&event.call_id&&String(agent?.settings?.voiceRouting||"controller")==="direct"){
     const name=String(event.name||"");
     let args={};
     try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
