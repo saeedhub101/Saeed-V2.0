@@ -20,6 +20,7 @@ class Agent{
   const legacy=this.readJson(this.historyFile,[]);
   const stored=this.readJson(this.chatsFile,{conversations:[]});
   this.conversations=Array.isArray(stored?.conversations)?stored.conversations:[];
+  this.conversations=this.conversations.filter(x=>Array.isArray(x?.messages)&&x.messages.length>0||x?.title!=="New Chat");
   if(!this.conversations.length&&Array.isArray(legacy)&&legacy.length){
    this.conversations=[{id:this.newId(),title:"Previous conversation",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:legacy.slice(-200)}];
    this.saveConversations();
