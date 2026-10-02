@@ -1,22 +1,13 @@
-const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{BrainController}=require("./brain-controller");
+const fs=require("fs"),path=require("path"),{app}=require("electron"),{BrainController}=require("./brain-controller"),{SettingsStore}=require("./core/settings-store");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
   this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.taskContext=null;this.disposed=false;this.brainLevels=new BrainController({settings:()=>this.settings,getLocalBrain:()=>this.localBrain});this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
-  const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:16,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
-  this._settings={...raw,permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow",...(raw.permissions||{})},
-   micMode:"off",
-   brainMode:String(raw.brainMode||"auto"),
-   streamingMode:"off",
-   voiceControlVersion:3,
-   ...(Number(raw.voiceControlVersion||0)<2?{}:{}),
-   apiKey:this.decryptKey(raw.apiKey),
-   sttApiKey:this.decryptKey(raw.sttApiKey),
-   ttsApiKey:this.decryptKey(raw.ttsApiKey),
-   realtimeApiKey:this.decryptKey(raw.realtimeApiKey)
-  };
+  this.settingsStore=new SettingsStore(this.file);
+  const raw=this.settingsStore.read({provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:16,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
+  this._settings=this.settingsStore.normalize(raw);
   const legacy=this.readJson(this.historyFile,[]);
   const stored=this.readJson(this.chatsFile,{conversations:[]});
   this.conversations=Array.isArray(stored?.conversations)?stored.conversations:[];
@@ -51,11 +42,9 @@ class Agent{
    "openai-compatible":{baseUrl:"",model:""}
   }[name]||{};
  }
- encryptKey(key){try{return key&&safeStorage.isEncryptionAvailable()?safeStorage.encryptString(String(key)).toString("base64"):String(key||"")}catch{return String(key||"")}}
- decryptKey(v){try{return v&&safeStorage.isEncryptionAvailable()?safeStorage.decryptString(Buffer.from(v,"base64")):String(v||"")}catch{return String(v||"")}}
- publicSettings(){const out={...this._settings};delete out.alwaysListening;return{...out,apiKey:"",sttApiKey:"",ttsApiKey:"",realtimeApiKey:"",
-   hasApiKey:Boolean(this._settings.apiKey),hasSttApiKey:Boolean(this._settings.sttApiKey),
-   hasTtsApiKey:Boolean(this._settings.ttsApiKey),hasRealtimeApiKey:Boolean(this._settings.realtimeApiKey)}}
+ encryptKey(key){return this.settingsStore.encryptKey(key)}
+ decryptKey(v){return this.settingsStore.decryptKey(v)}
+ publicSettings(){return this.settingsStore.public(this._settings)}
  set settings(v){
   const previous=this._settings||{},input=v||{},providerChanged=input.provider&&input.provider!==previous.provider;
   this._settings={...previous,...input,permissions:{...previous.permissions,...(input.permissions||{})},brainMode:["api","local","auto"].includes(String(input.brainMode||""))?String(input.brainMode):String(previous.brainMode||"auto")};
@@ -79,12 +68,7 @@ class Agent{
   this.persistSettings();
  }
  get settings(){return this._settings}
- persistSettings(){try{fs.mkdirSync(path.dirname(this.file),{recursive:true});fs.writeFileSync(this.file,JSON.stringify({...this._settings,
-   apiKey:this.encryptKey(this._settings.apiKey),
-   sttApiKey:this.encryptKey(this._settings.sttApiKey),
-   ttsApiKey:this.encryptKey(this._settings.ttsApiKey),
-   realtimeApiKey:this.encryptKey(this._settings.realtimeApiKey)
-  },null,2))}catch(e){console.error("Settings save failed:",e)}}
+ persistSettings(){this.settingsStore.save(this._settings)}
  newId(){return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9)}
  saveConversations(){try{fs.writeFileSync(this.chatsFile,JSON.stringify({conversations:this.conversations.map(x=>({...x,messages:x.messages.slice(-200)}))},null,2))}catch(e){console.error("Conversations save failed:",e)}}
  saveMemory(){try{fs.writeFileSync(this.memoryFile,JSON.stringify(this.globalMemory,null,2))}catch(e){console.error("Global memory save failed:",e)}}
