@@ -227,7 +227,7 @@ async function createCharacterWindow(){
  characterWin.webContents.on("context-menu",()=>contextMenu());
  try{await characterWin.loadFile(path.join(__dirname,"character.html"));}catch(e){
   diagnostic("ERROR","CHARACTER WINDOW LOAD",e.message);
-  const fallback="<!doctype html><html><body style="\"margin:0;background:transparent;color:white;font-family:Segoe UI,Arial;display:flex;align-items:center;justify-content:center;height:100vh\"><div>Saeed AI</div></body></html>";
+  const fallback="<!doctype html><html><body style=\"margin:0;background:transparent;color:white;font-family:Segoe UI,Arial;display:flex;align-items:center;justify-content:center;height:100vh\"><div>Saeed AI</div></body></html>";
   await characterWin.loadURL("data:text/html;charset=utf-8,"+encodeURIComponent(fallback));
  }
  try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
