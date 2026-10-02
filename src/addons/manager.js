@@ -3,6 +3,7 @@ const path=require("path");
 const crypto=require("crypto");
 const https=require("https");
 const {spawn}=require("child_process");
+const capabilities=require("./capabilities");
 
 const DEFAULT_CATALOG_URL="https://raw.githubusercontent.com/saeedhub101/Saeed-V2.0/main/src/addons/catalog.json";
 
@@ -85,11 +86,11 @@ async function install(userData,addon,onProgress){
    const sourceRoot=path.dirname(actual);
    fs.rmSync(target,{recursive:true,force:true});fs.mkdirSync(path.dirname(target),{recursive:true});fs.cpSync(sourceRoot,target,{recursive:true});
   }
-  onProgress?.({state:"installed",percent:100});
+  registerInstalled(userData,installedManifestData);onProgress?.({state:"registered",percent:100});onProgress?.({state:"installed",percent:100});
   return actualManifest;
  }finally{fs.rmSync(tempRoot,{recursive:true,force:true})}
 }
-function uninstall(userData,id){const dir=addonDir(userData,id);if(!fs.existsSync(dir))return false;fs.rmSync(dir,{recursive:true,force:true});return true}
+function uninstall(userData,id){const dir=addonDir(userData,id);if(!fs.existsSync(dir))return false;unregisterInstalled(userData,id);fs.rmSync(dir,{recursive:true,force:true});return true}
 function load(userData,id){
  const manifest=validateManifest(readJson(installedManifest(userData,id)));
  if(!manifest.entry)return manifest;
@@ -98,4 +99,6 @@ function load(userData,id){
 }
 function has(userData,id){return fs.existsSync(installedManifest(userData,id))}
 function getPackagePath(userData,id,relative){return path.join(addonDir(userData,id),relative||"")}\nfunction requirePackage(userData,id,packageName){const root=addonDir(userData,id);if(!has(userData,id))throw new Error("Add-on is not installed: "+id);try{return require(require.resolve(packageName,{paths:[root]}))}catch(e){throw new Error(`Add-on ${id} is installed but package ${packageName} could not be loaded: ${e.message}`)}}
-module.exports={DEFAULT_CATALOG_URL,ensureRoot,listInstalled,fetchCatalog,install,uninstall,load,has,getPackagePath,requirePackage,addonDir};
+function registerInstalled(userData,manifest){return capabilities.register(userData,manifest)}
+function unregisterInstalled(userData,id){require("./runtime").unregister(userData,id)}
+module.exports={DEFAULT_CATALOG_URL,ensureRoot,listInstalled,fetchCatalog,install,uninstall,load,has,getPackagePath,requirePackage,addonDir,registerInstalled,unregisterInstalled};

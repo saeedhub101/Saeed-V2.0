@@ -1,4 +1,4 @@
-const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{BrainLevelRouter}=require("./brain-levels");
+const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{BrainLevelRouter}=require("./brain-levels"),addonRuntime=require("./addons/runtime");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
@@ -119,6 +119,33 @@ class Agent{
     const answer="I can handle common Windows computer tasks offline, but this request needs the API brain. Please connect an API key in Settings.";
     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local-fallback"});return answer;
    }
+  }
+  const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
+  const addonLlm=addonRuntime.find(this.dir,"llm",addonPreference);
+  if(addonLlm && (mode!=="api" || addonPreference)){
+   try{
+    const provider=addonRuntime.load(this.dir,addonLlm.id);
+    if(typeof provider.chat==="function"){
+     this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ADD-ON",message:"Using installed LLM add-on: "+addonLlm.name,meta:{id:addonLlm.id,provider:addonLlm.provider||addonLlm.id}});
+     const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
+     const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Use the supplied tools when needed and do not claim success without evidence."+this.memoryContext()},...this.history.slice(-12),{role:"user",content:userContent}];
+     const result=await provider.chat({messages,tools:this.registry.schemas(),settings:s,model:s.model||null});
+     const content=String(result?.content||result?.text||"");
+     const calls=Array.isArray(result?.tool_calls)?result.tool_calls:[];
+     if(calls.length){
+      for(const call of calls){
+       let args={};try{args=typeof call.arguments==="string"?JSON.parse(call.arguments):call.arguments||{}}catch{}
+       const name=String(call.name||call.function?.name||"");const out=await this.registry.call(name,args);
+       messages.push({role:"assistant",content:"",tool_calls:[{id:call.id||"addon-call",type:"function",function:{name,arguments:JSON.stringify(args)}}]});
+       messages.push({role:"tool",tool_call_id:call.id||"addon-call",content:JSON.stringify(out)});
+      }
+      const follow=await provider.chat({messages,tools:this.registry.schemas(),settings:s,model:s.model||null});
+      const finalText=String(follow?.content||follow?.text||content);
+      this.history.push({role:"user",content:String(text)},{role:"assistant",content:finalText});this.saveHistory();this.onEvent({type:"answer",text:finalText,source:"addon-llm"});return finalText;
+     }
+     this.history.push({role:"user",content:String(text)},{role:"assistant",content:content});this.saveHistory();this.onEvent({type:"answer",text:content,source:"addon-llm"});return content;
+    }
+   }catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN ADD-ON",message:e.message});if(addonPreference)throw e;}
   }
   if(!s.apiKey&&s.provider!=="ollama"){
    this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT NOT READY",message:"LLM API key is missing"});

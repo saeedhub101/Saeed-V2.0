@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "id": "llama-local",
+  "name": "Llama Local Provider",
+  "version": "1.0.0",
+  "type": "provider",
+  "capabilities": ["llm"],
+  "entry": "index.js",
+  "providerId": "llama"
+}
