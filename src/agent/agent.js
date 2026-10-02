@@ -1,4 +1,4 @@
-const fs=require("fs"),path=require("path"),{app}=require("electron"),{BrainController}=require("./brain-controller"),{SettingsStore}=require("./core/settings-store");
+const fs=require("fs"),path=require("path"),{app}=require("electron"),{BrainController}=require("../brain/brain-controller"),{SettingsStore}=require("../core/settings-store");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
