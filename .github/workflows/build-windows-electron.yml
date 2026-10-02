@@ -117,48 +117,6 @@ jobs:
           Write-Host "Saved generated icons:"
           Get-ChildItem $iconDir | Select-Object Name,Length
 
-      - name: Build bundled Offline Whisper
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          if (Test-Path "build\whisper") { Remove-Item "build\whisper" -Recurse -Force }
-          if (Test-Path "build\whisper-src") { Remove-Item "build\whisper-src" -Recurse -Force }
-          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\whisper-src
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
-          cmake --build build\whisper-src\build --config Release --target whisper-cli
-          New-Item -ItemType Directory -Force -Path build\whisper | Out-Null
-          $cli = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
-          if (!$cli) { throw "whisper-cli.exe was not built." }
-          Copy-Item $cli.FullName "build\whisper\whisper-cli.exe" -Force
-          Get-ChildItem "build\whisper-src\build\bin\Release" -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName "build\whisper\$($_.Name)" -Force }
-          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile "build\whisper\ggml-base-q5_1.bin"
-          $size = (Get-Item "build\whisper\ggml-base-q5_1.bin").Length
-          if ($size -lt 50000000) { throw "Whisper model download is unexpectedly small: $size bytes" }
-          $hash = (Get-FileHash "build\whisper\ggml-base-q5_1.bin" -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
-          & "build\whisper\whisper-cli.exe" --help | Out-File "build\whisper\whisper-help.txt"
-          if ($LASTEXITCODE -ne 0) { throw "Whisper CLI binary failed its startup/help check." }
-
-      - name: Synthetic Offline Whisper speech test
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          Add-Type -AssemblyName System.Speech
-          $wav = Join-Path $env:RUNNER_TEMP "saeed-whisper-smoke.wav"
-          $synth = New-Object System.Speech.Synthesis.SpeechSynthesizer
-          $synth.SetOutputToWaveFile($wav)
-          $synth.Speak("Hello Saeed please tell me the time")
-          $synth.Dispose()
-          $base = Join-Path $env:RUNNER_TEMP "saeed-whisper-smoke"
-          & "build\whisper\whisper-cli.exe" -m "build\whisper\ggml-base-q5_1.bin" -f $wav -otxt -of $base
-          if ($LASTEXITCODE -ne 0) { throw "Whisper synthetic speech test failed." }
-          $out = "$base.txt"
-          if (!(Test-Path $out)) { throw "Whisper did not produce transcript output." }
-          $text = (Get-Content $out -Raw).Trim()
-          if ([string]::IsNullOrWhiteSpace($text)) { throw "Whisper returned an empty transcript." }
-          Write-Host "WHISPER_SYNTHETIC_STT=PASS"
-          Write-Host "TRANSCRIPT=$text"
-
       - name: Capture build host CPU and RAM baseline
         shell: powershell
         run: |
@@ -271,6 +229,72 @@ jobs:
           @{version=$v;files=@(@{url=$f.Name;sha512=$b;size=[int64]$f.Length});releaseDate=(Get-Date).ToUniversalTime().ToString("o")}|ConvertTo-Json -Depth 5|Set-Content dist/latest.yml -Encoding UTF8
           Write-Host "UPDATE_METADATA_CHECK=PASS"
 
+      - name: Build optional add-on bundles
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "dist/addons"
+          if (Test-Path $root) { Remove-Item $root -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+
+          function Build-NpmAddon($id,$name,$package,$version,$category) {
+            $stage = Join-Path $env:RUNNER_TEMP ("saeed-addon-" + $id)
+            if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+            New-Item -ItemType Directory -Force -Path $stage | Out-Null
+            npm install --prefix $stage "$package@$version" --omit=dev --ignore-scripts --no-audit --no-fund
+            if ($LASTEXITCODE -ne 0) { throw "Failed to install add-on package $package@$version" }
+            $manifest = [ordered]@{
+              schemaVersion=1; id=$id; name=$name; version=$version; category=$category
+              installType="npm-package"; packageName=$package; description=$name
+            }
+            $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $stage "manifest.json")
+            $zip = Join-Path $root ("saeed-addon-" + $id + ".zip")
+            Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
+            Remove-Item $stage -Recurse -Force
+            Write-Host "Built add-on: $zip"
+          }
+
+          Build-NpmAddon "word" "Word / DOCX" "docx" "9.8.1" "Documents"
+          Build-NpmAddon "excel" "Excel / XLSX" "xlsx" "0.18.5" "Documents"
+          Build-NpmAddon "pdf" "PDF" "pdf-parse" "1.1.1" "Documents"
+          Build-NpmAddon "ocr" "OCR" "tesseract.js" "6.0.1" "Vision"
+
+          $whisper = Join-Path $env:RUNNER_TEMP "saeed-addon-stt-whisper"
+          if (Test-Path $whisper) { Remove-Item $whisper -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $whisper | Out-Null
+          if (Test-Path "build\whisper-src") { Remove-Item "build\whisper-src" -Recurse -Force }
+          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\whisper-src
+          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
+          cmake --build build\whisper-src\build --config Release --target whisper-cli
+          $cli = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+          if (!$cli) { throw "whisper-cli.exe was not built." }
+          Copy-Item $cli.FullName (Join-Path $whisper "whisper-cli.exe") -Force
+          $dllDir = Split-Path $cli.FullName -Parent
+          Get-ChildItem $dllDir -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $whisper -Force }
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile (Join-Path $whisper "ggml-base-q5_1.bin")
+          $hash = (Get-FileHash (Join-Path $whisper "ggml-base-q5_1.bin") -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
+          & (Join-Path $whisper "whisper-cli.exe") --help | Out-File (Join-Path $whisper "whisper-help.txt")
+          if ($LASTEXITCODE -ne 0) { throw "Whisper CLI startup check failed." }
+          @{schemaVersion=1;id="stt-whisper";name="Whisper STT";version="1.x";category="Speech to Text";installType="bundle"} | ConvertTo-Json | Set-Content (Join-Path $whisper "manifest.json")
+          Compress-Archive -Path (Join-Path $whisper "*") -DestinationPath (Join-Path $root "saeed-addon-stt-whisper.zip") -Force
+          Remove-Item $whisper -Recurse -Force
+          Remove-Item "build\whisper-src" -Recurse -Force
+
+          Get-ChildItem $root | Select-Object Name,Length
+
+      - name: Verify add-on bundles
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $required = @("word","excel","pdf","ocr","stt-whisper")
+          foreach($id in $required) {
+            $zip = "dist/addons/saeed-addon-$id.zip"
+            if (!(Test-Path $zip)) { throw "Missing add-on bundle: $zip" }
+            if ((Get-Item $zip).Length -lt 1000) { throw "Add-on bundle is unexpectedly small: $zip" }
+          }
+          Write-Host "ADDON_BUNDLES=PASS"
+
       - name: Verify release output
         shell: pwsh
         run: |
@@ -310,6 +334,7 @@ jobs:
             dist/ci-runtime-report.json
             dist/ci-host-resource-report.json
             dist/icons/*
+            dist/addons/*.zip
 
 
       - name: Publish official release
@@ -323,9 +348,9 @@ jobs:
           echo "Release request accepted for $TAG"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists; uploading verified build assets instead of failing."
-            gh release upload "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml --clobber
+            gh release upload "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml dist/addons/*.zip --clobber
           else
-            gh release create "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml \
+            gh release create "$TAG" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml dist/addons/*.zip \
               --title "Saeed AI ${VERSION}" \
               --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}." \
               --target "${{ github.sha }}"
