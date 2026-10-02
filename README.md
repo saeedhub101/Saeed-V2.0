@@ -7,17 +7,17 @@ Saeed AI is a Windows desktop AI companion and computer agent built as one Elect
 - Runtime: Electron + Chromium.
 - UI: HTML/CSS/JavaScript.
 - 3D: Three.js 0.180.0 + WebGL.
-- Character renderer: `src/avatar.js`.
-- AI orchestration: `src/agent.js`.
-- Brain routing: `src/task-router.js`, `src/brain-levels.js`.
-- Task lifecycle/planning: `src/task-engine.js`, `src/task-planner.js`.
-- Local/offline computer brain: `src/local-brain.js`.
+- Character renderer: `src/avatar/avatar.js`.
+- AI orchestration: `src/agent/agent.js` (`src/agent.js` is a compatibility facade).
+- Brain routing: `src/brain/brain-controller.js`, `src/brain/brain-levels.js`, with `src/task-router.js` retained as a compatibility facade.
+- Task lifecycle/planning: `src/agent/task-engine.js`, `src/agent/task-planner.js`, `src/agent/task-router.js`.
+- Local/offline computer brain: `src/brain/local-brain.js` (`src/local-brain.js` is a compatibility facade).
 - Central tools and permissions: `src/tools/registry.js`.
 - Tool implementations: `src/tools/*.js`.
 - Windows primitives: `src/computer.js`.
 - Persistent memory: `src/memory.js`.
-- Voice lifecycle: `src/character-voice.js`.
-- Optional OpenAI Realtime transport: `src/realtime.js`.
+- Voice lifecycle: `src/voice/character-voice.js`.
+- Optional OpenAI Realtime transport: `src/voice/realtime.js` (`src/realtime.js` is a compatibility facade).
 - Main process/IPC: `src/main.js`, `src/preload.js`.
 - Autonomous character behavior: `src/autonomous/*`.
 - Runtime diagnostics: Status, Performance and 3D Status windows.
@@ -215,17 +215,33 @@ Saeed-V2.0/
 │   ├── main.js
 │   ├── preload.js
 │   ├── renderer.js
-│   ├── agent.js
-│   ├── brain-levels.js
-│   ├── local-brain.js
-│   ├── task-router.js
-│   ├── task-planner.js
-│   ├── task-engine.js
+│   ├── core/
+│   │   ├── app-runtime.js
+│   │   ├── settings-store.js
+│   │   ├── permissions.js
+│   │   └── diagnostics.js
+│   ├── brain/
+│   │   ├── brain-controller.js
+│   │   ├── brain-levels.js
+│   │   └── local-brain.js
+│   ├── agent/
+│   │   ├── agent.js
+│   │   ├── task-router.js
+│   │   ├── task-planner.js
+│   │   └── task-engine.js
+│   ├── email/
+│   │   └── email-service.js
+│   ├── voice/
+│   │   ├── character-voice.js
+│   │   └── realtime.js
+│   ├── avatar/
+│   │   ├── avatar.js
+│   │   ├── character-animation-controller.js
+│   │   ├── character-controls.js
+│   │   ├── character-feelings.js
+│   │   └── character-interaction.js
 │   ├── computer.js
 │   ├── memory.js
-│   ├── realtime.js
-│   ├── character-voice.js
-│   ├── avatar.js
 │   ├── tools/
 │   │   ├── registry.js
 │   │   ├── files.js
