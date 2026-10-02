@@ -10,7 +10,7 @@ class TaskEngine{
   const type=String(e?.type||"");
   if(type==="thinking"){this.active.step=Number(e.step||0);this.active.stepLimit=Number(e.stepLimit||0);this.active.phase="execute_actions"}
   else if(type==="tool"){this.active.currentTool=e.name;this.active.phase="execute_actions";this.active.toolArgs=e.args||{};this.active.currentAction=String(e.name||"")}
-  else if(type==="tool_result"){this.active.lastTool=e.name;this.active.lastToolResult=e.result;this.planner.markAction(this.active.plan,e.name,e.result);this.active.phase=e.result?.ok===false?"recover":"execute_actions"}
+  else if(type==="tool_result"){this.active.lastTool=e.name;this.active.lastToolResult=e.result;this.planner.markAction(this.active.plan,e.name,e.result,e.args||this.active.toolArgs||{});this.active.phase=e.result?.ok===false?"recover":"execute_actions"}
   else if(type==="tool_error"){this.active.phase="recover";this.active.lastError=e.error}
   this.active.updatedAt=new Date().toISOString();this.saveState({...this.active,image:null});this.emit({type:"task:progress",taskId:this.active.id,step:this.active.step||0,stepLimit:this.active.stepLimit||0,phase:this.active.phase,currentTool:this.active.currentTool||null,completedActions:this.active.plan?.completedActions||[]})
  }
