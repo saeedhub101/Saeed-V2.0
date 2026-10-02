@@ -17,7 +17,7 @@ class ToolRegistry{
   return"system";
  }
  isReadOnly(name){return new Set(["list_directory","read_file","inspect_document","extract_pdf_text","read_excel","calculate_excel","system_info","diagnose_computer","active_window","list_windows","process_list","disk_info","network_info","web_search","fetch_web_page","screenshot","list_tasks","recall","list_memory","verify_path","verify_file_contains","verify_process","verify_window"]).has(String(name||""))}
- async callMany(calls=[]){const list=Array.isArray(calls)?calls:[];if(list.length>1&&list.every(x=>this.isReadOnly(x?.name)))return Promise.all(list.map(x=>this.call(x.name,x.args||{})));const out=[];for(const x of list)out.push(await this.call(x.name,x.args||{}));return out}
+ async callMany(calls=[]){const list=Array.isArray(calls)?calls:[];const names=new Set(list.map(x=>x?.name));if(names.has("list_windows")&&names.has("process_list")){const combined=await this.computer.windowsAndProcesses();const out=list.map(x=>x.name==="list_windows"?{ok:combined.ok,windows:combined.windows||[],error:combined.error}:x.name==="process_list"?{ok:combined.ok,processes:combined.processes||[],error:combined.error}:null);if(out.every(x=>x!==null))return out;}if(list.length>1&&list.every(x=>this.isReadOnly(x?.name)))return Promise.all(list.map(x=>this.call(x.name,x.args||{})));const out=[];for(const x of list)out.push(await this.call(x.name,x.args||{}));return out}
  async authorize(category,request){
   const p=this.permissionPolicy(category);
   if(p==="deny")return false;
@@ -25,6 +25,8 @@ class ToolRegistry{
   if(p==="ask")return this.confirm({...request,permissionCategory:category});
   return true;
  }
+ async beginTask(){this.computer.beginTask();}
+ endTask(){this.computer.endTask();}
  async call(name,args={}){
   try{const category=this.categoryFor(name,args);if(!(await this.authorize(category,{name,args})))return{ok:false,error:"Permission denied for "+category};
    const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile};
