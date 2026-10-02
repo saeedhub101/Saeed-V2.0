@@ -1,5 +1,5 @@
 const path=require("path"),{Computer}=require("../computer");
-const domains=[require("./files"),require("./office"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks")];
+const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks")];
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy}={}){this.computer=new Computer();this.memory=null;this.tasks=null;this.userDataPath=userDataPath||process.cwd();this.captureScreen=captureScreen||(()=>null);this.confirm=confirm|| (async()=>false);this.permissionPolicy=permissionPolicy||(()=>"allow");this.tasksFile=path.join(this.userDataPath,"tasks.json")}
  schemas(){return domains.flatMap(d=>d.schemas())}
@@ -8,7 +8,7 @@ class ToolRegistry{
   if(["list_directory","read_file","write_file","open_file","reveal_file","inspect_document","extract_pdf_text","read_excel","calculate_excel","write_excel"].includes(name))return"files";
   if(name==="open_application")return"applications";
   if(["open_url","web_search","fetch_web_page","network_info"].includes(name))return"network";
-  if(["screenshot"].includes(name))return"screen";
+  if(["screenshot","ocr_image","extract_image_table","inspect_image"].includes(name))return"screen";
   if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return"mouseKeyboard";
   if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget"].includes(name))return"tasksMemory";
   if(name==="remove_task")return"destructive";
