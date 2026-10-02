@@ -6,7 +6,7 @@ class Computer{
   return {ok:true,stdout:r.stdout,stderr:r.stderr};
  }
  esc(s){return String(s).replace(/'/g,"''");}
- async openApp(app){return this.powershell("$p='"+this.esc(app)+"';Start-Process -FilePath $p");}
+ async openApp(app){const value=String(app||"").trim();if(!value)return{ok:false,error:"Application name is empty"};if(/^https?:\/\//i.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");if(/^[A-Za-z]:\\|^[\\/]/.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");const known=await this.powershell("Get-Command '"+this.esc(value)+"' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source");if(!known.stdout.trim())return{ok:false,error:"Application not found: "+value};return this.powershell("Start-Process -FilePath '"+this.esc(known.stdout.trim())+"'");}
  async mouseMove(x,y){
   const X=Math.round(Number(x)),Y=Math.round(Number(y));if(!Number.isFinite(X)||!Number.isFinite(Y))return{ok:false,error:"Invalid coordinates"};
   const code='using System;using System.Runtime.InteropServices;public static class M{[DllImport("user32.dll")]public static extern bool SetCursorPos(int X,int Y);}';
