@@ -36,7 +36,7 @@ function download(url,target,onProgress){
 function installNpmPackage(target,manifest,onProgress){return new Promise((resolve,reject)=>{fs.mkdirSync(target,{recursive:true});const npm=process.platform==="win32"?"npm.cmd":"npm";const child=spawn(npm,["install","--prefix",target,`${manifest.packageName||manifest.id}@${manifest.version}`,"--omit=dev","--ignore-scripts"],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.stdout.on("data",d=>{const s=String(d);if(/added|up to date|changed/i.test(s))onProgress?.({state:"installing",percent:null})});child.on("error",e=>reject(new Error("npm is required for this add-on on this build: "+e.message)));child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||("npm install failed with code "+code))));});}\nfunction extractZip(zip,destination){
  return new Promise((resolve,reject)=>{
   fs.mkdirSync(destination,{recursive:true});
-  const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command","Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force","--",zip,destination],{windowsHide:true});
+  const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command","Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",zip,destination],{windowsHide:true});
   let err="";child.stderr.on("data",d=>err+=String(d));
   child.on("error",reject);child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||"Could not extract add-on archive")));
  });
