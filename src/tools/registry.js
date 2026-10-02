@@ -5,7 +5,8 @@ class ToolRegistry{
  schemas(){return domains.flatMap(d=>d.schemas())}
  rankForTask(text){const l=String(text||"").toLowerCase(),groups=[];const add=(name,score)=>groups.push({name,score});if(/pdf|document|word|docx|spreadsheet|excel|xlsx|csv|ملف|مستند|جدول/i.test(l))add("native-office/files",10);if(/screen|screenshot|mouse|click|keyboard|type|نافذة|شاشة|ماوس|لوحة المفاتيح/i.test(l))add("screen/interaction/windows",8);if(/website|web|internet|search|url|موقع|ابحث|الانترنت/i.test(l))add("web",8);if(/task|remember|memory|مهام|تذكر|ذاكرة/i.test(l))add("tasks-memory",8);if(/computer|system|cpu|ram|disk|network|جهاز|النظام|المعالج|الذاكرة|القرص|الشبكة/i.test(l))add("windows/system",7);if(!groups.length)add("direct-answer",1);return groups.sort((a,b)=>b.score-a.score).slice(0,3)}
  categoryFor(name,args={}){
-  if(["delete_file","remove_task"].includes(name))return"destructive";
+  if(["delete_file","remove_task","forget"].includes(name))return"destructive";
+  if(name==="write_file"&&args?.filePath&&fs.existsSync(path.resolve(String(args.filePath))))return"destructive";
   if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info","verify_process","verify_window"].includes(name))return"system";
   if(["list_directory","read_file","write_file","open_file","reveal_file","inspect_document","extract_pdf_text","read_excel","calculate_excel","write_excel","verify_path","verify_file_contains"].includes(name))return"files";
   if(name==="open_application")return"applications";
