@@ -20,7 +20,7 @@ function schemas(){return[
 async function recognize(filePath,language){
  const lib=tesseract();
  if(!lib)return{ok:false,error:"OCR support is not installed. Install tesseract.js first."};
- const lang=String(language||"eng").trim()||"eng";
+ const rawLang=String(language||"eng").trim()||"eng";\n const lang=rawLang.includes("+")?rawLang.split("+").map(x=>x.trim()).filter(Boolean):rawLang;\n const langLabel=Array.isArray(lang)?lang.join("+"):lang;
  let worker;
  try{
    worker=await lib.createWorker(lang);
@@ -30,7 +30,7 @@ async function recognize(filePath,language){
  finally{if(worker){try{await worker.terminate();}catch{}}}
 }
 
-function wordsToTable(words,maxRows,maxCols){
+function tsvToWords(tsv){\n const lines=String(tsv||"").split(/\\r?\\n/).filter(Boolean);\n if(lines.length<2)return[];\n const header=lines[0].split("\\t");\n const idx={};header.forEach((h,i)=>{idx[h]=i});\n return lines.slice(1).map(line=>line.split("\\t")).filter(r=>r.length>idx.text).map(r=>({text:r[idx.text],confidence:Number(r[idx.conf])||0,bbox:{x0:Number(r[idx.left])||0,y0:Number(r[idx.top])||0,x1:(Number(r[idx.left])||0)+(Number(r[idx.width])||0),y1:(Number(r[idx.top])||0)+(Number(r[idx.height])||0)}})).filter(w=>w.text.trim());\n}\n\nfunction wordsToTable(words,maxRows,maxCols){
  const clean=(Array.isArray(words)?words:[]).filter(w=>String(w?.text||"").trim() && w?.bbox);
  if(!clean.length)return{rows:[],rowCount:0,columnCount:0};
  const heights=clean.map(w=>Math.max(1,(w.bbox.y1-w.bbox.y0))).sort((a,b)=>a-b);
@@ -69,8 +69,8 @@ async function call(name,a={}){
  if(!r.ok)return r;
  const text=String(r.data.text||"");
  if(name==="ocr_image")return{ok:true,path:p,type:"image",language:r.language,text:text.slice(0,clamp(Number(a.maxChars)||400000,1,1000000)),confidence:r.data.confidence??null};
- const table=wordsToTable(r.data.words,a.maxRows,a.maxCols);
+ const table=wordsToTable(tsvToWords(r.data.tsv),a.maxRows,a.maxCols);
  if(name==="extract_image_table")return{ok:true,path:p,type:"image-table",language:r.language,table:table.rows,rowCount:table.rowCount,columnCount:table.columnCount,confidence:r.data.confidence??null};
- return{ok:true,path:p,type:"image",language:r.language,width:r.data?.blocks?.length?null:null,text:text.slice(0,400000),confidence:r.data.confidence??null,table:a.includeTable===false?undefined:table.rows,rowCount:table.rowCount,columnCount:table.columnCount};
+ return{ok:true,path:p,type:"image",language:r.language,text:text.slice(0,400000),confidence:r.data.confidence??null,table:a.includeTable===false?undefined:table.rows,rowCount:table.rowCount,columnCount:table.columnCount};
 }
 module.exports={schemas,call};
