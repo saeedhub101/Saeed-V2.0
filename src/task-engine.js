@@ -6,7 +6,7 @@ class TaskEngine{
  saveState(state){try{fs.mkdirSync(path.dirname(this.file),{recursive:true});fs.writeFileSync(this.file,JSON.stringify(state,null,2),"utf8")}catch{}}
  clearState(){try{fs.rmSync(this.file,{force:true})}catch{}}
  async run(text,image=null,{source="user"}={}){
-  const request=String(text||"").trim();if(!request)return "اكتب لي المهمة التي تريد تنفيذها.";
+  const request=String(text||"").trim();if(!request)return "اكتب لي المهمة التي تريد تنفيذها.";if(this.active)return "هناك مهمة قيد التنفيذ حاليًا. سأكملها قبل بدء مهمة أخرى.";
   const route=await this.router.route(request),id=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
   this.active={id,text:request,image,source,route,startedAt:new Date().toISOString(),status:"running"};this.saveState({...this.active,resumable:true});
   this.emit({type:"task:start",taskId:id,route,source,text:request});this.agent.beginTask?.({id,route,source,text:request});
