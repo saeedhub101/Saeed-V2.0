@@ -33,7 +33,7 @@ function download(url,target,onProgress){
   follow(current,0);
  });
 }
-function extractZip(zip,destination){
+function installNpmPackage(target,manifest,onProgress){return new Promise((resolve,reject)=>{fs.mkdirSync(target,{recursive:true});const npm=process.platform==="win32"?"npm.cmd":"npm";const child=spawn(npm,["install","--prefix",target,`${manifest.packageName||manifest.id}@${manifest.version}`,"--omit=dev","--ignore-scripts"],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.stdout.on("data",d=>{const s=String(d);if(/added|up to date|changed/i.test(s))onProgress?.({state:"installing",percent:null})});child.on("error",e=>reject(new Error("npm is required for this add-on on this build: "+e.message)));child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||("npm install failed with code "+code))));});}\nfunction extractZip(zip,destination){
  return new Promise((resolve,reject)=>{
   fs.mkdirSync(destination,{recursive:true});
   const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command","Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force","--",zip,destination],{windowsHide:true});
@@ -70,14 +70,21 @@ async function install(userData,addon,onProgress){
   onProgress?.({state:"downloading",percent:0});
   await download(manifest.downloadUrl,zip,(percent,done,total)=>onProgress?.({state:"downloading",percent,done,total}));
   if(manifest.sha256){const digest=await sha256(zip);if(digest.toLowerCase()!==String(manifest.sha256).toLowerCase())throw new Error("Add-on checksum verification failed")}
-  onProgress?.({state:"extracting",percent:100});
-  await extractZip(zip,staging);
-  const candidates=[path.join(staging,"manifest.json"),path.join(staging,manifest.id,"manifest.json")];
-  const actual=candidates.find(fs.existsSync);if(!actual)throw new Error("Downloaded add-on has no manifest.json");
-  const actualManifest=validateManifest(readJson(actual));
-  if(actualManifest.id!==manifest.id||actualManifest.version!==manifest.version)throw new Error("Downloaded add-on manifest does not match catalog");
-  const sourceRoot=path.dirname(actual);
-  fs.rmSync(target,{recursive:true,force:true});fs.mkdirSync(path.dirname(target),{recursive:true});fs.cpSync(sourceRoot,target,{recursive:true});
+  if(manifest.installType==="npm-package"){
+   onProgress?.({state:"installing",percent:null});
+   fs.rmSync(target,{recursive:true,force:true});
+   await installNpmPackage(target,manifest,onProgress);
+   fs.writeFileSync(path.join(target,"manifest.json"),JSON.stringify({...manifest,installedAt:new Date().toISOString()},null,2),"utf8");
+  }else{
+   onProgress?.({state:"extracting",percent:100});
+   await extractZip(zip,staging);
+   const candidates=[path.join(staging,"manifest.json"),path.join(staging,manifest.id,"manifest.json")];
+   const actual=candidates.find(fs.existsSync);if(!actual)throw new Error("Downloaded add-on has no manifest.json");
+   const actualManifest=validateManifest(readJson(actual));
+   if(actualManifest.id!==manifest.id||actualManifest.version!==manifest.version)throw new Error("Downloaded add-on manifest does not match catalog");
+   const sourceRoot=path.dirname(actual);
+   fs.rmSync(target,{recursive:true,force:true});fs.mkdirSync(path.dirname(target),{recursive:true});fs.cpSync(sourceRoot,target,{recursive:true});
+  }
   onProgress?.({state:"installed",percent:100});
   return actualManifest;
  }finally{fs.rmSync(tempRoot,{recursive:true,force:true})}
@@ -90,5 +97,5 @@ function load(userData,id){
  return {...manifest,module:require(entry)};
 }
 function has(userData,id){return fs.existsSync(installedManifest(userData,id))}
-function getPackagePath(userData,id,relative){return path.join(addonDir(userData,id),relative||"")}
-module.exports={DEFAULT_CATALOG_URL,ensureRoot,listInstalled,fetchCatalog,install,uninstall,load,has,getPackagePath,addonDir};
+function getPackagePath(userData,id,relative){return path.join(addonDir(userData,id),relative||"")}\nfunction requirePackage(userData,id,packageName){const root=addonDir(userData,id);if(!has(userData,id))throw new Error("Add-on is not installed: "+id);try{return require(require.resolve(packageName,{paths:[root]}))}catch(e){throw new Error(`Add-on ${id} is installed but package ${packageName} could not be loaded: ${e.message}`)}}
+module.exports={DEFAULT_CATALOG_URL,ensureRoot,listInstalled,fetchCatalog,install,uninstall,load,has,getPackagePath,requirePackage,addonDir};
