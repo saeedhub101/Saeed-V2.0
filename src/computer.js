@@ -1,6 +1,22 @@
 const {execFile,spawn}=require("child_process"),{promisify}=require("util"),run=promisify(execFile),{clipboard,shell}=require("electron");
 
 class Computer{
+ constructor(){this.cache=new Map();this.taskCache=new Map();this.cacheTtlMs=1500;this.taskActive=false;}
+ beginTask(){this.taskActive=true;this.taskCache.clear();}
+ endTask(){this.taskActive=false;this.taskCache.clear();}
+ cached(key,loader,ttl=this.cacheTtlMs){
+  const now=Date.now(),hit=this.cache.get(key);
+  if(hit&&now-hit.time<ttl)return hit.value;
+  const pending=this.cache.get(key)?.pending;
+  if(pending)return pending;
+  const promise=Promise.resolve().then(loader).then(value=>{this.cache.set(key,{time:Date.now(),value});return value}).catch(error=>{this.cache.delete(key);throw error});
+  this.cache.set(key,{time:now,pending:promise});return promise;
+ }
+ taskCached(key,loader){
+  if(!this.taskActive)return loader();
+  if(this.taskCache.has(key))return this.taskCache.get(key);
+  const p=Promise.resolve().then(loader);this.taskCache.set(key,p);return p;
+ }
  async powershell(command){
   const r=await run("powershell.exe",["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-Command",command],{windowsHide:true,maxBuffer:8*1024*1024});
   return {ok:true,stdout:r.stdout,stderr:r.stderr};
@@ -56,30 +72,44 @@ class Computer{
   const r=await this.powershell(command);try{return{ok:true,window:JSON.parse(r.stdout)}}catch{return{ok:true,window:{raw:r.stdout}}}
  }
  async listWindows(){
-  try{
-   const r=await run("tasklist.exe",["/V","/FO","CSV","/NH"],{windowsHide:true,maxBuffer:4*1024*1024});
-   const windows=[];
-   for(const line of String(r.stdout||"").split(/\r?\n/).filter(Boolean)){
-    const cols=[];const re=/"([^"]*)"/g;let m;while((m=re.exec(line)))cols.push(m[1]);
-    if(cols.length>=9&&cols[8]&&cols[8]!=="N/A")windows.push({ProcessName:cols[0],Id:Number(cols[1])||0,WorkingSet:cols[4],MainWindowTitle:cols[8]});
+  return this.taskCached("list_windows",()=>this.cached("windows",async()=>{
+   try{
+    const r=await run("tasklist.exe",["/V","/FO","CSV","/NH"],{windowsHide:true,maxBuffer:4*1024*1024});
+    return this.parseTasklist(r.stdout,true);
+   }catch(e){return{ok:false,error:e.message,windows:[]}}
+  }));
+ }
+ parseTasklist(stdout,includeWindows=false){
+  const processes=[],windows=[];
+  for(const line of String(stdout||"").split(/\r?\n/).filter(Boolean)){
+   const cols=[];const re=/"([^"]*)"/g;let m;while((m=re.exec(line)))cols.push(m[1]);
+   if(cols.length>=5){
+    const item={Id:Number(cols[1])||0,ProcessName:cols[0],WorkingSet:cols[4],CPU:null,Responding:null};
+    processes.push(item);
+    if(includeWindows&&cols.length>=9&&cols[8]&&cols[8]!=="N/A")windows.push({...item,MainWindowTitle:cols[8]});
    }
-   return{ok:true,windows};
-  }catch(e){return{ok:false,error:e.message,windows:[]}}
+  }
+  return{ok:true,processes:processes.slice(0,100),windows};
+ }
+ async windowsAndProcesses(){
+  return this.taskCached("windows_and_processes",()=>this.cached("tasklist_all",async()=>{
+   try{
+    const r=await run("tasklist.exe",["/V","/FO","CSV","/NH"],{windowsHide:true,maxBuffer:8*1024*1024});
+    return this.parseTasklist(r.stdout,true);
+   }catch(e){return{ok:false,error:e.message,processes:[],windows:[]}}
+  }));
  }
  async focusWindow(pid){
   const p=Math.round(Number(pid));if(!Number.isFinite(p))return{ok:false,error:"Invalid pid"};
   return this.powershell('$p=Get-Process -Id '+p+' -ErrorAction Stop;Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.Interaction]::AppActivate($p.Id)');
  }
  async processes(){
-  try{
-   const r=await run("tasklist.exe",["/FO","CSV","/NH"],{windowsHide:true,maxBuffer:8*1024*1024});
-   const processes=[];
-   for(const line of String(r.stdout||"").split(/\r?\n/).filter(Boolean)){
-    const cols=[];const re=/"([^"]*)"/g;let m;while((m=re.exec(line)))cols.push(m[1]);
-    if(cols.length>=5)processes.push({Id:Number(cols[1])||0,ProcessName:cols[0],WorkingSet:cols[4],CPU:null,Responding:null});
-   }
-   return{ok:true,processes:processes.slice(0,100)};
-  }catch(e){return{ok:false,error:e.message,processes:[]}}
+  return this.taskCached("process_list",()=>this.cached("processes",async()=>{
+   try{
+    const r=await run("tasklist.exe",["/FO","CSV","/NH"],{windowsHide:true,maxBuffer:8*1024*1024});
+    return this.parseTasklist(r.stdout,false);
+   }catch(e){return{ok:false,error:e.message,processes:[]}}
+  }));
  }
  async diagnose(){
   const result={ok:true,timestamp:new Date().toISOString()};
