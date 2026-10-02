@@ -226,3 +226,4 @@ class Agent{
  }
 }
 module.exports={Agent};
+// Build validation marker: latest Agent fixes.
