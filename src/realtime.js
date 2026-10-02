@@ -84,8 +84,11 @@ class OpenAIRealtime {
       return;
     }
     this.ws = ws;
+    let opened = false;
+    let errorReported = false;
 
     ws.on("open", () => {
+      opened = true;
       if (this.ws !== ws) return;
       this.retryMs = 3000;
       this.send({
@@ -120,11 +123,27 @@ class OpenAIRealtime {
       catch (e) { this.callbacks.state?.("error", "Invalid Realtime event received."); }
     });
 
-    ws.on("error", e => this.fail(String(e?.message || e)));
-    ws.on("close", () => {
+    ws.on("unexpected-response", (request, response) => {
+      errorReported = true;
+      const status = response?.statusCode ? `HTTP ${response.statusCode}` : "HTTP unknown";
+      const requestId = response?.headers?.["x-request-id"] ? String(response.headers["x-request-id"]) : "";
+      this.fail(`Realtime WebSocket handshake rejected (${status})${requestId ? ` [request ${requestId}]` : ""}`);
+    });
+
+    ws.on("error", e => {
+      errorReported = true;
+      this.fail(String(e?.message || e));
+    });
+
+    ws.on("close", (code, reason) => {
       if (this.ws === ws) this.ws = null;
       if (!this.stopped) {
-        this.callbacks.state?.("disconnected", "Realtime connection closed");
+        const detail = reason?.toString?.() || "";
+        if (opened) {
+          this.callbacks.state?.("disconnected", `Realtime connection closed (code ${code}${detail ? `: ${detail}` : ""})`);
+        } else if (!errorReported) {
+          this.callbacks.state?.("error", `Realtime WebSocket closed before connection was established (code ${code}${detail ? `: ${detail}` : ""})`);
+        }
         this.scheduleRetry();
       }
     });
