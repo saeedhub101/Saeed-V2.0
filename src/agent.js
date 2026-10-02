@@ -105,20 +105,24 @@ class Agent{
 
  async run(text,image=null){
   const s=this.settings;this.rememberFromUserText(text);if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
-  const mode=String(s.brainMode||"auto");
-  if(mode==="realtime"){
-   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN REALTIME",message:"Realtime mode is selected; voice streaming handles the conversation."});
-   return "Realtime mode is active. Use the microphone for the live conversation.";
-  }
-  if(mode!=="api"){
-   if(this.localBrain){try{const brainMem=process.memoryUsage();const brainCpu=process.cpuUsage();const brainStart=Date.now();const handled=await this.localBrain.handle(text);const brainAfter=process.memoryUsage();const brainCpuAfter=process.cpuUsage(brainCpu);this.onEvent({type:"diagnostic",level:"INFO",stage:"RESOURCE LOCAL BRAIN",message:"Local brain resource sample",meta:{elapsedMs:Date.now()-brainStart,cpuUserMs:Math.round(brainCpuAfter.user/1000),cpuSystemMs:Math.round(brainCpuAfter.system/1000),heapDeltaMB:+((brainAfter.heapUsed-brainMem.heapUsed)/1048576).toFixed(2),rssMB:+(brainAfter.rss/1048576).toFixed(1)}});if(handled!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL","message":"Offline computer brain handled the request"});this.history.push({role:"user",content:String(text)},{role:"assistant",content:handled});this.saveHistory();this.onEvent({type:"answer",text:handled,source:"local-brain"});return handled;}}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message});}}
+  const mode=["api","local","auto"].includes(String(s.brainMode||"auto"))?String(s.brainMode||"auto"):"auto";
+  let selectedBrain=mode;
+  if(mode==="auto"){
    const nextLevel=await this.brainLevels.classify(text);
-   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LEVEL",message:"Conversation brain selected level "+nextLevel.level+" ("+nextLevel.name+")",meta:nextLevel});
+   selectedBrain=nextLevel.name==="api"?"api":"local";
+   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTER",message:"Auto brain selected "+selectedBrain+" for this request",meta:{mode,selectedBrain,...nextLevel}});
+  }else{
+   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTER",message:"Brain mode selected: "+selectedBrain,meta:{mode,selectedBrain}});
+  }
+  if(selectedBrain==="local"){
+   if(this.localBrain){try{const brainMem=process.memoryUsage();const brainCpu=process.cpuUsage();const brainStart=Date.now();const handled=await this.localBrain.handle(text);const brainAfter=process.memoryUsage();const brainCpuAfter=process.cpuUsage(brainCpu);this.onEvent({type:"diagnostic",level:"INFO",stage:"RESOURCE LOCAL BRAIN",message:"Local brain resource sample",meta:{elapsedMs:Date.now()-brainStart,cpuUserMs:Math.round(brainCpuAfter.user/1000),cpuSystemMs:Math.round(brainCpuAfter.system/1000),heapDeltaMB:+((brainAfter.heapUsed-brainMem.heapUsed)/1048576).toFixed(2),rssMB:+(brainAfter.rss/1048576).toFixed(1)}});if(handled!==null){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain handled the request"});this.history.push({role:"user",content:String(text)},{role:"assistant",content:handled});this.saveHistory();this.onEvent({type:"answer",text:handled,source:"local-brain"});return handled;}}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message});}}
    if(mode==="local"){
-    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Offline computer brain has no handler for this request"});
-    const answer="I can handle common Windows computer tasks offline, but this request needs the API brain. Please connect an API key in Settings.";
-    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local-fallback"});return answer;
+    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Local brain has no handler for this request"});
+    const answer="I cannot complete this request with the selected Local brain.";
+    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local-no-handler"});return answer;
    }
+   selectedBrain="api";
+   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTER",message:"Local brain could not handle the request; Auto is escalating to API brain",meta:{mode,selectedBrain}});
   }
   if(!s.apiKey&&s.provider!=="ollama"){
    this.onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT NOT READY",message:"LLM API key is missing"});
