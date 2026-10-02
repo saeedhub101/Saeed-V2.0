@@ -54,7 +54,8 @@ class Agent{
    hasTtsApiKey:Boolean(this._settings.ttsApiKey),hasRealtimeApiKey:Boolean(this._settings.realtimeApiKey)}}
  set settings(v){
   const previous=this._settings||{},input=v||{},providerChanged=input.provider&&input.provider!==previous.provider;
-  this._settings={...previous,...input,permissions:{...previous.permissions,...(input.permissions||{})},brainMode:["api","local","auto"].includes(String(input.brainMode||""))?String(input.brainMode):String(previous.brainMode||"auto")};\n  this._settings.maxSteps=Math.max(1,Math.min(100,Number(this._settings.maxSteps)||16));
+  this._settings={...previous,...input,permissions:{...previous.permissions,...(input.permissions||{})},brainMode:["api","local","auto"].includes(String(input.brainMode||""))?String(input.brainMode):String(previous.brainMode||"auto")};
+  this._settings.maxSteps=Math.max(1,Math.min(100,Number(this._settings.maxSteps)||16));
   if(this._settings.micMode==="always"||this._settings.micMode==="ptt")this._settings.micMode="on";
   if(this._settings.micMode!=="on")this._settings.micMode="off";
   delete this._settings.alwaysListening;
@@ -140,7 +141,8 @@ class Agent{
     if(last?.role==="user"&&typeof last.content==="string"){last.content=[{type:"text",text:last.content},{type:"image",source:{type:"base64",media_type:match[1],data:match[2]}}]}
    }
   }
-  let stepBudget=this.baseStepLimit();\n  for(let step=0;;step++){\n   if(step>=stepBudget){\n    const expanded=await this.askForMoreSteps(stepBudget,text);\n    if(expanded<=stepBudget){\n     this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Task stopped by user at the execution step limit",meta:{sessionId,stepLimit:stepBudget}});\n     const answer="تم إيقاف المهمة عند حد خطوات التنفيذ الحالي. يمكنك زيادة الحد من Performance أو السماح بالمتابعة عند الطلب.";\n     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;\n    }\n    stepBudget=expanded;\n   }
+  let stepBudget=this.baseStepLimit();
+  for(let step=0;;step++){\n   if(step>=stepBudget){\n    const expanded=await this.askForMoreSteps(stepBudget,text);\n    if(expanded<=stepBudget){\n     this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Task stopped by user at the execution step limit",meta:{sessionId,stepLimit:stepBudget}});\n     const answer="تم إيقاف المهمة عند حد خطوات التنفيذ الحالي. يمكنك زيادة الحد من Performance أو السماح بالمتابعة عند الطلب.";\n     this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer});return answer;\n    }\n    stepBudget=expanded;\n   }
    this.onEvent({type:"thinking",step});
    const d=this.providerDefaults(s.provider),base=(s.baseUrl||d.baseUrl||"http://localhost:11434/v1").replace(/\/$/,"");
    let r,body,headers={"Content-Type":"application/json"},url;
