@@ -117,9 +117,13 @@ class Agent{
     body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto"};
     url=base+"/chat/completions";
    }
-   let lastError=null;
-   for(let attempt=0;attempt<2;attempt++){try{r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});lastError=null;break}catch(e){lastError=e;this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST RETRY",message:"API request attempt "+(attempt+1)+" failed: "+e.message,meta:{provider:s.provider,attempt:attempt+1}});if(attempt===0)await new Promise(resolve=>setTimeout(resolve,700));}}
-   if(lastError){const answer="I could not reach the API brain after a retry. Please check the provider, API key, and connection.";this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:lastError.message});this.onEvent({type:"answer",text:answer,source:"api-error"});return answer}
+   try{
+    r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+   }catch(e){
+    this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});
+    const answer="I could not reach the API brain. Please check the provider, API key, and connection.";
+    this.onEvent({type:"answer",text:answer,source:"api-error"});return answer;
+   }
    const responseText=await r.text();
    if(!r.ok){
     let detail="";try{const j=JSON.parse(responseText);detail=j?.error?.message||j?.error?.type||""}catch{}
