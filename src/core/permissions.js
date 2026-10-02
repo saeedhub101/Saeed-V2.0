@@ -1,0 +1,3 @@
+const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
+function permissionPolicy(settingsOrAgent,category){const permissions=settingsOrAgent?.settings?.permissions||settingsOrAgent?.permissions||DEFAULT_PERMISSIONS;return permissions[category]||"allow"}
+module.exports={DEFAULT_PERMISSIONS,permissionPolicy};
