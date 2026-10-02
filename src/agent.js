@@ -118,9 +118,10 @@ class Agent{
     url=base+"/chat/completions";
    }
    try{
-    r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});
+    r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
    }catch(e){
-    this.onEvent({type:"diagnostic",level:"ERROR",stage:"LLM REQUEST FAILURE",message:e.message});
+    const timedOut=e?.name==="TimeoutError"||e?.name==="AbortError"||/timeout|aborted/i.test(String(e?.message||""));
+    this.onEvent({type:"diagnostic",level:"ERROR",stage:timedOut?"LLM REQUEST TIMEOUT":"LLM REQUEST FAILURE",message:timedOut?"LLM API request exceeded the 60 second timeout":e.message});
     const answer="I could not reach the API brain. Please check the provider, API key, and connection.";
     this.onEvent({type:"answer",text:answer,source:"api-error"});return answer;
    }
