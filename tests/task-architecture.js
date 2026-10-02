@@ -14,6 +14,6 @@ const {ToolRegistry}=require("../src/tools/registry");
  const agent={settings:{brainMode:"api",maxSteps:16},localBrain:null,beginTask(){began++},endTask(){ended++},async run(text,image,options){assert.equal(options.brain,"api");assert(options.taskPlan);return"done"}};
  const engine=new TaskEngine({agent,userDataPath:dir,emit:e=>events.push(e)});const result=await engine.run("create a report",null,{source:"test"});assert.equal(result,"done");assert.equal(began,1);assert.equal(ended,1);assert(events.some(e=>e.type==="task:start"));assert(events.some(e=>e.type==="task:complete"));assert.equal(engine.loadState(),null);
  let confirmations=0;const reg=new ToolRegistry({userDataPath:dir,permissionPolicy:()=> "allow",confirm:async()=>{confirmations++;return true}});const temp=path.join(dir,"delete-me.txt");fs.writeFileSync(temp,"x");const deleted=await reg.call("delete_file",{filePath:temp});assert(deleted.ok&&deleted.deleted&&confirmations===1);
- const read=await reg.call("read_file",{filePath:path.join(dir,"missing.txt")});assert(read.ok===false&&confirmations===1);
+ const read=await reg.call("read_file",{filePath:path.join(dir,"missing.txt")});assert(read.ok===false&&confirmations===1);fs.writeFileSync(temp,"old");const overwrite=await reg.call("write_file",{filePath:temp,content:"new"});assert(overwrite.ok&&confirmations===2);
  fs.rmSync(dir,{recursive:true,force:true});console.log("Saeed task architecture tests: PASS");
 })().catch(e=>{console.error(e);process.exit(1)});
