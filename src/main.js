@@ -166,6 +166,7 @@ function resumeLastTask(){if(!taskEngine)return false;if(taskEngine.active)retur
 function rebuildTray(){if(!tray)return;const resumable=Boolean(taskEngine?.loadState?.()?.resumable);tray.setContextMenu(Menu.buildFromTemplate([{label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Resume Last Task",enabled:resumable,click:resumeLastTask},{label:"Hide Saeed",click:()=>characterWin?.hide()}]},{label:voiceMuted?"Unmute":"Mute",type:"checkbox",checked:voiceMuted,click:()=>setVoiceMuted(!voiceMuted)},{label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")}]},{label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},{label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},{label:"Updates",submenu:[{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},{label:"Quit",click:()=>app.quit()}]))}
 function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{realtime?.cancel()}catch{}voiceBroadcast("voice:stop")}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
 async function setMicMode(mode,fromUser=false){
+ const {VoiceController}=require("./voice/voice-controller");
  const value=VoiceController.normalizeMicMode(mode);
  if(value==="on"){
   const policy=permissionPolicy("microphone");
@@ -213,17 +214,36 @@ async function createChatWindow(){
  return chatWin;
 }
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
-async function createWindow(){
- // Keep startup lightweight: load the agent/voice/brain stack only after the character window exists.
+async function initializeRuntime(){
+ // Stage 4+: load the heavier runtime only after Taskbar + 3D character are already visible.
+ diagnostic("INFO","STARTUP","Loading brain and task runtime after character startup");
  const {ToolRegistry}=require("./tools");
  const {Agent}=require("./agent/agent");
  const {LocalBrain}=require("./brain/local-brain");
  const {BrainSupervisor}=require("./autonomous/brain-supervisor");
  const {TaskEngine}=require("./task-engine");
+ const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";const noticeId=id;const resolver=resolve;taskNotices.set(noticeId,resolver);showTaskNotice({id:noticeId,title:"Saeed needs your approval",message:`Saeed wants to perform: ${name}\\n\\nPermission: ${permissionLabel}\\n\\n${JSON.stringify(args||{},null,2)}`,actions:[{label:"Allow",value:true,primary:true},{label:"Reject",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(noticeId);if(r){taskNotices.delete(noticeId);r(ok)}});});}});
+ agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e);taskEngine?.observeAgentEvent?.(e);},requestStepIncrease:async({current,requested,task})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const resolver=resolve;taskNotices.set(id,resolver);showTaskNotice({id,title:"Saeed needs more execution steps",message:`تم تجاوز عدد الخطوات المسموح به (${current}). هل تريد زيادتها والمتابعة؟\\n\\nسيتم رفع الحد مؤقتًا لهذه المهمة فقط إلى ${requested}.`,actions:[{label:"زيادة والمتابعة",value:true,primary:true},{label:"إيقاف",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(id);if(r){taskNotices.delete(id);r(ok)}});});}});
+ voiceMuted=Boolean(agent.settings.voiceMuted);
+ agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});
+ taskEngine=new TaskEngine({agent,userDataPath:app.getPath("userData"),emit:e=>{voiceBroadcast("agent:event",e);rebuildTray();if(e?.type==="task:start"){showTaskNotice({title:"Saeed — Task",message:String(e.text||"بدأت المهمة.")+"\\n\\nBrain: "+String(e.route?.brain||"auto"),kind:"progress"},{wait:false,timeoutMs:120000})}else if(e?.type==="task:progress"){showTaskNotice({title:"Saeed — Task in progress",message:"Phase: "+String(e.phase||"working")+"\\nStep: "+String(e.step||0)+(e.stepLimit?" / "+String(e.stepLimit):"")+(e.currentTool?"\\nTool: "+String(e.currentTool):""),kind:"progress"},{wait:false,timeoutMs:3000})}if(e?.type==="task:complete"){showTaskNotice({title:"Saeed",message:"✓ OK — تم الانتهاء من المهمة\\n\\n"+String(e.text||"")},{wait:false,timeoutMs:5000});if(!voiceMuted)voiceBroadcast("agent:event",{type:"speech-status",text:"تم الانتهاء من المهمة"})}else if(e?.type==="task:error"){showTaskNotice({title:"Saeed",message:"تعذر إكمال المهمة:\\n\\n"+String(e.error||"")},{wait:false,timeoutMs:5000})}}});
+ setSaeedSize(agent.settings.characterSize||"small");
+ brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});
+ await brainSupervisor.start();
+ if(!ciSmoke){setTimeout(()=>{try{const {EmailService}=require("./email/email-service");emailService=new EmailService({onEvent:e=>diagnostic("INFO","EMAIL",e.type,{email:e.email,provider:e.provider})});emailService.startReminders(showTaskNotice)}catch(e){diagnostic("ERROR","EMAIL STARTUP",e.message)}},1500)}
+ diagnostic("INFO","STARTUP","Runtime ready");
+}
+async function createWindow(){
+ // Stage 1: create and show the 3D character first.
  await createCharacterWindow();
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";const noticeId=id;const resolver=resolve;taskNotices.set(noticeId,resolver);showTaskNotice({id:noticeId,title:"Saeed needs your approval",message:`Saeed wants to perform: ${name}\n\nPermission: ${permissionLabel}\n\n${JSON.stringify(args||{},null,2)}`,actions:[{label:"Allow",value:true,primary:true},{label:"Reject",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(noticeId);if(r){taskNotices.delete(noticeId);r(ok)}});});}});
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e);taskEngine?.observeAgentEvent?.(e);},requestStepIncrease:async({current,requested,task})=>{return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const resolver=resolve;taskNotices.set(id,resolver);showTaskNotice({id,title:"Saeed needs more execution steps",message:`تم تجاوز عدد الخطوات المسموح به (${current}). هل تريد زيادتها والمتابعة؟\n\nسيتم رفع الحد مؤقتًا لهذه المهمة فقط إلى ${requested}.`,actions:[{label:"زيادة والمتابعة",value:true,primary:true},{label:"إيقاف",value:false}]},{wait:true}).then(ok=>{const r=taskNotices.get(id);if(r){taskNotices.delete(id);r(ok)}});});}});voiceMuted=Boolean(agent.settings.voiceMuted);agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});taskEngine=new TaskEngine({agent,userDataPath:app.getPath("userData"),emit:e=>{voiceBroadcast("agent:event",e);rebuildTray();if(e?.type==="task:start"){showTaskNotice({title:"Saeed — Task",message:String(e.text||"بدأت المهمة.")+"\\n\\nBrain: "+String(e.route?.brain||"auto"),kind:"progress"},{wait:false,timeoutMs:120000})}else if(e?.type==="task:progress"){showTaskNotice({title:"Saeed — Task in progress",message:"Phase: "+String(e.phase||"working")+"\\nStep: "+String(e.step||0)+(e.stepLimit?" / "+String(e.stepLimit):"")+(e.currentTool?"\\nTool: "+String(e.currentTool):""),kind:"progress"},{wait:false,timeoutMs:3000})}if(e?.type==="task:complete"){showTaskNotice({title:"Saeed",message:"✓ OK — تم الانتهاء من المهمة\n\n"+String(e.text||"")},{wait:false,timeoutMs:5000});if(!voiceMuted)voiceBroadcast("agent:event",{type:"speech-status",text:"تم الانتهاء من المهمة"})}else if(e?.type==="task:error"){showTaskNotice({title:"Saeed",message:"تعذر إكمال المهمة:\n\n"+String(e.error||"")},{wait:false,timeoutMs:5000})}}});setSaeedSize(agent.settings.characterSize||"small");brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
- if(!ciSmoke){const {EmailService}=require("./email/email-service");emailService=new EmailService({onEvent:e=>diagnostic("INFO","EMAIL",e.type,{email:e.email,provider:e.provider})});emailService.startReminders(showTaskNotice);}
+ diagnostic("INFO","STARTUP","3D character window visible");
+ // Stage 2: taskbar/tray immediately after the character.
+ try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray();diagnostic("INFO","STARTUP","Taskbar/tray ready")}catch(e){console.error("Tray failed:",e)}
+ // Stage 3: prepare microphone/voice without turning the microphone on.
+ configureMediaPermissions();
+ try{require("./voice/voice-controller");diagnostic("INFO","STARTUP","Microphone/voice layer ready (MIC OFF)")}catch(e){diagnostic("ERROR","STARTUP VOICE",e.message)}
+ // Stage 4 is deferred so Chromium can paint the 3D character before heavier Node modules load.
+ setTimeout(()=>{void initializeRuntime()},0);
 }
 async function createCharacterWindow(){
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
@@ -298,22 +318,15 @@ async function runCiRuntimeSmoke(){
  stopResourceProbe();setTimeout(()=>process.exit(report.pass?0:1),250);
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
- configureUpdater();
+ try{await createWindow();currentMicMode="off";if(agent){agent.settings={...agent.settings,micMode:"off"};agent.persistSettings()};}
+ catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);diagnostic("ERROR","APPLICATION STARTUP",e.message);try{await createChatWindow();chatWin?.show();}catch(fallbackError){console.error("Saeed fallback window failed:",fallbackError);ciWriteStartupReport("fallback-window-failed",fallbackError);app.quit();return}}
+ // Updates are intentionally deferred until the visible character/tray are ready.
+ setTimeout(()=>{try{configureUpdater()}catch(e){diagnostic("ERROR","UPDATER STARTUP",e.message)}},2000);
  if(ciSmoke)scheduleCiRuntimeSmoke();
- try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);diagnostic("ERROR","APPLICATION STARTUP",e.message);try{await createChatWindow();chatWin?.show();}catch(fallbackError){console.error("Saeed fallback window failed:",fallbackError);ciWriteStartupReport("fallback-window-failed",fallbackError);app.quit();return}}
- // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
- try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
-
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
- globalShortcut.register("CommandOrControl+Shift+S",async()=>{
-  try{const image=await captureScreen();await showChat();chatWin?.webContents.send("screen:capture",image)}
-  catch(e){console.error("Screen capture failed:",e)}
- });
- const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
- screen.on("display-added",refresh);
- screen.on("display-removed",()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())});
- screen.on("display-metrics-changed",refresh);
+ globalShortcut.register("CommandOrControl+Shift+S",async()=>{try{const image=await captureScreen();await showChat();chatWin?.webContents.send("screen:capture",image)}catch(e){console.error("Screen capture failed:",e)}});
+ const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};screen.on("display-added",refresh);screen.on("display-removed",()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())});screen.on("display-metrics-changed",refresh);
 });
 ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);const resolve=pending3DQueries.get(String(requestId||""));if(resolve)resolve(report)});
 ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
