@@ -408,7 +408,8 @@ function startRealtime(options={}){
  if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");voiceBroadcast("realtime:state","not-configured","OpenAI API key is not configured.");return false}
  diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
  const registry=agent?.registry;
- const realtimeTools=String(s.voiceRouting||"controller")==="direct"?(registry?.schemas()||[]).map(t=>({
+ const effectiveVoiceRouting=String(s.brainMode||"auto")==="api"&&String(s.voiceRouting||"controller")==="direct"?"direct":"controller";
+ const realtimeTools=effectiveVoiceRouting==="direct"?(registry?.schemas()||[]).map(t=>({
   type:"function",
   name:t.function?.name,
   description:t.function?.description||"",
@@ -423,7 +424,7 @@ function startRealtime(options={}){
    else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)voiceBroadcast("realtime:user-delta",event.delta);
    else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript){
     voiceBroadcast("realtime:user-final",event.transcript);
-    if(String(agent?.settings?.voiceRouting||"controller")==="controller"){
+    if(effectiveVoiceRouting==="controller"){
      const transcript=String(event.transcript||"").trim();
      if(transcript){
       brainSupervisor?.markActivity?.();
@@ -437,7 +438,7 @@ function startRealtime(options={}){
      }
     }
    }
-   else if(event.type==="response.function_call_arguments.done"&&event.call_id&&String(agent?.settings?.voiceRouting||"controller")==="direct"){
+   else if(event.type==="response.function_call_arguments.done"&&event.call_id&&effectiveVoiceRouting==="direct"){
     const name=String(event.name||"");
     let args={};
     try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
@@ -453,7 +454,7 @@ function startRealtime(options={}){
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
   }
  });
- realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:s.voiceRouting||"controller"});
+ realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:effectiveVoiceRouting});
  return true;
 }
 ipcMain.on("window:move-by",(_,dx,dy)=>{
