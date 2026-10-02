@@ -524,7 +524,8 @@ app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharact
 app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});
 app.on("before-quit",()=>{
  app.isQuitting=true;
- try{stopRealtime()}catch(e){console.error("Voice shutdown failed:",e)}\n try{emailService?.stop?.()}catch{}
+ try{stopRealtime()}catch(e){console.error("Voice shutdown failed:",e)}
+ try{emailService?.stop?.()}catch{}
  for(const win of [chatWin,performanceWin,settingsWin,emailWin,statusWin,threeDStatusWin,taskNoticeWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
