@@ -123,9 +123,10 @@ class Agent{
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Prefer native structured document/office tools (inspect_document, extract_pdf_text, read_excel, write_excel) before GUI automation whenever the task involves PDFs, spreadsheets, or document content. Use GUI automation only when a native tool cannot complete the requested action. Never claim success without evidence. Each chat is an independent conversation. Do not infer or continue tasks from other chats. Only use the Global user memory below for stable facts/preferences; do not treat it as prior conversation context. Follow the Permissions settings exactly: Allow executes, Deny blocks, and Always ask requests approval. Do not impose any hidden permission rules. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."+this.memoryContext()},...this.history.slice(-12),{role:"user",content:userContent}];
   const sessionId=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);this.onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION START",message:"Tool session started",meta:{sessionId}});
   const isAnthropic=String(s.provider||"").toLowerCase()==="anthropic";
+  const toolSchemas=this.registry.schemas();
   const anthropicSystem=messages[0]?.content||"";
   const anthropicMessages=isAnthropic?messages.slice(1).map(m=>({role:m.role,content:m.content})):null;
-  const anthropicTools=isAnthropic?this.registry.schemas().map(t=>({name:t.function?.name,description:t.function?.description||"",input_schema:t.function?.parameters||{type:"object",properties:{},required:[]}})).filter(t=>t.name):null;
+  const anthropicTools=isAnthropic?toolSchemas.map(t=>({name:t.function?.name,description:t.function?.description||"",input_schema:t.function?.parameters||{type:"object",properties:{},required:[]}})).filter(t=>t.name):null;
   if(isAnthropic&&image){
    const match=String(image).match(/^data:([^;]+);base64,(.+)$/);
    if(match){
@@ -144,7 +145,7 @@ class Agent{
     url=base+"/messages";
    }else{
     if(s.apiKey)headers.Authorization="Bearer "+s.apiKey;
-    body={model:s.model||d.model||"llama3.2",messages,tools:this.registry.schemas(),tool_choice:"auto"};
+    body={model:s.model||d.model||"llama3.2",messages,tools:toolSchemas,tool_choice:"auto"};
     url=base+"/chat/completions";
    }
    try{
