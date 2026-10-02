@@ -8,10 +8,10 @@ class TaskEngine{
  async run(text,image=null,{source="user"}={}){
   const request=String(text||"").trim();if(!request)return "اكتب لي المهمة التي تريد تنفيذها.";if(this.active)return "هناك مهمة قيد التنفيذ حاليًا. سأكملها قبل بدء مهمة أخرى.";
   const route=await this.router.route(request),id=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
-  this.active={id,text:request,image,source,route,startedAt:new Date().toISOString(),status:"running"};this.saveState({...this.active,resumable:true});
+  this.active={id,text:request,image,source,route,startedAt:new Date().toISOString(),status:"running"};this.saveState({...this.active,resumable:true,image:null});
   this.emit({type:"task:start",taskId:id,route,source,text:request});this.agent.beginTask?.({id,route,source,text:request});
   try{const result=await this.agent.run(request,image);this.active.status="completed";this.active.completedAt=new Date().toISOString();this.emit({type:"task:complete",taskId:id,text:String(result||""),source});this.clearState();return result}
-  catch(e){this.active.status="paused";this.active.error=e.message;this.active.updatedAt=new Date().toISOString();this.saveState({...this.active,resumable:true});this.emit({type:"task:error",taskId:id,error:e.message,source});throw e}
+  catch(e){this.active.status="paused";this.active.error=e.message;this.active.updatedAt=new Date().toISOString();this.saveState({...this.active,resumable:true,image:null});this.emit({type:"task:error",taskId:id,error:e.message,source});throw e}
   finally{this.agent.endTask?.();this.emit({type:"task:end",taskId:id,source});this.active=null}
  }
  async resumeLast(){const state=this.loadState();if(!state?.resumable||!state.text)return{ok:false,reason:"no-resumable-task"};const prompt="Continue the unfinished task and verify what has already been completed. Do not repeat completed destructive actions. Original task: "+state.text;return{ok:true,result:await this.run(prompt,state.image,{source:"resume"})}}
