@@ -412,22 +412,21 @@ async function testApiConnection(service){
    else if(provider==="gemini"){url=result.endpoint.replace(/\/$/,"")+"/models"; if(s.apiKey)url+="?key="+encodeURIComponent(s.apiKey)}
    else {url=result.endpoint.replace(/\/$/,"")+"/models";if(s.apiKey)headers.Authorization="Bearer "+s.apiKey}
   }else if(service==="stt"){
-   result.provider=s.sttProvider==="openai"?"OpenAI Speech-to-Text":"Whisper — Local / Offline";result.model=s.sttModel||"whisper-local";result.endpoint=s.sttProvider==="openai"?"https://api.openai.com/v1/audio/transcriptions":"Local Whisper runtime";
-   if(s.sttProvider!=="openai")return finish({connected:true,detail:"Local Whisper configured; no API connection required"});
-   url="https://api.openai.com/v1/models";if(s.sttApiKey)headers.Authorization="Bearer "+s.sttApiKey;
+   result.provider=s.sttProvider==="openai"?"OpenAI Speech-to-Text":s.sttProvider==="groq"?"Groq Speech-to-Text":"Whisper — Local / Offline";result.model=s.sttModel||"whisper-local";result.endpoint=s.sttProvider==="openai"?"https://api.openai.com/v1/audio/transcriptions":s.sttProvider==="groq"?"https://api.groq.com/openai/v1/audio/transcriptions":"Local Whisper runtime";
+   if(s.sttProvider==="whisper")return finish({connected:true,detail:"Local Whisper configured; no API connection required"});
+   url=(s.sttProvider==="groq"?"https://api.groq.com/openai/v1/models":"https://api.openai.com/v1/models");if(s.sttApiKey)headers.Authorization="Bearer "+s.sttApiKey;
   }else if(service==="tts"){
-   result.provider=s.ttsProvider==="openai"?"OpenAI TTS":s.ttsProvider==="azure"?"Azure Speech":"Local Browser TTS";result.model=s.ttsModel||"browser-speech";result.endpoint=s.ttsProvider==="openai"?"https://api.openai.com/v1/audio/speech":s.ttsProvider==="azure"?"Azure Speech endpoint":"Local Browser SpeechSynthesis";
+   result.provider=s.ttsProvider==="openai"?"OpenAI TTS":s.ttsProvider==="groq"?"Groq TTS":"Local Browser TTS";result.model=s.ttsModel||"browser-speech";result.endpoint=s.ttsProvider==="openai"?"https://api.openai.com/v1/audio/speech":s.ttsProvider==="groq"?"https://api.groq.com/openai/v1/audio/speech":"Local Browser SpeechSynthesis";
    if(s.ttsProvider==="local")return finish({connected:true,detail:"Local Browser TTS configured; no API connection required"});
-   if(s.ttsProvider==="azure")return finish({connected:Boolean(s.ttsApiKey),detail:s.ttsApiKey?"Azure Speech key is configured; live endpoint test requires the configured Azure region/endpoint":"Azure Speech API key is missing"});
-   url="https://api.openai.com/v1/models";if(s.ttsApiKey)headers.Authorization="Bearer "+s.ttsApiKey;
+   url=(s.ttsProvider==="groq"?"https://api.groq.com/openai/v1/models":"https://api.openai.com/v1/models");if(s.ttsApiKey)headers.Authorization="Bearer "+s.ttsApiKey;
   }else if(service==="realtime"){
-   result.provider="OpenAI Realtime";result.model=s.realtimeModel||"gpt-realtime-2.1";result.endpoint="wss://api.openai.com/v1/realtime";
+   result.provider=s.realtimeProvider==="openai"?"OpenAI Realtime":"Realtime disabled";result.model=s.realtimeModel||"gpt-realtime-2.1";result.endpoint="wss://api.openai.com/v1/realtime";
    url="https://api.openai.com/v1/models";if(s.realtimeApiKey||s.apiKey)headers.Authorization="Bearer "+(s.realtimeApiKey||s.apiKey);
   }else return finish({detail:"Unknown API service"});
   if(!s.apiKey&&service==="brain"&&s.provider!=="ollama")return finish({detail:"Brain API key is missing"});
   if(service==="stt"&&!s.sttApiKey)return finish({detail:"STT API key is missing"});
   if(service==="tts"&&!s.ttsApiKey)return finish({detail:"TTS API key is missing"});
-  if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
+  if(service==="realtime"&&s.realtimeProvider!=="openai")return finish({connected:false,detail:"No native Realtime audio provider is configured"});if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
   const r=await fetch(url,{method,headers,signal:AbortSignal.timeout(8000)});const body=await r.text().catch(()=>"");
   if(!r.ok)return finish({detail:"HTTP "+r.status+(body?": "+body.slice(0,180):"")});
   let modelAvailable=true;try{const j=JSON.parse(body),ids=[...(j.data||[]).map(x=>x.id).filter(Boolean),...(j.models||[]).map(x=>x.name||x.id).filter(Boolean)];if(ids.length&&service==="brain")modelAvailable=ids.includes(result.model)||result.model==="—"}catch{}
@@ -444,7 +443,7 @@ function stopRealtime(){
 }
 function startRealtime(options={}){
  const s=agent?.settings||{};
- if(String(s.brainMode||"auto")!=="api"){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled because Brain mode is "+String(s.brainMode||"auto")+"; requests must pass through the selected brain routing.");voiceBroadcast("realtime:state","blocked","Realtime requires Direct API brain mode.");return false}
+ if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}if(String(s.brainMode||"auto")!=="api"){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled because Brain mode is "+String(s.brainMode||"auto")+"; requests must pass through the selected brain routing.");voiceBroadcast("realtime:state","blocked","Realtime requires Direct API brain mode.");return false}
  const key=s.realtimeApiKey||s.apiKey||"";
  if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");voiceBroadcast("realtime:state","not-configured","OpenAI API key is not configured.");return false}
  diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
