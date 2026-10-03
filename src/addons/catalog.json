@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "catalogVersion": 2,
+  "catalogVersion": 3,
   "generatedAt": "2026-10-03",
   "source": "Saeed official add-on catalog",
   "addons": [
@@ -17,7 +17,9 @@
       "status": "release-bundle",
       "capabilities": [
         "documents"
-      ]
+      ],
+      "dependencies": [],
+      "installable": true
     },
     {
       "id": "excel",
@@ -33,7 +35,9 @@
       "capabilities": [
         "documents",
         "spreadsheet"
-      ]
+      ],
+      "dependencies": [],
+      "installable": true
     },
     {
       "id": "pdf",
@@ -49,7 +53,9 @@
       "capabilities": [
         "documents",
         "pdf"
-      ]
+      ],
+      "dependencies": [],
+      "installable": true
     },
     {
       "id": "ocr",
@@ -65,7 +71,9 @@
       "capabilities": [
         "ocr",
         "vision"
-      ]
+      ],
+      "dependencies": [],
+      "installable": true
     },
     {
       "id": "stt-whisper",
@@ -80,7 +88,9 @@
       "status": "release-bundle",
       "capabilities": [
         "speech-to-text"
-      ]
+      ],
+      "dependencies": [],
+      "installable": true
     },
     {
       "id": "memory-core",
@@ -95,7 +105,9 @@
         "memory",
         "conversation-memory",
         "knowledge-base"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "embedding-provider",
@@ -108,7 +120,9 @@
       "status": "provider-ready",
       "capabilities": [
         "embeddings"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "vector-store",
@@ -121,7 +135,9 @@
       "status": "provider-ready",
       "capabilities": [
         "vector-store"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "rag-engine",
@@ -134,37 +150,9 @@
       "status": "provider-ready",
       "capabilities": [
         "rag"
-      ]
-    },
-    {
-      "id": "mcp-client",
-      "name": "MCP Client",
-      "version": "1.0.0",
-      "category": "MCP",
-      "description": "Model Context Protocol client and server registry with permissions.",
-      "provider": "Saeed",
-      "installType": "core-provider",
-      "status": "provider-ready",
-      "capabilities": [
-        "mcp-client",
-        "mcp-tools"
-      ]
-    },
-    {
-      "id": "email",
-      "name": "Email",
-      "version": "1.0.0",
-      "category": "Communication",
-      "description": "Email provider framework with IMAP, SMTP and POP3 support for Gmail, Yahoo, Outlook/Hotmail and custom servers.",
-      "provider": "Saeed",
-      "installType": "core-provider",
-      "status": "provider-ready",
-      "capabilities": [
-        "email",
-        "imap",
-        "smtp",
-        "pop3"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "llm-local",
@@ -177,7 +165,9 @@
       "status": "provider-ready",
       "capabilities": [
         "llm"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "tts",
@@ -190,7 +180,9 @@
       "status": "provider-ready",
       "capabilities": [
         "text-to-speech"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "stt-provider",
@@ -203,7 +195,9 @@
       "status": "provider-ready",
       "capabilities": [
         "speech-to-text"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "vision",
@@ -216,7 +210,9 @@
       "status": "provider-ready",
       "capabilities": [
         "vision"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "browser",
@@ -229,7 +225,9 @@
       "status": "provider-ready",
       "capabilities": [
         "browser"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "code-runtime",
@@ -242,7 +240,9 @@
       "status": "provider-ready",
       "capabilities": [
         "code-runtime"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "search",
@@ -255,7 +255,9 @@
       "status": "provider-ready",
       "capabilities": [
         "search"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "calendar",
@@ -268,7 +270,9 @@
       "status": "provider-ready",
       "capabilities": [
         "calendar"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "cloud-storage",
@@ -281,7 +285,9 @@
       "status": "provider-ready",
       "capabilities": [
         "cloud-storage"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "messaging",
@@ -294,7 +300,9 @@
       "status": "provider-ready",
       "capabilities": [
         "messaging"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "translation",
@@ -307,7 +315,9 @@
       "status": "provider-ready",
       "capabilities": [
         "translation"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
     },
     {
       "id": "avatar-animation",
@@ -321,7 +331,83 @@
       "capabilities": [
         "avatar",
         "animation"
-      ]
+      ],
+      "dependencies": [],
+      "installable": false
+    },
+    {
+      "id": "memory-stack",
+      "name": "Memory / Embeddings / Vector / RAG",
+      "version": "1.0.0",
+      "category": "Memory",
+      "description": "Working local conversation memory, deterministic embeddings, vector search and RAG.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "built-in-provider",
+      "capabilities": [
+        "memory",
+        "embeddings",
+        "vector-store",
+        "rag",
+        "conversation-memory",
+        "knowledge-base"
+      ],
+      "dependencies": [],
+      "installable": true
+    },
+    {
+      "id": "mcp-client",
+      "name": "MCP Client",
+      "version": "2.0.0",
+      "category": "MCP",
+      "description": "MCP server registry, stdio and Streamable HTTP tool discovery/calls with permissions.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "built-in-provider",
+      "capabilities": [
+        "mcp-client",
+        "mcp-tools"
+      ],
+      "dependencies": [],
+      "installable": true
+    },
+    {
+      "id": "email",
+      "name": "Email",
+      "version": "2.0.0",
+      "category": "Communication",
+      "description": "Gmail, Yahoo, Outlook/Hotmail and custom IMAP/SMTP/POP3 operations with Windows Credential Manager support.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "built-in-provider",
+      "capabilities": [
+        "email",
+        "imap",
+        "smtp",
+        "pop3"
+      ],
+      "dependencies": [],
+      "installable": true
+    },
+    {
+      "id": "http-providers",
+      "name": "Universal AI Providers",
+      "version": "1.0.0",
+      "category": "AI Providers",
+      "description": "OpenAI-compatible LLM, embeddings, STT and TTS adapters plus Ollama.",
+      "provider": "Saeed",
+      "installType": "core-provider",
+      "status": "built-in-provider",
+      "capabilities": [
+        "llm",
+        "embeddings",
+        "speech-to-text",
+        "text-to-speech",
+        "vision",
+        "multimodal"
+      ],
+      "dependencies": [],
+      "installable": true
     }
   ]
 }
