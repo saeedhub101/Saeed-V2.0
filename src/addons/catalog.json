@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "catalogVersion": 3,
+  "catalogVersion": 4,
   "generatedAt": "2026-10-03",
   "source": "Saeed official add-on catalog",
   "addons": [
@@ -12,14 +12,14 @@
       "description": "Create and edit DOCX documents.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/docx",
-      "installType": "npm-package",
-      "status": "npm-install",
+      "installType": "bundle",
+      "status": "release-bundle",
       "capabilities": [
         "documents"
       ],
       "dependencies": [],
       "installable": true,
-      "packageName": "docx"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip"
     },
     {
       "id": "excel",
@@ -29,15 +29,15 @@
       "description": "Read, calculate and write Excel workbooks.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/xlsx",
-      "installType": "npm-package",
-      "status": "npm-install",
+      "installType": "bundle",
+      "status": "release-bundle",
       "capabilities": [
         "documents",
         "spreadsheet"
       ],
       "dependencies": [],
       "installable": true,
-      "packageName": "xlsx"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip"
     },
     {
       "id": "pdf",
@@ -47,15 +47,15 @@
       "description": "Extract text and metadata from PDF files.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/pdf-parse",
-      "installType": "npm-package",
-      "status": "npm-install",
+      "installType": "bundle",
+      "status": "release-bundle",
       "capabilities": [
         "documents",
         "pdf"
       ],
       "dependencies": [],
       "installable": true,
-      "packageName": "pdf-parse"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip"
     },
     {
       "id": "ocr",
@@ -65,15 +65,15 @@
       "description": "Offline OCR engine for image text extraction.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/tesseract.js",
-      "installType": "npm-package",
-      "status": "npm-install",
+      "installType": "bundle",
+      "status": "release-bundle",
       "capabilities": [
         "ocr",
         "vision"
       ],
       "dependencies": [],
       "installable": true,
-      "packageName": "tesseract.js"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip"
     },
     {
       "id": "stt-whisper",
@@ -353,7 +353,7 @@
         "knowledge-base"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": false
     },
     {
       "id": "mcp-client",
@@ -369,7 +369,7 @@
         "mcp-tools"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": false
     },
     {
       "id": "email",
@@ -387,7 +387,7 @@
         "pop3"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": false
     },
     {
       "id": "http-providers",
@@ -407,7 +407,7 @@
         "multimodal"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": false
     }
   ]
 }
