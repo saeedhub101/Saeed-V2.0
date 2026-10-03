@@ -1,6 +1,7 @@
 import * as THREE from "../../node_modules/three/build/three.module.js";
+import { canonicalAxis, buildCanonicalProfile } from "./CanonicalSkeleton.js";
 const limbSlots=new Set(["leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot"]);
-const canonicalAxisFor=slot=>limbSlots.has(slot)?new THREE.Vector3(1,0,0):new THREE.Vector3(0,1,0);
+const canonicalAxisFor=slot=>canonicalAxis(slot);
 export class CharacterRetargeter{
  constructor(){this.bones={};this.rest=new Map();this.profile={root:"hips",sourceUp:"y",restPose:"unknown",height:0,orientation:"upright"};this.enabled=true;}
  bind(bones={}){
