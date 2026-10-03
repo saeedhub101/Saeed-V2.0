@@ -105,6 +105,12 @@ class Agent{
  getGlobalMemory(){return this.memoryService.listFacts(this.dir)}
 
  async run(text,image=null){
+  this.router.history=this.history;
+  this.router.memoryContext=()=>this.memoryContext();
+  this.router.saveHistory=()=>this.saveHistory();
+  this.router.baseStepLimit=()=>this.baseStepLimit();
+  this.router.askForMoreSteps=(current,task)=>this.askForMoreSteps(current,task);
+  this.router.providerDefaults=name=>this.providerDefaults(name);
   const result=await this.router.run({text,image});
   if(result?.event)this.onEvent(result.event);
   if(result?.handled){
