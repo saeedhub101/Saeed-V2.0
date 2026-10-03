@@ -1,0 +1,38 @@
+function createDiagnostics({getWindows,getResourceService}){
+ const pending3DQueries=new Map();
+ const diagnosticState={mic:{state:"unknown",level:0,detail:""},brainApi:{state:"unknown",detail:""},brainLocal:{state:"ready",detail:"Local intent engine"},stt:{state:"unknown",detail:""},tts:{state:"unknown",detail:""},glb:{state:"unknown",detail:""},cpu:{state:"unknown",percent:0,detail:"Waiting for CPU measurement"},threeD:{overall:{state:"unknown",detail:"Waiting for 3D renderer"},components:{},lastUpdated:null}};
+ function diagnostic(level,stage,message,meta={}){
+  const event={time:new Date().toISOString(),level:String(level||"INFO").toUpperCase(),stage:String(stage||"GENERAL"),message:String(message||""),meta:meta||{}};
+  if(getWindows().chatWin&&!getWindows().chatWin.isDestroyed())getWindows().chatWin.webContents.send("diagnostic:event",event);
+  updateDiagnosticState(event);return event;
+ }
+ function publish3DStatus(report){if(!report)return;diagnosticState.threeD=report;diagnosticState.threeD.lastUpdated=new Date().toISOString();if(getWindows().threeDStatusWin&&!getWindows().threeDStatusWin.isDestroyed())getWindows().threeDStatusWin.webContents.send("3d:status",diagnosticState.threeD)}
+ function request3DStatus(){return new Promise(resolve=>{if(!getWindows().characterWin||getWindows().characterWin.isDestroyed()){const report={overall:{state:"error",detail:"3D character window is not available"},components:{},lastUpdated:new Date().toISOString()};publish3DStatus(report);resolve(report);return}const id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);const timer=setTimeout(()=>{pending3DQueries.delete(id);const report={...diagnosticState.threeD,overall:{state:"error",detail:"3D renderer status query timed out"}};publish3DStatus(report);resolve(report)},1800);pending3DQueries.set(id,report=>{clearTimeout(timer);pending3DQueries.delete(id);publish3DStatus(report);resolve(report)});getWindows().characterWin.webContents.send("3d:query",id)})}
+ function show3DStatus(){if(getWindows().threeDStatusWin&&!getWindows().threeDStatusWin.isDestroyed()){getWindows().threeDStatusWin.show();getWindows().threeDStatusWin.focus();request3DStatus().then(r=>getWindows().threeDStatusWin?.webContents.send("3d:status",r));return}getWindows().threeDStatusWin=new BrowserWindow({width:960,height:720,minWidth:760,minHeight:560,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});getWindows().threeDStatusWin.on("closed",()=>{getWindows().threeDStatusWin=null});getWindows().threeDStatusWin.loadFile(path.join(__dirname,"..","3d-status.html")).then(async()=>{getWindows().threeDStatusWin?.show();getWindows().threeDStatusWin?.focus();const r=await request3DStatus();getWindows().threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
+ function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail=e.level==="ERROR";
+  if(s.includes("MIC")){const msg=String(e.message||"").toLowerCase();const disabled=s.includes("MIC MODE")&&msg.includes("off")||s.includes("MIC STOP")||s.includes("MIC PERMISSION");diagnosticState.mic.state=fail?"error":disabled?"disabled":"active";diagnosticState.mic.detail=e.message;if(disabled)diagnosticState.mic.level=0;else if(e.meta?.level!=null)diagnosticState.mic.level=Number(e.meta.level)||0}
+  if(s.includes("LLM")||s.includes("BRAIN API")){diagnosticState.brainApi.state=fail?"error":(s.includes("SUCCESS")||s.includes("CONNECTED")?"connected":"active");diagnosticState.brainApi.detail=e.message}
+  if(s.includes("LOCAL")){diagnosticState.brainLocal.state=fail?"error":"ready";diagnosticState.brainLocal.detail=e.message}
+  if(s.includes("STT")){diagnosticState.stt.state=fail?"error":s.includes("DISCONNECTED")?"disabled":(s.includes("READY")||s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")?"active":diagnosticState.stt.state);diagnosticState.stt.detail=e.message}
+  if(s.includes("TTS")){diagnosticState.tts.state=fail?"error":s.includes("DISCONNECTED")?"disabled":(s.includes("READY")||s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")||s.includes("SUCCESS")?"active":diagnosticState.tts.state);diagnosticState.tts.detail=e.message}
+  if(s.includes("GLB")||s.includes("CHARACTER READY")){diagnosticState.glb.state=fail?"error":s.includes("READY")?"ready":"active";diagnosticState.glb.detail=e.message}
+  
+  if(getWindows().statusWin&&!getWindows().statusWin.isDestroyed())getWindows().statusWin.webContents.send("diagnostic:state",diagnosticState);if(getWindows().performanceWin&&!getWindows().performanceWin.isDestroyed())getWindows().performanceWin.webContents.send("diagnostic:state",diagnosticState);
+ }
+ let cpuTimer=null;
+ function startCpuMonitoring(){
+  if(cpuTimer)return;
+  updateCpuMetrics();
+  cpuTimer=setInterval(updateCpuMetrics,1000);
+ }
+ function stopCpuMonitoring(){
+  if(getWindows().statusWin||getWindows().performanceWin)return;
+  if(cpuTimer)clearInterval(cpuTimer);
+  cpuTimer=null;
+ }
+ 
+ function updateCpuMetrics(){try{const {rawMetrics:metrics,logical}=getResourceService().getAppResourceMetrics();const total=metrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const percent=Math.max(0,total/logical);diagnosticState.cpu={state:"active",percent,detail:`Saeed CPU ${percent.toFixed(1)}% across ${logical} logical processors`,processCount:metrics.length,lastUpdated:new Date().toISOString()};if(getWindows().statusWin&&!getWindows().statusWin.isDestroyed())getWindows().statusWin.webContents.send("diagnostic:state",diagnosticState);if(getWindows().chatWin&&!getWindows().chatWin.isDestroyed())getWindows().chatWin.webContents.send("cpu:metrics",diagnosticState.cpu)}catch(e){diagnosticState.cpu={state:"error",percent:0,detail:e.message,lastUpdated:new Date().toISOString()};diagnostic("ERROR","CPU METRICS",e.message)}}
+ function diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
+ return {diagnosticState,diagnostic,publish3DStatus,request3DStatus,show3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent};
+}
+module.exports={createDiagnostics};
