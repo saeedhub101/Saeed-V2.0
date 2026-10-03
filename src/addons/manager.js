@@ -33,7 +33,7 @@ function download(url,target,onProgress){
   follow(String(url||""),0);
  });
 }
-function extractZip(zip,destination){return new Promise((resolve,reject)=>{fs.mkdirSync(destination,{recursive:true});const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command","Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",zip,destination],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.on("error",reject);child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||"Could not extract add-on archive")))})}
+function extractZip(zip,destination){return new Promise((resolve,reject)=>{if(!zip||!destination)return reject(new Error("Add-on archive or destination path is empty"));if(!fs.existsSync(zip))return reject(new Error("Downloaded add-on archive was not found: "+zip));fs.mkdirSync(destination,{recursive:true});const q=v=>String(v).replace(/\x27/g,"\x27\x27");const command=`$zip=${q(zip)}; $dest=${q(destination)}; Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force`;const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command",command],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.on("error",reject);child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||"Could not extract add-on archive")))})}
 function validateManifest(manifest){
  if(!manifest||manifest.schemaVersion!==1)throw new Error("Unsupported add-on manifest schema");
  const id=safeId(manifest.id);if(!manifest.name)throw new Error("Add-on name is required");if(!manifest.version)throw new Error("Add-on version is required");
