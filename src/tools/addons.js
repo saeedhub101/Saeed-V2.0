@@ -21,6 +21,7 @@ if(name==="mcp_call_tool")return{ok:true,result:await mcp.callTool(u,args.server
 if(name==="email_provider_info")return{ok:true,provider:email.provider(args.provider),providers:email.PROVIDERS};
 if(name==="email_test_connection")return{ok:true,connected:await email.testTcp(args)};
 if(name==="email_send"){const msg=args.message||"From: "+args.from+"\r\nTo: "+[].concat(args.to||[]).join(", ")+"\r\n\r\n";return{ok:true,sent:await emailClient.smtpSend(args,msg)}}
-if(name==="credential_store"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential storage not approved"};return{ok:true,credential:await credentials.set(args.provider,args.account,args.username,args.password)}}\nif(name==="credential_get"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential retrieval not approved"};return{ok:true,credential:await credentials.get(args.provider,args.account)}}
+if(name==="credential_store"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential storage not approved"};return{ok:true,credential:await credentials.set(args.provider,args.account,args.username,args.password)}}
+if(name==="credential_get"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential retrieval not approved"};return{ok:true,credential:await credentials.get(args.provider,args.account)}}
 return null}
 module.exports={schemas,call};
