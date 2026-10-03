@@ -10,7 +10,7 @@ async call(name,args={}){try{
   const toolName=String(name||"");
   const requiredArgs={ocr_image:"filePath",extract_image_table:"filePath",inspect_image:"filePath",open_file:"filePath",reveal_file:"filePath",read_file:"filePath",open_application:"application"};
   const required=requiredArgs[toolName];
-  if(required&&!String(args?.[required]??"").trim())return{ok:false,error:"Missing required argument \\""+required+"\\" for tool \\""+toolName+"\\"."};
+  if(required&&!String(args?.[required]??"").trim())return{ok:false,error:'Missing required argument "'+required+'" for tool "'+toolName+'".'};
   const category=this.categoryFor(name);if(!(await this.authorize(category,{name,args})))return{ok:false,error:"Permission denied for "+category};const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,confirm:this.confirm};for(const d of domains){const out=await d.call(name,args,context);if(out!==null){this.memory=context.memory;this.tasks=context.tasks;this.tasksFile=context.tasksFile;if(this.recordHook)try{this.recordHook(name,args)}catch{}return out}}if(/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(String(name))){const out=await addonRuntime.callTool(this.userDataPath,name,args);if(this.recordHook)try{this.recordHook(name,args)}catch{}return out}return{ok:false,error:"Unknown tool: "+name}}catch(e){return{ok:false,error:e.message}}}
 }
 module.exports={ToolRegistry};
