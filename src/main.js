@@ -219,7 +219,7 @@ async function ensureBrain(){
 }
 async function createWindow(){
  await createCharacterWindow();
- if(ciSmoke){await ensureBrain();scheduleCiRuntimeSmoke();}
+ if(ciSmoke)scheduleCiRuntimeSmoke();
 }
 async function createCharacterWindow(){
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
@@ -266,30 +266,25 @@ function configureUpdater(){
  autoUpdater.on("error",e=>{updateState="error";publishUpdate("update:state","error",e?.message||String(e));if(updateUiRequested){showUpdateToast("error","Update check failed");setTimeout(()=>{updateUiRequested=false;hideUpdateToast()},3200)}})
 }
 async function runCiRuntimeSmoke(){
- const report={startedAt:new Date().toISOString(),checks:{},resources:resourceReport()};
+ const report={startedAt:new Date().toISOString(),checks:{},phases:{},resources:resourceReport()};
  try{
   const glb=path.join(app.getAppPath(),"assets","Saeed_Test-3D.glb");
   report.checks.glbFile={pass:fs.existsSync(glb),path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
-  report.checks.runtimeChecks={
-   pass:Boolean(characterWin&&!characterWin.isDestroyed()&&agent&&agent.localBrain&&brainSupervisor),
-   characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),
-   agentInitialized:Boolean(agent),
-   localBrainInitialized:Boolean(agent&&agent.localBrain),
-   brainSupervisorInitialized:Boolean(brainSupervisor),
-   micMode:currentMicMode,
-   realtimeInitialized:Boolean(realtime),
-   addonsManagerLoaded:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),
-   trayCreated:Boolean(tray)
-  };
-  report.resourcesAfter=resourceReport();
-  report.finishedAt=new Date().toISOString();
-  report.pass=Boolean(report.checks.glbFile.pass);
+  const startup=resourceReport();
+  report.phases.startup={pass:Boolean(characterWin&&!characterWin.isDestroyed()&&!agent&&!brainSupervisor&&currentMicMode==="off"&&!realtime),runtimeChecks:{characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),agentInitialized:Boolean(agent),localBrainInitialized:Boolean(agent&&agent.localBrain),brainSupervisorInitialized:Boolean(brainSupervisor),micMode:currentMicMode,realtimeInitialized:Boolean(realtime),addonsManagerLoaded:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),trayCreated:Boolean(tray)},resources:startup};
+  await ensureBrain();
+  const activated=resourceReport();
+  report.phases.brainActivated={pass:Boolean(agent&&agent.localBrain&&brainSupervisor),runtimeChecks:{characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),agentInitialized:Boolean(agent),localBrainInitialized:Boolean(agent&&agent.localBrain),brainSupervisorInitialized:Boolean(brainSupervisor),micMode:currentMicMode,realtimeInitialized:Boolean(realtime),addonsManagerLoaded:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),trayCreated:Boolean(tray)},resources:activated};
+  report.checks.runtimeChecks=report.phases.brainActivated.runtimeChecks;
+  report.resourcesAfter=activated;
+  report.pass=Boolean(report.checks.glbFile.pass&&report.phases.startup.pass&&report.phases.brainActivated.pass);
  }catch(e){report.error=e.message;report.pass=false}
+ report.finishedAt=new Date().toISOString();
  const target=process.env.SAEED_CI_REPORT||path.join(process.cwd(),"dist","ci-runtime-report.json");
  try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8");console.log("SAEED_CI_REPORT_PATH",target)}catch(e){console.error("CI report write failed:",e.message)}
  const hostTarget=process.env.SAEED_CI_HOST_REPORT||path.join(process.cwd(),"dist","ci-host-resource-report.json");
- try{fs.mkdirSync(path.dirname(hostTarget),{recursive:true});fs.writeFileSync(hostTarget,JSON.stringify({mode:"packaged-runtime",time:new Date().toISOString(),resources:resourceReport()},null,2),"utf8")}catch(e){console.error("CI host report write failed:",e.message)}
- console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,glbFile:report.checks?.glbFile?.pass,startedAt:report.startedAt,finishedAt:report.finishedAt}));
+ try{fs.mkdirSync(path.dirname(hostTarget),{recursive:true});fs.writeFileSync(hostTarget,JSON.stringify({mode:"packaged-runtime",time:new Date().toISOString(),resources:resourceReport(),startup:report.phases.startup?.resources,brainActivated:report.phases.brainActivated?.resources},null,2),"utf8")}catch(e){console.error("CI host report write failed:",e.message)}
+ console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,startup:report.phases.startup?.pass,brainActivated:report.phases.brainActivated?.pass,startedAt:report.startedAt,finishedAt:report.finishedAt}));
  stopResourceProbe();setTimeout(()=>process.exit(0),250);
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
