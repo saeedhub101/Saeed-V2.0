@@ -12,7 +12,8 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{autoUpdater}=require("electron-updater");\nconst addons=require("./addons/manager");
+const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{autoUpdater}=require("electron-updater");
+const addons=require("./addons/manager");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
