@@ -221,7 +221,7 @@ async function ensureBrain(){
   agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease:async({current,requested,task})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit",reason:"This task needs more execution steps. Allow an additional "+(requested-current)+" steps for this task?"});});}});
   voiceMuted=Boolean(agent.settings.voiceMuted);
   agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});
-  setSaeedSize(agent.settings.characterSize||"small");
+  if(!fs.existsSync(character3DSettingsFile()))setSaeedSize(agent.settings.characterSize||"small");
   brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});
   await brainSupervisor.start();
   if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"settings",settings:agent.publicSettings()});
