@@ -208,7 +208,7 @@ window.saeedAvatar={
 
 let rendererActive=!document.hidden,renderUntil=0,renderFrameId=0,renderLoopStarted=false,lastRenderTime=0;
 let viewSettings={zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0,characterScale:1,characterPositionX:0,characterPositionY:0,characterPositionZ:0,characterRotationY:0,canvasPadding:0};
-let viewTarget=new THREE.Vector3(0,1.8,0),baseCameraDistance=4.2,baseModelScale=1;
+let viewTarget=new THREE.Vector3(0,1.8,0),baseCameraDistance=4.35,baseModelScale=1;
 function applyViewSettings(next={}){
  viewSettings={...viewSettings,...next};
  const z=Math.max(.25,Math.min(5,Number(viewSettings.zoom)||1));
