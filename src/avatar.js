@@ -283,7 +283,8 @@ function renderNow(reason="on-demand"){
   runtime3D.components.renderLoop.lastRenderAt=new Date().toISOString();
   proceduralBody(facialTime);
   Object.keys(visemeTargets).forEach(k=>{visemeValues[k]+=(visemeTargets[k]-visemeValues[k])*Math.min(1,dt*18);setMorph(k,visemeValues[k])});
-  if(mixer)mixer.update(dt);\n  window.saeedCharacterController?.update?.(dt);
+  if(mixer)mixer.update(dt);
+  window.saeedCharacterController?.update?.(dt);
   if(moveTimer&&performance.now()<moveEnd){
    root.position.x+=dt*.22*moveDirection;
    if(root.position.x>.7)root.position.x=-.7;

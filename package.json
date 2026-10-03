@@ -33,16 +33,7 @@
       "include": "build/installer.nsh"
     },
     "buildVersion": "4.3.0",
-    "icon": "assets/saeed.ico",
-    "extraResources": [
-      {
-        "from": "build/whisper-runtime",
-        "to": "whisper",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ]
+    "icon": "assets/saeed.png"
   },
   "publish": {
     "provider": "github",
