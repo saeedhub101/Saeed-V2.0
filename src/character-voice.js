@@ -63,6 +63,6 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  window.saeed.onRealtimeError(e=>report("ERROR","REALTIME API ERROR",String(e)));
  window.saeed.onLocalSttState((state,message)=>{report(state==="error"?"ERROR":"INFO","LOCAL STT STATE",String(message||state));if(state==="error")window.saeedAvatar?.setState?.("alert")});
  window.saeed.onEvent(e=>{if(e?.type==="thinking")window.saeedAvatar?.setState?.("think");if(e?.type==="speech-status"&&e.text){if(voiceRouting!=="direct")speak(e.text);window.saeedAvatar?.setState?.("talk");}if(e?.type==="answer"&&e.text){window.saeedAvatar?.setState?.("talk");window.saeedAvatar?.nod?.();if(voiceRouting!=="direct")speak(e.text)}});window.saeed.onDiagnostic?.(e=>{if(e?.level==="ERROR"){const message="Error: "+String(e.stage||"Saeed")+" — "+String(e.message||"Unknown error");speak(message);window.saeedAvatar?.setState?.("alert")}});
- window.addEventListener("load",async()=>{refreshRmsSettings();try{const cfg=await window.saeed.getSettings();report("INFO","VOICE READY","Voice control is user-activated; microphone starts only after an explicit Mic ON action",{micMode:cfg?.micMode||"off"})}catch(e){report("ERROR","VOICE STARTUP",e.message)}});
+ window.addEventListener("load",()=>{report("INFO","VOICE READY","Voice control is user-activated; microphone starts only after an explicit Mic ON action",{micMode:"off"})});
 })();
 
