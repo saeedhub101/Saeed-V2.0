@@ -12,7 +12,7 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {Agent}=require("./agent"),{ToolRegistry}=require("./tools"),{OpenAIRealtime}=require("./realtime"),{LocalBrain}=require("./local-brain"),{BrainSupervisor}=require("./autonomous/brain-supervisor"),{autoUpdater}=require("electron-updater");
+const {autoUpdater}=require("electron-updater");
 const addons=require("./addons/manager");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
@@ -31,7 +31,7 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,performanceWin,settingsWin,addonsWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor;
+let chatWin,characterWin,performanceWin,settingsWin,addonsWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
 let pendingCharacterData=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
@@ -125,7 +125,7 @@ function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}
  const y=bottomRight?area.y+Math.max(0,area.height-h-margin):Math.max(area.y,Math.min(y0,area.y+Math.max(0,area.height-h)));
  characterWin.setPosition(Math.round(x),Math.round(y),false);
 }
-async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
+async function showChat(){try{await ensureBrain();if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show")}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
 function closeChat(){if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}}
 async function showPerformance(){try{startCpuMonitoring();if(performanceWin&&!performanceWin.isDestroyed()){performanceWin.show();performanceWin.focus();return}performanceWin=new BrowserWindow({width:980,height:720,minWidth:760,minHeight:560,title:"Saeed Performance",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});performanceWin.setIcon(windowsIconPath());performanceWin.on("closed",()=>{performanceWin=null;stopCpuMonitoring()});await performanceWin.loadFile(path.join(__dirname,"performance.html"));performanceWin.show();performanceWin.focus()}catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}}
 async function showSettings(){try{if(settingsWin&&!settingsWin.isDestroyed()){settingsWin.show();settingsWin.focus();return}settingsWin=new BrowserWindow({width:760,height:760,minWidth:620,minHeight:600,title:"Saeed Settings",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),backgroundColor:"#1a1a1f",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});settingsWin.setIcon(windowsIconPath());settingsWin.on("closed",()=>{settingsWin=null});await settingsWin.loadFile(path.join(__dirname,"settings.html"));settingsWin.show();settingsWin.focus()}catch(e){diagnostic("ERROR","SETTINGS WINDOW",e.message)}}
@@ -195,11 +195,28 @@ async function createChatWindow(){
  return chatWin;
 }
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
+async function ensureBrain(){
+ if(agent)return agent;
+ if(brainInitPromise)return brainInitPromise;
+ brainInitPromise=(async()=>{
+  const {Agent}=require("./agent");
+  const {ToolRegistry}=require("./tools");
+  const {LocalBrain}=require("./local-brain");
+  const {BrainSupervisor}=require("./autonomous/brain-supervisor");
+  const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
+  agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease:async({current,requested,task})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit",reason:"This task needs more execution steps. Allow an additional "+(requested-current)+" steps for this task?"});});}});
+  voiceMuted=Boolean(agent.settings.voiceMuted);
+  agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});
+  setSaeedSize(agent.settings.characterSize||"small");
+  brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});
+  await brainSupervisor.start();
+  return agent;
+ })().catch(e=>{brainInitPromise=null;diagnostic("ERROR","BRAIN INIT",e.message);throw e});
+ return brainInitPromise;
+}
 async function createWindow(){
  await createCharacterWindow();
- if(ciSmoke)scheduleCiRuntimeSmoke();
- const registry=new ToolRegistry({captureScreen,userDataPath:app.getPath("userData"),permissionPolicy,confirm:async({name,args,permissionCategory})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});});}});
- agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease:async({current,requested,task})=>{await showChat();return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit",reason:"This task needs more execution steps. Allow an additional "+(requested-current)+" steps for this task?"});});}});voiceMuted=Boolean(agent.settings.voiceMuted);agent.localBrain=new LocalBrain(registry,e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)});setSaeedSize(agent.settings.characterSize||"small");brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});await brainSupervisor.start();
+ if(ciSmoke){await ensureBrain();scheduleCiRuntimeSmoke();}
 }
 async function createCharacterWindow(){
  characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
@@ -274,7 +291,7 @@ async function runCiRuntimeSmoke(){
 }
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
- try{await createWindow();currentMicMode="off";agent.settings={...agent.settings,micMode:"off"};agent.persistSettings();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
+ try{await createWindow();currentMicMode="off";setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
@@ -298,7 +315,7 @@ ipcMain.handle("chat",async(_,payload)=>{
  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
  return result;
 });
-ipcMain.handle("settings:get",()=>agent?.publicSettings()||null);ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
+ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>testApiConnection(String(service||"")));ipcMain.handle("api-status:test-all",()=>testAllApiConnections());ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showSettings();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("addons:catalog",async()=>{const catalog=await addons.fetchCatalog();return{catalog,installed:addons.listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await addons.fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return addons.install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>addons.uninstall(app.getPath("userData"),id));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("settings:set",(_,s)=>{
  if(!agent)throw new Error("Saeed is still starting.");
