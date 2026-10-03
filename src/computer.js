@@ -9,12 +9,12 @@ class Computer{
  async openApp(app){
   const value=String(app||"").trim();
   if(!value)return{ok:false,error:"Application name is empty"};
-  const aliases={"my computer":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","this pc":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","file explorer":"Start-Process explorer.exe","windows explorer":"Start-Process explorer.exe","explorer":"Start-Process explorer.exe","calculator":"Start-Process calc.exe","calc":"Start-Process calc.exe","notepad":"Start-Process notepad.exe","command prompt":"Start-Process cmd.exe","cmd":"Start-Process cmd.exe","powershell":"Start-Process powershell.exe","task manager":"Start-Process taskmgr.exe","control panel":"Start-Process control.exe"};
+  const aliases={"my computer":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","this pc":"Start-Process explorer.exe -ArgumentList 'shell:MyComputerFolder'","file explorer":"Start-Process explorer.exe","windows explorer":"Start-Process explorer.exe","explorer":"Start-Process explorer.exe","calculator":"Start-Process calc.exe","calc":"Start-Process calc.exe","notepad":"Start-Process notepad.exe","command prompt":"Start-Process cmd.exe","cmd":"Start-Process cmd.exe","powershell":"Start-Process powershell.exe","task manager":"Start-Process taskmgr.exe","control panel":"Start-Process control.exe","excel":"Start-Process excel.exe","microsoft excel":"Start-Process excel.exe","word":"Start-Process winword.exe","microsoft word":"Start-Process winword.exe","powerpoint":"Start-Process powerpnt.exe","microsoft powerpoint":"Start-Process powerpnt.exe","outlook":"Start-Process outlook.exe","microsoft outlook":"Start-Process outlook.exe"};
   const key=value.toLowerCase().replace(/\s+/g," ").trim();
   if(aliases[key])return this.powershell(aliases[key]);
   if(/^https?:\/\//i.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");
   if(/^[A-Za-z]:\\|^[\\/]/.test(value))return this.powershell("Start-Process -FilePath '"+this.esc(value)+"'");
-  const known=await this.powershell("Get-Command '"+this.esc(value)+"' -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source");
+  const known=await this.powershell("$name='"+this.esc(value)+"';$cmd=Get-Command $name -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source;if(-not $cmd){$exe=[IO.Path]::GetFileName($name);$keys=@('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\'+$exe,'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\'+$exe,'HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\App Paths\\'+$exe);foreach($k in $keys){if(Test-Path $k){$cmd=(Get-Item $k).GetValue('');if($cmd){break}}}};if($cmd){$cmd}");
   if(!known.stdout.trim())return{ok:false,error:"Application not found: "+value};
   return this.powershell("Start-Process -FilePath '"+this.esc(known.stdout.trim())+"'");
  }
