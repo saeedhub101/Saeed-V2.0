@@ -23,6 +23,17 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
    src.start();
   }catch(e){speechSuppressed=false;report("ERROR","TTS API PLAYBACK",e.message);window.saeedAvatar?.play?.("idle")}
  }
+ function speakArabicPrayer(text){
+  if(!text||voiceMuted||!("speechSynthesis"in window))return false;
+  stopSpeaking();speechSuppressed=true;
+  const u=new SpeechSynthesisUtterance(String(text));
+  u.lang="ar-JO";u.rate=.88;u.pitch=1;
+  u.onstart=()=>{speechSuppressed=true;window.saeedCharacterBehavior?.trigger?.("speech-start");window.saeedAvatar?.wakeRender?.(350)};
+  u.onend=()=>{speechSuppressed=false;stopSpeaking();window.saeedCharacterBehavior?.trigger?.("speech-end")};
+  u.onerror=()=>{speechSuppressed=false;stopSpeaking();window.saeedCharacterBehavior?.trigger?.("speech-end")};
+  window.speechSynthesis.speak(u);return true;
+ }
+ window.saeedPrayerSpeak=speakArabicPrayer;
  function speak(text){
   if(!text||voiceMuted)return;
   if(voiceRouting==="direct")return;
