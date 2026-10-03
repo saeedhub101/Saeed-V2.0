@@ -151,16 +151,30 @@ function sendCharacterData(data){const generation=++characterLoadGeneration;if(!
 function chooseCharacter(){dialog.showOpenDialog(characterWin||chatWin,{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file);const persisted=persistSelectedCharacter(data);sendCharacterData(new Uint8Array(data));if(agent){agent.settings={...agent.settings,selectedCharacterName:path.basename(file)};agent.persistSettings()}diagnostic("INFO","GLB SELECTED","Character GLB selected and saved for next launch",{name:path.basename(file),size:data.length,persistedPath:persisted})}catch(e){diagnostic("ERROR","GLB SELECTED",e.message)}})}
 
 function whisperRuntimePaths(){
- const candidates=[
+ const roots=[
   addons.addonDir(app.getPath("userData"),"stt-whisper"),
-  path.join(process.resourcesPath||"", "addons", "stt-whisper"),
-  path.join(process.resourcesPath||"", "saeed-addon-stt-whisper")
+  path.join(process.resourcesPath||"","addons","stt-whisper"),
+  path.join(process.resourcesPath||"","saeed-addon-stt-whisper")
  ].filter(Boolean);
- for(const root of candidates){
-  const exe=path.join(root,"whisper-cli.exe"),model=path.join(root,"ggml-base-q5_1.bin");
-  if(fs.existsSync(exe)&&fs.existsSync(model))return{root,exe,model};
+ const found=[];
+ const walk=(root,depth=0)=>{
+  if(!root||depth>4||!fs.existsSync(root))return;
+  let entries=[];try{entries=fs.readdirSync(root,{withFileTypes:true})}catch{return}
+  for(const e of entries){
+   const p=path.join(root,e.name);
+   if(e.isFile()&&e.name.toLowerCase()==="whisper-cli.exe")found.push({root:path.dirname(p),exe:p});
+   else if(e.isDirectory())walk(p,depth+1);
+  }
+ };
+ roots.forEach(r=>walk(r));
+ for(const item of found){
+  let model="";
+  const preferred=["ggml-base-q5_1.bin","ggml-base.bin","ggml-base.en-q5_1.bin","ggml-base.en.bin"];
+  for(const name of preferred){const p=path.join(item.root,name);if(fs.existsSync(p)){model=p;break}}
+  if(!model){try{const n=fs.readdirSync(item.root).find(x=>/^ggml-.*\\.bin$/i.test(x));if(n)model=path.join(item.root,n)}catch{}}
+  if(model)return{root:item.root,exe:item.exe,model};
  }
- const root=candidates[0]||addons.addonDir(app.getPath("userData"),"stt-whisper");
+ const root=roots[0]||addons.addonDir(app.getPath("userData"),"stt-whisper");
  return{root,exe:path.join(root,"whisper-cli.exe"),model:path.join(root,"ggml-base-q5_1.bin")};
 }
 function voiceBroadcast(channel,...args){for(const win of [characterWin,chatWin]){if(win&&!win.isDestroyed())win.webContents.send(channel,...args)}}
