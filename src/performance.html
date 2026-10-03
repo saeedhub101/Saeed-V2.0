@@ -45,7 +45,28 @@
 <label>Event cooldown (seconds)<input id="behaviorCooldown" type="number" min="5" max="300"></label>
 <label>Sleep after (minutes)<input id="behaviorSleepAfterMin" type="number" min="1" max="240"></label>
 <label>Render wake duration (ms)<input id="behaviorRenderWakeMs" type="number" min="80" max="5000" step="50"></label>
-</div><button id="saveCharacter" class="primary">Save Character</button><p id="characterState" class="hint"></p></section>
+</div><button id="saveCharacter" class="primary">Save Character</button><p id="characterState" class="hint"></p></section><section class="characterControllerPanel">
+<div class="sectionHead"><span class="eyebrow">CHARACTER CONTROLLER</span><h2>Pose, Motions & Rig</h2><p>Edit the procedural idle pose, test motions, and remap the logical rig without touching the 3D renderer.</p></div>
+<div class="formGrid">
+<label>Motion<select id="characterMotion"><option>idle</option><option>nod</option><option>shake</option><option>wave</option><option>think</option><option>jump</option><option>clap</option><option>dance</option><option>talkGesture</option></select></label>
+<label>Motion duration (s)<input id="characterMotionDuration" type="number" min="0" max="30" step="0.1" value="0"></label>
+<label>Motion speed<input id="characterMotionSpeed" type="number" min="0.05" max="5" step="0.05" value="1"></label>
+<label>Intensity<input id="characterMotionIntensity" type="number" min="0" max="2" step="0.05" value="1"></label>
+</div>
+<div class="permissionActions"><button id="characterPlayMotion" class="primary">Play</button><button id="characterStopMotion" class="secondary">Stop</button><button id="characterResetPose" class="secondary">Reset Pose</button></div>
+<div class="formGrid">
+<label>Joint<select id="characterJoint"><option>head</option><option>neck</option><option>spine</option><option>chest</option><option>leftUpperArm</option><option>rightUpperArm</option><option>leftForeArm</option><option>rightForeArm</option><option>leftHand</option><option>rightHand</option><option>leftThigh</option><option>rightThigh</option><option>leftShin</option><option>rightShin</option><option>leftFoot</option><option>rightFoot</option></select></label>
+<label>X rotation (deg)<input id="characterPoseX" type="number" min="-180" max="180" step="1" value="0"></label>
+<label>Y rotation (deg)<input id="characterPoseY" type="number" min="-180" max="180" step="1" value="0"></label>
+<label>Z rotation (deg)<input id="characterPoseZ" type="number" min="-180" max="180" step="1" value="0"></label>
+</div>
+<div class="permissionActions"><button id="characterApplyPose" class="primary">Apply Joint Pose</button><button id="characterSaveIdle" class="secondary">Save as Idle Pose</button></div>
+<div class="infoCard"><b>Universal Rig / Retargeting</b><p id="characterRigState">Loading character rig…</p></div>
+<div id="characterRigGrid" class="formGrid"></div>
+<div class="permissionActions"><button id="characterApplyRig" class="secondary">Apply Rig Mapping</button><button id="characterRefreshRig" class="secondary">Refresh Rig</button></div>
+<p id="characterControllerState" class="hint"></p>
+</section>
+
 <section id="tab-permissions" class="tab">
 <div class="sectionHead"><span class="eyebrow">ACCESS CONTROL</span><h2>Permissions</h2><p>Every capability Saeed can use is listed here. Choose <b>Allow</b>, <b>Deny</b>, or <b>Always ask</b> for each category. Changes apply to Saeed's agent actions; this screen never changes your normal Windows permissions.</p></div>
 <div class="permissionSummary"><div><b id="permissionAllowCount">0</b><span>Allowed</span></div><div><b id="permissionAskCount">0</b><span>Always ask</span></div><div><b id="permissionDenyCount">0</b><span>Denied</span></div></div>
