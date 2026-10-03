@@ -1,4 +1,4 @@
-function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile,setSaeedSize,setAgent,setBrainSupervisor,setVoiceMuted}){
+function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile,setSaeedSize,setAgent,setBrainSupervisor,setVoiceMuted,recordLearningStep,confirmations}){
  let brainInitPromise=null;
  async function ensureBrain(){
   if(brainInitPromise)return brainInitPromise;
@@ -14,7 +14,7 @@ function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permi
      try{return await win.webContents.executeJavaScript("(async()=>{const c=window.saeedCharacterController;if(!c)return {ok:false,error:\"Character controller unavailable\"};return c.semantic("+payload+".intent,"+payload+".options||{});})()",true)}
      catch(e){return{ok:false,error:e.message}}
     },
-    recordHook:step=>{getLearning().recordStep(learningRecording,step.tool,step.args)},
+    recordHook:step=>{recordLearningStep(step)},
     permissionPolicy,
     confirm:async({name,args,permissionCategory})=>{
      await showChat();
@@ -24,7 +24,7 @@ function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permi
       const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
       const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";
       chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});
-      pendingConfirmations.set(id,resolve);
+      confirmations.set(id,resolve);
      });
     },
     onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},
