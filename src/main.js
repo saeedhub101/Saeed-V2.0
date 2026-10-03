@@ -240,9 +240,10 @@ async function createCharacterWindow(){
  characterWin.on("closed",()=>{try{captureCharacter3DWindowSettings()}catch{};characterWin=null});
  characterWin.on("close",()=>{if(!app.isQuitting())diagnostic("INFO","WINDOW","Saeed character window closed");});
  characterWin.webContents.on("context-menu",()=>contextMenu());
- await characterWin.loadFile(path.join(__dirname,"character.html"));\n applyCharacter3DWindowSettings();
+ await characterWin.loadFile(path.join(__dirname,"character.html"));
+ applyCharacter3DWindowSettings();
  try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
- fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
+ if(!Number.isFinite(Number(readCharacter3DSettings().window.x))||!Number.isFinite(Number(readCharacter3DSettings().window.y)))fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
  characterWin.show();
 }
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
