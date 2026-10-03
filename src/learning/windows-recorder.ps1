@@ -1,5 +1,6 @@
 param([int]$IgnorePid=0)
-try{Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,WindowsBase -ErrorAction Stop}catch{}\nAdd-Type @"
+try{Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,WindowsBase -ErrorAction Stop}catch{}
+Add-Type @"
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
