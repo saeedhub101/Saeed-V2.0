@@ -27,7 +27,7 @@ if(/\b(?:setInterval|requestAnimationFrame)\b/.test(controller)){
 
 const requiredMotions=[
   'id:"idle"','id:"nod"','id:"shake"','id:"wave"','id:"think"',
-  'id:"jump"','id:"clap"','id:"dance"','id:"talkGesture"'
+  'id:"jump"','id:"clap"','id:"dance"','id:"talkGesture"',
   'id:"adhanOpening"'
 ];
 for(const token of requiredMotions){
