@@ -21,14 +21,37 @@ export class AnimationController{
  stopLayer(layer){this.active=this.active.filter(x=>x.layer!==layer);if(!this.active.length)this.state="idle";this.avatar?.wakeRender?.(250);}
  stopAll(){this.active=[];this.state="idle";this.pose.clear();this.avatar?.resetCharacterPose?.();this.avatar?.wakeRender?.(150);}
  update(dt){
-  this.pose.clear();if(Object.keys(this.idlePose).length)this.pose.setMany(this.idlePose);
+  this.pose.clear();
+  if(Object.keys(this.idlePose).length)this.pose.setMany(this.idlePose);
   if(!this.active.length){this.avatar?.applyCharacterPose?.(this.safety.clampPose(this.pose.snapshot()),this.rig.retargeter);return;}
-  const now=performance.now(),next=[];
-  for(const a of this.active){const elapsed=(now-a.started)*a.speed/1000;if(a.duration&&elapsed>=a.duration&&!a.loop)continue;const p=a.duration?Math.min(1,elapsed/a.duration):elapsed;const t=a.m.update({t:elapsed,p,dt,intensity:a.intensity,rig:this.rig,pose:this.pose,state:this.state});if(t)this.pose.setMany(t);next.push(a);}
-  this.active=next;if(!this.active.length)this.state="idle";const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);
+  const now=performance.now(),next=[],samples=[];
+  for(const a of this.active){
+   const elapsed=(now-a.started)*a.speed/1000;
+   if(a.duration&&elapsed>=a.duration&&!a.loop)continue;
+   const p=a.duration?Math.min(1,elapsed/a.duration):elapsed;
+   const fadeIn=Math.min(1,elapsed/Math.max(.001,a.blend));
+   const fadeOut=a.duration?Math.min(1,(a.duration-elapsed)/Math.max(.001,a.blend)):1;
+   const weight=Math.max(.05,Math.min(1,fadeIn,fadeOut))*Math.max(.05,Math.min(1,a.intensity));
+   const pose=a.m.update({t:elapsed,p,dt,intensity:a.intensity,rig:this.rig,pose:this.pose,state:this.state});
+   if(pose)samples.push({pose,weight,priority:a.priority,layer:a.layer});
+   next.push(a);
+  }
+  this.active=next;
+  const slots=new Set(samples.flatMap(s=>Object.keys(s.pose||{})));
+  for(const slot of slots){
+   let x=0,y=0,z=0,w=0;
+   for(const s of samples.filter(s=>s.pose?.[slot]).sort((a,b)=>a.priority-b.priority)){
+    const v=s.pose[slot],ww=s.weight*(1+Math.max(0,s.priority)/100);
+    x+=(Number(v.x)||0)*ww;y+=(Number(v.y)||0)*ww;z+=(Number(v.z)||0)*ww;w+=ww;
+   }
+   if(w)this.pose.set(slot,{x:x/w,y:y/w,z:z/w});
+  }
+  if(!this.active.length)this.state="idle";
+  const safe=this.safety.clampPose(this.pose.snapshot());
+  this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);
  }
  setIdlePose(pose={}){this.idlePose=JSON.parse(JSON.stringify(pose||{}));this.pose.setMany(this.idlePose);this.avatar?.applyCharacterPose?.(this.safety.clampPose(this.pose.snapshot()),this.rig.retargeter);this.avatar?.wakeRender?.(300);return this.idlePose;}
  setPose(pose={}){this.pose.setMany(pose);const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);this.avatar?.wakeRender?.(300);return safe;}
  setLimit(slot,limit){return this.safety.setLimit(slot,limit);}
- status(){return{state:this.state,motions:this.registry.list(),capabilities:this.rig.capabilities,active:this.active.map(x=>({id:x.m.id,layer:x.layer,priority:x.priority})),pose:this.pose.snapshot(),idlePose:this.idlePose,retargeting:this.rig.retargeter?.status?.()||null,limits:this.safety.status(),layers:Object.fromEntries(this.layers)};}
+ status(){return{state:this.state,motions:this.registry.list(),capabilities:this.rig.capabilities,active:this.active.map(x=>({id:x.m.id,layer:x.layer,priority:x.priority,blend:x.blend})),pose:this.pose.snapshot(),idlePose:this.idlePose,retargeting:this.rig.retargeter?.status?.()||null,limits:this.safety.status(),layers:Object.fromEntries(this.layers)});}
 }
