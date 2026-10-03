@@ -228,7 +228,7 @@ jobs:
           if (Test-Path $root) { Remove-Item $root -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $root | Out-Null
 
-          function Build-NpmAddon($id,$name,$package,$version,$category) {
+          function Build-NpmAddon($id,$name,$package,$version,$category,$capabilities) {
             $stage = Join-Path $env:RUNNER_TEMP ("saeed-addon-" + $id)
             if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
             New-Item -ItemType Directory -Force -Path $stage | Out-Null
@@ -236,6 +236,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Failed to install add-on package $package@$version" }
             $manifest = [ordered]@{
               schemaVersion=1; id=$id; name=$name; version=$version; category=$category
+              capabilities=$capabilities
               installType="npm-package"; packageName=$package; description=$name
             }
             $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $stage "manifest.json")
@@ -245,10 +246,10 @@ jobs:
             Write-Host "Built add-on: $zip"
           }
 
-          Build-NpmAddon "word" "Word / DOCX" "docx" "9.8.1" "Documents"
-          Build-NpmAddon "excel" "Excel / XLSX" "xlsx" "0.18.5" "Documents"
-          Build-NpmAddon "pdf" "PDF" "pdf-parse" "1.1.1" "Documents"
-          Build-NpmAddon "ocr" "OCR" "tesseract.js" "6.0.1" "Vision"
+          Build-NpmAddon "word" "Word / DOCX" "docx" "9.8.1" "Documents" @("documents")
+          Build-NpmAddon "excel" "Excel / XLSX" "xlsx" "0.18.5" "Documents" @("documents","spreadsheet")
+          Build-NpmAddon "pdf" "PDF" "pdf-parse" "1.1.1" "Documents" @("documents","pdf")
+          Build-NpmAddon "ocr" "OCR" "tesseract.js" "6.0.1" "Vision" @("ocr","vision")
 
           $whisper = Join-Path $env:RUNNER_TEMP "saeed-addon-stt-whisper"
           if (Test-Path $whisper) { Remove-Item $whisper -Recurse -Force }
@@ -267,7 +268,7 @@ jobs:
           if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
           & (Join-Path $whisper "whisper-cli.exe") --help | Out-File (Join-Path $whisper "whisper-help.txt")
           if ($LASTEXITCODE -ne 0) { throw "Whisper CLI startup check failed." }
-          @{schemaVersion=1;id="stt-whisper";name="Whisper STT";version="1.x";category="Speech to Text";installType="bundle"} | ConvertTo-Json | Set-Content (Join-Path $whisper "manifest.json")
+          @{schemaVersion=1;id="stt-whisper";name="Whisper STT";version="1.x";category="Speech to Text";capabilities=@("speech-to-text");installType="bundle"} | ConvertTo-Json | Set-Content (Join-Path $whisper "manifest.json")
           Compress-Archive -Path (Join-Path $whisper "*") -DestinationPath (Join-Path $root "saeed-addon-stt-whisper.zip") -Force
           Remove-Item $whisper -Recurse -Force
           Remove-Item "build\whisper-src" -Recurse -Force
