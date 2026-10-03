@@ -65,7 +65,7 @@ async function install(userData,addon,onProgress){
   }else{
    onProgress?.({state:"extracting",percent:100});await extractZip(zip,staging);
    const candidates=[path.join(staging,"manifest.json"),path.join(staging,catalogEntry.id,"manifest.json")];const actual=candidates.find(fs.existsSync);if(!actual)throw new Error("Downloaded add-on has no manifest.json");
-   actualManifest=validateManifest(readJson(actual));if(actualManifest.id!==catalogEntry.id||actualManifest.version!==catalogEntry.version)throw new Error("Downloaded add-on manifest does not match catalog");
+   actualManifest=validateManifest({...readJson(actual),enabled:true});if(actualManifest.id!==catalogEntry.id||actualManifest.version!==catalogEntry.version)throw new Error("Downloaded add-on manifest does not match catalog");
    const sourceRoot=path.dirname(actual);if(sourceRoot!==staging){const normalized=path.join(tempRoot,"normalized");fs.cpSync(sourceRoot,normalized,{recursive:true});fs.rmSync(staging,{recursive:true,force:true});fs.renameSync(normalized,staging)}
   }
   swapIntoPlace(staging,target);registerInstalled(userData,actualManifest);onProgress?.({state:"registered",percent:100});onProgress?.({state:"installed",percent:100});return actualManifest;
