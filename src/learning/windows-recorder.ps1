@@ -1,5 +1,5 @@
 param([int]$IgnorePid=0)
-Add-Type @"
+try{Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,WindowsBase -ErrorAction Stop}catch{}\nAdd-Type @"
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -17,7 +17,8 @@ function Json($o){$o|ConvertTo-Json -Compress -Depth 6}
 function Context {
  $hw=[SaeedRecorderNative]::GetForegroundWindow();$pid=0;[void][SaeedRecorderNative]::GetWindowThreadProcessId($hw,[ref]$pid)
  $sb=New-Object Text.StringBuilder 512;[void][SaeedRecorderNative]::GetWindowText($hw,$sb,$sb.Capacity)
- [pscustomobject]@{pid=[int]$pid;title=$sb.ToString()}
+ $controlName="";$automationId="";$controlType="";try{$el=[System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($global:cx,$global:cy)));if($el){$controlName=$el.Current.Name;$automationId=$el.Current.AutomationId;$controlType=$el.Current.ControlType.ProgrammaticName}}catch{}
+ [pscustomobject]@{pid=[int]$pid;title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType}
 }
 $keys=@{}
 $names=@{}
@@ -28,8 +29,8 @@ for($i=48;$i -le 57;$i++){$names[$i]=[char]$i}
 for($i=112;$i -le 123;$i++){$names[$i]="F"+($i-111)}
 $lastL=$false;$lastR=$false;$typed="";$lastType=Get-Date
 while($true){
- $ctx=Context
  $p=New-Object 'SaeedRecorderNative+POINT';[void][SaeedRecorderNative]::GetCursorPos([ref]$p)
+ $global:cx=$p.X;$global:cy=$p.Y;$ctx=Context
  $target=[SaeedRecorderNative]::WindowFromPoint($p)
  $tpid=0;[void][SaeedRecorderNative]::GetWindowThreadProcessId($target,[ref]$tpid)
  if($tpid -ne $IgnorePid -and $ctx.pid -ne $IgnorePid){
