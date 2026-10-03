@@ -1,26 +1,21 @@
 const fs=require("fs"),path=require("path"),crypto=require("crypto");
-const ROOT_NAME="skills";
+const ROOT_NAME="skills",MAX_STEPS=100;
 function root(userData){return path.join(userData,ROOT_NAME)}
 function ensure(userData){fs.mkdirSync(root(userData),{recursive:true});return root(userData)}
 function safeId(id){const v=String(id||"").trim();if(!/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(v))throw new Error("Invalid skill id");return v}
 function fileFor(userData,id){return path.join(root(userData),safeId(id)+".json")}
 function normalize(s){return String(s||"").toLowerCase().normalize("NFKC").replace(/[?!.,،؛:]/g," ").replace(/\s+/g," ").trim()}
-function validate(skill){
- if(!skill||typeof skill!=="object")throw new Error("Invalid skill");
- const id=safeId(skill.id||crypto.createHash("sha256").update(String(skill.name||Date.now())).digest("hex").slice(0,12));
- const phrases=Array.isArray(skill.trigger?.phrases)?skill.trigger.phrases.map(normalize).filter(Boolean):[];
- if(!phrases.length)throw new Error("At least one trigger phrase is required");
- if(!Array.isArray(skill.steps)||!skill.steps.length)throw new Error("At least one step is required");
- for(const step of skill.steps){if(!step||typeof step.tool!=="string"||!/^[a-z0-9_.-]+$/i.test(step.tool))throw new Error("Invalid skill tool");if(step.args!=null&&typeof step.args!=="object")throw new Error("Skill step args must be an object")}
- return {version:1,id,name:String(skill.name||id),description:String(skill.description||""),trigger:{phrases},steps:skill.steps.map(s=>({tool:String(s.tool),args:s.args||{}})),createdAt:skill.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),enabled:skill.enabled!==false}
-}
-function list(userData){ensure(userData);return fs.readdirSync(root(userData),{withFileTypes:true}).filter(x=>x.isFile()&&x.name.endsWith(".json")).flatMap(x=>{try{return[JSON.parse(fs.readFileSync(path.join(root(userData),x.name),"utf8"))]}catch{return[]}})}
+function validate(skill){if(!skill||typeof skill!=="object")throw new Error("Invalid skill");const id=safeId(skill.id||crypto.createHash("sha256").update(String(skill.name||Date.now())).digest("hex").slice(0,12));const phrases=Array.isArray(skill.trigger?.phrases)?skill.trigger.phrases.map(normalize).filter(Boolean):[];if(!phrases.length)throw new Error("At least one trigger phrase is required");if(!Array.isArray(skill.steps)||!skill.steps.length||skill.steps.length>MAX_STEPS)throw new Error("Skill must contain 1-"+MAX_STEPS+" steps");for(const step of skill.steps){if(!step||typeof step.tool!=="string"||!/^[a-z0-9_.-]+$/i.test(step.tool))throw new Error("Invalid skill tool");if(step.args!=null&&(typeof step.args!=="object"||Array.isArray(step.args)))throw new Error("Skill step args must be an object")}return{schemaVersion:2,version:Number(skill.version)||1,id,name:String(skill.name||id),description:String(skill.description||""),trigger:{phrases},steps:skill.steps.map(s=>({tool:String(s.tool),args:s.args||{}})),createdAt:skill.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),enabled:skill.enabled!==false,approval:skill.approval||"per-tool",metadata:skill.metadata||{}}}
+function list(userData){ensure(userData);return fs.readdirSync(root(userData),{withFileTypes:true}).filter(x=>x.isFile()&&x.name.endsWith(".json")).flatMap(x=>{try{return[validate(JSON.parse(fs.readFileSync(path.join(root(userData),x.name),"utf8")))]}catch{return[]}})}
 function get(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return null;return validate(JSON.parse(fs.readFileSync(f,"utf8")))}
-function save(userData,skill){const v=validate(skill);ensure(userData);fs.writeFileSync(fileFor(userData,v.id),JSON.stringify(v,null,2),"utf8");return v}
+function save(userData,skill){const v=validate(skill);ensure(userData);const f=fileFor(userData,v.id),tmp=f+".tmp";fs.writeFileSync(tmp,JSON.stringify(v,null,2),"utf8");fs.renameSync(tmp,f);return v}
 function remove(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return false;fs.unlinkSync(f);return true}
 function setEnabled(userData,id,enabled){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);s.enabled=Boolean(enabled);s.updatedAt=new Date().toISOString();return save(userData,s)}
 function match(userData,text){const n=normalize(text);if(!n)return null;return list(userData).find(s=>s.enabled!==false&&(s.trigger?.phrases||[]).some(p=>normalize(p)===n))||null}
 function exportSkill(userData,id){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);return JSON.stringify(s,null,2)}
-function importSkill(userData,data){const value=typeof data==="string"?JSON.parse(data):data;return save(userData,value)}
-async function run(userData,registry,skill){const results=[];for(const step of skill.steps){const out=await registry.call(step.tool,step.args||{});results.push({tool:step.tool,args:step.args||{},result:out});if(out?.ok===false)throw new Error("Learned skill failed at "+step.tool+": "+(out.error||"unknown error"))}return{ok:true,skill:skill.id,results}}
-module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,exportSkill,importSkill,normalize};
+function importSkill(userData,data){return save(userData,typeof data==="string"?JSON.parse(data):data)}
+function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},steps:[],approval:"per-tool"}}}
+function recordStep(session,tool,args){if(!session?.recording)throw new Error("Recorder is not running");if(session.skill.steps.length>=MAX_STEPS)throw new Error("Recorder step limit reached");session.skill.steps.push({tool:String(tool),args:args&&typeof args==="object"?args:{}});return session.skill}
+function finishRecording(userData,session){if(!session?.recording)throw new Error("Recorder is not running");session.recording=false;if(!session.skill.trigger.phrases.length)session.skill.trigger.phrases=[normalize(session.skill.name)];return save(userData,session.skill)}
+async function run(userData,registry,skill,{confirm=async()=>false}={}){const results=[];for(const step of skill.steps){if(skill.approval!=="never"&&await confirm({skill,step})!==true)return{ok:false,approved:false,results};const out=await registry.call(step.tool,step.args||{});results.push({tool:step.tool,args:step.args||{},result:out});if(out?.ok===false)throw new Error("Learned skill failed at "+step.tool+": "+(out.error||"unknown error"))}return{ok:true,skill:skill.id,results}}
+module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,exportSkill,importSkill,beginRecording,recordStep,finishRecording,normalize};
