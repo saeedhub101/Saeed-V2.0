@@ -15,3 +15,4 @@ export function sequence(id,duration,layer,keyframes,options={}){
 }
 
 // Integrated full-body motion engine release marker
+// CI assertion fix
