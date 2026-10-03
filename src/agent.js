@@ -105,7 +105,8 @@ class Agent{
 
  async run(text,image=null){
   const s=this.settings;this.rememberFromUserText(text);if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
-  const learned=learning.match(this.dir,text);if(learned){try{const result=await learning.run(this.dir,this.registry,learned);const answer="Done — I followed the learned skill: "+learned.name+".";this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"learned-skill",skill:learned.id,name:learned.name,result});this.onEvent({type:"answer",text:answer,source:"learned-skill"});return answer}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}});}}\n  const mode=String(s.brainMode||"auto");
+  const learned=learning.match(this.dir,text);if(learned){try{const result=await learning.run(this.dir,this.registry,learned);const answer="Done — I followed the learned skill: "+learned.name+".";this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"learned-skill",skill:learned.id,name:learned.name,result});this.onEvent({type:"answer",text:answer,source:"learned-skill"});return answer}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}});}}
+  const mode=String(s.brainMode||"auto");
   if(mode==="realtime"){
    this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN REALTIME",message:"Realtime mode is selected; voice streaming handles the conversation."});
    return "Realtime mode is active. Use the microphone for the live conversation.";
