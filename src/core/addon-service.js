@@ -1,0 +1,1 @@
+let manager=null;function get(){return manager||(manager=require("../addons/manager"));}module.exports={fetchCatalog:(...a)=>get().fetchCatalog(...a),listInstalled:(...a)=>get().listInstalled(...a),install:(...a)=>get().install(...a),uninstall:(...a)=>get().uninstall(...a),setEnabled:(...a)=>get().setEnabled(...a)};
