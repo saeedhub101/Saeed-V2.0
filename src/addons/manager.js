@@ -34,11 +34,23 @@ function download(url,target,onProgress){
  });
 }
 function extractZip(zip,destination){return new Promise((resolve,reject)=>{if(!zip||!destination)return reject(new Error("Add-on archive or destination path is empty"));if(!fs.existsSync(zip))return reject(new Error("Downloaded add-on archive was not found: "+zip));fs.mkdirSync(destination,{recursive:true});const q=v=>"\x27"+String(v).replace(/\x27/g,"\x27\x27")+"\x27";const command=`$zip=${q(zip)}; $dest=${q(destination)}; Expand-Archive -LiteralPath $zip -DestinationPath $dest -Force`;const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command",command],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.on("error",reject);child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||"Could not extract add-on archive")))})}
+function validateToolDefinition(tool){
+ if(!tool||typeof tool!=="object")throw new Error("Invalid add-on tool definition");
+ const name=String(tool.name||"").trim();
+ if(!/^[a-zA-Z0-9._-]{1,80}$/.test(name))throw new Error("Invalid add-on tool name");
+ const description=String(tool.description||"").trim();
+ if(!description)throw new Error("Add-on tool description is required: "+name);
+ const parameters=tool.parameters&&typeof tool.parameters==="object"?tool.parameters:{type:"object",properties:{},required:[]};
+ if(parameters.type!=="object")throw new Error("Add-on tool parameters must be an object schema: "+name);
+ return {name,description,parameters};
+}
 function validateManifest(manifest){
  if(!manifest||manifest.schemaVersion!==1)throw new Error("Unsupported add-on manifest schema");
  const id=safeId(manifest.id);if(!manifest.name)throw new Error("Add-on name is required");if(!manifest.version)throw new Error("Add-on version is required");
  if(manifest.entry&&!/^([a-zA-Z0-9._-]+[\\/])*[a-zA-Z0-9._-]+\.js$/.test(String(manifest.entry)))throw new Error("Invalid add-on entry");
- return {...manifest,id};
+ const tools=Array.isArray(manifest.tools)?manifest.tools.map(validateToolDefinition):[];
+ const seen=new Set();for(const tool of tools){if(seen.has(tool.name))throw new Error("Duplicate add-on tool: "+tool.name);seen.add(tool.name)}
+ return {...manifest,id,tools};
 }
 function validateCatalogEntry(addon){
  if(!addon||!addon.id||!addon.name||!addon.version)throw new Error("Invalid add-on catalog entry");
