@@ -1,4 +1,4 @@
-function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile,setSaeedSize,setAgent,setBrainSupervisor,setVoiceMuted,recordLearningStep,confirmations}){
+function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile,setSaeedSize,setAgent,setBrainSupervisor,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
  let brainInitPromise=null;
  async function ensureBrain(){
   if(brainInitPromise)return brainInitPromise;
@@ -42,7 +42,7 @@ function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permi
    setAgent(started);
    setBrainSupervisor(runtime.brainSupervisor);
    setVoiceMuted(Boolean(started.settings.voiceMuted));
-   if(!fs.existsSync(getCharacter3DSettingsFile()))setSaeedSize(started.settings.characterSize||"small");
+   if(!characterSettingsExists())setSaeedSize(started.settings.characterSize||"small");
    const win=getCharacterWindow();
    if(win&&!win.isDestroyed())win.webContents.send("character:behavior",{type:"settings",settings:started.publicSettings()});
    return started;
