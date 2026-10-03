@@ -1,0 +1,15 @@
+const fs=require("fs"),path=require("path"),crypto=require("crypto");
+function root(userData){return path.join(userData,"addons","memory-stack")}
+function ensure(userData){for(const d of ["knowledge","vectors","conversations"])fs.mkdirSync(path.join(root(userData),d),{recursive:true});return root(userData)}
+function tokenize(text){return String(text||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean)}
+function embed(text,dimensions=256){const v=new Array(dimensions).fill(0);for(const t of tokenize(text)){const h=crypto.createHash("sha256").update(t).digest();v[h.readUInt32BE(0)%dimensions]+=1;v[h.readUInt32BE(4)%dimensions]-=.5}const n=Math.sqrt(v.reduce((a,x)=>a+x*x,0))||1;return v.map(x=>x/n)}
+function cosine(a,b){let dot=0,na=0,nb=0;for(let i=0;i<Math.max(a.length,b.length);i++){const x=Number(a[i]||0),y=Number(b[i]||0);dot+=x*y;na+=x*x;nb+=y*y}return na&&nb?dot/Math.sqrt(na*nb):0}
+function vectorFile(userData){return path.join(root(userData),"vectors","index.json")}
+function readVectors(userData){ensure(userData);try{return JSON.parse(fs.readFileSync(vectorFile(userData),"utf8"))}catch{return{schemaVersion:1,items:[]}}}
+function writeVectors(userData,d){ensure(userData);const tmp=vectorFile(userData)+".tmp";fs.writeFileSync(tmp,JSON.stringify(d,null,2),"utf8");fs.renameSync(tmp,vectorFile(userData))}
+function add(userData,text,meta={}){const value=String(text||"").trim();if(!value)throw new Error("Memory text is empty");const d=readVectors(userData);const id=crypto.createHash("sha256").update(value+JSON.stringify(meta)).digest("hex").slice(0,24);d.items=d.items.filter(x=>x.id!==id);d.items.push({id,text:value,metadata:meta,embedding:embed(value),createdAt:new Date().toISOString()});writeVectors(userData,d);return d.items.at(-1)}
+function search(userData,query,limit=5){const q=embed(query),d=readVectors(userData);return d.items.map(x=>({...x,score:cosine(q,x.embedding)})).sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Number(limit)||5))}
+function rememberConversation(userData,conversationId,role,text){ensure(userData);const f=path.join(root(userData),"conversations",String(conversationId).replace(/[^a-z0-9._-]/gi,"_")+".jsonl");fs.appendFileSync(f,JSON.stringify({role,text,at:new Date().toISOString()})+"\n","utf8");return true}
+function addKnowledge(userData,text,metadata={}){const f=path.join(root(userData),"knowledge",crypto.createHash("sha256").update(String(text)).digest("hex").slice(0,24)+".json");fs.writeFileSync(f,JSON.stringify({text:String(text),metadata,updatedAt:new Date().toISOString()},null,2),"utf8");return add(userData,text,{...metadata,type:"knowledge"})}
+function rag(userData,query,limit=5){return search(userData,query,limit).filter(x=>x.score>0)}
+module.exports={root,ensure,embed,cosine,add,search,rememberConversation,addKnowledge,rag};
