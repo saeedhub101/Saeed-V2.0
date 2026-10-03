@@ -73,9 +73,11 @@ function mapHumanoidBones(model){
 }
 function getBoneMap(){return Object.fromEntries([...bones].map(([k,b])=>[k,b]));}
 function getAvailableBoneNames(){const out=[];model?.traverse?.(o=>{if(o.isBone)out.push(o.name)});return out}
+function findBoneByExactName(name){let found=null;model?.traverse?.(o=>{if(!found&&o.isBone&&String(o.name)===String(name))found=o});return found}
+
 function getCharacterProfileKey(){return String(window.saeedAvatarCurrentName||"Saeed").trim()}
 function getCharacterRigAutoMap(){return Object.fromEntries([...bones].map(([k,b])=>[k,b?.name||""]))}
-function applyRawBonePose(pose={}){for(const [name,r] of Object.entries(pose)){const target=[...bones.values()].find(b=>b?.name===name);const base=target?boneBase.get([...bones.entries()].find(([,b])=>b===target)?.[0]):null;if(target){target.rotation.x=(base?.x||0)+(Number(r?.x)||0);target.rotation.y=(base?.y||0)+(Number(r?.y)||0);target.rotation.z=(base?.z||0)+(Number(r?.z)||0)}}wakeRender?.(300);return true}
+function applyRawBonePose(pose={}){for(const [name,r] of Object.entries(pose)){const target=findBoneByExactName(name);if(target){const logical=[...bones.entries()].find(([,b])=>b===target)?.[0],base=logical?boneBase.get(logical):{x:target.rotation.x,y:target.rotation.y,z:target.rotation.z};target.rotation.x=(base?.x||0)+(Number(r?.x)||0);target.rotation.y=(base?.y||0)+(Number(r?.y)||0);target.rotation.z=(base?.z||0)+(Number(r?.z)||0)}}wakeRender?.(300);return true}
 function setCharacterExpression(name,value=1){setExpression(name,value);wakeRender?.(300);return true}
 function blinkCharacter(){blink();wakeRender?.(250);return true}
 function setCharacterViseme(name,value=1){setViseme(name,value);wakeRender?.(250);return true}
