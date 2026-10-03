@@ -19,6 +19,7 @@ export class CharacterController {
   stop(id) { return this.animation.stop(id); }
   stopAll() { return this.animation.stopAll(); }
   setPose(pose={}) { return this.animation.setPose(pose); }
+  setIdlePose(pose={}) { return this.animation.setIdlePose(pose); }
   remap(mapping={}) { const ok=this.avatar?.setCharacterRigMap?.(mapping); if(ok)this.bindCurrentCharacter(); return Boolean(ok); }
   resetPose() { this.avatar?.resetCharacterPose?.(); this.animation.pose.clear(); this.avatar?.wakeRender?.(250); return true; }
   update(dt) { this.animation.update(dt); }
@@ -36,6 +37,7 @@ window.addEventListener("load",()=>{
       stop:id=>window.saeedCharacterController.stop(id),
       stopAll:()=>window.saeedCharacterController.stopAll(),
       setPose:p=>window.saeedCharacterController.setPose(p),
+      setIdlePose:p=>window.saeedCharacterController.setIdlePose(p),
       resetPose:()=>window.saeedCharacterController.resetPose(),
       remap:m=>window.saeedCharacterController.remap(m),
       status:()=>window.saeedCharacterController.status(),
