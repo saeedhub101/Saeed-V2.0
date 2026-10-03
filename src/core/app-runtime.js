@@ -101,8 +101,6 @@ const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 let updateState="idle",updateUiRequested=false,updateStatusWin=null,updateInfo=null;
-let resourceProbeTimer=null;
-const resourceProbeSamples=[];
 
 async function captureScreen(){
  const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:1920,height:1080}});
