@@ -1,5 +1,8 @@
 const fs=require("fs"),path=require("path");
-const addons=require("../addons/manager");\nlet XLSX=null,pdfParser=null;\nfunction xlsx(userDataPath){if(XLSX)return XLSX;try{XLSX=addons.requirePackage(userDataPath,"excel","xlsx")}catch{return null}return XLSX}\nfunction pdf(userDataPath){if(pdfParser)return pdfParser;try{pdfParser=addons.requirePackage(userDataPath,"pdf","pdf-parse")}catch{return null}return pdfParser}
+const addons=require("../addons/manager");
+let XLSX=null,pdfParser=null;
+function xlsx(userDataPath){if(XLSX)return XLSX;try{XLSX=addons.requirePackage(userDataPath,"excel","xlsx")}catch{return null}return XLSX}
+function pdf(userDataPath){if(pdfParser)return pdfParser;try{pdfParser=addons.requirePackage(userDataPath,"pdf","pdf-parse")}catch{return null}return pdfParser}
 function abs(p){return path.resolve(String(p||""))}
 function schemas(){return[
  {type:"function",function:{name:"inspect_document",description:"Inspect a supported local document. Use before summarizing document content.",parameters:{type:"object",properties:{filePath:{type:"string"}},required:["filePath"]}}},
