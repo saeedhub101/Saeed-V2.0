@@ -15,7 +15,7 @@ export class CharacterController{
   const auto=autoMapBones(names);if(Object.keys(auto.mapping).length)this.avatar?.setCharacterRigMap?.(auto.mapping);
   const mapped=this.avatar?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);
   this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");
-  const profile=this.profiles.load(this.characterId);if(profile){if(profile.mapping)this.avatar?.setCharacterRigMap?.(profile.mapping);if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);}
+  const profile=this.profiles.load(this.characterId);if(profile){if(profile.mapping)this.avatar?.setCharacterRigMap?.(profile.mapping);if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
   else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose});
   return {rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId};
  }
