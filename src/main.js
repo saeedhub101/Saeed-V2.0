@@ -32,7 +32,7 @@ function configureMediaPermissions(){
 
 
 let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
-let pendingCharacterData=null;let learningRecorderActive=false;
+let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
 const confirmations=new Map();
