@@ -330,7 +330,7 @@ jobs:
 
 
       - name: Publish official release
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_release == true || (github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[release]'))
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_release == true || github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
