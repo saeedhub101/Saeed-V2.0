@@ -309,7 +309,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready"
 ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);const resolve=pending3DQueries.get(String(requestId||""));if(resolve)resolve(report)});
 ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
 ipcMain.handle("chat",async(_,payload)=>{
- if(!agent)return {ok:false,error:"Saeed is still starting."};
+ await ensureBrain();
  const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"user-input",text:String(data.text||"")});
  const result=await agent.run(String(data.text||""),data.image||null);
  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
@@ -317,8 +317,8 @@ ipcMain.handle("chat",async(_,payload)=>{
 });
 ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>testApiConnection(String(service||"")));ipcMain.handle("api-status:test-all",()=>testAllApiConnections());ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showSettings();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("addons:catalog",async()=>{const catalog=await addons.fetchCatalog();return{catalog,installed:addons.listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await addons.fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return addons.install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>addons.uninstall(app.getPath("userData"),id));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
-ipcMain.handle("settings:set",(_,s)=>{
- if(!agent)throw new Error("Saeed is still starting.");
+ipcMain.handle("settings:set",async(_,s)=>{
+ await ensureBrain();
  const previous={...agent.settings};
  agent.settings={...previous,...(s||{}),brainMode:["api","local","auto"].includes(String((s||{}).brainMode||""))?String((s||{}).brainMode):String(previous.brainMode||"auto")};
  delete agent.settings.alwaysListening;
