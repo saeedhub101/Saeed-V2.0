@@ -311,7 +311,7 @@ async function runCiRuntimeSmoke(){
  const report={startedAt:new Date().toISOString(),version:app.getVersion(),checks:{},phases:{},resources:resourceReport(),environment:{packaged:app.isPackaged,platform:process.platform,ci:true}};
  const check=async(name,fn,{required=true}={})=>{
   const started=Date.now();
-  try{const value=await fn();const pass=value===true||value?.pass===true;report.checks[name]={pass,required,latencyMs:Date.now()-started,detail:typeof value==="object"&&value&&!Array.isArray(value)?value:undefined};return report.checks[name]}
+  try{report.checks[name]={pass:false,required,latencyMs:0};const value=await fn();const pass=value===true||value?.pass===true;report.checks[name]={...report.checks[name],pass,required,latencyMs:Date.now()-started,detail:typeof value==="object"&&value&&!Array.isArray(value)?value:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-started,error:String(e?.stack||e)};return report.checks[name]}
  };
  const runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(tray),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(realtime),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
