@@ -26,7 +26,7 @@ $names[8]="BACKSPACE";$names[9]="TAB";$names[13]="ENTER";$names[16]="SHIFT";$nam
 for($i=65;$i -le 90;$i++){$names[$i]=[char]$i}
 for($i=48;$i -le 57;$i++){$names[$i]=[char]$i}
 for($i=112;$i -le 123;$i++){$names[$i]="F"+($i-111)}
-$lastL=$false;$lastR=$false
+$lastL=$false;$lastR=$false;$typed="";$lastType=Get-Date
 while($true){
  $ctx=Context
  $p=New-Object 'SaeedRecorderNative+POINT';[void][SaeedRecorderNative]::GetCursorPos([ref]$p)
@@ -38,11 +38,22 @@ while($true){
    if($l -and -not $lastL){Json([pscustomobject]@{type="action";tool="mouse_click";args=@{x=$p.X;y=$p.Y;button="left";_window=$ctx}})}
    if($r -and -not $lastR){Json([pscustomobject]@{type="action";tool="mouse_click";args=@{x=$p.X;y=$p.Y;button="right";_window=$ctx}})}
    $lastL=$l;$lastR=$r
+   if($typed -and ((Get-Date)-$lastType).TotalMilliseconds -gt 450){Json([pscustomobject]@{type="action";tool="type_text";args=@{text=$typed;_window=$ctx}});$typed=""}
    foreach($vk in $names.Keys){
      $down=([SaeedRecorderNative]::GetAsyncKeyState([int]$vk) -band 0x8000) -ne 0
      if($down -and -not $keys[$vk]){
        $name=[string]$names[$vk]
-       Json([pscustomobject]@{type="action";tool="key_press";args=@{key=$name;_window=$ctx}})
+       $isText=(($vk -ge 65 -and $vk -le 90) -or ($vk -ge 48 -and $vk -le 57) -or $vk -eq 32)
+       $shift=(([SaeedRecorderNative]::GetAsyncKeyState(16) -band 0x8000) -ne 0)
+       $ctrl=(([SaeedRecorderNative]::GetAsyncKeyState(17) -band 0x8000) -ne 0)
+       $alt=(([SaeedRecorderNative]::GetAsyncKeyState(18) -band 0x8000) -ne 0)
+       if($isText -and -not $ctrl -and -not $alt){
+         if($vk -eq 32){$typed+=" "}elseif($vk -ge 65 -and $vk -le 90){$ch=[char]$vk;if(-not $shift){$ch=[char]::ToLower($ch)};$typed+=$ch}elseif($vk -ge 48 -and $vk -le 57){$typed+=[char]$vk}
+         $lastType=Get-Date
+       }else{
+         if($typed){Json([pscustomobject]@{type="action";tool="type_text";args=@{text=$typed;_window=$ctx}});$typed=""}
+         if($vk -ne 16 -and $vk -ne 17 -and $vk -ne 18){Json([pscustomobject]@{type="action";tool="key_press";args=@{key=$name;_window=$ctx}})}
+       }
      }
      $keys[$vk]=$down
    }
