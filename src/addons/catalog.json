@@ -12,14 +12,14 @@
       "description": "Create and edit DOCX documents.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/docx",
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip",
-      "installType": "bundle",
-      "status": "release-bundle",
+      "installType": "npm-package",
+      "status": "npm-install",
       "capabilities": [
         "documents"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": true,
+      "packageName": "docx"
     },
     {
       "id": "excel",
@@ -29,15 +29,15 @@
       "description": "Read, calculate and write Excel workbooks.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/xlsx",
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip",
-      "installType": "bundle",
-      "status": "release-bundle",
+      "installType": "npm-package",
+      "status": "npm-install",
       "capabilities": [
         "documents",
         "spreadsheet"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": true,
+      "packageName": "xlsx"
     },
     {
       "id": "pdf",
@@ -47,15 +47,15 @@
       "description": "Extract text and metadata from PDF files.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/pdf-parse",
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip",
-      "installType": "bundle",
-      "status": "release-bundle",
+      "installType": "npm-package",
+      "status": "npm-install",
       "capabilities": [
         "documents",
         "pdf"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": true,
+      "packageName": "pdf-parse"
     },
     {
       "id": "ocr",
@@ -65,15 +65,15 @@
       "description": "Offline OCR engine for image text extraction.",
       "provider": "npm",
       "sourceUrl": "https://www.npmjs.com/package/tesseract.js",
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip",
-      "installType": "bundle",
-      "status": "release-bundle",
+      "installType": "npm-package",
+      "status": "npm-install",
       "capabilities": [
         "ocr",
         "vision"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": true,
+      "packageName": "tesseract.js"
     },
     {
       "id": "stt-whisper",
