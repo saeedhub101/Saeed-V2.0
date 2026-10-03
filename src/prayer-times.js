@@ -4,7 +4,7 @@ const API="https://api.aladhan.com/v1/calendarByCity";
 const prayers=[
   ["Fajr","الفجر"],["Dhuhr","الظهر"],["Asr","العصر"],["Maghrib","المغرب"],["Isha","العشاء"]
 ];
-let timer=0,active=true;
+let timer=0,active=true,city="Amman",country="Jordan";
 
 function cacheKey(city,country,year,month){return `${KEY}:${city}:${country}:${year}-${String(month).padStart(2,"0")}`}
 function parseTime(value){
@@ -12,7 +12,12 @@ function parseTime(value){
   return m?{hour:Number(m[1]),minute:Number(m[2])}:null;
 }
 function readCache(city,country,year,month){
-  try{const x=JSON.parse(localStorage.getItem(cacheKey(city,country,year,month))||"null");return x?.days?.length?x:null}catch{return null}
+  try{
+    const x=JSON.parse(localStorage.getItem(cacheKey(city,country,year,month))||"null");
+    if(!x?.days?.length)return null;
+    const age=Date.now()-Number(x.savedAt||0);
+    return age>31*24*60*60*1000?null:x;
+  }catch{return null}
 }
 function writeCache(city,country,year,month,data){
   try{localStorage.setItem(cacheKey(city,country,year,month),JSON.stringify({savedAt:Date.now(),city,country,year,month,days:data}))}catch{}
@@ -62,7 +67,8 @@ async function trigger(e){
   window.saeedPrayerSpeak?.("الله أكبر... الله أكبر...");
   setTimeout(()=>{if(active){window.saeedCharacterController?.stop?.("adhanOpening");window.saeedAnimationController?.setIntent?.("idle")}},5600);
 }
-async function schedule(city="Amman",country="Jordan"){
+async function schedule(nextCity=city,nextCountry=country){
+  city=String(nextCity||"Amman");country=String(nextCountry||"Jordan");
   if(timer)clearTimeout(timer);
   try{
     const events=await buildEvents(city,country),next=nextPrayer(events);
@@ -75,6 +81,11 @@ async function schedule(city="Amman",country="Jordan"){
     timer=setTimeout(()=>schedule(city,country),6*60*60*1000);
   }
 }
-window.saeedPrayerTimes={start:()=>schedule(),refresh:async()=>{try{const now=new Date();const k=cacheKey("Amman","Jordan",now.getFullYear(),now.getMonth()+1);localStorage.removeItem(k)}catch{}return schedule()},stop:()=>{active=false;if(timer)clearTimeout(timer);timer=0}};
-window.addEventListener("load",()=>schedule());
+window.saeedPrayerTimes={
+ start:(options={})=>{active=true;city=String(options.city||city);country=String(options.country||country);return schedule(city,country)},
+ refresh:async(options={})=>{active=true;city=String(options.city||city);country=String(options.country||country);try{const now=new Date();localStorage.removeItem(cacheKey(city,country,now.getFullYear(),now.getMonth()+1))}catch{}return schedule(city,country)},
+ stop:()=>{active=false;if(timer)clearTimeout(timer);timer=0},
+ status:()=>({active,city,country,nextScheduledAt:timer?true:false})
+};
+window.addEventListener("load",()=>schedule(city,country));
 })();
