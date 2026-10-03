@@ -109,6 +109,17 @@ class Agent{
   const learned=learning.match(this.dir,text);if(learned){try{const result=await learning.run(this.dir,this.registry,learned);const answer="Done — I followed the learned skill: "+learned.name+".";this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"learned-skill",skill:learned.id,name:learned.name,result});this.onEvent({type:"answer",text:answer,source:"learned-skill"});return answer}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}});}}
   const mode=String(s.brainMode||"auto");
 
+  // Computer-information intents are information requests, never application names.
+  const directComputerInfo=String(text||"").trim().replace(/[.?!؟،]+$/,"").trim();
+  if(/^(?:please\s+)?(?:give\s+me\s+|show\s+me\s+|tell\s+me\s+)?(?:my\s+)?(?:computer|pc|system)\s+(?:info|information|specs|specifications)$/i.test(directComputerInfo)){
+   try{
+    const out=await this.registry.call("system_info",{});
+    const answer=out?.ok===false?"I could not complete that: "+out.error:"Windows system information: "+String(out?.arch||"unknown")+", "+String(out?.cpu||"unknown")+" CPU threads, "+(Number(out?.totalMemory||0)/1073741824).toFixed(1)+" GB RAM.";
+    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();
+    this.onEvent({type:"answer",text:answer,source:"local-direct-system-info"});return answer;
+   }catch(e){const answer="I could not complete that: "+e.message;this.onEvent({type:"answer",text:answer,source:"local-direct-system-info"});return answer;}
+  }
+
   // Core Windows launch intents must never be routed through vision/OCR.
   // This is intentionally handled before learned skills and every LLM provider.
   const directOpenComputer=String(text||"").trim().replace(/[.?!؟،]+$/,"").trim();
