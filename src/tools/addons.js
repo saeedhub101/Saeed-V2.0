@@ -8,7 +8,10 @@ function schemas(){return[
 {name:"mcp_call_tool",description:"Call an approved MCP tool.",inputSchema:{type:"object",properties:{server:{type:"string"},tool:{type:"string"},arguments:{type:"object"}},required:["server","tool"]}},
 {name:"email_provider_info",description:"Return real provider IMAP/SMTP/POP3 settings.",inputSchema:{type:"object",properties:{provider:{type:"string"}},required:["provider"]}},
 {name:"email_test_connection",description:"Test an email service TCP endpoint.",inputSchema:{type:"object",properties:{host:{type:"string"},port:{type:"number"},tls:{type:"boolean"}},required:["host","port"]}},
-{name:"email_send",description:"Send an email through SMTP.",inputSchema:{type:"object",properties:{host:{type:"string"},port:{type:"number"},tls:{type:"boolean"},username:{type:"string"},password:{type:"string"},from:{type:"string"},to:{type:"array"},message:{type:"string"}},required:["host","port","from","to","message"]}},
+{name:"email_send",description:"Send an email through SMTP.",inputSchema:{type:"object",properties:{host:{type:"string"},port:{type:"number"},tls:{type:"boolean"},startTls:{type:"boolean"},username:{type:"string"},password:{type:"string"},accessToken:{type:"string"},from:{type:"string"},to:{type:"array"},message:{type:"string"}},required:["host","port","from","to","message"]}},
+{name:"email_imap_folders",description:"List IMAP mail folders.",inputSchema:{type:"object",properties:{host:{type:"string"},port:{type:"number"},username:{type:"string"},password:{type:"string"},accessToken:{type:"string"}},required:["host","port","username"]}},
+{name:"email_imap_search",description:"Search messages in an IMAP mailbox.",inputSchema:{type:"object",properties:{host:{type:"string"},port:{type:"number"},username:{type:"string"},password:{type:"string"},accessToken:{type:"string"},mailbox:{type:"string"},criteria:{type:"string"},uid:{type:"boolean"}},required:["host","port","username"]}},
+{name:"email_imap_fetch",description:"Fetch an IMAP message or headers.",inputSchema:{type:"object",properties:{host:{type:"string"},port:{type:"number"},username:{type:"string"},password:{type:"string"},accessToken:{type:"string"},mailbox:{type:"string"},sequence:{type:"string"},uid:{type:"boolean"},headersOnly:{type:"boolean"}},required:["host","port","username","sequence"]}},
 {name:"credential_store",description:"Store an email credential in Windows Credential Manager.",inputSchema:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},username:{type:"string"},password:{type:"string"}},required:["provider","account","username","password"]}},{name:"credential_get",description:"Retrieve a previously stored Saeed credential from Windows Credential Manager.",inputSchema:{type:"object",properties:{provider:{type:"string"},account:{type:"string"}},required:["provider","account"]}}
 ]}
 async function call(name,args,ctx){const u=ctx.userDataPath;
@@ -21,6 +24,9 @@ if(name==="mcp_call_tool")return{ok:true,result:await mcp.callTool(u,args.server
 if(name==="email_provider_info")return{ok:true,provider:email.provider(args.provider),providers:email.PROVIDERS};
 if(name==="email_test_connection")return{ok:true,connected:await email.testTcp(args)};
 if(name==="email_send"){const msg=args.message||"From: "+args.from+"\r\nTo: "+[].concat(args.to||[]).join(", ")+"\r\n\r\n";return{ok:true,sent:await emailClient.smtpSend(args,msg)}}
+if(name==="email_imap_folders")return{ok:true,folders:await emailClient.imapListFolders(args)};
+if(name==="email_imap_search")return{ok:true,results:await emailClient.imapSearch(args,args)};
+if(name==="email_imap_fetch")return{ok:true,message:await emailClient.imapFetch(args,args)};
 if(name==="credential_store"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential storage not approved"};return{ok:true,credential:await credentials.set(args.provider,args.account,args.username,args.password)}}
 if(name==="credential_get"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential retrieval not approved"};return{ok:true,credential:await credentials.get(args.provider,args.account)}}
 return null}
