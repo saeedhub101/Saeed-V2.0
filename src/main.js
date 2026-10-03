@@ -12,7 +12,8 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {autoUpdater}=require("electron-updater");\nconst {OpenAIRealtime}=require("./realtime");
+const {autoUpdater}=require("electron-updater");
+const {OpenAIRealtime}=require("./realtime");
 const addons=require("./addons/manager");const learning=require("./learning");const learningRecorder=require("./learning/windows-recorder");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
