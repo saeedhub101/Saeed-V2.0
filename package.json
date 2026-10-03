@@ -1,7 +1,7 @@
 {
   "name": "saeed-ai",
-  "version": "4.3.0",
-  "description": "Saeed AI 4.3 desktop agent — 3D core with removable add-ons",
+  "version": "4.4.0",
+  "description": "Saeed AI 4.4 desktop agent — 3D core with removable add-ons",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
