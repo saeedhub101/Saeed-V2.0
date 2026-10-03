@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "generatedAt": "2026-10-03",
   "source": "Saeed official add-on catalog",
   "addons": [
@@ -19,7 +19,8 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip",
+      "distribution": "github-release"
     },
     {
       "id": "excel",
@@ -37,7 +38,8 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip",
+      "distribution": "github-release"
     },
     {
       "id": "pdf",
@@ -55,7 +57,8 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip",
+      "distribution": "github-release"
     },
     {
       "id": "ocr",
@@ -73,7 +76,8 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip",
+      "distribution": "github-release"
     },
     {
       "id": "stt-whisper",
@@ -90,7 +94,8 @@
         "speech-to-text"
       ],
       "dependencies": [],
-      "installable": true
+      "installable": true,
+      "distribution": "github-release"
     },
     {
       "id": "memory-core",
