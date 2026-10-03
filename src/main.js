@@ -482,7 +482,7 @@ ipcMain.handle("character:controller:get",async()=>{
 ipcMain.handle("character:controller:command",async(_,command={})=>{
  if(!characterWin||characterWin.isDestroyed()) return {ok:false,error:"Character window is not available"};
  const payload=JSON.stringify(command||{});
- const script="(async()=>{const c=window.saeedCharacterController;if(!c)return {ok:false,error:'Character controller unavailable'};const x="+payload+";if(x.action==='play')return {ok:c.play(String(x.motion||'idle'),x.options||{})};if(x.action==='stop')return {ok:c.stop(x.motion)};if(x.action==='stopAll')return {ok:c.stopAll()};if(x.action==='pose')return {ok:true,pose:c.setPose(x.pose||{})};if(x.action==='resetPose')return {ok:c.resetPose()};if(x.action==='status')return {ok:true,status:c.status()};if(x.action==='remap')return {ok:c.remap(x.mapping||{})};if(x.action==='boneNames')return {ok:true,bones:window.saeedAvatar?.getAvailableBoneNames?.()||[]};return {ok:false,error:'Unknown character controller action'}})()";
+ const script="(async()=>{const c=window.saeedCharacterController;if(!c)return {ok:false,error:'Character controller unavailable'};const x="+payload+";if(x.action==='play')return {ok:c.play(String(x.motion||'idle'),x.options||{})};if(x.action==='stop')return {ok:c.stop(x.motion)};if(x.action==='stopAll')return {ok:c.stopAll()};if(x.action==='pose')return {ok:true,pose:c.setPose(x.pose||{})};if(x.action==='idlePose')return {ok:true,pose:c.setIdlePose(x.pose||{})};if(x.action==='resetPose')return {ok:c.resetPose()};if(x.action==='status')return {ok:true,status:c.status()};if(x.action==='remap')return {ok:c.remap(x.mapping||{})};if(x.action==='boneNames')return {ok:true,bones:window.saeedAvatar?.getAvailableBoneNames?.()||[]};return {ok:false,error:'Unknown character controller action'}})()";
  try{return await characterWin.webContents.executeJavaScript(script,true)}catch(e){return {ok:false,error:e.message}}
 });
 ipcMain.handle("character:3d:get",()=>captureCharacter3DWindowSettings());
@@ -522,7 +522,7 @@ ipcMain.handle("settings:set",async(_,s)=>{
  if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});
  if(Object.prototype.hasOwnProperty.call(s||{},"characterController")&&characterWin&&!characterWin.isDestroyed()){
   const cc=agent.settings.characterController||{};
-  const script="(()=>{const c=window.saeedCharacterController;if(!c)return false;if("+JSON.stringify(cc)+".idlePose)return c.setPose("+JSON.stringify(cc)+".idlePose);return true})()";
+  const script="(()=>{const c=window.saeedCharacterController;if(!c)return false;if("+JSON.stringify(cc)+".idlePose)return c.setIdlePose("+JSON.stringify(cc)+".idlePose);return true})()";
   characterWin.webContents.executeJavaScript(script,true).catch(()=>{});
 }
 if(brainSupervisor)void brainSupervisor.refresh?.();
