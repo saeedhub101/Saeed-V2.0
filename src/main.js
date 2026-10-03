@@ -148,6 +148,7 @@ function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplat
 function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{realtime?.cancel()}catch{}voiceBroadcast("voice:stop")}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
 async function setMicMode(mode,fromUser=false){
  const value=String(mode||"off")==="on"?"on":"off";
+ if(value==="on")await ensureBrain();
  if(value==="on"){
   const policy=permissionPolicy("microphone");
   if(policy==="deny"){diagnostic("INFO","MIC PERMISSION","Microphone access is denied by Permissions settings");return false}
