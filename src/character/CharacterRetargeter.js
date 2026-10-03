@@ -49,7 +49,7 @@ export class CharacterRetargeter {
       restPose:this.profile.restPose,
       boneCount:this.rest.size,
       root:this.profile.root,
-      bones:Object.keys(this.bones)
+      bones:Object.fromEntries(Object.entries(this.bones).map(([k,v])=>[k,v?.name||""]))
     };
   }
   snapshotRest() {
