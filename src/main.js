@@ -288,7 +288,9 @@ async function runCiRuntimeSmoke(){
  console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,startup:report.phases.startup?.pass,brainActivated:report.phases.brainActivated?.pass,startedAt:report.startedAt,finishedAt:report.finishedAt}));
  stopResourceProbe();setTimeout(()=>process.exit(0),250);
 }
-app.on("before-quit",()=>{try{learningRecorder.stop()}catch{};learningRecorderActive=false;learningRecording=null});\n\napp.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
+app.on("before-quit",()=>{try{learningRecorder.stop()}catch{};learningRecorderActive=false;learningRecording=null});
+
+app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)startResourceProbe();
  configureUpdater();
  try{await createWindow();currentMicMode="off";setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
