@@ -73,6 +73,13 @@ function mapHumanoidBones(model){
 }
 function getBoneMap(){return Object.fromEntries([...bones].map(([k,b])=>[k,b]));}
 function getAvailableBoneNames(){const out=[];model?.traverse?.(o=>{if(o.isBone)out.push(o.name)});return out}
+function getCharacterProfileKey(){return String(window.saeedAvatarCurrentName||"Saeed").trim()}
+function getCharacterRigAutoMap(){return Object.fromEntries([...bones].map(([k,b])=>[k,b?.name||""]))}
+function applyRawBonePose(pose={}){for(const [name,r] of Object.entries(pose)){const target=[...bones.values()].find(b=>b?.name===name);const base=target?boneBase.get([...bones.entries()].find(([,b])=>b===target)?.[0]):null;if(target){target.rotation.x=(base?.x||0)+(Number(r?.x)||0);target.rotation.y=(base?.y||0)+(Number(r?.y)||0);target.rotation.z=(base?.z||0)+(Number(r?.z)||0)}}wakeRender?.(300);return true}
+function setCharacterExpression(name,value=1){setExpression(name,value);wakeRender?.(300);return true}
+function blinkCharacter(){blink();wakeRender?.(250);return true}
+function setCharacterViseme(name,value=1){setViseme(name,value);wakeRender?.(250);return true}
+function lookCharacterAt(x=0,y=1.5,z=1){const h=bones.get("head");if(!h)return false;const p=h.getWorldPosition(new THREE.Vector3());const d=new THREE.Vector3(Number(x)||0,Number(y)||0,Number(z)||0).sub(p).normalize();const yaw=Math.atan2(d.x,d.z),pitch=-Math.asin(Math.max(-1,Math.min(1,d.y)));addBoneRotation("head",pitch*0.45,yaw*0.45,0);return true}
 function setCharacterRigMap(mapping={}){
   if(!model)return false;
   const by={};model.traverse(o=>{if(o.isBone)by[String(o.name).toLowerCase()]=o});
@@ -81,7 +88,6 @@ function setCharacterRigMap(mapping={}){
     if(!b)continue;
     bones.set(slot,b);boneBase.set(slot,{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z});
   }
-  window.saeedCharacterController?.bindCurrentCharacter?.();
   resetCharacterPose();wakeRender?.(300);return true;
 }
 function getBones(){return getBoneMap();}
@@ -168,7 +174,7 @@ async function processGlbLoad(data,requestGeneration){activeGlbLoad=true;try{con
  const size=bytes.byteLength;runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"loading",detail:"One GLB load is active; newer selections are queued",size};refreshOverall();const started=performance.now();const parsed=await gltf.parseAsync(bytes,"");if(requestGeneration===loadGeneration)await displaySelectedGlb(parsed,"Selected Character",size);runtime3D.components.selectedGlb.loadMs=Math.round(performance.now()-started);}catch(e){if(requestGeneration===loadGeneration)runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"error",detail:"Selected GLB parse failed: "+e.message,displayed:false};}finally{activeGlbLoad=false;const next=pendingGlbLoad;pendingGlbLoad=null;if(next)void processGlbLoad(next.data,next.generation);else refreshOverall()}}
 window.saeed.onCharacter3DSettings?.(s=>window.saeedAvatarApply3DSettings?.(s?.camera?{...s.camera,characterScale:s.character?.scale,characterPositionX:s.character?.positionX,characterPositionY:s.character?.positionY,characterPositionZ:s.character?.positionZ,characterRotationY:s.character?.rotationY,canvasPadding:s.canvas?.padding}:s));
 window.saeedAvatarLoadData=async (data,generation)=>{const requestGeneration=Number(generation)||++loadGeneration;loadGeneration=Math.max(loadGeneration,requestGeneration);if(activeGlbLoad){pendingGlbLoad={data,generation:requestGeneration};runtime3D.components.selectedGlb={...runtime3D.components.selectedGlb,state:"queued",detail:"Current GLB is still loading; only the newest selection will load next",displayed:false};refreshOverall();return}return processGlbLoad(data,requestGeneration)};
-window.saeedAvatar={get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))},getBoneMap,getBones,getAvailableBoneNames,setCharacterRigMap,applyCharacterPose,resetCharacterPose};
+window.saeedAvatar={get3DStatus:()=>{refreshOverall();return JSON.parse(JSON.stringify(runtime3D))},getBoneMap,getBones,getAvailableBoneNames,setCharacterRigMap,applyCharacterPose,resetCharacterPose,getCharacterProfileKey,getCharacterRigAutoMap,applyRawBonePose,setCharacterExpression,blinkCharacter,setCharacterViseme,lookCharacterAt};
 prepareSceneStatus();
 window.saeedAvatarGet3DSettings=()=>({...viewSettings});
 
