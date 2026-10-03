@@ -267,6 +267,8 @@ async function runCiRuntimeSmoke(){
  }catch(e){report.error=e.message;report.pass=false}
  const target=process.env.SAEED_CI_REPORT||path.join(process.cwd(),"dist","ci-runtime-report.json");
  try{fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,JSON.stringify(report,null,2),"utf8");console.log("SAEED_CI_REPORT_PATH",target)}catch(e){console.error("CI report write failed:",e.message)}
+ const hostTarget=process.env.SAEED_CI_HOST_REPORT||path.join(process.cwd(),"dist","ci-host-resource-report.json");
+ try{fs.mkdirSync(path.dirname(hostTarget),{recursive:true});fs.writeFileSync(hostTarget,JSON.stringify({mode:"packaged-runtime",time:new Date().toISOString(),resources:resourceReport()},null,2),"utf8")}catch(e){console.error("CI host report write failed:",e.message)}
  console.log("SAEED_CI_RUNTIME_REPORT",JSON.stringify({pass:report.pass,glbFile:report.checks?.glbFile?.pass,startedAt:report.startedAt,finishedAt:report.finishedAt}));
  stopResourceProbe();setTimeout(()=>process.exit(0),250);
 }
