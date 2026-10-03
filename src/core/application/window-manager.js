@@ -1,9 +1,37 @@
-function createWindowManager({BrowserWindow,path,windows,getWindow,setWindow,iconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath}){
- async function showPerformance(){try{startCpuMonitoring();if(performanceWin&&!performanceWin.isDestroyed()){performanceWin.show();performanceWin.focus();return}performanceWin=new BrowserWindow({width:980,height:720,minWidth:760,minHeight:560,title:"Saeed Performance",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});performanceWin.setIcon(windowsIconPath());performanceWin.on("closed",()=>{performanceWin=null;stopCpuMonitoring()});await performanceWin.loadFile(path.join(__dirname,"..","performance.html"));performanceWin.show();performanceWin.focus()}catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}}
+function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath,rootPath}){
+ async function showPerformance(){
+  try{
+   startCpuMonitoring();
+   let win=getWindow("performanceWin");
+   if(win&&!win.isDestroyed()){win.show();win.focus();return}
+   win=new BrowserWindow({width:980,height:720,minWidth:760,minHeight:560,title:"Saeed Performance",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
+   win.setIcon(iconPath());
+   win.on("closed",()=>{setWindow("performanceWin",null);stopCpuMonitoring()});
+   setWindow("performanceWin",win);
+   await win.loadFile(path.join(rootPath,"performance.html"));
+   win.show();win.focus();
+  }catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}
+ }
  async function showSettings(){return showPerformance()}
- async function showLearning(){try{if(learningWin&&!learningWin.isDestroyed()){learningWin.show();learningWin.focus();return}learningWin=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Learning / Teach Mode",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});learningWin.setIcon(windowsIconPath());learningWin.on("closed",()=>{learningWin=null});await learningWin.loadFile(path.join(__dirname,"..","learning","window.html"));learningWin.show();learningWin.focus()}catch(e){diagnostic("ERROR","LEARNING WINDOW",e.message)}}
- async function showAddons(){try{if(addonsWin&&!addonsWin.isDestroyed()){addonsWin.show();addonsWin.focus();addonsWin.webContents.send("addons:refresh");return}addonsWin=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Add-ons / Plug-ins",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),backgroundColor:"#f4f6fa",webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});addonsWin.setIcon(windowsIconPath());addonsWin.on("closed",()=>{addonsWin=null});addonsWin.webContents.once("did-finish-load",()=>{addonsWin?.show();addonsWin?.focus()});await addonsWin.loadFile(path.join(__dirname,"..","addons","window.html"))}catch(e){diagnostic("ERROR","ADDONS WINDOW",e.message)}}
- 
- return {showPerformance,showSettings,showLearning,showAddons,showStatus};
+ async function showLearning(){
+  try{
+   let win=getWindow("learningWin");
+   if(win&&!win.isDestroyed()){win.show();win.focus();return}
+   win=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Learning / Teach Mode",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
+   win.setIcon(iconPath());win.on("closed",()=>setWindow("learningWin",null));setWindow("learningWin",win);
+   await win.loadFile(path.join(rootPath,"learning","window.html"));win.show();win.focus();
+  }catch(e){diagnostic("ERROR","LEARNING WINDOW",e.message)}
+ }
+ async function showAddons(){
+  try{
+   let win=getWindow("addonsWin");
+   if(win&&!win.isDestroyed()){win.show();win.focus();win.webContents.send("addons:refresh");return}
+   win=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Add-ons / Plug-ins",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),backgroundColor:"#f4f6fa",webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
+   win.setIcon(iconPath());win.on("closed",()=>setWindow("addonsWin",null));setWindow("addonsWin",win);
+   win.webContents.once("did-finish-load",()=>{win?.show();win?.focus()});
+   await win.loadFile(path.join(rootPath,"addons","window.html"));
+  }catch(e){diagnostic("ERROR","ADDONS WINDOW",e.message)}
+ }
+ return {showPerformance,showSettings,showLearning,showAddons};
 }
 module.exports={createWindowManager};
