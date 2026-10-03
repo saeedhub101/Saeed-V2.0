@@ -249,5 +249,5 @@ function renderNow(reason="on-demand"){
   return false;
  }
 }
-function syncRendererVisibility(){rendererActive=!document.hidden;if(rendererActive&&performance.now()<renderUntil&&!renderFrameId)renderFrameId=requestAnimationFrame(renderFrame);else if(!rendererActive&&renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}
+function syncRendererVisibility(){rendererActive=!document.hidden;if(rendererActive&&performance.now()<renderUntil&&!renderFrameId)renderFrameId=requestAnimationFrame(renderFrame);else if(!rendererActive&&renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}\nwindow.saeedAvatarSetRuntimeActive=active=>{rendererActive=Boolean(active);if(!rendererActive){renderUntil=0;if(renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}else{wakeRender(1200)}}
 document.addEventListener("visibilitychange",syncRendererVisibility);
