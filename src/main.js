@@ -276,7 +276,7 @@ async function runCiRuntimeSmoke(){
   await ensureBrain();
   const activated=resourceReport();
   report.phases.brainActivated={pass:Boolean(agent&&agent.localBrain&&brainSupervisor),runtimeChecks:{characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),agentInitialized:Boolean(agent),localBrainInitialized:Boolean(agent&&agent.localBrain),brainSupervisorInitialized:Boolean(brainSupervisor),micMode:currentMicMode,realtimeInitialized:Boolean(realtime),addonsManagerLoaded:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),trayCreated:Boolean(tray)},resources:activated};
-  report.checks.runtimeChecks=report.phases.brainActivated.runtimeChecks;
+  report.checks.runtimeChecks={pass:report.phases.brainActivated.pass,...report.phases.brainActivated.runtimeChecks};
   report.resourcesAfter=activated;
   report.pass=Boolean(report.checks.glbFile.pass&&report.phases.startup.pass&&report.phases.brainActivated.pass);
  }catch(e){report.error=e.message;report.pass=false}
