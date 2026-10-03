@@ -20,15 +20,20 @@ const plans={
  reacting:()=>{const p=pick(["Acknowledge","Pleased","Surprised","GestureLeft","GestureRight"]);if(p)play(p,{duration:1100});finish(1400)}
 };
 function runSequence(seq,next="idle"){let i=0;const step=()=>{if(!active||!visible)return;while(i<seq.length&&!seq[i][0])i++;if(i>=seq.length){setState(next);if(next==="idle")schedule();return}const [n,d]=seq[i++];play(n,{duration:d});timer=setTimeout(()=>{timer=0;step()},d+120)};step()}
-function chooseBehavior(){
+const context=()=>{decay();const now=new Date(),h=now.getHours(),idleMs=Date.now()-lastActivity;return{hour:h,period:h<6?"night":h<12?"morning":h<18?"day":"evening",idleMin:idleMs/60000,energy,visible,active,state:stateName,userActive:idleMs<90000,recent:recent.slice(),mood:window.saeedFeelings?.get?.()||"neutral"}};function chooseBehavior(){
  decay();
  const idleMin=(Date.now()-lastActivity)/60000;
  if(config.sleep&&idleMin>=Math.max(1,Number(config.sleepAfterMin)||20)){setState("sleeping");play("RestPose",{important:true,duration:1800});return}
  if(energy<35){setState("tired");plans.tired();return}
+ const c=context();
+ if(c.userActive){setState("idle");schedule();return}
+ if(c.period==="night"&&c.idleMin>8){setState("tired");plans.tired();return}
  const r=Math.random();
- if(r<.24){setState("curious");plans.curious()}
- else if(r<.42){setState("playful");plans.playful()}
- else if(r<.55){setState("reacting");plans.reacting()}
+ if(c.mood==="happy"&&r<.55){setState("playful");plans.playful()}
+ else if(c.energy<50&&r<.45){setState("tired");plans.tired()}
+ else if(r<.30){setState("curious");plans.curious()}
+ else if(r<.52){setState("playful");plans.playful()}
+ else if(r<.68){setState("reacting");plans.reacting()}
  else {setState("idle");schedule()}
 }
 function schedule(){
@@ -36,6 +41,8 @@ function schedule(){
  const f=String(config.frequency||"normal"),[a,b]=f==="high"?[5000,12000]:f==="low"?[18000,36000]:[10000,24000];
  timer=setTimeout(()=>{timer=0;if(active&&visible&&stateName==="idle")chooseBehavior()},a+Math.random()*(b-a));
 }
+function showBubble(text){if(!active||!visible||stateName!=="idle"||context().userActive)return;window.saeedShowMessageBubble?.(text,false)}
+function maybeBubble(){const c=context();if(!config.idleThoughts||!visible||stateName!=="idle"||c.userActive)return;if(Math.random()>0.18)return;const p=["Hmm...","I wonder what's next.","That was interesting.","Let's see..."];showBubble(p[Math.floor(Math.random()*p.length)])}
 function touch(){
  lastActivity=Date.now();energy=Math.min(100,energy+15);
  if(stateName==="sleeping"){setState("waking");plans.waking();return}
