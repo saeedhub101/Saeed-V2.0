@@ -206,6 +206,7 @@ window.saeedAvatar={
  wakeRender,getFacialTargets(){return facialMeshes.flatMap(m=>Object.keys(m.morphTargetDictionary||{}))}
 };
 
+let rendererActive=!document.hidden,renderUntil=0,renderFrameId=0,renderLoopStarted=false,lastRenderTime=0;
 let viewSettings={zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0,characterScale:1,characterPositionX:0,characterPositionY:0,characterPositionZ:0,characterRotationY:0,canvasPadding:0};
 let viewTarget=new THREE.Vector3(0,1.8,0),baseCameraDistance=4.2,baseModelScale=1;
 function applyViewSettings(next={}){
@@ -281,5 +282,6 @@ function renderNow(reason="on-demand"){
   return false;
  }
 }
-function syncRendererVisibility(){rendererActive=!document.hidden;if(rendererActive&&performance.now()<renderUntil&&!renderFrameId)renderFrameId=requestAnimationFrame(renderFrame);else if(!rendererActive&&renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}\nwindow.saeedAvatarSetRuntimeActive=active=>{rendererActive=Boolean(active);if(!rendererActive){renderUntil=0;if(renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}else{wakeRender(1200)}}
+function syncRendererVisibility(){rendererActive=!document.hidden;if(rendererActive&&performance.now()<renderUntil&&!renderFrameId)renderFrameId=requestAnimationFrame(renderFrame);else if(!rendererActive&&renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}
+window.saeedAvatarSetRuntimeActive=active=>{rendererActive=Boolean(active);if(!rendererActive){renderUntil=0;if(renderFrameId){cancelAnimationFrame(renderFrameId);renderFrameId=0}}else{wakeRender(1200)}}
 document.addEventListener("visibilitychange",syncRendererVisibility);
