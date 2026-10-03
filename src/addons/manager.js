@@ -72,7 +72,7 @@ async function install(userData,addon,onProgress){
  }finally{fs.rmSync(tempRoot,{recursive:true,force:true})}
 }
 function uninstall(userData,id){const dir=addonDir(userData,id);if(!fs.existsSync(dir))return false;unregisterInstalled(userData,id);fs.rmSync(dir,{recursive:true,force:true});return true}
-function load(userData,id){const manifest=validateManifest(readJson(installedManifest(userData,id)));if(!manifest.entry)return manifest;const entry=path.join(addonDir(userData,id),manifest.entry);if(!fs.existsSync(entry))throw new Error("Add-on entry not found: "+manifest.entry);return {...manifest,module:require(entry)}}
+function load(userData,id){const manifest=validateManifest(readJson(installedManifest(userData,id)));if(manifest.enabled===false)throw new Error("Add-on disabled: "+id);if(!manifest.entry)return manifest;const entry=path.join(addonDir(userData,id),manifest.entry);if(!fs.existsSync(entry))throw new Error("Add-on entry not found: "+manifest.entry);return {...manifest,module:require(entry)}}
 function has(userData,id){return fs.existsSync(installedManifest(userData,id))}
 function getPackagePath(userData,id,relative){return path.join(addonDir(userData,id),relative||"")}
 function requirePackage(userData,id,packageName){const root=addonDir(userData,id);if(!has(userData,id))throw new Error("Add-on is not installed: "+id);try{return require(require.resolve(packageName,{paths:[root]}))}catch(e){throw new Error(`Add-on ${id} is installed but package ${packageName} could not be loaded: ${e.message}`)}}
