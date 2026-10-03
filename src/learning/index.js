@@ -20,5 +20,7 @@ function save(userData,skill){const v=validate(skill);ensure(userData);fs.writeF
 function remove(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return false;fs.unlinkSync(f);return true}
 function setEnabled(userData,id,enabled){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);s.enabled=Boolean(enabled);s.updatedAt=new Date().toISOString();return save(userData,s)}
 function match(userData,text){const n=normalize(text);if(!n)return null;return list(userData).find(s=>s.enabled!==false&&(s.trigger?.phrases||[]).some(p=>normalize(p)===n))||null}
+function exportSkill(userData,id){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);return JSON.stringify(s,null,2)}
+function importSkill(userData,data){const value=typeof data==="string"?JSON.parse(data):data;return save(userData,value)}
 async function run(userData,registry,skill){const results=[];for(const step of skill.steps){const out=await registry.call(step.tool,step.args||{});results.push({tool:step.tool,args:step.args||{},result:out});if(out?.ok===false)throw new Error("Learned skill failed at "+step.tool+": "+(out.error||"unknown error"))}return{ok:true,skill:skill.id,results}}
-module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,normalize};
+module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,exportSkill,importSkill,normalize};
