@@ -1,1 +1,1 @@
-const{BrainLevelRouter}=require("../brain-levels");class SaeedRouter extends BrainLevelRouter{route(text){return this.classify(text)}recover(route,result){return this.nextAfterFailure(route,result)}}module.exports={SaeedRouter};
+module.exports=require('./brain/router');

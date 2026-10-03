@@ -1,1 +1,1 @@
-let controller=null;function bind(v){controller=v||null;return controller}function get(){return controller}function play(id,o){return controller?.play?.(id,o)||false}function semantic(id,o){return controller?.semantic?.(id,o)||{played:false,motion:null}}function stopAll(){return controller?.stopAll?.()}module.exports={bind,get,play,semantic,stopAll};
+module.exports=require('./services/character-service');
