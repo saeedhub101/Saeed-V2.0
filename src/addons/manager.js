@@ -78,4 +78,5 @@ function getPackagePath(userData,id,relative){return path.join(addonDir(userData
 function requirePackage(userData,id,packageName){const root=addonDir(userData,id);if(!has(userData,id))throw new Error("Add-on is not installed: "+id);try{return require(require.resolve(packageName,{paths:[root]}))}catch(e){throw new Error(`Add-on ${id} is installed but package ${packageName} could not be loaded: ${e.message}`)}}
 function registerInstalled(userData,manifest){return capabilities.register(userData,manifest)}
 function unregisterInstalled(userData,id){require("./runtime").unregister(userData,id)}
-module.exports={DEFAULT_CATALOG_URL,ensureRoot,listInstalled,fetchCatalog,install,uninstall,load,has,getPackagePath,requirePackage,addonDir,registerInstalled,unregisterInstalled};
+function setEnabled(userData,id,enabled){const file=installedManifest(userData,id);if(!fs.existsSync(file))throw new Error("Add-on not installed: "+id);const manifest=validateManifest(readJson(file));manifest.enabled=Boolean(enabled);fs.writeFileSync(file,JSON.stringify(manifest,null,2),"utf8");if(manifest.enabled)registerInstalled(userData,manifest);else unregisterInstalled(userData,id);return manifest}
+module.exports={DEFAULT_CATALOG_URL,ensureRoot,listInstalled,fetchCatalog,install,uninstall,load,has,getPackagePath,requirePackage,addonDir,registerInstalled,unregisterInstalled,setEnabled};
