@@ -499,6 +499,8 @@ ipcMain.handle("settings:set",async(_,s)=>{
  let micMode=String(agent.settings.micMode||currentMicMode||"off");
  const realtimeChanged=Object.prototype.hasOwnProperty.call(s||{},"realtimeEnabled")&&previous.realtimeEnabled!==agent.settings.realtimeEnabled;
  const voiceConfigChanged=["sttProvider","sttModel","sttLanguage","ttsProvider","ttsModel","ttsVoice","voiceRouting","micPath","realtimeProvider","realtimeModel","realtimeVoice","micSpeechRms","micInterruptRms"].some(k=>Object.prototype.hasOwnProperty.call(s||{},k)&&previous[k]!==agent.settings[k]);
+ // Non-local STT must use the selected STT pipeline unless the user explicitly chooses Realtime.
+ if(Object.prototype.hasOwnProperty.call(s||{},"sttProvider")&&String(agent.settings.sttProvider||"whisper")!=="whisper"&&!Object.prototype.hasOwnProperty.call(s||{},"micPath"))agent.settings.micPath="whisper";
  if(mode!=="api"&&agent.settings.realtimeEnabled)agent.settings.realtimeEnabled=false;
  if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")stopRealtime();
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
