@@ -213,6 +213,7 @@ async function ensureBrain(){
   setSaeedSize(agent.settings.characterSize||"small");
   brainSupervisor=new BrainSupervisor({registry,getSettings:async()=>agent?.publicSettings()||{},setSettings:async s=>{if(agent)agent.settings={...agent.settings,...s};return agent?.publicSettings()||{}},emit:e=>{if(e?.type==="idle-thought")voiceBroadcast("character:behavior",e);else if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",e)}});
   await brainSupervisor.start();
+  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"settings",settings:agent.publicSettings()});
   return agent;
  })().catch(e=>{brainInitPromise=null;diagnostic("ERROR","BRAIN INIT",e.message);throw e});
  return brainInitPromise;
