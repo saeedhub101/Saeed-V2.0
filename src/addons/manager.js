@@ -52,7 +52,24 @@ function listInstalled(userData){ensureRoot(userData);return fs.readdirSync(root
 async function fetchCatalog(url=DEFAULT_CATALOG_URL){return new Promise((resolve,reject)=>{let u;try{u=new URL(url)}catch{return reject(new Error("Invalid catalog URL"))}if(u.protocol!=="https:")return reject(new Error("Catalog must use HTTPS"));https.get(u,res=>{let body="";res.on("data",d=>body+=d);res.on("end",()=>{if(res.statusCode!==200)return reject(new Error("Catalog HTTP "+res.statusCode));try{const data=JSON.parse(body);if(data?.schemaVersion!==2||!Array.isArray(data.addons))throw new Error("Invalid add-on catalog schema");resolve(data)}catch(e){reject(new Error(e.message||"Invalid add-on catalog"))}})}).on("error",reject)})}
 function swapIntoPlace(staging,target){const backup=target+".backup-"+Date.now();let movedOld=false;try{if(fs.existsSync(target)){fs.renameSync(target,backup);movedOld=true}fs.renameSync(staging,target);if(movedOld)fs.rmSync(backup,{recursive:true,force:true})}catch(e){try{if(fs.existsSync(target))fs.rmSync(target,{recursive:true,force:true});if(movedOld&&fs.existsSync(backup))fs.renameSync(backup,target)}catch{}throw e}}
 async function install(userData,addon,onProgress){
- const catalogEntry=validateCatalogEntry(addon);if(!catalogEntry.downloadUrl)throw new Error("This add-on has no downloadable package yet");const deps=catalogEntry.dependencies||[];for(const dep of deps){const depId=typeof dep==="string"?dep:dep.id;if(depId&&!has(userData,depId))throw new Error("Missing add-on dependency: "+depId)}
+ const catalogEntry=validateCatalogEntry(addon);const deps=catalogEntry.dependencies||[];for(const dep of deps){const depId=typeof dep==="string"?dep:dep.id;if(depId&&!has(userData,depId))throw new Error("Missing add-on dependency: "+depId)}
+ // npm add-ons are installed directly from npm; they do not need a release ZIP.
+ // Built-in providers are already part of Saeed Core and only need registration.
+ if(catalogEntry.installType==="core-provider"){
+  const manifest=validateManifest({...catalogEntry,schemaVersion:1,enabled:true,installedAt:new Date().toISOString()});
+  const target=addonDir(userData,catalogEntry.id);fs.mkdirSync(target,{recursive:true});fs.writeFileSync(installedManifest(userData,catalogEntry.id),JSON.stringify(manifest,null,2),"utf8");registerInstalled(userData,manifest);onProgress?.({state:"installed",percent:100});return manifest;
+ }
+ if(catalogEntry.installType==="npm-package"){
+  const target=addonDir(userData,catalogEntry.id),tempRoot=path.join(rootFor(userData),".tmp-"+catalogEntry.id+"-"+Date.now()),staging=path.join(tempRoot,"package");
+  try{
+   fs.mkdirSync(tempRoot,{recursive:true});onProgress?.({state:"installing",percent:null});
+   await installNpmPackage(staging,catalogEntry,onProgress);
+   const manifest=validateManifest({...catalogEntry,schemaVersion:1,enabled:true,installedAt:new Date().toISOString()});
+   fs.writeFileSync(path.join(staging,"manifest.json"),JSON.stringify(manifest,null,2),"utf8");
+   swapIntoPlace(staging,target);registerInstalled(userData,manifest);onProgress?.({state:"installed",percent:100});return manifest;
+  }finally{fs.rmSync(tempRoot,{recursive:true,force:true})}
+ }
+ if(!catalogEntry.downloadUrl)throw new Error("This add-on has no downloadable package yet");
  const tempRoot=path.join(rootFor(userData),".tmp-"+catalogEntry.id+"-"+Date.now());const zip=path.join(tempRoot,"package.zip"),staging=path.join(tempRoot,"package"),target=addonDir(userData,catalogEntry.id);let actualManifest=null;
  try{
   fs.mkdirSync(tempRoot,{recursive:true});onProgress?.({state:"downloading",percent:0});
