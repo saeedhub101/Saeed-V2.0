@@ -29,3 +29,44 @@ $("apply3D").onclick=()=>save3D();
 $("reset3D").onclick=()=>save3D({window:{width:430,height:520,x:null,y:null},camera:{zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0},character:{scale:1,positionX:0,positionY:0,positionZ:0,rotationY:0},canvas:{padding:0}});
 
 $("provider")?.addEventListener("change",()=>{const p=String($("provider").value||"openai"),d=brainProviderDefaults[p]||{};const oldProvider=String(settings.provider||"");const oldDefaults=brainProviderDefaults[oldProvider]||{};if($("baseUrl")&&(!$("baseUrl").value||$("baseUrl").value===oldDefaults.baseUrl))$("baseUrl").value=d.baseUrl||"";if($("model")&&(!$("model").value||$("model").value===oldDefaults.model))$("model").value=d.model||"";});
+
+// Character Controller
+let characterControllerState=null;
+const characterJoints=["head","neck","spine","chest","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot"];
+async function controllerCommand(command){try{return await window.saeed.characterController(command)}catch(e){$("characterControllerState").textContent=e.message;return{ok:false,error:e.message}}}
+async function refreshCharacterController(){
+ try{
+  const s=await window.saeed.getCharacterController();characterControllerState=s;
+  $("characterRigState").textContent=s?.retargeting?("Retargeting: "+s.retargeting.restPose+" • "+s.retargeting.boneCount+" mapped bones"): "Character controller unavailable";
+  const current=s?.pose||{};
+  const joint=$("characterJoint").value,r=current[joint]||{};
+  $("characterPoseX").value=Math.round((Number(r.x)||0)*180/Math.PI);
+  $("characterPoseY").value=Math.round((Number(r.y)||0)*180/Math.PI);
+  $("characterPoseZ").value=Math.round((Number(r.z)||0)*180/Math.PI);
+  const grid=$("characterRigGrid");const bones=s?.capabilities?null:null;
+  if(!grid.dataset.ready){
+    const names=await window.saeed.characterController({action:"boneNames"});
+    const opts=(names?.bones||[]).map(n=>'<option value="'+String(n).replace(/"/g,'&quot;')+'">'+String(n).replace(/</g,'&lt;')+'</option>').join("");
+    grid.innerHTML=characterJoints.map(slot=>'<label>'+slot+'<select data-rig-slot="'+slot+'"><option value="">Automatic</option>'+opts+'</select></label>').join("");
+    const mapped=s?.retargeting?.bones||{};for(const el of grid.querySelectorAll("[data-rig-slot]"))el.value=mapped[el.dataset.rigSlot]||"";
+    grid.dataset.ready="1";
+  }
+ }catch(e){$("characterControllerState").textContent="Controller unavailable: "+e.message}
+}
+$("characterPlayMotion").onclick=async()=>{const motion=$("characterMotion").value;await controllerCommand({action:"play",motion,options:{duration:Number($("characterMotionDuration").value)||undefined,speed:Number($("characterMotionSpeed").value)||1,intensity:Number($("characterMotionIntensity").value)||1,loop:motion==="idle"}});$("characterControllerState").textContent="Playing "+motion};
+$("characterStopMotion").onclick=async()=>{await controllerCommand({action:"stopAll"});$("characterControllerState").textContent="Stopped"};
+$("characterResetPose").onclick=async()=>{await controllerCommand({action:"resetPose"});$("characterControllerState").textContent="Pose reset";};
+$("characterApplyPose").onclick=async()=>{const slot=$("characterJoint").value;const rad=v=>Number(v||0)*Math.PI/180;const pose={};pose[slot]={x:rad($("characterPoseX").value),y:rad($("characterPoseY").value),z:rad($("characterPoseZ").value)};await controllerCommand({action:"pose",pose});$("characterControllerState").textContent="Applied "+slot};
+$("characterJoint").onchange=refreshCharacterController;
+$("characterSaveIdle").onclick=async()=>{
+ const s=await controllerCommand({action:"status"});if(!s?.status)return;
+ const pose=s.status.pose||{};settings=await window.saeed.setSettings({...settings,characterController:{...(settings.characterController||{}),idlePose:pose}});
+ await controllerCommand({action:"pose",pose});$("characterControllerState").textContent="Idle pose saved";
+};
+$("characterApplyRig").onclick=async()=>{
+ const mapping={};for(const el of document.querySelectorAll("[data-rig-slot]"))if(el.value)mapping[el.dataset.rigSlot]=el.value;
+ const r=await controllerCommand({action:"remap",mapping});$("characterControllerState").textContent=r?.ok?"Rig mapping applied":"Rig mapping failed";await refreshCharacterController();
+};
+$("characterRefreshRig").onclick=()=>{const g=$("characterRigGrid");g.dataset.ready="";refreshCharacterController()};
+window.saeed.onCharacterSelected?.(()=>setTimeout(refreshCharacterController,250));
+setTimeout(refreshCharacterController,500);
