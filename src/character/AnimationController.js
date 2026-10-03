@@ -6,7 +6,7 @@ export class AnimationController {
   constructor(avatar) {
     this.avatar=avatar; this.rig=new CharacterRig(); this.pose=new PoseController();
     this.registry=new MotionRegistry(); this.active=[]; this.time=0; this.state="idle";
-    this.base={}; this.overlays=new Map(); this.lastUpdate=0;
+    this.base={}; this.overlays=new Map(); this.lastUpdate=0; this.idlePose={};
   }
   bindRig(bones, retargeter=null) { this.rig.bind(bones,retargeter); return this.rig.snapshot(); }
   register(def) { return this.registry.register(def); }
@@ -27,6 +27,7 @@ export class AnimationController {
     if(!this.active.length)return;
     const now=performance.now(), next=[];
     this.pose.clear();
+    if(this.state==="idle" && Object.keys(this.idlePose).length)this.pose.setMany(this.idlePose);
     for(const a of this.active){
       const elapsed=(now-a.started)*a.speed/1000;
       if(a.duration && elapsed>=a.duration && !a.loop)continue;
@@ -39,11 +40,12 @@ export class AnimationController {
     this.avatar?.applyCharacterPose?.(this.pose.snapshot(),this.rig.retargeter);
     if(!this.active.length)this.state="idle";
   }
+  setIdlePose(pose={}) { this.idlePose=JSON.parse(JSON.stringify(pose||{})); this.pose.setMany(this.idlePose); this.avatar?.applyCharacterPose?.(this.pose.snapshot(),this.rig.retargeter); this.avatar?.wakeRender?.(300); return this.idlePose; }
   setPose(pose={}) {
     this.pose.setMany(pose);
     this.avatar?.applyCharacterPose?.(this.pose.snapshot(),this.rig.retargeter);
     this.avatar?.wakeRender?.(300);
     return this.pose.snapshot();
   }
-  status() { return {state:this.state,motions:this.registry.list(),capabilities:this.rig.capabilities,active:this.active.map(x=>x.m.id),pose:this.pose.snapshot(),retargeting:this.rig.retargeter?.status?.()||null}; }
+  status() { return {state:this.state,motions:this.registry.list(),capabilities:this.rig.capabilities,active:this.active.map(x=>x.m.id),pose:this.pose.snapshot(),idlePose:this.idlePose,retargeting:this.rig.retargeter?.status?.()||null}; }
 }
