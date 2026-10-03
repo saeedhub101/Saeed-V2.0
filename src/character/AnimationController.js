@@ -14,6 +14,7 @@ export class AnimationController{
   const layer=options.layer||m.layer||"body",now=performance.now();
   const item={m,started:now,duration:Math.max(0,Number(options.duration??m.duration)||0),speed:Math.max(.05,Number(options.speed)||1),intensity:Number(options.intensity??1),layer,loop:Boolean(options.loop??m.loop),blend:Number(options.blend??m.blend??.15),priority:Number(options.priority??this.layers.get(layer)||0)};
   this.active=this.active.filter(x=>x.layer!==layer||item.priority<x.priority);
+  this.active=this.active.filter(x=>!(x.layer===layer&&item.priority>=x.priority&&x.m.id!==id));
   this.active.push(item);this.state=String(id);this.avatar?.wakeRender?.(Math.max(300,item.duration||1200));return true;
  }
  stop(id){this.active=this.active.filter(x=>x.m.id!==id);if(!this.active.length)this.state="idle";this.avatar?.wakeRender?.(250);}
