@@ -14,11 +14,12 @@ const setState=s=>{stateName=s;clear();rememberBehavior(s);priority=["speaking",
 const finish=delay=>{timer=setTimeout(()=>{timer=0;if(active&&visible)setState("idle"),schedule()},Math.max(150,delay||500))};
 
 const plans={
- curious:()=>{const seq=[["LookLeft",700],["LookRight",700],["LookUp",600]];runSequence(seq,"idle")},
- playful:()=>{const seq=[pick(["Idle1_1","Idle1_2","Idle2_1","GestureLeft"]),pick(["GestureRight","Pleased","Acknowledge"]),pick(["Idle1_3","Idle2_2","Idle3_1"])];runSequence(seq.map((n,i)=>[n,n?(650+Math.random()*450):0]),"idle")},
- tired:()=>{play(pick(["Idle2_1","Idle3_1","LookDown","RestPose"])||"RestPose",{duration:1400});finish(1800)},
- waking:()=>{const seq=[["RestPose",900],["LookLeft",650],["LookRight",650],["Pleased",700]];runSequence(seq,"idle")},
- reacting:()=>{const p=pick(["Acknowledge","Pleased","Surprised","GestureLeft","GestureRight"]);if(p)play(p,{duration:1100});finish(1400)}
+ curious:()=>{const seq=[pick(["lookCloser","LookLeft","LookRight"]),pick(["turnBody","LookUp"]),pick(["lookCloser","Pleased"])];runSequence(seq.map(n=>[n,n?900:0]),"idle")},
+ playful:()=>{const pool=["dance","clap","jump","stretch","wave","lookCloser"];const seq=[pick(pool),pick(pool),pick(pool)];runSequence(seq.map(n=>[n,n?1100:0]),"idle")},
+ tired:()=>{const n=pick(["yawn","stretch","sleep"])||"sleep";play(n,{duration:Math.max(1800,has(n)?0:1800),priority:20});finish(2200)},
+ waking:()=>{const seq=[["wake",2800],["lookCloser",1100],["Pleased",700]];runSequence(seq,"idle")},
+ reacting:()=>{const p=pick(["Acknowledge","Pleased","Surprised","GestureLeft","GestureRight","lookCloser","turnBody"]);if(p)play(p,{duration:1100});finish(1400)},
+ doing:()=>{const p=pick(["walk","turnBody","stretch","crackBack","crackFingers","sitKnee","standUp"]);if(p){setState("doing");play(p,{duration:0,priority:35});finish(3800)}}
 };
 function runSequence(seq,next="idle"){let i=0;const step=()=>{if(!active||!visible)return;while(i<seq.length&&!seq[i][0])i++;if(i>=seq.length){setState(next);if(next==="idle")schedule();return}const [n,d]=seq[i++];play(n,{duration:d});timer=setTimeout(()=>{timer=0;step()},d+120)};step()}
 const context=()=>{decay();const now=new Date(),h=now.getHours(),idleMs=Date.now()-lastActivity;return{hour:h,period:h<6?"night":h<12?"morning":h<18?"day":"evening",idleMin:idleMs/60000,energy,visible,active,state:stateName,userActive:idleMs<90000,recent:recent.slice(),mood:window.saeedFeelings?.get?.()||"neutral"}};function chooseBehavior(){
@@ -36,6 +37,7 @@ const context=()=>{decay();const now=new Date(),h=now.getHours(),idleMs=Date.now
  else if(r<.30){setState("curious");plans.curious()}
  else if(r<.52){setState("playful");plans.playful()}
  else if(r<.68){setState("reacting");plans.reacting()}
+ else if(r<.82){plans.doing()}
  else {setState("idle");schedule()}
 }
 function schedule(){
@@ -66,6 +68,9 @@ function event(e){
  else if(t==="tool"){if(!config.events||!allowed())return;setState("doing");play(({web_search:"Searching",add_task:"Write",complete_task:"Write",remove_task:"Write",list_tasks:"Read",remember:"Write",recall:"Read",move_to:"GestureRight",move_relative:"GestureRight",hide:"Hide",show:"Show"})[e.name]||"Process",{important:true})}
  else if(t==="tool_error"){setState("reacting");plans.reacting()}
  else if(t==="tool_result"&&config.events){priority=false;setState("reacting");play(e.ok===false?pick(["Confused","Uncertain"]):pick(["Pleased","Acknowledge"]),{duration:1200});finish(1500)}
+ else if(t==="sleep"){setState("sleeping");play("sleep",{duration:3600,priority:45});}
+ else if(t==="wake"){setState("waking");plans.waking();}
+ else if(t==="motion"){const n=String(e.name||e.motion||"");if(n&&!priority){setState("doing");play(n,{duration:Number(e.duration)||0,priority:35});finish(Math.max(1600,Number(e.duration)||0)+250);}}
  else if(t==="user-input"&&config.events&&allowed()&&!priority){const s=String(e.text||"").toLowerCase();const p=/\bthanks?\b|\bthank you\b/.test(s)?pick(["Pleased","Acknowledge"]):/\b(wow|amazing|awesome)\b/.test(s)?pick(["Surprised","Pleased"]):/\b(what|why|how)\b.*\?/.test(s)?pick(["Confused","Uncertain"]):null;if(p){setState("reacting");play(p,{duration:1200});finish(1400)}}
  else if(t==="right-click"&&config.events&&allowed()){setState("reacting");play("Acknowledge",{important:true});finish(1500)}
  else if(t==="zoom"&&config.events&&allowed()){setState("reacting");play("Surprised",{duration:1200});finish(1500)}
