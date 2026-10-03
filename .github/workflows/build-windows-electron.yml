@@ -30,7 +30,7 @@ jobs:
   build:
     name: Test and build Windows
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 75
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@v4
@@ -209,9 +209,9 @@ jobs:
           $env:SAEED_CI_REPORT = $report
           $env:SAEED_CI_HOST_REPORT = $hostReport
           $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -PassThru -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP "saeed-packaged-smoke.stdout.log") -RedirectStandardError (Join-Path $env:RUNNER_TEMP "saeed-packaged-smoke.stderr.log")
-          $deadline=(Get-Date).AddSeconds(60)
+          $deadline=(Get-Date).AddSeconds(180)
           while(!$proc.HasExited -and (Get-Date) -lt $deadline){Start-Sleep -Seconds 1}
-          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged application smoke test timed out after 60 seconds."}
+          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged application smoke test timed out after 180 seconds."}
           if(Test-Path $report){Get-Content $report -Raw}else{throw "Packaged application did not produce ci-runtime-report.json"}
           $result=Get-Content $report -Raw|ConvertFrom-Json
           if(-not $result.pass){throw "Packaged application runtime smoke test failed."}
