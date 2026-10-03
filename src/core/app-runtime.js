@@ -14,14 +14,27 @@ process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteSta
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
 const {createRuntimeDependencies}=require("./services/runtime-dependencies");
-const {createPermissions}=require("./application/permissions");
+
+// Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
+// Chromium must be allowed to request/use media audio before getUserMedia can open the device.
+function configureMediaPermissions(){
+ try{
+  session.defaultSession.setPermissionCheckHandler((webContents,permission,origin,details)=>{
+   return permission==="media";
+  });
+  session.defaultSession.setPermissionRequestHandler((webContents,permission,callback,details)=>{
+   if(permission==="media"){diagnostic("INFO","MIC PERMISSION","Electron granted media permission",details||{});callback(true);return;}
+   callback(false);
+  });
+  diagnostic("INFO","MIC PERMISSION","Electron microphone/media permission handlers configured");
+ }catch(e){diagnostic("ERROR","MIC PERMISSION",e.message)}
+}
+
 
 let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
 const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
 const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
 const diagnostics=createDiagnostics({getWindows:()=>({chatWin,characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
-const permissions=createPermissions({session,getAgent:()=>agent,showChat:()=>showChat(),getChatWindow:()=>chatWin,diagnostic});
-const {permissionPolicy,confirmPermission,configureMediaPermissions}=permissions;
 const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
 function show3DStatus(){if(threeDStatusWin&&!threeDStatusWin.isDestroyed()){threeDStatusWin.show();threeDStatusWin.focus();request3DStatus().then(r=>threeDStatusWin?.webContents.send("3d:status",r));return}threeDStatusWin=new BrowserWindow({width:960,height:720,minWidth:760,minHeight:560,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});threeDStatusWin.on("closed",()=>{threeDStatusWin=null});threeDStatusWin.loadFile(path.join(__dirname,"..","3d-status.html")).then(async()=>{threeDStatusWin?.show();threeDStatusWin?.focus();const r=await request3DStatus();threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
 let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
@@ -31,7 +44,28 @@ const confirmations=new Map();
 async function confirmPermission(category,request){
  const label={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"}[category]||category;
  await showChat();
- return new ProciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
+ return new Promise(resolve=>{const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);const timer=setTimeout(()=>{if(!confirmations.has(id))return;confirmations.delete(id);resolve(false);diagnostic("INFO","AGENT CONFIRMATION","Confirmation timed out; operation denied",{id,name:request?.name||category});},120000);confirmations.set(id,approved=>{clearTimeout(timer);resolve(Boolean(approved))});chatWin?.webContents.send("agent:confirm",{id,name:request?.name||category,args:request?.args||{},permissionCategory:category,permissionLabel:label});});
+}
+const {createDiagnostics}=require("./application/diagnostics");
+
+
+// AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
+// This code defines the official Saeed Windows application/taskbar icon source.
+function windowsIconPath(){
+ const ico=path.join(__dirname,"..","..","assets","saeed.ico");
+ const png=path.join(__dirname,"..","..","assets","saeed.png");
+ return fs.existsSync(ico)?ico:png;
+}
+
+// AUTHORITATIVE SAEED SYSTEM TRAY ICON CODE — DO NOT REMOVE OR REPLACE.
+// This code creates the official Saeed system-tray icon from the same source.
+function trayIcon(){
+ return nativeImage.createFromPath(windowsIconPath());
+}
+app.setAppUserModelId("ai.saeed.desktop");
+const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
+if(!singleInstanceLock)app.quit();
+else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 let updateState="idle",updateUiRequested=false,updateStatusWin=null,updateInfo=null;
 
 async function captureScreen(){
