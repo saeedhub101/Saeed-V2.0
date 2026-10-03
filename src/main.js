@@ -161,7 +161,8 @@ async function setMicMode(mode,fromUser=false){
  voiceBroadcast("mic:mode",value);
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
  if(value==="off"){
-  diagnostic("INFO","MIC INPUT","Microphone input is OFF; voice output and Realtime session remain independent");
+  try{stopRealtime()}catch{}
+  diagnostic("INFO","MIC INPUT","Microphone input is OFF; voice input services stopped");
   voiceBroadcast("local-stt:state","disconnected","Microphone input is off");
  }else{
   if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")startRealtime();
