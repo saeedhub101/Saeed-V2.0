@@ -153,6 +153,7 @@ function chooseCharacter(){dialog.showOpenDialog(characterWin||chatWin,{title:"C
 function whisperRuntimePaths(){
  const roots=[
   addons.addonDir(app.getPath("userData"),"stt-whisper"),
+  path.join(process.resourcesPath||"","whisper"),
   path.join(process.resourcesPath||"","addons","stt-whisper"),
   path.join(process.resourcesPath||"","saeed-addon-stt-whisper")
  ].filter(Boolean);
@@ -405,7 +406,7 @@ ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false
 ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});ipcMain.handle("local-stt:transcribe",(_,base64)=>transcribeLocalWav(String(base64||"")));
 function transcribeLocalWav(base64){return new Promise((resolve,reject)=>{const p=whisperRuntimePaths();const cli=p.exe;if(!fs.existsSync(cli)||!fs.existsSync(p.model)){
  diagnostic("ERROR","LOCAL STT","Whisper STT runtime is not installed",{runtime:p.root,cliExists:fs.existsSync(cli),modelExists:fs.existsSync(p.model)});
- return reject(new Error("Whisper STT add-on is not installed. Install the Whisper STT add-on from Add-ons, then try again."));
+ return reject(new Error("Bundled Whisper runtime/model is missing from this Saeed installation."));
 }const wav=path.join(app.getPath("temp"),"saeed-stt-"+Date.now()+".wav");try{const pcm=Buffer.from(String(base64||""),"base64");const header=Buffer.alloc(44);header.write("RIFF",0);header.writeUInt32LE(36+pcm.length,4);header.write("WAVE",8);header.write("fmt ",12);header.writeUInt32LE(16,16);header.writeUInt16LE(1,20);header.writeUInt16LE(1,22);header.writeUInt32LE(24000,24);header.writeUInt32LE(48000,28);header.writeUInt16LE(2,32);header.writeUInt16LE(16,34);header.write("data",36);header.writeUInt32LE(pcm.length,40);fs.writeFileSync(wav,Buffer.concat([header,pcm]));const args=["-m",p.model,"-f",wav,"-nt","-np","--no-timestamps"];if(agent?.settings?.sttLanguage&&agent.settings.sttLanguage!=="auto")args.push("-l",String(agent.settings.sttLanguage));const child=spawn(cli,args,{cwd:path.dirname(cli),windowsHide:true});let out="",err="";child.stdout.setEncoding("utf8");child.stderr.setEncoding("utf8");child.stdout.on("data",d=>out+=d);child.stderr.on("data",d=>err+=d);child.on("error",e=>{try{fs.unlinkSync(wav)}catch{}reject(e)});child.on("close",code=>{try{fs.unlinkSync(wav)}catch{}if(code!==0)return reject(new Error(err.slice(-1200)||("Whisper CLI exited with code "+code)));const text=out.replace(/\x1b\[[0-9;]*[A-Za-z]/g,"").split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!x.startsWith("whisper_")).join(" ").replace(/^\s*[\[\(].*?[\]\)]\s*/,"").trim();diagnostic("INFO","LOCAL STT RESULT",text);resolve(text)})}catch(e){try{fs.unlinkSync(wav)}catch{}reject(e)}})}
 ipcMain.handle("mic:mode",async(_,mode)=>await setMicMode(String(mode||"off"),true));
 ipcMain.handle("voice:mute",async(_,muted)=>setVoiceMuted(Boolean(muted)));
