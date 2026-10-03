@@ -1,4 +1,12 @@
-const fs=require("fs"),path=require("path");\nconst addons=require("../addons/manager");\nlet Tesseract=null;\nfunction tesseract(userDataPath){\n  if(Tesseract)return Tesseract;\n  try{Tesseract=addons.requirePackage(userDataPath,"ocr","tesseract.js");}\n  catch{return null;}\n  return Tesseract;\n}
+const fs=require("fs"),path=require("path");
+const addons=require("../addons/manager");
+let Tesseract=null;
+function tesseract(userDataPath){
+  if(Tesseract)return Tesseract;
+  try{Tesseract=addons.requirePackage(userDataPath,"ocr","tesseract.js");}
+  catch{return null;}
+  return Tesseract;
+}
 function abs(p){return path.resolve(String(p||""));}
 function supported(p){return [".png",".jpg",".jpeg",".webp",".bmp",".tif",".tiff"].includes(path.extname(p).toLowerCase());}
 function clamp(n,min,max){return Math.max(min,Math.min(max,n));}
@@ -23,53 +31,18 @@ async function recognize(filePath,language,userDataPath){
  finally{if(worker){try{await worker.terminate();}catch{}}}
 }
 
-function tsvToWords(tsv){
- const lines=String(tsv||"").split(/\r?\n/).filter(Boolean);
- if(lines.length<2)return[];
- const header=lines[0].split("\t");
- const idx={};header.forEach((h,i)=>{idx[h]=i});
- return lines.slice(1).map(line=>line.split("\t"))
-   .filter(r=>r.length>idx.text)
-   .map(r=>({text:r[idx.text],confidence:Number(r[idx.conf])||0,bbox:{
-     x0:Number(r[idx.left])||0,y0:Number(r[idx.top])||0,
-     x1:(Number(r[idx.left])||0)+(Number(r[idx.width])||0),
-     y1:(Number(r[idx.top])||0)+(Number(r[idx.height])||0)
-   }}))
-   .filter(w=>w.text.trim());
-}
-
+function tsvToWords(tsv){return String(tsv||"").split(/\r?\n/).filter(Boolean).slice(1).map(line=>line.split("\t")).filter(r=>r.length>11).map(r=>({text:r[11],confidence:Number(r[10])||0,bbox:{x0:Number(r[6])||0,y0:Number(r[7])||0,x1:(Number(r[6])||0)+(Number(r[8])||0),y1:(Number(r[7])||0)+(Number(r[9])||0)}})).filter(w=>w.text.trim());}
 function wordsToTable(words,maxRows,maxCols){
- const clean=(Array.isArray(words)?words:[]).filter(w=>String(w?.text||"").trim() && w?.bbox);
+ const clean=(Array.isArray(words)?words:[]).filter(w=>String(w?.text||"").trim()&&w?.bbox);
  if(!clean.length)return{rows:[],rowCount:0,columnCount:0};
- const heights=clean.map(w=>Math.max(1,(w.bbox.y1-w.bbox.y0))).sort((a,b)=>a-b);
- const median=heights[Math.floor(heights.length/2)]||12;
- const tolerance=Math.max(8,median*0.65);
- const groups=[];
- for(const w of clean){
-   const cy=(w.bbox.y0+w.bbox.y1)/2;
-   let row=groups.find(r=>Math.abs(r.cy-cy)<=tolerance);
-   if(!row){row={cy,words:[]};groups.push(row);}
-   row.words.push(w);
- }
+ const heights=clean.map(w=>Math.max(1,w.bbox.y1-w.bbox.y0)).sort((a,b)=>a-b);
+ const median=heights[Math.floor(heights.length/2)]||12,tolerance=Math.max(8,median*0.65),groups=[];
+ for(const w of clean){const cy=(w.bbox.y0+w.bbox.y1)/2;let row=groups.find(r=>Math.abs(r.cy-cy)<=tolerance);if(!row){row={cy,words:[]};groups.push(row);}row.words.push(w);}
  groups.sort((a,b)=>a.cy-b.cy);
- const rows=groups.slice(0,clamp(Number(maxRows)||100,1,200)).map(r=>{
-   r.words.sort((a,b)=>a.bbox.x0-b.bbox.x0);
-   const cells=[];
-   for(const w of r.words){
-     const x=w.bbox.x0;
-     let cell=cells.length?cells[cells.length-1]:null;
-     const gap=cell?x-cell.lastX:Infinity;
-     const threshold=Math.max(18,median*1.5);
-     if(!cell||gap>threshold){cell={text:String(w.text).trim(),lastX:w.bbox.x1};cells.push(cell);}
-     else{cell.text+=" "+String(w.text).trim();cell.lastX=w.bbox.x1;}
-   }
-   return cells.map(c=>c.text);
- });
- const columnCount=Math.max(0,...rows.map(r=>r.length));
- const limit=clamp(Number(maxCols)||30,1,50);
+ const rows=groups.slice(0,clamp(Number(maxRows)||100,1,200)).map(r=>{r.words.sort((a,b)=>a.bbox.x0-b.bbox.x0);const cells=[];for(const w of r.words){const x=w.bbox.x0;let cell=cells.length?cells[cells.length-1]:null;const gap=cell?x-cell.lastX:Infinity,threshold=Math.max(18,median*1.5);if(!cell||gap>threshold){cell={text:String(w.text).trim(),lastX:w.bbox.x1};cells.push(cell);}else{cell.text+=" "+String(w.text).trim();cell.lastX=w.bbox.x1;}}return cells.map(c=>c.text);});
+ const columnCount=Math.max(0,...rows.map(r=>r.length)),limit=clamp(Number(maxCols)||30,1,50);
  return{rows:rows.map(r=>{const x=r.slice(0,limit);while(x.length<Math.min(columnCount,limit))x.push("");return x;}),rowCount:rows.length,columnCount:Math.min(columnCount,limit)};
 }
-
 async function call(name,a={},context={}){
  const p=abs(a.filePath);
  if(!fs.existsSync(p))return{ok:false,error:"File not found: "+p};
