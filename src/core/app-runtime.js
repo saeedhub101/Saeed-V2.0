@@ -14,6 +14,8 @@ process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteSta
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
 const {createRuntimeDependencies}=require("./services/runtime-dependencies");
+const {createBrainHost}=require("./application/brain-host");
+
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -34,13 +36,16 @@ function configureMediaPermissions(){
 let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
 const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
 const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
+const pendingConfirmations=new Map();
 const diagnostics=createDiagnostics({getWindows:()=>({chatWin,characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
 const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
+const brainHost=createBrainHost({app,getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getLearning:getLearning,permissionPolicy,showChat:()=>showChat(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize, setAgent:value=>{agent=value},setBrainSupervisor:value=>{brainSupervisor=value},setVoiceMuted:value=>{voiceMuted=value}});
+const ensureBrain=brainHost.ensureBrain;
 function show3DStatus(){if(threeDStatusWin&&!threeDStatusWin.isDestroyed()){threeDStatusWin.show();threeDStatusWin.focus();request3DStatus().then(r=>threeDStatusWin?.webContents.send("3d:status",r));return}threeDStatusWin=new BrowserWindow({width:960,height:720,minWidth:760,minHeight:560,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});threeDStatusWin.on("closed",()=>{threeDStatusWin=null});threeDStatusWin.loadFile(path.join(__dirname,"..","3d-status.html")).then(async()=>{threeDStatusWin?.show();threeDStatusWin?.focus();const r=await request3DStatus();threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
 let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
-const confirmations=new Map();
+const confirmations=pendingConfirmations;
 async function confirmPermission(category,request){
  const label={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"}[category]||category;
  await showChat();
@@ -196,47 +201,6 @@ async function createChatWindow(){
  return chatWin;
 }
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
-async function ensureBrain(){
- if(agent)return agent;
- if(brainInitPromise)return brainInitPromise;
- brainInitPromise=(async()=>{
-  const {CoreRuntime}=require("./runtime");
-  const runtime=new CoreRuntime({
-   captureScreen,userDataPath:app.getPath("userData"),
-   characterController:async({intent,duration,intensity}={})=>{
-    if(!characterWin||characterWin.isDestroyed())return{ok:false,error:"Character window is not available"};
-    const payload=JSON.stringify({intent,options:{duration,speed:1,intensity}});
-    try{return await characterWin.webContents.executeJavaScript("(async()=>{const c=window.saeedCharacterController;if(!c)return {ok:false,error:\"Character controller unavailable\"};return c.semantic("+payload+".intent,"+payload+".options||{});})()",true)}
-    catch(e){return{ok:false,error:e.message}}
-   },
-   recordHook:step=>{if(learningRecording)getLearning().recordStep(learningRecording,step.tool,step.args)},
-   permissionPolicy,confirm:async({name,args,permissionCategory})=>{
-    await showChat();
-    return new Promise(resolve=>{
-     const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);
-     const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
-     const permissionLabel=labels[permissionCategory]||permissionCategory||"Permission";
-     chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel});
-    });
-   },
-   onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},
-   requestStepIncrease:async({current,requested,task})=>{
-    await showChat();
-    return new Promise(resolve=>{
-     const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(id,resolve);
-     chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit",reason:"This task needs more execution steps. Allow an additional "+(requested-current)+" steps for this task?"});
-    });
-   }
-  });
-  agent=await runtime.start();
-  brainSupervisor=runtime.brainSupervisor;
-  voiceMuted=Boolean(agent.settings.voiceMuted);
-  if(!fs.existsSync(character3DSettingsFile()))setSaeedSize(agent.settings.characterSize||"small");
-  if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"settings",settings:agent.publicSettings()});
-  return agent;
- })().catch(e=>{brainInitPromise=null;diagnostic("ERROR","BRAIN INIT",e.message);throw e});
- return brainInitPromise;
-}
 async function createWindow(){
  await createCharacterWindow();
  if(ciSmoke)scheduleCiRuntimeSmoke();
