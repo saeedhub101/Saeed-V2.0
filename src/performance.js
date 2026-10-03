@@ -61,7 +61,7 @@ $("characterJoint").onchange=refreshCharacterController;
 $("characterSaveIdle").onclick=async()=>{
  const s=await controllerCommand({action:"status"});if(!s?.status)return;
  const pose=s.status.pose||{};settings=await window.saeed.setSettings({...settings,characterController:{...(settings.characterController||{}),idlePose:pose}});
- await controllerCommand({action:"pose",pose});$("characterControllerState").textContent="Idle pose saved";
+ await controllerCommand({action:"idlePose",pose});$("characterControllerState").textContent="Idle pose saved";
 };
 $("characterApplyRig").onclick=async()=>{
  const mapping={};for(const el of document.querySelectorAll("[data-rig-slot]"))if(el.value)mapping[el.dataset.rigSlot]=el.value;
