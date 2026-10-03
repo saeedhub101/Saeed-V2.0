@@ -26,7 +26,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  function speak(text){
   if(!text||voiceMuted)return;
   if(voiceRouting==="direct")return;
-  if(ttsProvider==="openai")return speakApi(text);
+  if(["openai","groq","elevenlabs"].includes(ttsProvider))return speakApi(text);
   return speakLocal(text);
  }
  class RealtimeMic{
