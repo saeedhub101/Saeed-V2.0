@@ -9,7 +9,8 @@ const clear=()=>{if(timer){clearTimeout(timer);timer=0}};
 const gap=()=>Math.max(0,Number(config.eventCooldownSec)||30)*1000;
 const allowed=()=>{const n=Date.now();if(n-lastEventAt<gap())return false;lastEventAt=n;return true};
 const decay=()=>{const m=(Date.now()-lastEnergy)/60000;lastEnergy=Date.now();energy=Math.max(20,energy-m*.5)};
-const rememberBehavior=s=>{if(!s||s==="idle"||s==="hidden")return;recentBehaviors.push(s);if(recentBehaviors.length>5)recentBehaviors.shift()};\nconst setState=s=>{stateName=s;clear();rememberBehavior(s);priority=["speaking","thinking","doing"].includes(s)};
+const rememberBehavior=s=>{if(!s||s==="idle"||s==="hidden")return;recentBehaviors.push(s);if(recentBehaviors.length>5)recentBehaviors.shift()};
+const setState=s=>{stateName=s;clear();rememberBehavior(s);priority=["speaking","thinking","doing"].includes(s)};
 const finish=delay=>{timer=setTimeout(()=>{timer=0;if(active&&visible)setState("idle"),schedule()},Math.max(150,delay||500))};
 
 const plans={
