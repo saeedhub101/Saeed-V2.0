@@ -17,6 +17,7 @@ const {createRuntimeDependencies}=require("./services/runtime-dependencies");
 const {createBrainHost}=require("./application/brain-host");
 const {createVoiceHost}=require("./voice/voice-host");
 const {createSystemControls}=require("./application/system-controls");
+const {createChatHost}=require("./application/chat-host");
 const {createWindowManager}=require("./application/window-manager");
 const {createCharacterStore}=require("./character/character-store");
 const {createCharacterHost}=require("./character/character-host");
@@ -48,6 +49,8 @@ const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,get
 const {whisperRuntimePaths,setMicMode,setVoiceMuted}=voiceHost;
 const systemControls=createSystemControls({app,diagnostic,voiceBroadcast,getAutoUpdater,showUpdateToast,showUpdateStatus,hideUpdateToast,publishUpdate,showChat,showCharacter,hideCharacter,showAddons,showLearning,showPerformance,showStatus,show3DStatus,showSettings,setSaeedSize,chooseCharacter,windowsIconPath,Menu,characterSizeMenu:()=>[],getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getStatusWindow:()=>statusWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),getAgent:()=>agent,screen,diagnosticState});
 const {updateNow,rebuildTray,contextMenu}=systemControls;
+const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,showChat:()=>showChat(),ensureBrain,getCharacterWindow:()=>characterWin});
+const {createChatWindow,closeChat}=chatHost;
 const characterStore=createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>characterWin,fitCharacterToDisplay,diagnostic});
 const {persistedCharacterFile,character3DSettingsFile,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,persistSelectedCharacter,readPersistedCharacter}=characterStore;
 const characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>showChat(),permissionPolicy,confirmPermission});
@@ -284,17 +287,7 @@ app.on("before-quit",()=>{
 });
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{getVoiceRuntime().stop()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null})
 
-async function createChatWindow(){
- if(chatWin&&!chatWin.isDestroyed())return chatWin;
- chatWin=new BrowserWindow({name:"saeed-chat",width:820,height:620,minWidth:560,minHeight:400,frame:false,transparent:true,alwaysOnTop:false,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
- chatWin.setIcon(windowsIconPath());
- if(process.platform==="win32")chatWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Chat"});
- chatWin.on("closed",()=>{chatWin=null});
- chatWin.webContents.on("context-menu",(event,params)=>{event.preventDefault();const items=[];if(params.isEditable){items.push({role:"undo"},{role:"redo"},{role:"cut"},{role:"copy"},{role:"paste"},{role:"selectAll"});}else if(params.selectionText){items.push({role:"copy"},{role:"selectAll"});}else{items.push({role:"selectAll"});}Menu.buildFromTemplate(items).popup({window:chatWin});});
- chatWin.setIgnoreMouseEvents(false);
- await chatWin.loadFile(path.join(__dirname,"..","index.html"));
- return chatWin;
-}
+
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
 async function createWindow(){
  await createCharacterWindow();
