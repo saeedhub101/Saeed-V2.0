@@ -1,7 +1,8 @@
 export class CharacterRig {
-  constructor() { this.bones = {}; this.capabilities = {}; }
-  bind(bones = {}) {
+  constructor() { this.bones = {}; this.capabilities = {}; this.retargeter = null; }
+  bind(bones = {}, retargeter = null) {
     this.bones = { ...bones };
+    this.retargeter = retargeter || null;
     const b = n => Boolean(this.bones[n]);
     this.capabilities = {
       head:b("head"), neck:b("neck"), spine:b("spine"), chest:b("chest"),
@@ -16,5 +17,5 @@ export class CharacterRig {
     return this.capabilities;
   }
   has(slot) { return Boolean(this.bones[slot]); }
-  snapshot() { return { bones:{...this.bones}, capabilities:{...this.capabilities} }; }
+  snapshot() { return { bones:{...this.bones}, capabilities:{...this.capabilities}, retargeting:this.retargeter?.status?.()||null }; }
 }
