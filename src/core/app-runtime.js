@@ -14,8 +14,11 @@ process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteSta
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
 const {autoUpdater}=require("electron-updater");
-const {OpenAIRealtime}=require("../realtime");
 const addons=require("./addon-service");const learning=require("../learning");const learningRecorder=require("../learning/windows-recorder");
+const {createApiHealth}=require("./api-health");
+const {createVoiceRuntime}=require("./voice-runtime");
+const apiHealth=createApiHealth({getAgent:()=>agent});
+const voiceRuntime=createVoiceRuntime({getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -33,7 +36,7 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,realtime,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
+let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
 let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
@@ -185,7 +188,7 @@ let currentMicMode="off",voiceMuted=false;
 function updateNow(){if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");void autoUpdater.checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}
 function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
 function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter}]},{label:voiceMuted?"Unmute":"Mute",type:"checkbox",checked:voiceMuted,click:()=>setVoiceMuted(!voiceMuted)},{label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")}]},{label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},{label:"Add-ons / Plug-ins",click:showAddons},{label:"Learning / Teach Mode",click:showLearning},{label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},{label:"Updates",submenu:[{label:"Check for Updates",click:updateNow}]},{label:"Quit",click:()=>app.quit()}]))}
-function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{stopRealtime()}catch{}voiceBroadcast("voice:stop")}else if(currentMicMode==="on"&&agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api"){startRealtime()}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
+function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{voiceRuntime.stop()}catch{}voiceBroadcast("voice:stop")}else if(currentMicMode==="on"&&agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api"){voiceRuntime.start()}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
 async function setMicMode(mode,fromUser=false){
  const value=String(mode||"off")==="on"?"on":"off";
  if(value==="on")await ensureBrain();
@@ -200,11 +203,11 @@ async function setMicMode(mode,fromUser=false){
  voiceBroadcast("mic:mode",value);
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
  if(value==="off"){
-  try{stopRealtime()}catch{}
+  try{voiceRuntime.stop()}catch{}
   diagnostic("INFO","MIC INPUT","Microphone input is OFF; voice input services stopped");
   voiceBroadcast("local-stt:state","disconnected","Microphone input is off");
  }else{
-  if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")startRealtime();
+  if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")voiceRuntime.start();
   else if(agent?.settings?.sttProvider==="whisper"){voiceBroadcast("local-stt:state","ready","Local Whisper ready");diagnostic("INFO","STT READY","Local Whisper is ready for microphone input");}
   else diagnostic("INFO","STT READY","Selected API STT is ready for microphone input");
   diagnostic("INFO","TTS READY","TTS is ready for voice replies");
@@ -439,7 +442,7 @@ async function runCiRuntimeSmoke(){
    return typeof text==="string";
   },{required:false});
 
-  const apiResults=await testAllApiConnections();
+  const apiResults=await apiHealth.testAll();
   report.checks["api.connections"]={pass:apiResults.every(x=>x.connected||/missing|not configured|local|disabled/i.test(String(x.detail||""))),required:false,results:apiResults};
   report.checks["realtime.contract"]={pass:Boolean(typeof OpenAIRealtime==="function"&&OpenAIRealtime.prototype&&typeof OpenAIRealtime.prototype.start==="function"&&typeof OpenAIRealtime.prototype.stop==="function"),required:true};
   report.checks["realtime.connection"]={pass:true,required:false,detail:"Live Realtime connection is tested when credentials are available; CI has no secret by default.",result:apiResults.find(x=>x.service==="realtime")||null};
@@ -447,7 +450,7 @@ async function runCiRuntimeSmoke(){
   const threeD=await request3DStatus();
   report.checks["3d.renderer"]={pass:Boolean(threeD?.overall?.state==="ready"||threeD?.overall?.state==="active"||threeD?.overall?.state==="connected"||Object.keys(threeD?.components||{}).length>0),required:false,result:threeD};
 
-  report.checks["mic.lifecycle"]={pass:currentMicMode==="off"&&!realtime,required:true,detail:"Startup lifecycle verified with microphone OFF; renderer media capability tested separately."};
+  report.checks["mic.lifecycle"]={pass:currentMicMode==="off"&&!voiceRuntime.getRealtime(),required:true,detail:"Startup lifecycle verified with microphone OFF; renderer media capability tested separately."};
   report.checks["tts.lifecycle"]={pass:Boolean(diagnosticState.tts.state!=="error"),required:false,detail:diagnosticState.tts};
   report.checks["brain.api-contract"]={pass:Boolean(typeof testApiConnection==="function"&&typeof testAllApiConnections==="function"),required:true};
   report.checks["learning.contract"]={pass:Boolean(typeof learning.beginRecording==="function"&&typeof learning.recordStep==="function"&&typeof learning.finishRecording==="function"&&typeof learning.run==="function"),required:true};
@@ -494,7 +497,7 @@ ipcMain.handle("chat",async(_,payload)=>{
  return result;
 });
 ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>testApiConnection(String(service||"")));ipcMain.handle("api-status:test-all",()=>testAllApiConnections());ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("learning:show",()=>{showLearning();return true});ipcMain.handle("learning:list",()=>learning.list(app.getPath("userData")));ipcMain.handle("learning:get",(_,id)=>learning.get(app.getPath("userData"),id));ipcMain.handle("learning:record-start",(_,name,phrases)=>{if(learningRecording)throw new Error("Learning recorder is already running");learningRecording=learning.beginRecording(app.getPath("userData"),name,phrases);try{learningRecorder.start(e=>{if(learningRecording&&e?.type==="action")learning.recordStep(learningRecording,e.tool,e.args)},app.getPath("userData"));learningRecorderActive=true;return true}catch(e){learningRecording=null;learningRecorder.stop();throw e}});ipcMain.handle("learning:record-stop",()=>{if(!learningRecording)throw new Error("Learning recorder is not running");learningRecorder.stop();learningRecorderActive=false;if(!Array.isArray(learningRecording.skill?.steps)||learningRecording.skill.steps.length===0){learningRecording=null;return{ok:false,empty:true,message:"No actions were recorded. Perform at least one action in another Windows application, then record again."}}const result=learning.finishRecording(app.getPath("userData"),learningRecording);learningRecording=null;return result});ipcMain.handle("learning:save",(_,skill)=>require("../learning").save(app.getPath("userData"),skill));ipcMain.handle("learning:remove",(_,id)=>require("../learning").remove(app.getPath("userData"),id));ipcMain.handle("learning:enable",(_,id,enabled)=>require("../learning").setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("learning:run",async(_,id)=>{await ensureBrain();const skill=learning.get(app.getPath("userData"),id);if(!skill)throw new Error("Skill not found: "+id);return learning.run(app.getPath("userData"),agent.registry,skill,{confirm:async({skill,step})=>{await showChat();return new Promise(resolve=>{const cid=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(cid,resolve);chatWin?.webContents.send("agent:confirm",{id:cid,name:step.tool,args:step.args,permissionCategory:agent.registry.categoryFor(step.tool),permissionLabel:"Learned skill: "+skill.name,reason:"Approve this learned step?"})})}})});ipcMain.handle("learning:export",(_,id)=>require("../learning").exportSkill(app.getPath("userData"),id));ipcMain.handle("learning:import",(_,data)=>require("../learning").importSkill(app.getPath("userData"),data));ipcMain.handle("addons:catalog",async()=>{const catalog=await addons.fetchCatalog();return{catalog,installed:addons.listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await addons.fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return addons.install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>addons.uninstall(app.getPath("userData"),id));ipcMain.handle("addons:enable",async(_,id,enabled)=>addons.setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>apiHealth.test(String(service||"")));ipcMain.handle("api-status:test-all",()=>apiHealth.testAll());ipcMain.handle("resource:snapshot",()=>resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("learning:show",()=>{showLearning();return true});ipcMain.handle("learning:list",()=>learning.list(app.getPath("userData")));ipcMain.handle("learning:get",(_,id)=>learning.get(app.getPath("userData"),id));ipcMain.handle("learning:record-start",(_,name,phrases)=>{if(learningRecording)throw new Error("Learning recorder is already running");learningRecording=learning.beginRecording(app.getPath("userData"),name,phrases);try{learningRecorder.start(e=>{if(learningRecording&&e?.type==="action")learning.recordStep(learningRecording,e.tool,e.args)},app.getPath("userData"));learningRecorderActive=true;return true}catch(e){learningRecording=null;learningRecorder.stop();throw e}});ipcMain.handle("learning:record-stop",()=>{if(!learningRecording)throw new Error("Learning recorder is not running");learningRecorder.stop();learningRecorderActive=false;if(!Array.isArray(learningRecording.skill?.steps)||learningRecording.skill.steps.length===0){learningRecording=null;return{ok:false,empty:true,message:"No actions were recorded. Perform at least one action in another Windows application, then record again."}}const result=learning.finishRecording(app.getPath("userData"),learningRecording);learningRecording=null;return result});ipcMain.handle("learning:save",(_,skill)=>require("../learning").save(app.getPath("userData"),skill));ipcMain.handle("learning:remove",(_,id)=>require("../learning").remove(app.getPath("userData"),id));ipcMain.handle("learning:enable",(_,id,enabled)=>require("../learning").setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("learning:run",async(_,id)=>{await ensureBrain();const skill=learning.get(app.getPath("userData"),id);if(!skill)throw new Error("Skill not found: "+id);return learning.run(app.getPath("userData"),agent.registry,skill,{confirm:async({skill,step})=>{await showChat();return new Promise(resolve=>{const cid=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(cid,resolve);chatWin?.webContents.send("agent:confirm",{id:cid,name:step.tool,args:step.args,permissionCategory:agent.registry.categoryFor(step.tool),permissionLabel:"Learned skill: "+skill.name,reason:"Approve this learned step?"})})}})});ipcMain.handle("learning:export",(_,id)=>require("../learning").exportSkill(app.getPath("userData"),id));ipcMain.handle("learning:import",(_,data)=>require("../learning").importSkill(app.getPath("userData"),data));ipcMain.handle("addons:catalog",async()=>{const catalog=await addons.fetchCatalog();return{catalog,installed:addons.listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await addons.fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return addons.install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>addons.uninstall(app.getPath("userData"),id));ipcMain.handle("addons:enable",async(_,id,enabled)=>addons.setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("character:controller:get",async()=>{
  if(!characterWin||characterWin.isDestroyed()) return {available:false};
  try{return characterWin.webContents.executeJavaScript("window.saeedCharacterController?.status?.()||null",true).then(x=>x||{available:false});}
@@ -534,7 +537,7 @@ ipcMain.handle("settings:set",async(_,s)=>{
  // Non-local STT must use the selected STT pipeline unless the user explicitly chooses Realtime.
  if(Object.prototype.hasOwnProperty.call(s||{},"sttProvider")&&String(agent.settings.sttProvider||"whisper")!=="whisper"&&!Object.prototype.hasOwnProperty.call(s||{},"micPath"))agent.settings.micPath="whisper";
  if(mode!=="api"&&agent.settings.realtimeEnabled)agent.settings.realtimeEnabled=false;
- if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")stopRealtime();
+ if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")voiceRuntime.stop();
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(realtimeChanged&&micMode==="on")setMicMode("off").then(()=>setMicMode("on"));
  if(Object.prototype.hasOwnProperty.call(s||{},"characterSize"))setSaeedSize(agent.settings.characterSize);
@@ -554,12 +557,12 @@ function audioProviderConfig(kind,s){const provider=String(s?.[kind+"Provider"]|
 function pcm16ToWav(base64,rate=24000){const pcm=Buffer.from(String(base64||""),"base64"),h=Buffer.alloc(44);h.write("RIFF",0);h.writeUInt32LE(36+pcm.length,4);h.write("WAVE",8);h.write("fmt ",12);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(rate,24);h.writeUInt32LE(rate*2,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write("data",36);h.writeUInt32LE(pcm.length,40);return Buffer.concat([h,pcm])}
 ipcMain.handle("tts:speak",async(_,text)=>{const s=agent?.settings||{},cfg=audioProviderConfig("tts",s),input=String(text||"").trim();if(!input)return{ok:false,reason:"empty"};if(cfg.provider==="local")return{ok:false,reason:"tts-provider-local"};if(!cfg.key&&cfg.provider==="openai")cfg.key=s.apiKey||"";if(!cfg.key)return{ok:false,error:String(cfg.provider).toUpperCase()+" TTS API key is missing"};try{const body=cfg.provider==="elevenlabs"?{text:input,model_id:cfg.model}: {model:cfg.model,input,response_format:"wav"};if(cfg.voice&&cfg.provider!=="elevenlabs")body.voice=cfg.voice;const headers=cfg.provider==="elevenlabs"?{"xi-api-key":cfg.key,"Content-Type":"application/json"}:{"Authorization":"Bearer "+cfg.key,"Content-Type":"application/json"};const r=await fetch(cfg.baseUrl+(cfg.provider==="elevenlabs"?"?output_format=mp3_44100_128":""),{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});if(!r.ok){const msg=await r.text().catch(()=>"");diagnostic("ERROR","TTS API",cfg.provider.toUpperCase()+" TTS HTTP "+r.status+(msg?": "+msg.slice(0,240):""));return{ok:false,error:cfg.provider.toUpperCase()+" TTS HTTP "+r.status}}const b=Buffer.from(await r.arrayBuffer());diagnostic("INFO","TTS API AUDIO",cfg.provider.toUpperCase()+" TTS audio generated",{bytes:b.length,model:cfg.model,voice:cfg.voice||""});return{ok:true,base64:b.toString("base64")}}catch(e){diagnostic("ERROR","TTS API",e.message);return{ok:false,error:e.message}}});
 ipcMain.handle("stt:transcribe",async(_,base64)=>{const s=agent?.settings||{},cfg=audioProviderConfig("stt",s);if(cfg.provider==="local")return{ok:false,reason:"stt-provider-local"};if(!cfg.key&&cfg.provider==="openai")cfg.key=s.apiKey||"";if(!cfg.key)return{ok:false,error:String(cfg.provider).toUpperCase()+" STT API key is missing"};try{const wav=pcm16ToWav(base64,24000),form=new FormData();form.append("file",new Blob([wav],{type:"audio/wav"}),"saeed.wav");if(cfg.provider==="elevenlabs")form.append("model_id",cfg.model);else{form.append("model",cfg.model);form.append("response_format","json");}if(s.sttLanguage&&s.sttLanguage!=="auto")form.append("language",String(s.sttLanguage));const headers=cfg.provider==="elevenlabs"?{"xi-api-key":cfg.key}:{"Authorization":"Bearer "+cfg.key};const r=await fetch(cfg.baseUrl,{method:"POST",headers,body:form,signal:AbortSignal.timeout(60000)});const body=await r.text();if(!r.ok){diagnostic("ERROR","STT API",cfg.provider.toUpperCase()+" STT HTTP "+r.status+(body?": "+body.slice(0,240):""));return{ok:false,error:cfg.provider.toUpperCase()+" STT HTTP "+r.status}}let j={};try{j=JSON.parse(body)}catch{}const text=String(j.text||body||"").trim();diagnostic("INFO","STT API RESULT",cfg.provider.toUpperCase()+" STT transcript received",{model:cfg.model,text});return{ok:true,text}}catch(e){diagnostic("ERROR","STT API",e.message);return{ok:false,error:e.message}}});
-ipcMain.handle("realtime:start",(_,options={})=>{startRealtime(options);return true});
-ipcMain.handle("api:clear-all",async()=>{if(agent){agent.settings={...agent.settings,apiKey:"",sttApiKey:"",ttsApiKey:"",realtimeApiKey:"",realtimeEnabled:false,micMode:"off"};agent.persistSettings()}try{stopRealtime()}catch{}currentMicMode="off";diagnostic("INFO","API RESET","All stored API keys cleared and Realtime disabled");return agent?.publicSettings()||null});
-ipcMain.handle("realtime:stop",()=>{stopRealtime();return true});
-ipcMain.handle("realtime:audio",(_,base64)=>{realtime?.appendAudio(String(base64||""));return true});
-ipcMain.handle("realtime:text",(_,text)=>realtime?.text(String(text||""))||false);
-ipcMain.handle("realtime:cancel",()=>{realtime?.cancel();return true});ipcMain.handle("local-stt:transcribe",(_,base64)=>transcribeLocalWav(String(base64||"")));
+ipcMain.handle("realtime:start",(_,options={})=>{voiceRuntime.start(options);return true});
+ipcMain.handle("api:clear-all",async()=>{if(agent){agent.settings={...agent.settings,apiKey:"",sttApiKey:"",ttsApiKey:"",realtimeApiKey:"",realtimeEnabled:false,micMode:"off"};agent.persistSettings()}try{voiceRuntime.stop()}catch{}currentMicMode="off";diagnostic("INFO","API RESET","All stored API keys cleared and Realtime disabled");return agent?.publicSettings()||null});
+ipcMain.handle("realtime:stop",()=>{voiceRuntime.stop();return true});
+ipcMain.handle("realtime:audio",(_,base64)=>{voiceRuntime.getRealtime()?.appendAudio(String(base64||""));return true});
+ipcMain.handle("realtime:text",(_,text)=>voiceRuntime.getRealtime()?.text(String(text||""))||false);
+ipcMain.handle("realtime:cancel",()=>{voiceRuntime.getRealtime()?.cancel();return true});ipcMain.handle("local-stt:transcribe",(_,base64)=>transcribeLocalWav(String(base64||"")));
 function transcribeLocalWav(base64){return new Promise((resolve,reject)=>{const p=whisperRuntimePaths();const cli=p.exe;if(!fs.existsSync(cli)||!fs.existsSync(p.model)){
  diagnostic("ERROR","LOCAL STT","Whisper STT runtime is not installed",{runtime:p.root,cliExists:fs.existsSync(cli),modelExists:fs.existsSync(p.model)});
  return reject(new Error("Bundled Whisper runtime/model is missing from this Saeed installation."));
@@ -600,93 +603,6 @@ ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
  confirmations.delete(id);resolve(Boolean(approved));return true;
 });
 
-async function testApiConnection(service){
- const s=agent?.settings||{};
- const result={service,connected:false,provider:"Not configured",model:"—",endpoint:"—",latencyMs:0,detail:"Not tested"};
- const started=Date.now();
- const finish=(x)=>({...result,...x,latencyMs:Date.now()-started});
- let url="",headers={},method="GET";
- try{
-  if(service==="brain"){
-   const provider=String(s.provider||"openai"), d=agent?.providerDefaults?.(provider)||{};
-   result.provider=provider==="openai"?"OpenAI / GPT":provider==="anthropic"?"Anthropic / Claude":provider==="gemini"?"Google / Gemini":provider==="groq"?"Groq":provider==="ollama"?"Ollama":"OpenAI-compatible";
-   result.model=String(s.model||d.model||"—"); result.endpoint=String(s.baseUrl||d.baseUrl||"—");
-   if(provider==="ollama"){url=result.endpoint.replace(/\/$/,"")+"/models"}
-   else if(provider==="anthropic"){url="https://api.anthropic.com/v1/models";headers={"x-api-key":String(s.apiKey||""),"anthropic-version":"2023-06-01"}}
-   else if(provider==="gemini"){url=result.endpoint.replace(/\/$/,"")+"/models"; if(s.apiKey)url+="?key="+encodeURIComponent(s.apiKey)}
-   else {url=result.endpoint.replace(/\/$/,"")+"/models";if(s.apiKey)headers.Authorization="Bearer "+s.apiKey}
-  }else if(service==="stt"){
-   result.provider=s.sttProvider==="openai"?"OpenAI Speech-to-Text":s.sttProvider==="groq"?"Groq Speech-to-Text":s.sttProvider==="elevenlabs"?"ElevenLabs Speech-to-Text":"Whisper — Local / Offline";result.model=s.sttModel||"whisper-local";result.endpoint=s.sttProvider==="openai"?"https://api.openai.com/v1/audio/transcriptions":s.sttProvider==="groq"?"https://api.groq.com/openai/v1/audio/transcriptions":s.sttProvider==="elevenlabs"?"https://api.elevenlabs.io/v1/speech-to-text":"Local Whisper runtime";
-   if(s.sttProvider==="whisper")return finish({connected:true,detail:"Local Whisper configured; no API connection required"});
-   url=(s.sttProvider==="groq"?"https://api.groq.com/openai/v1/models":s.sttProvider==="elevenlabs"?"https://api.elevenlabs.io/v1/models":"https://api.openai.com/v1/models");if(s.sttApiKey)headers.Authorization="Bearer "+s.sttApiKey;
-  }else if(service==="tts"){
-   result.provider=s.ttsProvider==="openai"?"OpenAI TTS":s.ttsProvider==="groq"?"Groq TTS":s.ttsProvider==="elevenlabs"?"ElevenLabs TTS":"Local Browser TTS";result.model=s.ttsModel||"browser-speech";result.endpoint=s.ttsProvider==="openai"?"https://api.openai.com/v1/audio/speech":s.ttsProvider==="groq"?"https://api.groq.com/openai/v1/audio/speech":s.ttsProvider==="elevenlabs"?"https://api.elevenlabs.io/v1/text-to-speech":"Local Browser SpeechSynthesis";
-   if(s.ttsProvider==="local")return finish({connected:true,detail:"Local Browser TTS configured; no API connection required"});
-   url=(s.ttsProvider==="groq"?"https://api.groq.com/openai/v1/models":s.ttsProvider==="elevenlabs"?"https://api.elevenlabs.io/v1/models":"https://api.openai.com/v1/models");if(s.ttsApiKey)headers.Authorization="Bearer "+s.ttsApiKey;
-  }else if(service==="realtime"){
-   result.provider=s.realtimeProvider==="openai"?"OpenAI Realtime":"Realtime disabled";result.model=s.realtimeModel||"gpt-realtime-2.1";result.endpoint="wss://api.openai.com/v1/realtime";
-   url="https://api.openai.com/v1/models";if(s.realtimeApiKey||s.apiKey)headers.Authorization="Bearer "+(s.realtimeApiKey||s.apiKey);
-  }else return finish({detail:"Unknown API service"});
-  if(!s.apiKey&&service==="brain"&&s.provider!=="ollama")return finish({detail:"Brain API key is missing"});
-  if(service==="stt"&&s.sttProvider!=="whisper"&&!s.sttApiKey&&!((s.sttProvider==="openai")&&s.apiKey))return finish({detail:"STT API key is missing"});
-  if(service==="tts"&&s.ttsProvider!=="local"&&!s.ttsApiKey&&!((s.ttsProvider==="openai")&&s.apiKey))return finish({detail:"TTS API key is missing"});
-  if(service==="realtime"&&s.realtimeProvider!=="openai")return finish({connected:false,detail:"No native Realtime audio provider is configured"});if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
-  const r=await fetch(url,{method,headers,signal:AbortSignal.timeout(8000)});const body=await r.text().catch(()=>"");
-  if(!r.ok)return finish({detail:"HTTP "+r.status+(body?": "+body.slice(0,180):"")});
-  let modelAvailable=true;try{const j=JSON.parse(body),ids=[...(j.data||[]).map(x=>x.id).filter(Boolean),...(j.models||[]).map(x=>x.name||x.id).filter(Boolean)];if(ids.length&&service==="brain")modelAvailable=ids.includes(result.model)||result.model==="—"}catch{}
-  return finish({connected:modelAvailable,detail:modelAvailable?"Provider authenticated and reachable"+(service==="realtime"?" (Realtime credentials verified via API authentication)":""): "Provider reachable but configured model was not found"});
- }catch(e){return finish({detail:e?.message||String(e)})}
-}
-async function testAllApiConnections(){return Promise.all(["brain","tts","stt","realtime"].map(testApiConnection))}
-
-function stopRealtime(){
- if(realtime){realtime.stop();realtime=null}
- diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");
- diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");
- voiceBroadcast("realtime:state","disconnected");
-}
-function startRealtime(options={}){
- const s=agent?.settings||{};
- if(s.realtimeEnabled===false){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled in Voice settings");voiceBroadcast("realtime:state","disabled","Realtime is disabled.");return false}
- if(s.micPath!=="realtime"){diagnostic("INFO","REALTIME BLOCKED","Realtime microphone path is disabled");voiceBroadcast("realtime:state","blocked","Microphone is using the selected STT provider.");return false}
- if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}if(String(s.brainMode||"auto")!=="api"){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled because Brain mode is "+String(s.brainMode||"auto")+"; requests must pass through the selected brain routing.");voiceBroadcast("realtime:state","blocked","Realtime requires Direct API brain mode.");return false}
- const key=s.realtimeApiKey||s.apiKey||"";
- if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");voiceBroadcast("realtime:state","not-configured","OpenAI API key is not configured.");return false}
- diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
- const registry=agent?.registry;
- const realtimeTools=(registry?.schemas()||[]).map(t=>({
-  type:"function",
-  name:t.function?.name,
-  description:t.function?.description||"",
-  parameters:t.function?.parameters||{type:"object",properties:{},required:[]}
- })).filter(t=>t.name);
- realtime=new OpenAIRealtime({
-  state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");voiceBroadcast("realtime:state",state,message)},
-  event:async(event)=>{
-   if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
-   else if(event.type==="response.output_audio_transcript.delta"&&event.delta)voiceBroadcast("realtime:assistant-delta",event.delta);
-   else if(event.type==="response.output_audio_transcript.done"&&event.transcript)voiceBroadcast("realtime:assistant-final",event.transcript);
-   else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)voiceBroadcast("realtime:user-delta",event.delta);
-   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)voiceBroadcast("realtime:user-final",event.transcript);
-   else if(event.type==="response.function_call_arguments.done"&&event.call_id){
-    const name=String(event.name||"");
-    let args={};
-    try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
-    voiceBroadcast("agent:event",{type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.",source:"realtime"});
-    voiceBroadcast("agent:event",{type:"tool",name,args,source:"realtime"});
-    let out;
-    try{out=await registry.call(name,args)}catch(e){out={ok:false,error:e.message}};
-    if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
-    else voiceBroadcast("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
-    realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
-   }
-   else if(event.type==="response.done")voiceBroadcast("realtime:done",event.response?.status||"completed");
-   else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
-  }
- });
- realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:s.voiceRouting||"controller"});
- return true;
-}
 ipcMain.on("window:move-by",(_,dx,dy)=>{
  if(!characterWin)return;
  const [x,y]=characterWin.getPosition(),[w,h]=characterWin.getSize();
@@ -707,8 +623,8 @@ app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)
 app.on("before-quit",()=>{
  try{captureCharacter3DWindowSettings()}catch{}
  app.isQuitting=true;
- try{stopRealtime()}catch(e){console.error("Voice shutdown failed:",e)}
+ try{voiceRuntime.stop()}catch(e){console.error("Voice shutdown failed:",e)}
  for(const win of [chatWin,performanceWin,settingsWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
-app.on("will-quit",()=>{globalShortcut.unregisterAll();try{stopRealtime()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
+app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceRuntime.stop()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
