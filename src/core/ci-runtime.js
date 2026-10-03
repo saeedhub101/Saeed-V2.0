@@ -15,30 +15,14 @@ function createCiRuntime(deps={}){
  app.quit();
 }
 
-function showUpdateToast(state,message){try{if(!updateToastWin||updateToastWin.isDestroyed()){updateToastWin=new BrowserWindow({width:360,height:116,frame:false,transparent:true,alwaysOnTop:true,skipTaskbar:true,resizable:false,focusable:false,show:false,webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});updateToastWin.on("closed",()=>{updateToastWin=null})}const d=displayForWindow(characterWin);const a=d.workArea;updateToastWin.setPosition(a.x+a.width-378,a.y+a.height-146,false);updateToastWin.loadFile(path.join(__dirname,"..","update-toast.html")).then(()=>{updateToastWin?.webContents.send("update-toast",state,message,updateInfo);updateToastWin?.showInactive()}).catch(()=>{})}catch{}}
-function hideUpdateToast(){try{if(updateToastWin&&!updateToastWin.isDestroyed())updateToastWin.hide()}catch{}}
-function publishUpdate(event,...args){for(const win of [chatWin,updateStatusWin])if(win&&!win.isDestroyed())win.webContents.send(event,...args)}
-function showUpdateStatus(){try{if(!updateStatusWin||updateStatusWin.isDestroyed()){updateStatusWin=new BrowserWindow({width:520,height:360,minWidth:520,minHeight:360,maxWidth:520,maxHeight:360,title:"Saeed AI Update",show:false,resizable:false,center:true,backgroundColor:"#f5f7fb",icon:windowsIconPath(),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});updateStatusWin.setMenuBarVisibility(false);updateStatusWin.removeMenu();updateStatusWin.on("closed",()=>{updateStatusWin=null})}updateStatusWin.loadFile(path.join(__dirname,"..","update-status.html")).then(()=>{if(updateStatusWin&&!updateStatusWin.isDestroyed()){updateStatusWin.show();updateStatusWin.focus();updateStatusWin.webContents.send("update:status-snapshot",{state:updateState,info:updateInfo})}}).catch(e=>diagnostic("ERROR","UPDATE STATUS WINDOW",e.message));return true}catch(e){diagnostic("ERROR","UPDATE STATUS WINDOW",e.message);return false}}
-function configureUpdater(){
- autoUpdater.autoDownload=false;
- autoUpdater.autoInstallOnAppQuit=false;
- // Keep the update feed explicit so every installed build checks the Saeed-V2.0 GitHub latest channel.
- try{autoUpdater.setFeedURL({provider:"github",owner:"saeedhub101",repo:"Saeed-V2.0",channel:"latest"})}catch(e){diagnostic("ERROR","UPDATE CONFIG",e.message)}
- autoUpdater.on("checking-for-update",()=>{updateState="checking";publishUpdate("update:state","checking");if(updateUiRequested)showUpdateToast("checking","Checking for updates... (current v"+app.getVersion()+")")});
- autoUpdater.on("update-not-available",info=>{updateState="latest";updateInfo=info||null;publishUpdate("update:state","latest",{currentVersion:app.getVersion(),latestVersion:info?.version||null});if(updateUiRequested){showUpdateToast("latest","Saeed is up to date (v"+app.getVersion()+")");setTimeout(()=>{updateUiRequested=false;hideUpdateToast()},3200)}});
- autoUpdater.on("update-available",info=>{updateState="available";updateInfo={version:info.version,releaseDate:info.releaseDate||null,releaseNotes:info.releaseNotes||null};publishUpdate("update:available",updateInfo);if(updateUiRequested)showUpdateToast("available","A new Saeed update is available: v"+info.version)});
- autoUpdater.on("download-progress",p=>{updateState="downloading";publishUpdate("update:progress",{percent:p.percent,transferred:p.transferred,total:p.total,bytesPerSecond:p.bytesPerSecond})});
- autoUpdater.on("update-downloaded",info=>{updateState="downloaded";updateInfo={...(updateInfo||{}),version:info.version,releaseDate:info.releaseDate||updateInfo?.releaseDate||null,releaseNotes:info.releaseNotes||updateInfo?.releaseNotes||null};publishUpdate("update:downloaded",updateInfo);if(updateUiRequested)showUpdateToast("downloaded","Update downloaded and ready")});
- autoUpdater.on("error",e=>{updateState="error";publishUpdate("update:state","error",e?.message||String(e));if(updateUiRequested){showUpdateToast("error","Update check failed");setTimeout(()=>{updateUiRequested=false;hideUpdateToast()},3200)}})
-}
- async function runCiRuntimeSmoke(){
+async function runCiRuntimeSmoke(){
  const report={startedAt:new Date().toISOString(),version:app.getVersion(),checks:{},phases:{},resources:resourceService.resourceReport(),environment:{packaged:app.isPackaged,platform:process.platform,ci:true}};
  const check=async(name,fn,{required=true}={})=>{
   const started=Date.now();
   try{report.checks[name]={pass:false,required,latencyMs:0};const value=await fn();const pass=value===true||value?.pass===true;report.checks[name]={...report.checks[name],pass,required,latencyMs:Date.now()-started,detail:typeof value==="object"&&value&&!Array.isArray(value)?value:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-started,error:String(e?.stack||e)};return report.checks[name]}
  };
- const runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(tray),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(realtime),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
+ const runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(tray),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
  try{
   report.phases.startup={runtime,resources:resourceService.resourceReport("startup")};
   report.checks.startup={pass:runtime.characterWindow&&runtime.tray&&runtime.micMode==="off"&&!runtime.realtime,detail:runtime};
@@ -152,7 +136,7 @@ function configureUpdater(){
 
   report.checks["mic.lifecycle"]={pass:currentMicMode==="off"&&!voiceRuntime.getRealtime(),required:true,detail:"Startup lifecycle verified with microphone OFF; renderer media capability tested separately."};
   report.checks["tts.lifecycle"]={pass:Boolean(diagnosticState.tts.state!=="error"),required:false,detail:diagnosticState.tts};
-  report.checks["brain.api-contract"]={pass:Boolean(typeof testApiConnection==="function"&&typeof testAllApiConnections==="function"),required:true};
+  report.checks["brain.api-contract"]={pass:Boolean(apiHealth&&typeof apiHealth.test==="function"&&typeof apiHealth.testAll==="function"),required:true};
   report.checks["learning.contract"]={pass:Boolean(typeof learning.beginRecording==="function"&&typeof learning.recordStep==="function"&&typeof learning.finishRecording==="function"&&typeof learning.run==="function"),required:true};
   report.checks["plugin.contract"]={pass:Boolean(typeof addons.install==="function"&&typeof addons.uninstall==="function"&&typeof addons.setEnabled==="function"),required:true};
 
