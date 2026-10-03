@@ -2,7 +2,7 @@ const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
-  this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.brainLevels=new BrainLevelRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry.schemas().map(x=>x?.function?.name).filter(Boolean)});this.dir=app.getPath("userData");
+  this.registry=registry;this.onEvent=onEvent;this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.apiBrain=new (require("./core/api-brain").ApiBrain)();this.brainLevels=new BrainLevelRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry.schemas().map(x=>x?.function?.name).filter(Boolean)});this.dir=app.getPath("userData");
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
   const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:16,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
@@ -165,7 +165,6 @@ class Agent{
    const answer="I can handle common Windows computer tasks offline, but this request needs the API brain. Please connect an API key in Settings.";
    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local-fallback"});return answer;
   }
-  const {ApiBrain}=require("./core/api-brain");
   return this.apiBrain.run({text,image,settings:s,history:this.history,registry:this.registry,onEvent:this.onEvent,dir:this.dir,route:nextLevel,memoryContext:()=>this.memoryContext(),saveHistory:()=>this.saveHistory(),baseStepLimit:()=>this.baseStepLimit(),askForMoreSteps:(current,task)=>this.askForMoreSteps(current,task),providerDefaults:(name)=>this.providerDefaults(name)});
 
  }
