@@ -14,10 +14,10 @@ process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteSta
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
 const {autoUpdater}=require("electron-updater");
-const addons=require("./addon-service");const learning=require("../learning");const learningRecorder=require("../learning/windows-recorder");
-const {createApiHealth}=require("./api-health");
-const {createVoiceRuntime}=require("./voice-runtime");
-const {createResourceService}=require("./resource-service");
+const addons=require("./services/addon-service");const learning=require("../learning");const learningRecorder=require("../learning/windows-recorder");
+const {createApiHealth}=require("./services/api-health");
+const {createVoiceRuntime}=require("./voice/voice-runtime");
+const {createResourceService}=require("./services/resource-service");
 const resourceService=createResourceService({app,BrowserWindow,process});
 const apiHealth=createApiHealth({getAgent:()=>agent});
 const voiceRuntime=createVoiceRuntime({getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
