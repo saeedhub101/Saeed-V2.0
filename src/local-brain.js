@@ -13,7 +13,9 @@ whatsapp:"https://web.whatsapp.com",chatgpt:"https://chatgpt.com"
 };
 class LocalBrain{
 constructor(registry,onEvent){this.registry=registry;this.onEvent=typeof onEvent==="function"?onEvent:()=>{}}
-async call(name,args,answer){const actionText=name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.";this.onEvent({type:"speech-status",text:actionText});const out=await this.registry.call(name,args);return out?.ok===false?"I could not complete that: "+out.error:answer(out)}
+async call(name,args,answer){const actionText=name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.";this.onEvent({type:"speech-status",text:actionText});const out=await this.registry.call(name,args);
+if(out?.ok===false){this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL ROUTE FAILED",message:"Local route failed; returning control to the main router",meta:{tool:name,error:out.error||"unknown"}});return null}
+return answer(out)}
 cleanTarget(s){return String(s||"").trim().replace(/[.?!؟،]+$/,"").replace(/^(my|the|this)\s+/i,"").trim()}
 async handle(text){
 const t=String(text||"").trim(),l=t.toLowerCase();if(!t)return null;
