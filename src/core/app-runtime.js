@@ -108,8 +108,6 @@ function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}
  const y=bottomRight?area.y+Math.max(0,area.height-h-margin):Math.max(area.y,Math.min(y0,area.y+Math.max(0,area.height-h)));
  characterWin.setPosition(Math.round(x),Math.round(y),false);
 }
-async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show");void ensureBrain().catch(e=>diagnostic("ERROR","BRAIN INIT",e.message))}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
-function closeChat(){if(chatWin&&!chatWin.isDestroyed()){chatWin.destroy();chatWin=null}}
 function stopCharacterRuntime(){if(!characterWin||characterWin.isDestroyed())return;try{characterWin.webContents.send("character:visibility","hidden")}catch{} try{characterWin.webContents.setBackgroundThrottling(true)}catch{}}
 function wakeCharacterRuntime(){if(!characterWin||characterWin.isDestroyed())return;try{characterWin.webContents.setBackgroundThrottling(false)}catch{} try{characterWin.webContents.send("character:visibility","visible")}catch{} }
 function hideCharacter(){if(!characterWin||characterWin.isDestroyed())return;try{captureCharacter3DWindowSettings()}catch{};stopCharacterRuntime();try{characterWin.hide()}catch{}}
