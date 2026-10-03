@@ -290,7 +290,7 @@ async function createCharacterWindow(){
 }
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
 
-async const {createCiRuntime}=require("./ci-runtime");
+const {createCiRuntime}=require("./ci-runtime");
 let ciRuntime;
 function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime({ciSmoke,app,characterWin,tray,agent,brainSupervisor,currentMicMode,resourceService,addons,learning,OpenAIRealtime,request3DStatus,apiHealth,diagnosticState,voiceRuntime,transcribeLocalWav,whisperRuntimePaths,ensureBrain});return ciRuntime;}
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
