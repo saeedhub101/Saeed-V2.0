@@ -31,12 +31,11 @@ function createApiHealth(deps={}){
   if(service==="stt"&&s.sttProvider!=="whisper"&&!s.sttApiKey&&!((s.sttProvider==="openai")&&s.apiKey))return finish({detail:"STT API key is missing"});
   if(service==="tts"&&s.ttsProvider!=="local"&&!s.ttsApiKey&&!((s.ttsProvider==="openai")&&s.apiKey))return finish({detail:"TTS API key is missing"});
   if(service==="realtime"&&s.realtimeProvider!=="openai")return finish({connected:false,detail:"No native Realtime audio provider is configured"});if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
-  const r=awaitfetch(url,{method,headers,signal:AbortSignal.timeout(8000)});const body=await r.text().catch(()=>"");
+  const r=await fetch(url,{method,headers,signal:AbortSignal.timeout(8000)});const body=await r.text().catch(()=>"");
   if(!r.ok)return finish({detail:"HTTP "+r.status+(body?": "+body.slice(0,180):"")});
   let modelAvailable=true;try{const j=JSON.parse(body),ids=[...(j.data||[]).map(x=>x.id).filter(Boolean),...(j.models||[]).map(x=>x.name||x.id).filter(Boolean)];if(ids.length&&service==="brain")modelAvailable=ids.includes(result.model)||result.model==="—"}catch{}
   return finish({connected:modelAvailable,detail:modelAvailable?"Provider authenticated and reachable"+(service==="realtime"?" (Realtime credentials verified via API authentication)":""): "Provider reachable but configured model was not found"});
  }catch(e){return finish({detail:e?.message||String(e)})}
-}
  }
  async function testAllApiConnections(){return Promise.all(["brain","tts","stt","realtime"].map(testApiConnection))}
  return {test:testApiConnection,testAll:testAllApiConnections};
