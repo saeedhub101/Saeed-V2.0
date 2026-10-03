@@ -1,8 +1,9 @@
-const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{SaeedRouter}=require("./core/router"),addonRuntime=require("./addons/runtime"),learning=require("./learning");
+const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{SaeedRouter}=require("./core/router"),{AgentRouter}=require("./core/agent-router"),addonRuntime=require("./addons/runtime"),learning=require("./learning");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
   this.registry=registry;this.onEvent=onEvent;this.memoryService=require("./core/memory-service");this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.apiBrain=new (require("./core/api-brain").ApiBrain)();this.brainLevels=new SaeedRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry.schemas().map(x=>x?.function?.name).filter(Boolean)});this.dir=app.getPath("userData");
+  this.router=new AgentRouter({getSettings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry?.schemas?.().map(x=>x?.function?.name).filter(Boolean)||[],onEvent:e=>this.onEvent(e),getRegistry:()=>this.registry,getBrainLevels:()=>this.brainLevels,getApiBrain:()=>this.apiBrain,getDir:()=>this.dir});
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
   const raw=this.readJson(this.file,{provider:"openai",baseUrl:"https://api.openai.com/v1",model:"gpt-5",apiKey:"",maxSteps:16,micMode:"off",brainMode:"auto",sttProvider:"whisper",sttModel:"base-q5_1",sttLanguage:"auto",streamingMode:"off",voiceControlVersion:3,ttsProvider:"local",ttsModel:"gpt-4o-mini-tts",ttsVoice:"alloy",voiceProfile:"saeed",showSpeechText:false,language:"en",permissions:{files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"},realtimeProvider:"openai",realtimeModel:"gpt-realtime-2.1",realtimeVoice:"marin",realtimeEnabled:true,voiceRouting:"controller",micPath:"realtime",voiceMuted:false,characterSize:"small"});
@@ -104,69 +105,17 @@ class Agent{
  getGlobalMemory(){return this.memoryService.listFacts(this.dir)}
 
  async run(text,image=null){
-  const s=this.settings;this.rememberFromUserText(text);if(!String(text).trim())return "اكتب لي المهمة التي تريد تنفيذها.";this.onEvent({type:"diagnostic",level:"INFO",stage:"LLM REQUEST START",message:"LLM request started"});
-  const learned=learning.match(this.dir,text);if(learned){try{const result=await learning.run(this.dir,this.registry,learned);const answer="Done — I followed the learned skill: "+learned.name+".";this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"learned-skill",skill:learned.id,name:learned.name,result});this.onEvent({type:"answer",text:answer,source:"learned-skill"});return answer}catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}});}}
-  const mode=String(s.brainMode||"auto");
-
-  // Computer-information intents are information requests, never application names.
-  const directComputerInfo=String(text||"").trim().replace(/[.?!؟،]+$/,"").trim();
-  if(/^(?:please\s+)?(?:give\s+me\s+|show\s+me\s+|tell\s+me\s+)?(?:my\s+)?(?:computer|pc|system)\s+(?:info|information|specs|specifications)$/i.test(directComputerInfo)){
-   try{
-    const out=await this.registry.call("system_info",{});
-    const answer=out?.ok===false?"I could not complete that: "+out.error:"Windows system information: "+String(out?.arch||"unknown")+", "+String(out?.cpu||"unknown")+" CPU threads, "+(Number(out?.totalMemory||0)/1073741824).toFixed(1)+" GB RAM.";
-    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();
-    this.onEvent({type:"answer",text:answer,source:"local-direct-system-info"});return answer;
-   }catch(e){const answer="I could not complete that: "+e.message;this.onEvent({type:"answer",text:answer,source:"local-direct-system-info"});return answer;}
+  const result=await this.router.run({text,image});
+  if(result?.event)this.onEvent(result.event);
+  if(result?.handled){
+   const answer=String(result.answer||"");
+   this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});
+   this.saveHistory();
+   this.onEvent({type:"answer",text:answer,source:result.source});
+   return answer;
   }
-
-  // Core Windows launch intents must never be routed through vision/OCR.
-  // This is intentionally handled before learned skills and every LLM provider.
-  const directOpenComputer=String(text||"").trim().replace(/[.?!؟،]+$/,"").trim();
-  if(/^(?:please\s+)?(?:open|launch|start|show|run)\s+(?:my\s+)?(?:computer|this\s+pc|file\s+explorer)$/i.test(directOpenComputer)){
-   try{
-    const out=await this.registry.call("open_application",{application:"my computer"});
-    const answer=out?.ok===false?"I could not complete that: "+out.error:"Opened My Computer.";
-    this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();
-    this.onEvent({type:"answer",text:answer,source:"local-direct-open"});
-    return answer;
-   }catch(e){
-    const answer="I could not complete that: "+e.message;
-    this.onEvent({type:"answer",text:answer,source:"local-direct-open"});
-    return answer;
-   }
-  }
-
-  if(mode==="realtime"){
-   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN REALTIME",message:"Realtime mode is selected; voice streaming handles the conversation."});
-   return "Realtime mode is active. Use the microphone for the live conversation.";
-  }
-  // Deterministic local intents always get first refusal-free routing, even in Direct API mode.
-  // This prevents commands such as "open excel" from being handed to an unrelated tool (for example OCR).
-  if(this.localBrain){
-   try{
-    const brainMem=process.memoryUsage(),brainCpu=process.cpuUsage(),brainStart=Date.now();
-    const handled=await this.localBrain.handle(text);
-    const brainAfter=process.memoryUsage(),brainCpuAfter=process.cpuUsage(brainCpu);
-    this.onEvent({type:"diagnostic",level:"INFO",stage:"RESOURCE LOCAL BRAIN",message:"Local brain resource sample",meta:{elapsedMs:Date.now()-brainStart,cpuUserMs:Math.round(brainCpuAfter.user/1000),cpuSystemMs:Math.round(brainCpuAfter.system/1000),heapDeltaMB:+((brainAfter.heapUsed-brainMem.heapUsed)/1048576).toFixed(2),rssMB:+(brainAfter.rss/1048576).toFixed(1)}});
-    if(handled!==null){
-     this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Offline deterministic intent handled the request"});
-     this.history.push({role:"user",content:String(text)},{role:"assistant",content:handled});this.saveHistory();
-     this.onEvent({type:"answer",text:handled,source:"local-brain"});return handled;
-    }
-   }catch(e){this.onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message});}
-  }
-  const nextLevel=await this.brainLevels.classify(text);
-  if(nextLevel.name==="learned-skill")this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN SKILL ROUTE",message:"Matched installed learned skill before general routing",meta:{skill:nextLevel.skill,name:nextLevel.skillName}});
-
-  this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LEVEL",message:"Conversation brain selected level "+nextLevel.level+" ("+nextLevel.name+")",meta:nextLevel});
-  if(mode==="local"){
-   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN LOCAL",message:"Offline computer brain has no handler for this request"});
-   const answer="I can handle common Windows computer tasks offline, but this request needs the API brain. Please connect an API key in Settings.";
-   this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:"local-fallback"});return answer;
-  }
-  return this.apiBrain.run({text,image,settings:s,history:this.history,registry:this.registry,onEvent:this.onEvent,dir:this.dir,route:nextLevel,memoryContext:()=>this.memoryContext(),saveHistory:()=>this.saveHistory(),baseStepLimit:()=>this.baseStepLimit(),askForMoreSteps:(current,task)=>this.askForMoreSteps(current,task),providerDefaults:(name)=>this.providerDefaults(name)});
-
- }
+  return result?.answer||"";
+}
 }
 module.exports={Agent};
 // Build validation marker: latest Agent fixes.
