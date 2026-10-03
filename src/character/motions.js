@@ -35,4 +35,20 @@ export function registerCoreMotions(controller){
     leftUpperArm:{z:Math.sin(t*7)*.08},rightUpperArm:{z:-Math.sin(t*7+.7)*.08},
     head:{y:Math.sin(t*3)*.05}
   })});
+  r({id:"adhanOpening",duration:5.2,layer:"special",update:({p})=>{
+    const rise=Math.min(1,p/.18),hold=p<.82?1:Math.max(0,(1-p)/.18);
+    const q=Math.min(rise,hold);
+    const settle=Math.max(0,(p-.82)/.18);
+    return {
+      spine:{x:-.035*q,z:Math.sin(p*Math.PI)*.018},
+      chest:{x:-.025*q},
+      head:{x:-.025*q,y:Math.sin(p*Math.PI)*.035},
+      leftUpperArm:{y:.95*q,z:-.18*q},
+      rightUpperArm:{y:-.95*q,z:.18*q},
+      leftForeArm:{z:1.28*q,x:-.12*q},
+      rightForeArm:{z:-1.28*q,x:-.12*q},
+      jaw:{x:.08*q}
+    };
+  }});
+
 }
