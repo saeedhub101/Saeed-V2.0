@@ -27,6 +27,7 @@ const context=()=>{decay();const now=new Date(),h=now.getHours(),idleMs=Date.now
  if(energy<35){setState("tired");plans.tired();return}
  const c=context();
  if(c.userActive){setState("idle");schedule();return}
+ maybeBubble()
  if(c.period==="night"&&c.idleMin>8){setState("tired");plans.tired();return}
  const r=Math.random();
  if(c.mood==="happy"&&r<.55){setState("playful");plans.playful()}
