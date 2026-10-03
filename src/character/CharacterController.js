@@ -29,7 +29,7 @@ export class CharacterController{
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out;}
  deleteMotion(id){return this.editor.remove(id);}
  listMotions(){return this.editor.list();}
- semantic(intent,options={}){const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap"};const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");const motion=map[key]||"idle";return{intent:key,motion,played:this.play(motion,options)};}
+ semantic(intent,options={}){const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");const motion=map[key]||"idle";return{intent:key,motion,played:this.play(motion,options)};}
  status(){return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.avatar?.getCharacterRigAutoMap?.()||null};}
  onCharacterLoaded(){const x=this.bindCurrentCharacter();this.animation.stopAll();this.animation.setIdlePose(this.animation.idlePose||{});this.characterId=x.profileId;}
  update(dt){this.animation.update(dt);}
