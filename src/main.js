@@ -250,7 +250,17 @@ async function runCiRuntimeSmoke(){
  try{
   const glb=path.join(app.getAppPath(),"assets","Saeed_Test-3D.glb");
   report.checks.glbFile={pass:fs.existsSync(glb),path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
-  report.checks.runtimeChecks={pass:true,mode:"runtime GLB/agent/local brain/chat/TTS/mic checks disabled"};
+  report.checks.runtimeChecks={
+   pass:Boolean(characterWin&&!characterWin.isDestroyed()&&agent&&agent.localBrain&&brainSupervisor),
+   characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),
+   agentInitialized:Boolean(agent),
+   localBrainInitialized:Boolean(agent&&agent.localBrain),
+   brainSupervisorInitialized:Boolean(brainSupervisor),
+   micMode:currentMicMode,
+   realtimeInitialized:Boolean(realtime),
+   addonsManagerLoaded:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),
+   trayCreated:Boolean(tray)
+  };
   report.resourcesAfter=resourceReport();
   report.finishedAt=new Date().toISOString();
   report.pass=Boolean(report.checks.glbFile.pass);
