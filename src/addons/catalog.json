@@ -80,24 +80,6 @@
       "distribution": "github-release"
     },
     {
-      "id": "stt-whisper",
-      "name": "Whisper STT",
-      "version": "1.x",
-      "category": "Speech to Text",
-      "description": "Local/offline speech recognition provider.",
-      "provider": "ggml-org",
-      "sourceUrl": "https://github.com/ggml-org/whisper.cpp",
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-stt-whisper.zip",
-      "installType": "bundle",
-      "status": "release-bundle",
-      "capabilities": [
-        "speech-to-text"
-      ],
-      "dependencies": [],
-      "installable": true,
-      "distribution": "github-release"
-    },
-    {
       "id": "memory-core",
       "name": "Memory Foundation",
       "version": "1.0.0",
