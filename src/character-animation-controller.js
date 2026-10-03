@@ -1,6 +1,6 @@
 (()=>{
 const defaults={breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30,autonomousMovement:true,idleThoughts:true,sleep:true,eyeTracking:true,sleepAfterMin:20,renderWakeMs:1200};
-let config={...defaults},stateName="idle",energy=70,lastEnergy=Date.now(),lastActivity=Date.now(),lastEventAt=0,active=false,visible=true,timer=0,recent=[];
+let config={...defaults},stateName="idle",energy=70,lastEnergy=Date.now(),lastActivity=Date.now(),lastEventAt=0,active=false,visible=true,timer=0,recent=[],recentBehaviors=[],priority=false;
 const has=n=>Boolean(window.saeedAvatar?.hasAnimation?.(n));
 const wake=()=>window.saeedAvatar?.wakeRender?.(config.renderWakeMs);
 const play=(n,opts={})=>{if(!active||!visible||!has(n))return false;const ok=window.saeedAvatar?.play?.(n,opts);if(ok){recent.push(n);if(recent.length>6)recent.shift();wake()}return Boolean(ok)};
@@ -9,7 +9,7 @@ const clear=()=>{if(timer){clearTimeout(timer);timer=0}};
 const gap=()=>Math.max(0,Number(config.eventCooldownSec)||30)*1000;
 const allowed=()=>{const n=Date.now();if(n-lastEventAt<gap())return false;lastEventAt=n;return true};
 const decay=()=>{const m=(Date.now()-lastEnergy)/60000;lastEnergy=Date.now();energy=Math.max(20,energy-m*.5)};
-const setState=s=>{stateName=s;clear()};
+const rememberBehavior=s=>{if(!s||s==="idle"||s==="hidden")return;recentBehaviors.push(s);if(recentBehaviors.length>5)recentBehaviors.shift()};\nconst setState=s=>{stateName=s;clear();rememberBehavior(s);priority=["speaking","thinking","doing"].includes(s)};
 const finish=delay=>{timer=setTimeout(()=>{timer=0;if(active&&visible)setState("idle"),schedule()},Math.max(150,delay||500))};
 
 const plans={
@@ -59,19 +59,19 @@ function event(e){
  if(t==="settings"){applySettings(e.settings||{});return}
  touch();
  if(t==="speech-start"){setState("speaking");if(config.speechFace)play("Explain",{important:true})}
- else if(t==="speech-end"){setState("idle");schedule()}
+ else if(t==="speech-end"){priority=false;setState("idle");schedule()}
  else if(t==="thinking"){setState("thinking");play("Think",{important:true})}
  else if(t==="answer"){setState("speaking");if(config.speechFace)play("Explain",{important:true})}
  else if(t==="tool"){if(!config.events||!allowed())return;setState("doing");play(({web_search:"Searching",add_task:"Write",complete_task:"Write",remove_task:"Write",list_tasks:"Read",remember:"Write",recall:"Read",move_to:"GestureRight",move_relative:"GestureRight",hide:"Hide",show:"Show"})[e.name]||"Process",{important:true})}
  else if(t==="tool_error"){setState("reacting");plans.reacting()}
- else if(t==="tool_result"&&config.events){setState("reacting");play(e.ok===false?pick(["Confused","Uncertain"]):pick(["Pleased","Acknowledge"]),{duration:1200});finish(1500)}
- else if(t==="user-input"&&config.events&&allowed()){const s=String(e.text||"").toLowerCase();const p=/\\bthanks?\\b|\\bthank you\\b/.test(s)?pick(["Pleased","Acknowledge"]):/\\b(wow|amazing|awesome)\\b/.test(s)?pick(["Surprised","Pleased"]):/\\b(what|why|how)\\b.*\\?/.test(s)?pick(["Confused","Uncertain"]):null;if(p){setState("reacting");play(p,{duration:1200});finish(1400)}}
+ else if(t==="tool_result"&&config.events){priority=false;setState("reacting");play(e.ok===false?pick(["Confused","Uncertain"]):pick(["Pleased","Acknowledge"]),{duration:1200});finish(1500)}
+ else if(t==="user-input"&&config.events&&allowed()&&!priority){const s=String(e.text||"").toLowerCase();const p=/\bthanks?\b|\bthank you\b/.test(s)?pick(["Pleased","Acknowledge"]):/\b(wow|amazing|awesome)\b/.test(s)?pick(["Surprised","Pleased"]):/\b(what|why|how)\b.*\?/.test(s)?pick(["Confused","Uncertain"]):null;if(p){setState("reacting");play(p,{duration:1200});finish(1400)}}
  else if(t==="right-click"&&config.events&&allowed()){setState("reacting");play("Acknowledge",{important:true});finish(1500)}
  else if(t==="zoom"&&config.events&&allowed()){setState("reacting");play("Surprised",{duration:1200});finish(1500)}
  else if(t==="mood"&&e.mood)window.saeedFeelings?.set(e.mood);
 }
-function autonomousMotion(e){if(!config.autonomousMovement||!visible||stateName==="sleeping")return false;const type=String(e?.motion||e?.name||"");if(type==="wander"&&config.walking&&typeof window.saeedAvatar?.move==="function"){setState("reacting");window.saeedAvatar.move(Math.random()<.5?"left":"right",1600);finish(1800);return true}if(type){const p=pick([type,...(window.saeedFeelings?.palette?.()||[])]);if(p){setState("reacting");play(p,{duration:1400});finish(1600);return true}}return false}
-window.saeedAnimationController={start,stop,touch,setIntent:setState,getIntent:()=>stateName,getEnergy:()=>{decay();return Math.round(energy)},getRenderWakeMs:()=>Math.max(120,Number(config.renderWakeMs)||1200),onEvent:event,autonomousMotion,applySettings,setVisible,state:()=>({intent:stateName,energy:Math.round(energy),idleMs:Date.now()-lastActivity,recent:recent.slice(),visible,config:{...config}})};
+function autonomousMotion(e){if(!config.autonomousMovement||!visible||stateName==="sleeping"||priority||["thinking","speaking","doing"].includes(stateName))return false;const type=String(e?.motion||e?.name||"");if(type==="wander"&&config.walking&&typeof window.saeedAvatar?.move==="function"){setState("reacting");window.saeedAvatar.move(Math.random()<.5?"left":"right",1600);finish(1800);return true}if(type){const p=pick([type,...(window.saeedFeelings?.palette?.()||[])]);if(p){setState("reacting");play(p,{duration:1400});finish(1600);return true}}return false}
+window.saeedAnimationController={start,stop,touch,setIntent:setState,getIntent:()=>stateName,getEnergy:()=>{decay();return Math.round(energy)},getRenderWakeMs:()=>Math.max(120,Number(config.renderWakeMs)||1200),onEvent:event,autonomousMotion,applySettings,setVisible,state:()=>({intent:stateName,energy:Math.round(energy),idleMs:Date.now()-lastActivity,recent:recent.slice(),recentBehaviors:recentBehaviors.slice(),priority,visible,config:{...config}})};
 ["pointerdown","pointermove","keydown","wheel"].forEach(t=>window.addEventListener(t,touch,{passive:true}));
 window.saeed?.onEvent?.(event);
 window.addEventListener("load",()=>void start());
