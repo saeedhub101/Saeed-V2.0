@@ -1,8 +1,8 @@
-const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{SaeedRouter}=require("./core/router"),{AgentRouter}=require("./core/agent-router"),addonRuntime=require("./addons/runtime"),learning=require("./learning");
+const fs=require("fs"),path=require("path"),{safeStorage,app}=require("electron"),{SaeedRouter}=require("./core/brain/router"),{AgentRouter}=require("./core/brain/agent-router"),addonRuntime=require("./addons/runtime"),learning=require("./learning");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
-  this.registry=registry;this.onEvent=onEvent;this.memoryService=require("./core/memory-service");this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.apiBrain=new (require("./core/api-brain").ApiBrain)();this.brainLevels=new SaeedRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry.schemas().map(x=>x?.function?.name).filter(Boolean)});this.dir=app.getPath("userData");
+  this.registry=registry;this.onEvent=onEvent;this.memoryService=require("./core/services/memory-service");this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.apiBrain=new (require("./core/brain/api-brain").ApiBrain)();this.brainLevels=new SaeedRouter({settings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry.schemas().map(x=>x?.function?.name).filter(Boolean)});this.dir=app.getPath("userData");
   this.router=new AgentRouter({getSettings:()=>this.settings,getLocalBrain:()=>this.localBrain,getSkills:()=>learning.list(this.dir),getCapabilities:()=>this.registry?.schemas?.().map(x=>x?.function?.name).filter(Boolean)||[],onEvent:e=>this.onEvent(e),getRegistry:()=>this.registry,getBrainLevels:()=>this.brainLevels,getApiBrain:()=>this.apiBrain,getDir:()=>this.dir});
   this.file=path.join(this.dir,"settings.json");this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");
   fs.mkdirSync(this.dir,{recursive:true});
