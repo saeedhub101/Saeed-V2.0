@@ -9,5 +9,32 @@ function register(userData,manifest){capabilities.register(userData,manifest);re
 function unregister(userData,id){unload(userData,id);capabilities.unregister(userData,id)}
 function list(userData){return capabilities.list(userData)}
 function find(userData,capability,preferred=null){const providers=capabilities.find(userData,capability);if(preferred){const p=providers.find(x=>x.id===preferred||x.provider===preferred);if(p)return p}return providers[0]||null}
+function toolSchemas(userData){
+ const out=[];
+ for(const item of capabilities.list(userData)){
+  try{
+   const manifest=manager.load(userData,item.id);
+   for(const tool of (manifest.tools||[]))out.push({type:"function",function:{name:"addon_"+item.id+"_"+tool.name,description:tool.description+" [Add-on: "+item.name+"]",parameters:tool.parameters}});
+  }catch{}
+ }
+ return out;
+}
+function resolveTool(userData,fullName){
+ const m=String(fullName||"").match(/^addon_([a-z0-9][a-z0-9._-]{0,63})_(.+)$/i);
+ if(!m)return null;
+ const manifest=manager.load(userData,m[1]);
+ const tool=(manifest.tools||[]).find(x=>x.name===m[2]);
+ return tool?{id:m[1],name:m[2],tool}:null;
+}
+async function callTool(userData,fullName,args={}){
+ const resolved=resolveTool(userData,fullName);
+ if(!resolved)throw new Error("Unknown add-on tool: "+fullName);
+ const provider=load(userData,resolved.id);
+ if(!provider)throw new Error("Add-on "+resolved.id+" has no runtime entry");
+ if(typeof provider["tool_"+resolved.name]==="function")return provider["tool_"+resolved.name](args);
+ if(typeof provider.callTool==="function")return provider.callTool(resolved.name,args);
+ if(provider.tools&&typeof provider.tools[resolved.name]==="function")return provider.tools[resolved.name](args);
+ throw new Error("Add-on "+resolved.id+" does not implement tool "+resolved.name);
+}
 async function call(userData,capability,method,args={},preferred=null){const info=find(userData,capability,preferred);if(!info)return null;const provider=load(userData,info.id);if(!provider||typeof provider[method]!=="function")throw new Error("Add-on "+info.id+" does not provide "+method+"()");return provider[method](args)}
-module.exports={register,unregister,list,find,load,unload,call};
+module.exports={register,unregister,list,find,load,unload,call,toolSchemas,callTool,resolveTool};
