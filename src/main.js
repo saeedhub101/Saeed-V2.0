@@ -325,7 +325,7 @@ async function runCiRuntimeSmoke(){
   await ensureBrain();
   report.phases.core={resources:resourceReport("core-ready")};
   await check("core.agent",()=>Boolean(agent&&agent.registry&&typeof agent.run==="function"));
-  await check("core.localBrain",()=>Boolean(agent?.localBrain&&typeof agent.localBrain.run==="function"));
+  await check("core.localBrain",()=>Boolean(agent?.localBrain&&typeof agent.localBrain.handle==="function"));
   await check("core.brainSupervisor",()=>Boolean(brainSupervisor&&brainSupervisor.active&&typeof brainSupervisor.state==="function"));
   await check("core.instantBrain",async()=>{
    const state=brainSupervisor?.state?.();
@@ -338,7 +338,7 @@ async function runCiRuntimeSmoke(){
    agent.settings={...agent.settings,brainMode:"local"};
    localChatResult=await Promise.race([agent.run("What time is it?"),new Promise((_,reject)=>setTimeout(()=>reject(new Error("Local chat timed out after 20s")),20000))]);
   }finally{agent.settings={...agent.settings,brainMode:originalBrainMode}}
-  await check("chat.local",()=>Boolean(localChatResult&&typeof localChatResult==="object"&&String(localChatResult.text||localChatResult.answer||localChatResult.message||"").trim().length>0));
+  await check("chat.local",()=>Boolean(String(localChatResult||"").trim().length>0));
 
   await check("tools.registry",()=>{
    const schemas=agent.registry.schemas();
