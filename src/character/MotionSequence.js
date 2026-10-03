@@ -13,3 +13,5 @@ export function sampleSequence(keyframes,p){
 export function sequence(id,duration,layer,keyframes,options={}){
  return {id,duration,layer,blend:options.blend??.22,update:({p})=>sampleSequence(keyframes,p)};
 }
+
+// Integrated full-body motion engine release marker
