@@ -59,7 +59,7 @@ function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail
  if(s.includes("TTS")){diagnosticState.tts.state=fail?"error":s.includes("DISCONNECTED")?"disabled":(s.includes("READY")||s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")||s.includes("SUCCESS")?"active":diagnosticState.tts.state);diagnosticState.tts.detail=e.message}
  if(s.includes("GLB")||s.includes("CHARACTER READY")){diagnosticState.glb.state=fail?"error":s.includes("READY")?"ready":"active";diagnosticState.glb.detail=e.message}
  
- if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(performanceWin&&!performanceWin.isDestroyed())performanceWin.webContents.send("diagnostic:state",diagnosticState);
 }
 let cpuTimer=null;
 function startCpuMonitoring(){
@@ -133,8 +133,8 @@ async function showLearning(){try{if(learningWin&&!learningWin.isDestroyed()){le
 async function showAddons(){try{if(addonsWin&&!addonsWin.isDestroyed()){addonsWin.show();addonsWin.focus();addonsWin.webContents.send("addons:refresh");return}addonsWin=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Add-ons / Plug-ins",show:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),backgroundColor:"#f4f6fa",webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});addonsWin.setIcon(windowsIconPath());addonsWin.on("closed",()=>{addonsWin=null});addonsWin.webContents.once("did-finish-load",()=>{addonsWin?.show();addonsWin?.focus()});await addonsWin.loadFile(path.join(__dirname,"addons","window.html"))}catch(e){diagnostic("ERROR","ADDONS WINDOW",e.message)}}
 function stopCharacterRuntime(){if(!characterWin||characterWin.isDestroyed())return;try{characterWin.webContents.send("character:visibility","hidden")}catch{} try{characterWin.webContents.setBackgroundThrottling(true)}catch{}}
 function wakeCharacterRuntime(){if(!characterWin||characterWin.isDestroyed())return;try{characterWin.webContents.setBackgroundThrottling(false)}catch{} try{characterWin.webContents.send("character:visibility","visible")}catch{} }
-function hideCharacter(){if(!characterWin||characterWin.isDestroyed())return;stopCharacterRuntime();characterWin.hide()}
-function showCharacter(){if(!characterWin||characterWin.isDestroyed())return;wakeCharacterRuntime();characterWin.show();characterWin.focus()}
+function hideCharacter(){if(!characterWin||characterWin.isDestroyed())return;try{captureCharacter3DWindowSettings()}catch{};stopCharacterRuntime();try{characterWin.close()}catch{try{characterWin.destroy()}catch{}}}
+async function showCharacter(){try{if(!characterWin||characterWin.isDestroyed())await createCharacterWindow();if(!characterWin||characterWin.isDestroyed())return;wakeCharacterRuntime();characterWin.show();characterWin.focus()}catch(e){diagnostic("ERROR","3D WINDOW",e.message)}}
 function showStatus(){startCpuMonitoring();if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState});return}statusWin=new BrowserWindow({width:880,height:660,minWidth:680,minHeight:500,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null;stopCpuMonitoring()});statusWin.loadFile(path.join(__dirname,"status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 let characterLoadGeneration=0;
 const persistedCharacterFile=()=>path.join(app.getPath("userData"),"characters","selected.glb");
