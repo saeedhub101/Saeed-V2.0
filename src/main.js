@@ -1,6 +1,7 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
+if(ciSmoke){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
 function ciWriteStartupReport(kind,error){
  if(!ciSmoke)return;
  try{
