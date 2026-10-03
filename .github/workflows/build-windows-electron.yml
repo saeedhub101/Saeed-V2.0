@@ -156,6 +156,31 @@ jobs:
             if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
           }
 
+      - name: Prepare embedded Whisper runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $root = "build\\whisper-runtime"
+          if (Test-Path $root) { Remove-Item $root -Recurse -Force }
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
+          if (Test-Path "build\\whisper-src") { Remove-Item "build\\whisper-src" -Recurse -Force }
+          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\\whisper-src
+          cmake -S build\\whisper-src -B build\\whisper-src\\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
+          cmake --build build\\whisper-src\\build --config Release --target whisper-cli
+          $cli = Get-ChildItem "build\\whisper-src\\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
+          if (!$cli) { throw "whisper-cli.exe was not built." }
+          Copy-Item $cli.FullName (Join-Path $root "whisper-cli.exe") -Force
+          $dllDir = Split-Path $cli.FullName -Parent
+          Get-ChildItem $dllDir -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $root -Force }
+          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile (Join-Path $root "ggml-base-q5_1.bin")
+          $hash = (Get-FileHash (Join-Path $root "ggml-base-q5_1.bin") -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
+          & (Join-Path $root "whisper-cli.exe") --help | Out-File (Join-Path $root "whisper-help.txt")
+          if ($LASTEXITCODE -ne 0) { throw "Embedded Whisper CLI startup check failed." }
+          Remove-Item "build\\whisper-src" -Recurse -Force
+          Write-Host "EMBEDDED_WHISPER=PASS"
+          Get-ChildItem $root | Select-Object Name,Length
+
       - name: Build Windows installer
         run: npm run dist
 
@@ -167,8 +192,9 @@ jobs:
           $required = @("Saeed AI.exe","resources\\app.asar")
           foreach($rel in $required){$p=Join-Path $root $rel;if(!(Test-Path $p -PathType Leaf)){throw "Packaged core asset missing: $p";}}
           Write-Host "PACKAGED_APP_ASAR=PASS"
-          if(Test-Path (Join-Path $root "resources\\whisper")){throw "Whisper runtime must not be bundled inside Saeed Core."}
-          Write-Host "PACKAGED_CORE_HAS_NO_WHISPER=PASS"
+          $whisperRoot = Join-Path $root "resources\\whisper"
+          foreach($rel in @("whisper-cli.exe","ggml-base-q5_1.bin")) { $p=Join-Path $whisperRoot $rel; if(!(Test-Path $p -PathType Leaf)){throw "Embedded Whisper asset missing: $p"} }
+          Write-Host "PACKAGED_CORE_HAS_EMBEDDED_WHISPER=PASS"
 
       - name: Runtime packaged application smoke test and resource report
         shell: powershell
@@ -247,27 +273,6 @@ jobs:
           Build-NpmAddon "pdf" "PDF" "pdf-parse" "1.1.1" "Documents" @("documents","pdf")
           Build-NpmAddon "ocr" "OCR" "tesseract.js" "6.0.1" "Vision" @("ocr","vision")
 
-          $whisper = Join-Path $env:RUNNER_TEMP "saeed-addon-stt-whisper"
-          if (Test-Path $whisper) { Remove-Item $whisper -Recurse -Force }
-          New-Item -ItemType Directory -Force -Path $whisper | Out-Null
-          if (Test-Path "build\whisper-src") { Remove-Item "build\whisper-src" -Recurse -Force }
-          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\whisper-src
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
-          cmake --build build\whisper-src\build --config Release --target whisper-cli
-          $cli = Get-ChildItem "build\whisper-src\build" -Recurse -Filter "whisper-cli.exe" | Select-Object -First 1
-          if (!$cli) { throw "whisper-cli.exe was not built." }
-          Copy-Item $cli.FullName (Join-Path $whisper "whisper-cli.exe") -Force
-          $dllDir = Split-Path $cli.FullName -Parent
-          Get-ChildItem $dllDir -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $whisper -Force }
-          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile (Join-Path $whisper "ggml-base-q5_1.bin")
-          $hash = (Get-FileHash (Join-Path $whisper "ggml-base-q5_1.bin") -Algorithm SHA256).Hash.ToLower()
-          if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
-          & (Join-Path $whisper "whisper-cli.exe") --help | Out-File (Join-Path $whisper "whisper-help.txt")
-          if ($LASTEXITCODE -ne 0) { throw "Whisper CLI startup check failed." }
-          @{schemaVersion=1;id="stt-whisper";name="Whisper STT";version="1.x";category="Speech to Text";capabilities=@("speech-to-text");installType="bundle"} | ConvertTo-Json | Set-Content (Join-Path $whisper "manifest.json")
-          Compress-Archive -Path (Join-Path $whisper "*") -DestinationPath (Join-Path $root "saeed-addon-stt-whisper.zip") -Force
-          Remove-Item $whisper -Recurse -Force
-          Remove-Item "build\whisper-src" -Recurse -Force
 
           Get-ChildItem $root | Select-Object Name,Length
 
@@ -275,7 +280,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $required = @("word","excel","pdf","ocr","stt-whisper")
+          $required = @("word","excel","pdf","ocr")
           foreach($id in $required) {
             $zip = "dist/addons/saeed-addon-$id.zip"
             if (!(Test-Path $zip)) { throw "Missing add-on bundle: $zip" }
