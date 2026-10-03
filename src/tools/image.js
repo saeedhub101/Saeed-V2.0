@@ -44,6 +44,7 @@ function wordsToTable(words,maxRows,maxCols){
  return{rows:rows.map(r=>{const x=r.slice(0,limit);while(x.length<Math.min(columnCount,limit))x.push("");return x;}),rowCount:rows.length,columnCount:Math.min(columnCount,limit)};
 }
 async function call(name,a={},context={}){
+ if(!["ocr_image","extract_image_table","inspect_image"].includes(String(name)))return null;
  const p=abs(a.filePath);
  if(!fs.existsSync(p))return{ok:false,error:"File not found: "+p};
  if(!supported(p))return{ok:false,error:"Unsupported image type: "+path.extname(p)+". Supported: png, jpg, jpeg, webp, bmp, tif, tiff."};
