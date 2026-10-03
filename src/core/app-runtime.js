@@ -66,7 +66,7 @@ function updateDiagnosticState(e){const s=String(e.stage||"").toUpperCase(),fail
  if(s.includes("TTS")){diagnosticState.tts.state=fail?"error":s.includes("DISCONNECTED")?"disabled":(s.includes("READY")||s.includes("CONNECTED")||s.includes("ACTIVE")||s.includes("START")||s.includes("SUCCESS")?"active":diagnosticState.tts.state);diagnosticState.tts.detail=e.message}
  if(s.includes("GLB")||s.includes("CHARACTER READY")){diagnosticState.glb.state=fail?"error":s.includes("READY")?"ready":"active";diagnosticState.glb.detail=e.message}
  
- if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(performanceWin&&!performanceWin.isDestroyed())performanceWin.webContents.send("diagnostic:state",diagnosticState);if(performanceWin&&!performanceWin.isDestroyed())performanceWin.webContents.send("diagnostic:state",diagnosticState);
+ if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(performanceWin&&!performanceWin.isDestroyed())performanceWin.webContents.send("diagnostic:state",diagnosticState);
 }
 let cpuTimer=null;
 function startCpuMonitoring(){
