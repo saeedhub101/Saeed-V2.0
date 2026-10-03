@@ -33,7 +33,6 @@ function download(url,target,onProgress){
   follow(String(url||""),0);
  });
 }
-function installNpmPackage(target,manifest,onProgress){return new Promise((resolve,reject)=>{fs.mkdirSync(target,{recursive:true});const npm=process.platform==="win32"?"npm.cmd":"npm";const child=spawn(npm,["install","--prefix",target,`${manifest.packageName||manifest.id}@${manifest.version}`,"--omit=dev","--ignore-scripts"],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.stdout.on("data",d=>{const s=String(d);if(/added|up to date|changed/i.test(s))onProgress?.({state:"installing",percent:null})});child.on("error",e=>reject(new Error("npm is required for this add-on on this build: "+e.message)));child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||("npm install failed with code "+code))));})}
 function extractZip(zip,destination){return new Promise((resolve,reject)=>{fs.mkdirSync(destination,{recursive:true});const child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-Command","Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",zip,destination],{windowsHide:true});let err="";child.stderr.on("data",d=>err+=String(d));child.on("error",reject);child.on("close",code=>code===0?resolve():reject(new Error(err.trim()||"Could not extract add-on archive")))})}
 function validateManifest(manifest){
  if(!manifest||manifest.schemaVersion!==1)throw new Error("Unsupported add-on manifest schema");
@@ -52,42 +51,53 @@ function listInstalled(userData){ensureRoot(userData);return fs.readdirSync(root
 async function fetchCatalog(url=DEFAULT_CATALOG_URL){return new Promise((resolve,reject)=>{let u;try{u=new URL(url)}catch{return reject(new Error("Invalid catalog URL"))}if(u.protocol!=="https:")return reject(new Error("Catalog must use HTTPS"));https.get(u,res=>{let body="";res.on("data",d=>body+=d);res.on("end",()=>{if(res.statusCode!==200)return reject(new Error("Catalog HTTP "+res.statusCode));try{const data=JSON.parse(body);if(data?.schemaVersion!==2||!Array.isArray(data.addons))throw new Error("Invalid add-on catalog schema");resolve(data)}catch(e){reject(new Error(e.message||"Invalid add-on catalog"))}})}).on("error",reject)})}
 function swapIntoPlace(staging,target){const backup=target+".backup-"+Date.now();let movedOld=false;try{if(fs.existsSync(target)){fs.renameSync(target,backup);movedOld=true}fs.renameSync(staging,target);if(movedOld)fs.rmSync(backup,{recursive:true,force:true})}catch(e){try{if(fs.existsSync(target))fs.rmSync(target,{recursive:true,force:true});if(movedOld&&fs.existsSync(backup))fs.renameSync(backup,target)}catch{}throw e}}
 async function install(userData,addon,onProgress){
- const catalogEntry=validateCatalogEntry(addon);const deps=catalogEntry.dependencies||[];for(const dep of deps){const depId=typeof dep==="string"?dep:dep.id;if(depId&&!has(userData,depId))throw new Error("Missing add-on dependency: "+depId)}
- // npm add-ons are installed directly from npm; they do not need a release ZIP.
- // Built-in providers are already part of Saeed Core and only need registration.
- if(catalogEntry.installType==="core-provider"){
-  const manifest=validateManifest({...catalogEntry,schemaVersion:1,enabled:true,installedAt:new Date().toISOString()});
-  const target=addonDir(userData,catalogEntry.id);fs.mkdirSync(target,{recursive:true});fs.writeFileSync(installedManifest(userData,catalogEntry.id),JSON.stringify(manifest,null,2),"utf8");registerInstalled(userData,manifest);onProgress?.({state:"installed",percent:100});return manifest;
+ const catalogEntry=validateCatalogEntry(addon);
+ if(catalogEntry.installable!==true)throw new Error("This add-on is not downloadable.");
+ if(catalogEntry.installType!=="bundle")throw new Error("This add-on is not packaged as a downloadable bundle.");
+ if(!catalogEntry.downloadUrl)throw new Error("This add-on has no downloadable package.");
+ const deps=catalogEntry.dependencies||[];
+ for(const dep of deps){
+  const depId=typeof dep==="string"?dep:dep.id;
+  if(depId&&!has(userData,depId))throw new Error("Missing add-on dependency: "+depId);
  }
- if(catalogEntry.installType==="npm-package"){
-  const target=addonDir(userData,catalogEntry.id),tempRoot=path.join(rootFor(userData),".tmp-"+catalogEntry.id+"-"+Date.now()),staging=path.join(tempRoot,"package");
-  try{
-   fs.mkdirSync(tempRoot,{recursive:true});onProgress?.({state:"installing",percent:null});
-   await installNpmPackage(staging,catalogEntry,onProgress);
-   const manifest=validateManifest({...catalogEntry,schemaVersion:1,enabled:true,installedAt:new Date().toISOString()});
-   fs.writeFileSync(path.join(staging,"manifest.json"),JSON.stringify(manifest,null,2),"utf8");
-   swapIntoPlace(staging,target);registerInstalled(userData,manifest);onProgress?.({state:"installed",percent:100});return manifest;
-  }finally{fs.rmSync(tempRoot,{recursive:true,force:true})}
- }
- if(!catalogEntry.downloadUrl)throw new Error("This add-on has no downloadable package yet");
- const tempRoot=path.join(rootFor(userData),".tmp-"+catalogEntry.id+"-"+Date.now());const zip=path.join(tempRoot,"package.zip"),staging=path.join(tempRoot,"package"),target=addonDir(userData,catalogEntry.id);let actualManifest=null;
+ const tempRoot=path.join(rootFor(userData),".tmp-"+catalogEntry.id+"-"+Date.now());
+ const zip=path.join(tempRoot,"package.zip");
+ const staging=path.join(tempRoot,"package");
+ const target=addonDir(userData,catalogEntry.id);
+ let actualManifest=null;
  try{
-  fs.mkdirSync(tempRoot,{recursive:true});onProgress?.({state:"downloading",percent:0});
+  fs.mkdirSync(tempRoot,{recursive:true});
+  onProgress?.({state:"downloading",percent:0});
   await download(catalogEntry.downloadUrl,zip,(percent,done,total)=>onProgress?.({state:"downloading",percent,done,total}));
-  if(catalogEntry.sha256){const digest=await sha256(zip);if(digest.toLowerCase()!==String(catalogEntry.sha256).toLowerCase())throw new Error("Add-on checksum verification failed")}
-  if(catalogEntry.installType==="npm-package"){
-   onProgress?.({state:"installing",percent:null});
-   await installNpmPackage(staging,catalogEntry,onProgress);
-   actualManifest=validateManifest({...catalogEntry,schemaVersion:1,installedAt:new Date().toISOString()});
-   fs.writeFileSync(path.join(staging,"manifest.json"),JSON.stringify(actualManifest,null,2),"utf8");
-  }else{
-   onProgress?.({state:"extracting",percent:100});await extractZip(zip,staging);
-   const candidates=[path.join(staging,"manifest.json"),path.join(staging,catalogEntry.id,"manifest.json")];const actual=candidates.find(fs.existsSync);if(!actual)throw new Error("Downloaded add-on has no manifest.json");
-   actualManifest=validateManifest({...readJson(actual),enabled:true});if(actualManifest.id!==catalogEntry.id||actualManifest.version!==catalogEntry.version)throw new Error("Downloaded add-on manifest does not match catalog");
-   const sourceRoot=path.dirname(actual);if(sourceRoot!==staging){const normalized=path.join(tempRoot,"normalized");fs.cpSync(sourceRoot,normalized,{recursive:true});fs.rmSync(staging,{recursive:true,force:true});fs.renameSync(normalized,staging)}
+  if(catalogEntry.sha256){
+   const digest=await sha256(zip);
+   if(digest.toLowerCase()!==String(catalogEntry.sha256).toLowerCase())throw new Error("Add-on checksum verification failed");
   }
-  swapIntoPlace(staging,target);registerInstalled(userData,actualManifest);onProgress?.({state:"registered",percent:100});onProgress?.({state:"installed",percent:100});return actualManifest;
- }finally{fs.rmSync(tempRoot,{recursive:true,force:true})}
+  onProgress?.({state:"extracting",percent:100});
+  await extractZip(zip,staging);
+  const candidates=[
+   path.join(staging,"manifest.json"),
+   path.join(staging,catalogEntry.id,"manifest.json")
+  ];
+  const actual=candidates.find(fs.existsSync);
+  if(!actual)throw new Error("Downloaded add-on has no manifest.json");
+  actualManifest=validateManifest({...readJson(actual),enabled:true,installedAt:new Date().toISOString()});
+  if(actualManifest.id!==catalogEntry.id||actualManifest.version!==catalogEntry.version)throw new Error("Downloaded add-on manifest does not match catalog");
+  const sourceRoot=path.dirname(actual);
+  if(sourceRoot!==staging){
+   const normalized=path.join(tempRoot,"normalized");
+   fs.cpSync(sourceRoot,normalized,{recursive:true});
+   fs.rmSync(staging,{recursive:true,force:true});
+   fs.renameSync(normalized,staging);
+  }
+  swapIntoPlace(staging,target);
+  registerInstalled(userData,actualManifest);
+  onProgress?.({state:"registered",percent:100});
+  onProgress?.({state:"installed",percent:100});
+  return actualManifest;
+ }finally{
+  fs.rmSync(tempRoot,{recursive:true,force:true});
+ }
 }
 function uninstall(userData,id){const dir=addonDir(userData,id);if(!fs.existsSync(dir))return false;unregisterInstalled(userData,id);fs.rmSync(dir,{recursive:true,force:true});return true}
 function load(userData,id){const manifest=validateManifest(readJson(installedManifest(userData,id)));if(manifest.enabled===false)throw new Error("Add-on disabled: "+id);const ds=dependencyStatus(userData,manifest);if(!ds.ok)throw new Error("Missing add-on dependencies: "+ds.missing.map(x=>x.id).join(", "));if(!manifest.entry)return manifest;const entry=path.join(addonDir(userData,id),manifest.entry);if(!fs.existsSync(entry))throw new Error("Add-on entry not found: "+manifest.entry);return {...manifest,module:require(entry)}}
