@@ -31,8 +31,8 @@ if(/\b(?:setInterval|requestAnimationFrame)\b/.test(controller)){
 const requiredMotions=[
   'id:"idle"','id:"nod"','id:"shake"','id:"wave"','id:"think"',
   'id:"jump"','id:"clap"','id:"dance"','id:"talkGesture"',
-  'id:"lookCloser"','id:"sitKnee"','id:"standUp"','id:"stretch"','id:"yawn"',
-  'id:"crackBack"','id:"crackFingers"','id:"turnBody"','id:"walk"','id:"sleep"','id:"wake"',
+  'sequence("lookCloser"','sequence("sitKnee"','sequence("standUp"','sequence("stretch"','sequence("yawn"',
+  'sequence("crackBack"','sequence("crackFingers"','sequence("turnBody"','sequence("walk"','sequence("sleep"','sequence("wake"',
   'id:"adhanOpening"'
 ];
 for(const token of requiredMotions){
