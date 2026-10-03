@@ -337,7 +337,8 @@ ipcMain.handle("character:3d:set",(_,patch={})=>{
  if(characterWin&&!characterWin.isDestroyed()){
   const w=Math.max(300,Math.min(1400,Math.round(Number(saved.window.width)||430))),h=Math.max(360,Math.min(1400,Math.round(Number(saved.window.height)||520)));
   characterWin.setSize(w,h,false);
-  if(Number.isFinite(Number(saved.window.x))&&Number.isFinite(Number(saved.window.y)))characterWin.setPosition(Math.round(Number(saved.window.x)),Math.round(Number(saved.window.y)),false);
+  if(Number.isFinite(Number(saved.window.x))&&Number.isFinite(Number(saved.window.y))){const d=screen.getDisplayNearestPoint({x:Math.round(Number(saved.window.x))+w/2,y:Math.round(Number(saved.window.y))+h/2})||screen.getPrimaryDisplay();const a=d.workArea;const x=Math.max(a.x,Math.min(Math.round(Number(saved.window.x)),a.x+Math.max(0,a.width-w)));const y=Math.max(a.y,Math.min(Math.round(Number(saved.window.y)),a.y+Math.max(0,a.height-h)));saved.window.x=x;saved.window.y=y;}
+  writeCharacter3DSettings(saved);
   characterWin.webContents.send("character:3d-settings",saved);
  }
  return saved;
