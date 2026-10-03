@@ -22,7 +22,8 @@ async function refreshResources(){try{const x=await window.saeed.getResourceSnap
 async function refreshDiagnostics(){try{const x=await window.saeed.getDiagnosticSnapshot();const s=x?.state||{};const items=[["Mic",s.mic],["Brain API",s.brainApi],["Local Brain",s.brainLocal],["STT / Whisper",s.stt],["TTS",s.tts],["GLB",s.glb],["CPU",s.cpu],["3D",s.threeD?.overall]];$("diagnosticGrid").innerHTML=items.map(([n,v])=>'<div class="diagCard"><b>'+n+'</b><strong class="'+String(v?.state||"unknown")+'">'+String(v?.state||"unknown").toUpperCase()+'</strong><small>'+String(v?.detail||"")+'</small></div>').join("")}catch(e){$("diagnosticGrid").textContent=e.message}}
 let resourceTimer=null;
 tabs.forEach(b=>b.addEventListener("click",()=>{if(b.dataset.tab==="resources"){refreshResources();clearInterval(resourceTimer);resourceTimer=setInterval(refreshResources,1000)}else{clearInterval(resourceTimer);resourceTimer=null}if(b.dataset.tab==="diagnostics")refreshDiagnostics()}));
-$("refreshDiagnostics").onclick=refreshDiagnostics;\nwindow.saeed.onDiagnosticState?.(x=>{if(x){if(document.querySelector(".tabs button.active")?.dataset.tab==="diagnostics")refreshDiagnostics();}});
+$("refreshDiagnostics").onclick=refreshDiagnostics;
+window.saeed.onDiagnosticState?.(x=>{if(x){if(document.querySelector(".tabs button.active")?.dataset.tab==="diagnostics")refreshDiagnostics();}});
 
 $("apply3D").onclick=()=>save3D();
 $("reset3D").onclick=()=>save3D({window:{width:430,height:520,x:null,y:null},camera:{zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0},character:{scale:1,positionX:0,positionY:0,positionZ:0,rotationY:0},canvas:{padding:0}});
