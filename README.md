@@ -12,7 +12,7 @@ The Add-ons / Plug-ins window is opened from the tray and character context menu
 
 Add-ons use a versioned `manifest.json` contract. The runtime supports self-contained bundle add-ons and npm-backed development add-ons. Heavy libraries and native/model files must be shipped as self-contained release bundles for end users; they are lazy-loaded only when the corresponding capability is used.
 
-Current optional capability slots include Word/DOCX, Excel/XLSX, PDF, OCR, local Whisper STT, TTS providers, local LLM providers, and future character animation engines. STT/TTS/LLM are provider slots rather than hard-coded permanent implementations so another engine can replace Whisper or a future provider without changing the core architecture.
+Current optional capability slots include Word/DOCX, Excel/XLSX, PDF and OCR. Local Whisper STT is a bundled core capability; TTS, LLM and other providers remain replaceable provider slots.
 
 
 - Desktop runtime: Electron + Chromium.
@@ -396,5 +396,5 @@ If an existing capability already has an authoritative file, **modify that file 
 ## Release 4.2
 
 - Introduced the removable Add-ons / Plug-ins architecture.
-- Core no longer packages Word/DOCX, Excel/XLSX, PDF, OCR, or local Whisper runtime libraries/models.
+- Core does not package optional Word/DOCX, Excel/XLSX, PDF or OCR libraries. Whisper CLI/model is intentionally bundled in the Windows core.
 - Optional libraries are delivered as separate installable bundles and can be removed independently.
