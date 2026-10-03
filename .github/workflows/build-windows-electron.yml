@@ -8,6 +8,7 @@ on:
       - 'src/**'
       - 'assets/**'
       - 'package.json'
+      - 'src/addons/catalog.json'
       - 'VERSION'
       - '.github/workflows/build-windows-electron.yml'
   workflow_dispatch:
@@ -232,7 +233,7 @@ jobs:
             $manifest = [ordered]@{
               schemaVersion=1; id=$id; name=$name; version=$version; category=$category
               capabilities=$capabilities
-              installType="npm-package"; packageName=$package; description=$name
+              installType="bundle"; packageName=$package; description=$name
             }
             $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $stage "manifest.json")
             $zip = Join-Path $root ("saeed-addon-" + $id + ".zip")
