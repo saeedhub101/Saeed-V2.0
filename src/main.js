@@ -518,6 +518,7 @@ ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.
 app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>console.error(e))});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});
 app.on("before-quit",()=>{
+ try{captureCharacter3DWindowSettings()}catch{}
  app.isQuitting=true;
  try{stopRealtime()}catch(e){console.error("Voice shutdown failed:",e)}
  for(const win of [chatWin,performanceWin,settingsWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
