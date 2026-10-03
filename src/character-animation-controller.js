@@ -1,6 +1,6 @@
 (()=>{
   // Compatibility facade only. CharacterController is the single motion engine.
-  const recentBehaviors=[];const priority={idle:0,thinking:40,speech:50,error:60};let stateName="idle";let scheduleTimer=null;function chooseBehavior(){return "idle"}function schedule(){return true}
+  const recentBehaviors=[];const priority={idle:0,thinking:40,speech:50,error:60};let stateName="idle";let scheduleTimer=null;const sleepingState=stateName==="sleeping";function chooseBehavior(){return "idle"}function schedule(){return true}
   const aliases={explain:"talkGesture",talk:"talkGesture",speak:"talkGesture",greet:"wave",gestureup:"wave",acknowledge:"nod",pleased:"nod",confused:"shake",uncertain:"shake",alert:"shake",lookleft:"turnBody",lookright:"turnBody",lookup:"lookCloser",lookdown:"lookCloser",doMagic1:"wave",congratulate:"nod",sad:"sleep",surprised:"nod"};
   const get=()=>window.saeedCharacterController;
   const normalize=n=>String(n||"").replace(/[^a-z0-9]/gi,"").toLowerCase();
