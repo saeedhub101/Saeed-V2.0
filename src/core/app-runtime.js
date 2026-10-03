@@ -13,14 +13,7 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {autoUpdater}=require("electron-updater");
-const addons=require("./services/addon-service");const learning=require("../learning");const learningRecorder=require("../learning/windows-recorder");
-const {createApiHealth}=require("./services/api-health");
-const {createVoiceRuntime}=require("./voice/voice-runtime");
-const {createResourceService}=require("./services/resource-service");
-const resourceService=createResourceService({app,BrowserWindow,process});
-const apiHealth=createApiHealth({getAgent:()=>agent});
-const voiceRuntime=createVoiceRuntime({getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
+const {createRuntimeDependencies}=require("./services/runtime-dependencies");
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
@@ -39,6 +32,8 @@ function configureMediaPermissions(){
 
 
 let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
+const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
+const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
 let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
@@ -80,7 +75,7 @@ function stopCpuMonitoring(){
  cpuTimer=null;
 }
 
-function updateCpuMetrics(){try{const {rawMetrics:metrics,logical}=resourceService.getAppResourceMetrics();const total=metrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const percent=Math.max(0,total/logical);diagnosticState.cpu={state:"active",percent,detail:`Saeed CPU ${percent.toFixed(1)}% across ${logical} logical processors`,processCount:metrics.length,lastUpdated:new Date().toISOString()};if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("cpu:metrics",diagnosticState.cpu)}catch(e){diagnosticState.cpu={state:"error",percent:0,detail:e.message,lastUpdated:new Date().toISOString()};diagnostic("ERROR","CPU METRICS",e.message)}}
+function updateCpuMetrics(){try{const {rawMetrics:metrics,logical}=getResourceService().getAppResourceMetrics();const total=metrics.reduce((sum,m)=>sum+Number(m?.cpu?.percentCPUUsage||0),0);const percent=Math.max(0,total/logical);diagnosticState.cpu={state:"active",percent,detail:`Saeed CPU ${percent.toFixed(1)}% across ${logical} logical processors`,processCount:metrics.length,lastUpdated:new Date().toISOString()};if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("diagnostic:state",diagnosticState);if(chatWin&&!chatWin.isDestroyed())chatWin.webContents.send("cpu:metrics",diagnosticState.cpu)}catch(e){diagnosticState.cpu={state:"error",percent:0,detail:e.message,lastUpdated:new Date().toISOString()};diagnostic("ERROR","CPU METRICS",e.message)}}
 function diagnosticFromAgent(e){if(!e)return;if(e.type==="thinking")diagnostic("INFO","LLM THINKING","LLM planning/execution step "+(Number(e.step||0)+1));if(e.type==="answer")diagnostic("INFO","LLM SUCCESS","Successful LLM response");if(e.type==="tool_error")diagnostic("ERROR","LLM TOOL ERROR",e.error||"Tool failed",{tool:e.name});if(e.type==="tool_result")diagnostic("INFO","LLM TOOL SUCCESS","Tool completed",{tool:e.name});if(e.type==="diagnostic")diagnostic(e.level,e.stage,e.message,e.meta);}
 
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
@@ -146,7 +141,7 @@ function chooseCharacter(){dialog.showOpenDialog(characterWin||chatWin,{title:"C
 
 function whisperRuntimePaths(){
  const roots=[
-  addons.addonDir(app.getPath("userData"),"stt-whisper"),
+  getAddonService().addonDir(app.getPath("userData"),"stt-whisper"),
   path.join(process.resourcesPath||"","whisper"),
   path.join(process.resourcesPath||"","addons","stt-whisper"),
   path.join(process.resourcesPath||"","saeed-addon-stt-whisper")
@@ -169,15 +164,15 @@ function whisperRuntimePaths(){
   if(!model){try{const n=fs.readdirSync(item.root).find(x=>/^ggml-.*\\.bin$/i.test(x));if(n)model=path.join(item.root,n)}catch{}}
   if(model)return{root:item.root,exe:item.exe,model};
  }
- const root=roots[0]||addons.addonDir(app.getPath("userData"),"stt-whisper");
+ const root=roots[0]||getAddonService().addonDir(app.getPath("userData"),"stt-whisper");
  return{root,exe:path.join(root,"whisper-cli.exe"),model:path.join(root,"ggml-base-q5_1.bin")};
 }
 function voiceBroadcast(channel,...args){for(const win of [characterWin,chatWin]){if(win&&!win.isDestroyed())win.webContents.send(channel,...args)}}
 let currentMicMode="off",voiceMuted=false;
-function updateNow(){if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");void autoUpdater.checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}
+function updateNow(){if(!app.isPackaged)return;updateUiRequested=true;try{updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");void getAutoUpdater().checkForUpdates()}catch(e){updateState="error";voiceBroadcast("update:state","error",e.message)}}
 function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
 function rebuildTray(){if(!tray)return;tray.setContextMenu(Menu.buildFromTemplate([{label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter}]},{label:voiceMuted?"Unmute":"Mute",type:"checkbox",checked:voiceMuted,click:()=>setVoiceMuted(!voiceMuted)},{label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:currentMicMode==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:currentMicMode==="off",click:()=>setMicMode("off")}]},{label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},{label:"Add-ons / Plug-ins",click:showAddons},{label:"Learning / Teach Mode",click:showLearning},{label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},{label:"Updates",submenu:[{label:"Check for Updates",click:updateNow}]},{label:"Quit",click:()=>app.quit()}]))}
-function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{voiceRuntime.stop()}catch{}voiceBroadcast("voice:stop")}else if(currentMicMode==="on"&&agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api"){voiceRuntime.start()}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
+function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{getVoiceRuntime().stop()}catch{}voiceBroadcast("voice:stop")}else if(currentMicMode==="on"&&agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api"){getVoiceRuntime().start()}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
 async function setMicMode(mode,fromUser=false){
  const value=String(mode||"off")==="on"?"on":"off";
  if(value==="on")await ensureBrain();
@@ -192,11 +187,11 @@ async function setMicMode(mode,fromUser=false){
  voiceBroadcast("mic:mode",value);
  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
  if(value==="off"){
-  try{voiceRuntime.stop()}catch{}
+  try{getVoiceRuntime().stop()}catch{}
   diagnostic("INFO","MIC INPUT","Microphone input is OFF; voice input services stopped");
   voiceBroadcast("local-stt:state","disconnected","Microphone input is off");
  }else{
-  if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")voiceRuntime.start();
+  if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")getVoiceRuntime().start();
   else if(agent?.settings?.sttProvider==="whisper"){voiceBroadcast("local-stt:state","ready","Local Whisper ready");diagnostic("INFO","STT READY","Local Whisper is ready for microphone input");}
   else diagnostic("INFO","STT READY","Selected API STT is ready for microphone input");
   diagnostic("INFO","TTS READY","TTS is ready for voice replies");
@@ -243,7 +238,7 @@ async function ensureBrain(){
     try{return await characterWin.webContents.executeJavaScript("(async()=>{const c=window.saeedCharacterController;if(!c)return {ok:false,error:\"Character controller unavailable\"};return c.semantic("+payload+".intent,"+payload+".options||{});})()",true)}
     catch(e){return{ok:false,error:e.message}}
    },
-   recordHook:step=>{if(learningRecording)learning.recordStep(learningRecording,step.tool,step.args)},
+   recordHook:step=>{if(learningRecording)getLearning().recordStep(learningRecording,step.tool,step.args)},
    permissionPolicy,confirm:async({name,args,permissionCategory})=>{
     await showChat();
     return new Promise(resolve=>{
@@ -296,9 +291,9 @@ function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
 async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
-app.on("before-quit",()=>{try{learningRecorder.stop()}catch{};learningRecorderActive=false;learningRecording=null});
+app.on("before-quit",()=>{try{getLearningRecorder().stop()}catch{};learningRecorderActive=false;learningRecording=null});
 
-app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)resourceService.startResourceProbe();
+app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
  configureUpdater();
  try{await createWindow();currentMicMode="off";setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
@@ -325,7 +320,7 @@ ipcMain.handle("chat",async(_,payload)=>{
  return result;
 });
 ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>apiHealth.test(String(service||"")));ipcMain.handle("api-status:test-all",()=>apiHealth.testAll());ipcMain.handle("resource:snapshot",()=>resourceService.resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("learning:show",()=>{showLearning();return true});ipcMain.handle("learning:list",()=>learning.list(app.getPath("userData")));ipcMain.handle("learning:get",(_,id)=>learning.get(app.getPath("userData"),id));ipcMain.handle("learning:record-start",(_,name,phrases)=>{if(learningRecording)throw new Error("Learning recorder is already running");learningRecording=learning.beginRecording(app.getPath("userData"),name,phrases);try{learningRecorder.start(e=>{if(learningRecording&&e?.type==="action")learning.recordStep(learningRecording,e.tool,e.args)},app.getPath("userData"));learningRecorderActive=true;return true}catch(e){learningRecording=null;learningRecorder.stop();throw e}});ipcMain.handle("learning:record-stop",()=>{if(!learningRecording)throw new Error("Learning recorder is not running");learningRecorder.stop();learningRecorderActive=false;if(!Array.isArray(learningRecording.skill?.steps)||learningRecording.skill.steps.length===0){learningRecording=null;return{ok:false,empty:true,message:"No actions were recorded. Perform at least one action in another Windows application, then record again."}}const result=learning.finishRecording(app.getPath("userData"),learningRecording);learningRecording=null;return result});ipcMain.handle("learning:save",(_,skill)=>require("../learning").save(app.getPath("userData"),skill));ipcMain.handle("learning:remove",(_,id)=>require("../learning").remove(app.getPath("userData"),id));ipcMain.handle("learning:enable",(_,id,enabled)=>require("../learning").setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("learning:run",async(_,id)=>{await ensureBrain();const skill=learning.get(app.getPath("userData"),id);if(!skill)throw new Error("Skill not found: "+id);return learning.run(app.getPath("userData"),agent.registry,skill,{confirm:async({skill,step})=>{await showChat();return new Promise(resolve=>{const cid=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(cid,resolve);chatWin?.webContents.send("agent:confirm",{id:cid,name:step.tool,args:step.args,permissionCategory:agent.registry.categoryFor(step.tool),permissionLabel:"Learned skill: "+skill.name,reason:"Approve this learned step?"})})}})});ipcMain.handle("learning:export",(_,id)=>require("../learning").exportSkill(app.getPath("userData"),id));ipcMain.handle("learning:import",(_,data)=>require("../learning").importSkill(app.getPath("userData"),data));ipcMain.handle("addons:catalog",async()=>{const catalog=await addons.fetchCatalog();return{catalog,installed:addons.listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await addons.fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return addons.install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>addons.uninstall(app.getPath("userData"),id));ipcMain.handle("addons:enable",async(_,id,enabled)=>addons.setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>getApiHealth().test(String(service||"")));ipcMain.handle("api-status:test-all",()=>getApiHealth().testAll());ipcMain.handle("resource:snapshot",()=>getResourceService().resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("learning:show",()=>{showLearning();return true});ipcMain.handle("learning:list",()=>getLearning().list(app.getPath("userData")));ipcMain.handle("learning:get",(_,id)=>getLearning().get(app.getPath("userData"),id));ipcMain.handle("learning:record-start",(_,name,phrases)=>{if(learningRecording)throw new Error("Learning recorder is already running");learningRecording=getLearning().beginRecording(app.getPath("userData"),name,phrases);try{getLearningRecorder().start(e=>{if(learningRecording&&e?.type==="action")getLearning().recordStep(learningRecording,e.tool,e.args)},app.getPath("userData"));learningRecorderActive=true;return true}catch(e){learningRecording=null;getLearningRecorder().stop();throw e}});ipcMain.handle("learning:record-stop",()=>{if(!learningRecording)throw new Error("Learning recorder is not running");getLearningRecorder().stop();learningRecorderActive=false;if(!Array.isArray(learningRecording.skill?.steps)||learningRecording.skill.steps.length===0){learningRecording=null;return{ok:false,empty:true,message:"No actions were recorded. Perform at least one action in another Windows application, then record again."}}const result=getLearning().finishRecording(app.getPath("userData"),learningRecording);learningRecording=null;return result});ipcMain.handle("learning:save",(_,skill)=>require("../learning").save(app.getPath("userData"),skill));ipcMain.handle("learning:remove",(_,id)=>require("../learning").remove(app.getPath("userData"),id));ipcMain.handle("learning:enable",(_,id,enabled)=>require("../learning").setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("learning:run",async(_,id)=>{await ensureBrain();const skill=getLearning().get(app.getPath("userData"),id);if(!skill)throw new Error("Skill not found: "+id);return getLearning().run(app.getPath("userData"),agent.registry,skill,{confirm:async({skill,step})=>{await showChat();return new Promise(resolve=>{const cid=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(cid,resolve);chatWin?.webContents.send("agent:confirm",{id:cid,name:step.tool,args:step.args,permissionCategory:agent.registry.categoryFor(step.tool),permissionLabel:"Learned skill: "+skill.name,reason:"Approve this learned step?"})})}})});ipcMain.handle("learning:export",(_,id)=>require("../learning").exportSkill(app.getPath("userData"),id));ipcMain.handle("learning:import",(_,data)=>require("../learning").importSkill(app.getPath("userData"),data));ipcMain.handle("addons:catalog",async()=>{const catalog=await getAddonService().fetchCatalog();return{catalog,installed:getAddonService().listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await getAddonService().fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return getAddonService().install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>getAddonService().uninstall(app.getPath("userData"),id));ipcMain.handle("addons:enable",async(_,id,enabled)=>getAddonService().setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
 ipcMain.handle("character:controller:get",async()=>{
  if(!characterWin||characterWin.isDestroyed()) return {available:false};
  try{return characterWin.webContents.executeJavaScript("window.saeedCharacterController?.status?.()||null",true).then(x=>x||{available:false});}
@@ -365,7 +360,7 @@ ipcMain.handle("settings:set",async(_,s)=>{
  // Non-local STT must use the selected STT pipeline unless the user explicitly chooses Realtime.
  if(Object.prototype.hasOwnProperty.call(s||{},"sttProvider")&&String(agent.settings.sttProvider||"whisper")!=="whisper"&&!Object.prototype.hasOwnProperty.call(s||{},"micPath"))agent.settings.micPath="whisper";
  if(mode!=="api"&&agent.settings.realtimeEnabled)agent.settings.realtimeEnabled=false;
- if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")voiceRuntime.stop();
+ if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")getVoiceRuntime().stop();
  if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
  if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(realtimeChanged&&micMode==="on")setMicMode("off").then(()=>setMicMode("on"));
  if(Object.prototype.hasOwnProperty.call(s||{},"characterSize"))setSaeedSize(agent.settings.characterSize);
@@ -385,12 +380,12 @@ function audioProviderConfig(kind,s){const provider=String(s?.[kind+"Provider"]|
 function pcm16ToWav(base64,rate=24000){const pcm=Buffer.from(String(base64||""),"base64"),h=Buffer.alloc(44);h.write("RIFF",0);h.writeUInt32LE(36+pcm.length,4);h.write("WAVE",8);h.write("fmt ",12);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(rate,24);h.writeUInt32LE(rate*2,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write("data",36);h.writeUInt32LE(pcm.length,40);return Buffer.concat([h,pcm])}
 ipcMain.handle("tts:speak",async(_,text)=>{const s=agent?.settings||{},cfg=audioProviderConfig("tts",s),input=String(text||"").trim();if(!input)return{ok:false,reason:"empty"};if(cfg.provider==="local")return{ok:false,reason:"tts-provider-local"};if(!cfg.key&&cfg.provider==="openai")cfg.key=s.apiKey||"";if(!cfg.key)return{ok:false,error:String(cfg.provider).toUpperCase()+" TTS API key is missing"};try{const body=cfg.provider==="elevenlabs"?{text:input,model_id:cfg.model}: {model:cfg.model,input,response_format:"wav"};if(cfg.voice&&cfg.provider!=="elevenlabs")body.voice=cfg.voice;const headers=cfg.provider==="elevenlabs"?{"xi-api-key":cfg.key,"Content-Type":"application/json"}:{"Authorization":"Bearer "+cfg.key,"Content-Type":"application/json"};const r=await fetch(cfg.baseUrl+(cfg.provider==="elevenlabs"?"?output_format=mp3_44100_128":""),{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});if(!r.ok){const msg=await r.text().catch(()=>"");diagnostic("ERROR","TTS API",cfg.provider.toUpperCase()+" TTS HTTP "+r.status+(msg?": "+msg.slice(0,240):""));return{ok:false,error:cfg.provider.toUpperCase()+" TTS HTTP "+r.status}}const b=Buffer.from(await r.arrayBuffer());diagnostic("INFO","TTS API AUDIO",cfg.provider.toUpperCase()+" TTS audio generated",{bytes:b.length,model:cfg.model,voice:cfg.voice||""});return{ok:true,base64:b.toString("base64")}}catch(e){diagnostic("ERROR","TTS API",e.message);return{ok:false,error:e.message}}});
 ipcMain.handle("stt:transcribe",async(_,base64)=>{const s=agent?.settings||{},cfg=audioProviderConfig("stt",s);if(cfg.provider==="local")return{ok:false,reason:"stt-provider-local"};if(!cfg.key&&cfg.provider==="openai")cfg.key=s.apiKey||"";if(!cfg.key)return{ok:false,error:String(cfg.provider).toUpperCase()+" STT API key is missing"};try{const wav=pcm16ToWav(base64,24000),form=new FormData();form.append("file",new Blob([wav],{type:"audio/wav"}),"saeed.wav");if(cfg.provider==="elevenlabs")form.append("model_id",cfg.model);else{form.append("model",cfg.model);form.append("response_format","json");}if(s.sttLanguage&&s.sttLanguage!=="auto")form.append("language",String(s.sttLanguage));const headers=cfg.provider==="elevenlabs"?{"xi-api-key":cfg.key}:{"Authorization":"Bearer "+cfg.key};const r=await fetch(cfg.baseUrl,{method:"POST",headers,body:form,signal:AbortSignal.timeout(60000)});const body=await r.text();if(!r.ok){diagnostic("ERROR","STT API",cfg.provider.toUpperCase()+" STT HTTP "+r.status+(body?": "+body.slice(0,240):""));return{ok:false,error:cfg.provider.toUpperCase()+" STT HTTP "+r.status}}let j={};try{j=JSON.parse(body)}catch{}const text=String(j.text||body||"").trim();diagnostic("INFO","STT API RESULT",cfg.provider.toUpperCase()+" STT transcript received",{model:cfg.model,text});return{ok:true,text}}catch(e){diagnostic("ERROR","STT API",e.message);return{ok:false,error:e.message}}});
-ipcMain.handle("realtime:start",(_,options={})=>{voiceRuntime.start(options);return true});
-ipcMain.handle("api:clear-all",async()=>{if(agent){agent.settings={...agent.settings,apiKey:"",sttApiKey:"",ttsApiKey:"",realtimeApiKey:"",realtimeEnabled:false,micMode:"off"};agent.persistSettings()}try{voiceRuntime.stop()}catch{}currentMicMode="off";diagnostic("INFO","API RESET","All stored API keys cleared and Realtime disabled");return agent?.publicSettings()||null});
-ipcMain.handle("realtime:stop",()=>{voiceRuntime.stop();return true});
-ipcMain.handle("realtime:audio",(_,base64)=>{voiceRuntime.getRealtime()?.appendAudio(String(base64||""));return true});
-ipcMain.handle("realtime:text",(_,text)=>voiceRuntime.getRealtime()?.text(String(text||""))||false);
-ipcMain.handle("realtime:cancel",()=>{voiceRuntime.getRealtime()?.cancel();return true});ipcMain.handle("local-stt:transcribe",(_,base64)=>transcribeLocalWav(String(base64||"")));
+ipcMain.handle("realtime:start",(_,options={})=>{getVoiceRuntime().start(options);return true});
+ipcMain.handle("api:clear-all",async()=>{if(agent){agent.settings={...agent.settings,apiKey:"",sttApiKey:"",ttsApiKey:"",realtimeApiKey:"",realtimeEnabled:false,micMode:"off"};agent.persistSettings()}try{getVoiceRuntime().stop()}catch{}currentMicMode="off";diagnostic("INFO","API RESET","All stored API keys cleared and Realtime disabled");return agent?.publicSettings()||null});
+ipcMain.handle("realtime:stop",()=>{getVoiceRuntime().stop();return true});
+ipcMain.handle("realtime:audio",(_,base64)=>{getVoiceRuntime().getRealtime()?.appendAudio(String(base64||""));return true});
+ipcMain.handle("realtime:text",(_,text)=>getVoiceRuntime().getRealtime()?.text(String(text||""))||false);
+ipcMain.handle("realtime:cancel",()=>{getVoiceRuntime().getRealtime()?.cancel();return true});ipcMain.handle("local-stt:transcribe",(_,base64)=>transcribeLocalWav(String(base64||"")));
 function transcribeLocalWav(base64){return new Promise((resolve,reject)=>{const p=whisperRuntimePaths();const cli=p.exe;if(!fs.existsSync(cli)||!fs.existsSync(p.model)){
  diagnostic("ERROR","LOCAL STT","Whisper STT runtime is not installed",{runtime:p.root,cliExists:fs.existsSync(cli),modelExists:fs.existsSync(p.model)});
  return reject(new Error("Bundled Whisper runtime/model is missing from this Saeed installation."));
@@ -411,9 +406,9 @@ ipcMain.handle("capture",async()=>{
  if(policy==="ask"&&!await confirmPermission("screen",{name:"screen_capture",args:{action:"capture screen"}}))return null;
  return captureScreen();
 });
-ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateUiRequested=true;updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");const result=await autoUpdater.checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";showUpdateToast("error","Update check failed");chatWin?.webContents.send("update:state","error",e.message);setTimeout(()=>{updateUiRequested=false;hideUpdateToast();voiceBroadcast("update:state","idle")},3200);return {ok:false,state:"error",message:e.message}}});
-ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{showUpdateStatus();updateState="downloading";publishUpdate("update:state","downloading");await autoUpdater.downloadUpdate();return true}catch(e){updateState="error";publishUpdate("update:state","error",e.message);return false}});
-ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;autoUpdater.quitAndInstall(false,true);return true});
+ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateUiRequested=true;updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");const result=await getAutoUpdater().checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";showUpdateToast("error","Update check failed");chatWin?.webContents.send("update:state","error",e.message);setTimeout(()=>{updateUiRequested=false;hideUpdateToast();voiceBroadcast("update:state","idle")},3200);return {ok:false,state:"error",message:e.message}}});
+ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{showUpdateStatus();updateState="downloading";publishUpdate("update:state","downloading");await getAutoUpdater().downloadUpdate();return true}catch(e){updateState="error";publishUpdate("update:state","error",e.message);return false}});
+ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;getAutoUpdater().quitAndInstall(false,true);return true});
 ipcMain.handle("update:show-status",()=>showUpdateStatus());
 ipcMain.handle("update:toast-close",()=>{updateUiRequested=false;hideUpdateToast();return true});
 ipcMain.handle("update:snapshot",()=>({state:updateState,info:updateInfo,currentVersion:app.getVersion()}));
@@ -451,8 +446,8 @@ app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)
 app.on("before-quit",()=>{
  try{captureCharacter3DWindowSettings()}catch{}
  app.isQuitting=true;
- try{voiceRuntime.stop()}catch(e){console.error("Voice shutdown failed:",e)}
+ try{getVoiceRuntime().stop()}catch(e){console.error("Voice shutdown failed:",e)}
  for(const win of [chatWin,performanceWin,settingsWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
  try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
 });
-app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceRuntime.stop()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
+app.on("will-quit",()=>{globalShortcut.unregisterAll();try{getVoiceRuntime().stop()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null});
