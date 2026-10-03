@@ -7,7 +7,7 @@ function start(onEvent,userData){
   child=spawn("powershell.exe",["-NoProfile","-NonInteractive","-ExecutionPolicy","Bypass","-File",script,"-IgnorePid",String(process.pid)],{windowsHide:true,stdio:["ignore","pipe","pipe"]});
   child.stdout.on("data",d=>{buffer+=String(d);let i;while((i=buffer.indexOf("\n"))>=0){const line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(!line)continue;try{const e=JSON.parse(line);if(e.type==="action"&&typeof onEvent==="function")onEvent(e)}catch{}}});
   child.stderr.on("data",d=>{});
-  child.on("error",e=>{child=null;throw e});
+  child.on("error",()=>{child=null;buffer=""});
   child.on("exit",()=>{child=null;buffer=""});
   return true;
 }
