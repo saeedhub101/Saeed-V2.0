@@ -63,6 +63,7 @@ const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,get
 const {whisperRuntimePaths,setMicMode,setVoiceMuted}=voiceHost;
 const updateManager=createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic});
 const updateNow=()=>updateManager.check();
+updateManager.bind();
 const systemControls=createSystemControls({app,diagnostic,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
 const {rebuildTray,contextMenu}=systemControls;
 const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain});
