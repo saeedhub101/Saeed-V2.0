@@ -40,6 +40,14 @@ export class CharacterController{
   this.retargeter.bind(mapped);
   this.fingers.bind(names);
   this.animation.bindRig(mapped,this.retargeter);
+  const validation=this.avatar?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]};
+  const rest=this.avatar?.getRestPoseNormalization?.()||{normalized:true};
+  if(validation.missing?.length||rest.normalized===false){
+   const parts=[];
+   if(validation.missing?.length)parts.push("Missing: "+validation.missing.join(", "));
+   if(rest.normalized===false)parts.push("Rest pose: "+String(rest.detected||"not normalized"));
+   window.saeed?.reportDiagnostic?.("ERROR","RIG VALIDATION",parts.join(" • ")||"Rig validation failed",{missing:validation.missing||[],criticalMissing:validation.criticalMissing||[],rest});
+  }
   this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");
   const profile=this.profiles.load(this.characterId);
   if(profile){
