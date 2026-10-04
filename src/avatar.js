@@ -4,7 +4,7 @@ const canvas=document.getElementById("avatar"),scene=new THREE.Scene(),camera=ne
 const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:"high-performance"});
 renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;renderer.setPixelRatio(Math.min(Math.max(1,devicePixelRatio||1),1.5));
 scene.add(new THREE.HemisphereLight(0xffffff,0x334455,2.1));const key=new THREE.DirectionalLight(0xffffff,2.4);key.position.set(2,4,3);scene.add(key);
-const root=new THREE.Group();scene.add(root),loader=new GLTFLoader(),viewSettings={characterScale:1,characterPositionX:0,characterPositionY:0,characterPositionZ:0,characterRotationY:0,canvasPadding:0};
+const root=new THREE.Group();scene.add(root);const loader=new GLTFLoader(),viewSettings={characterScale:1,characterPositionX:0,characterPositionY:0,characterPositionZ:0,characterRotationY:0,canvasPadding:0};
 let model=null,rig=new Map(),base=new Map(),morphs=new Map(),loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false;
 function getBoneMap(){return Object.fromEntries(rig)}function getAvailableBoneNames(){const a=[];model?.traverse(o=>{if(o.isBone)a.push(o.name)});return a}
 function bindRig(mapping={}){if(!model)return false;const by={};model.traverse(o=>{if(o.isBone)by[String(o.name).toLowerCase()]=o});rig.clear();base.clear();for(const [slot,name] of Object.entries(mapping)){const b=by[String(name||"").toLowerCase()];if(b){rig.set(slot,b);base.set(slot,{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z})}}resetCharacterPose();render();return rig.size>0}
