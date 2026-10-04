@@ -35,11 +35,15 @@ export class CharacterController{
   const bones=this.avatar?.getBoneMap?.()||this.avatar?.getBones?.()||{};
   const names=this.avatar?.getAvailableBoneNames?.()||Object.values(bones).map(b=>b?.name).filter(Boolean);
   const auto=autoMapBones(names);
-  if(Object.keys(auto.mapping).length)this.avatar?.bindRig?.(auto.mapping);
+  const profileId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");
+  const profile=this.profiles.load(profileId);
+  const mapping=profile?.mapping&&Object.keys(profile.mapping).length?profile.mapping:auto.mapping;
+  if(Object.keys(mapping).length)this.avatar?.bindRig?.(mapping);
   const mapped=this.avatar?.getBoneMap?.()||bones;
   this.retargeter.bind(mapped);
   this.fingers.bind(names);
   this.animation.bindRig(mapped,this.retargeter);
+  this.characterId=profileId;
   const validation=this.avatar?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]};
   const rest=this.avatar?.getRestPoseNormalization?.()||{normalized:true};
   if(validation.missing?.length||rest.normalized===false){
@@ -48,10 +52,7 @@ export class CharacterController{
    if(rest.normalized===false)parts.push("Rest pose: "+String(rest.detected||"not normalized"));
    window.saeed?.reportDiagnostic?.("ERROR","RIG VALIDATION",parts.join(" • ")||"Rig validation failed",{missing:validation.missing||[],criticalMissing:validation.criticalMissing||[],rest});
   }
-  this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");
-  const profile=this.profiles.load(this.characterId);
   if(profile){
-   if(profile.mapping)this.avatar?.bindRig?.(profile.mapping);
    if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);
    if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}
   }else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose});
