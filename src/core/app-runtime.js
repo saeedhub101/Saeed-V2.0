@@ -22,6 +22,7 @@ const {registerVoiceIpc}=require("./ipc/voice-ipc");
 const {createWindowManager}=require("./application/window-manager");
 const {createCharacterStore}=require("./character/character-store");
 const {createCharacterHost}=require("./character/character-host");
+const {createDiagnostics}=require("./application/diagnostics");
 const {createPermissionManager}=require("./application/permission-manager");
 const {createScreenCapture}=require("./application/screen-capture");
 const {createUpdateManager}=require("./application/update-manager");
@@ -55,18 +56,17 @@ const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:
 const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
 const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow:()=>chatWin,diagnostic:(...a)=>diagnostic(...a)});
 const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
+const voiceBroadcast=(channel,...args)=>{for(const win of [chatWin,characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
 const diagnostics=createDiagnostics({getWindows:()=>({chatWin,characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
 const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
 const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,getAddonService,ensureBrain:()=>brainHost?.ensureBrain?.(),permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>chatHost?.showChat?.(),getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getStatusWindow:()=>statusWin,diagnosticState});
 const {whisperRuntimePaths,setMicMode,setVoiceMuted}=voiceHost;
-const systemControls=createSystemControls({app,diagnostic,showChat:()=>chatHost.chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
+const systemControls=createSystemControls({app,diagnostic,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
 const {rebuildTray,contextMenu}=systemControls;
 const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain});
 const {createChatWindow,closeChat}=chatHost;
 const screenCapture=createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic});
 const captureScreen=screenCapture.captureScreen;
-const updateManager=createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic});
-const updateNow=()=>updateManager.check();
 
 registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime,diagnostic,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin,voiceHost});
 let characterHost;
@@ -130,7 +130,7 @@ async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
 app.on("before-quit",()=>{try{getLearningRecorder().stop()}catch{};learningRecorderActive=false;learningRecording=null});
 
-app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
+app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
  try{await createWindow();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
