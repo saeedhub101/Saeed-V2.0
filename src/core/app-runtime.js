@@ -64,7 +64,7 @@ const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
 const voiceBroadcast=(channel,...args)=>{for(const win of [getChatWindow(),characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
 const diagnostics=createDiagnostics({getWindows:()=>({chatWin:getChatWindow(),characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
 const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
-const releaseBrainIfIdle=()=>{if(!chatHost?.getChatWindow?.()&&!voiceHost?.getCurrentMicMode?.()){return brainHost?.releaseBrain?.()}return true};
+const releaseBrainIfIdle=()=>{if(!chatHost?.getChatWindow?.()&&voiceHost?.getCurrentMicMode?.()==="off"){return brainHost?.releaseBrain?.()}return true};
 const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,getAddonService,ensureBrain:()=>brainHost?.ensureBrain?.(),releaseBrainIfIdle,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>chatHost?.showChat?.(),getCharacterWindow:()=>characterWin,getChatWindow:()=>chatHost?.getChatWindow?.(),getStatusWindow:()=>statusWin,diagnosticState});
 const {whisperRuntimePaths,setMicMode,setVoiceMuted}=voiceHost;
 const updateManager=createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic});
