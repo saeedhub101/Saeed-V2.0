@@ -19,19 +19,19 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
  };
  const IDLE_TIMEOUT_MS=180000;
  function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{void evaluateLifecycle()},IDLE_TIMEOUT_MS)}
- function evaluateLifecycle(){
+ function evaluateLifecycle(force=false){
   clearTimeout(idleTimer);idleTimer=null;
   if(!agent)return false;
   if(getMicMode?.()==="on"){lastActivity=Date.now();return false}
   if(activeRequests>0){return false}
-  if(Date.now()-lastActivity<IDLE_TIMEOUT_MS){scheduleIdleRelease();return false}
+  if(!force&&Date.now()-lastActivity<IDLE_TIMEOUT_MS<IDLE_TIMEOUT_MS){scheduleIdleRelease();return false}
   void releaseBrain();
   return true;
  }
  function touchActivity(){lastActivity=Date.now();scheduleIdleRelease()}
  function beginRequest(){activeRequests++;touchActivity()}
  function endRequest(){activeRequests=Math.max(0,activeRequests-1);touchActivity()}
- function notifyLifecycle(){return evaluateLifecycle()}
+ function notifyLifecycle(options={}){return evaluateLifecycle(Boolean(options?.force))}
  async function ensureBrain(){
   touchActivity();
   if(brainInitPromise)return brainInitPromise;
