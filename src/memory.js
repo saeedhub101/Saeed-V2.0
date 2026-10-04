@@ -1,4 +1,4 @@
-const memory=require("./core/memory-service");
+const memory=require("./core/services/memory-service");
 class Memory{
  constructor(){this.userData=require("electron").app.getPath("userData");memory.ensure(this.userData)}
  add(text,tags=[]){return memory.addFact(this.userData,String(text||""))}
