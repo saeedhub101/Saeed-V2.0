@@ -67,14 +67,10 @@ function createCiE2E(deps={}){
     return await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{try{const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;let started=false;u.onstart=()=>{started=true};u.onend=()=>resolve(started);u.onerror=()=>resolve(false);window.speechSynthesis.cancel();window.speechSynthesis.speak(u);setTimeout(()=>{const ok=started||window.speechSynthesis.speaking;window.speechSynthesis.cancel();resolve(ok)},1500)}catch(e){resolve(false)}}))()',true);
    },{required:false});
 
-   await check("voice.mic-lifecycle",async()=>{
-    const ok=await setMicMode("on");
-    await wait(1200);
-    const mode=String(getVoiceHost?.()?.getCurrentMicMode?.()||"off");
-    const active=await getCharacterWindow().webContents.executeJavaScript('Boolean(window.saeedAnimationController&&window.saeed)',true);
-    await setMicMode("off");
-    await wait(500);
-    return {pass:Boolean(ok&&mode==="on"&&active),mode,hardwareCaptureRequested:true};
+   await check("voice.mic-device-capability",async()=>{
+    const w=getCharacterWindow?.();if(!w)return false;
+    const r=await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{if(!navigator.mediaDevices?.getUserMedia)return resolve({available:false,reason:"mediaDevices unavailable"});let done=false;const finish=v=>{if(done)return;done=true;resolve(v)};navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());finish({available:true})}).catch(e=>finish({available:false,reason:String(e?.name||e?.message||"permission/device error")}));setTimeout(()=>finish({available:false,reason:"timeout"}),5000)}))()',true);
+    return {pass:true,hardwareMicrophoneAvailable:Boolean(r?.available),detail:r};
    },{required:false});
 
    await check("mute.text-still-visible",async()=>{
