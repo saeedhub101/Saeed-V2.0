@@ -320,7 +320,7 @@ jobs:
           $result=Get-Content "dist\\ci-e2e-report.json" -Raw|ConvertFrom-Json
           if(-not $result.pass){
             Write-Host "PACKAGED_EXE_E2E=FAIL (detailed report was preserved and uploaded)"
-            throw "Packaged EXE E2E validation failed. Review dist/ci-e2e-report.json and ci-e2e-process-report.json."
+            throw "Packaged EXE E2E validation failed. Review dist/ci-e2e-report.json."
           }
           Write-Host "PACKAGED_EXE_E2E=PASS"
 
