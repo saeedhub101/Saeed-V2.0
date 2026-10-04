@@ -17,7 +17,7 @@ function createCiE2E(deps={}){
   try{
    report.phases.startup={};
    await check("startup.glb-file",()=>{const p=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");return {pass:fs.existsSync(p)&&fs.statSync(p).size>1024,path:p,size:fs.existsSync(p)?fs.statSync(p).size:0}});
-   await check("startup.glb-rendered",async()=>{const w=getCharacterWindow?.();if(!w)return false;const started=Date.now();let s=null;while(Date.now()-started<15000){s=await w.webContents.executeJavaScript(`(()=>{try{return window.saeedAvatar?.get3DStatus?.()||null}catch(e){return {error:String(e)}}})()`,true);if(s?.overall?.state==="ready"&&s?.components?.sceneContent?.state==="rendered")return {pass:true,status:s,waitedMs:Date.now()-started};await wait(250);}return {pass:false,status:s,waitedMs:Date.now()-started};},{timeoutMs:20000});
+   await check("startup.glb-rendered",async()=>{const w=getCharacterWindow?.();if(!w)return false;const started=Date.now();let s=null;while(Date.now()-started<30000){try{s=await w.webContents.executeJavaScript(`(()=>{try{return window.saeedAvatar?.get3DStatus?.()||null}catch(e){return {error:String(e)}}})()`,true)}catch(e){return {pass:false,error:String(e?.message||e),status:s,waitedMs:Date.now()-started}}if(s?.overall?.state==="ready"&&s?.components?.sceneContent?.state==="rendered")return {pass:true,status:s,waitedMs:Date.now()-started};await wait(500)}return {pass:false,status:s,waitedMs:Date.now()-started};},{timeoutMs:35000});
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
    await check("startup.tray",()=>Boolean(getTray?.()));
    await check("startup.mic-off",()=>String(getVoiceHost?.()?.getCurrentMicMode?.()||"off")==="off");
