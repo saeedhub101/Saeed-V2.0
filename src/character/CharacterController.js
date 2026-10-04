@@ -76,7 +76,7 @@ export class CharacterController{
   if(type==="double-click"||type==="right-click"){this.touch();this.play("wave",{duration:1.8,priority:45});return true}
   if(type==="zoom"){this.touch();this.play("lookCloser",{duration:2.2,priority:35});return true}
   if(type==="drag-start"||type==="drag"){this.touch();return true}
-  if(type==="drag-end"){this.play("nod",{duration:.65,priority:30);return true}
+  if(type==="drag-end"){this.play("nod",{duration:.65,priority:30});return true}
   return false;
  }
  chooseIdle(){
