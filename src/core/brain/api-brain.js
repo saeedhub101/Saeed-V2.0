@@ -1,14 +1,14 @@
-const addonRuntime=require("../../addons/runtime");
+const addonRuntime=()=>require("../../addons/runtime");
 class ApiBrain{
  async run({text,image=null,settings,history,registry,onEvent,dir,route=null,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults}){
   const s=settings||{};
   const mode=String(s.brainMode||"auto");
   const nextLevel=route||{};
   const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
-  const addonLlm=addonRuntime.find(dir,"llm",addonPreference);
+  const addonLlm=addonRuntime().find(dir,"llm",addonPreference);
   if(addonLlm && (mode!=="api" || addonPreference)){
    try{
-    const provider=addonRuntime.load(dir,addonLlm.id);
+    const provider=addonRuntime().load(dir,addonLlm.id);
     if(typeof provider.chat==="function"){
      onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ADD-ON",message:"Using installed LLM add-on: "+addonLlm.name,meta:{id:addonLlm.id,provider:addonLlm.provider||addonLlm.id}});
      const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
