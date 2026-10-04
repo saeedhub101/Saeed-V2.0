@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'src/addons/catalog.json'
       - 'VERSION'
+      - 'scripts/**'
       - '.github/workflows/build-windows-electron.yml'
   workflow_dispatch:
     inputs:
