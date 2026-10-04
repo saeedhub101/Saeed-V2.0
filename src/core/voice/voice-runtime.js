@@ -10,6 +10,8 @@ function stopRealtime(){
 }
 function startRealtime(options={}){
  const s=getAgent()?.settings||{};
+ const realtimeBrainMode=["saeed","api","auto"].includes(String(s.realtimeBrainMode||"auto"))?String(s.realtimeBrainMode):"auto";
+ const realtimeVoiceRouting=realtimeBrainMode==="api"?"direct":"controller";
  if(s.realtimeEnabled===false){diagnostic("INFO","REALTIME BLOCKED","Realtime is disabled in Voice settings");voiceBroadcast("realtime:state","disabled","Realtime is disabled.");return false}
  if(s.micPath!=="realtime"){diagnostic("INFO","REALTIME BLOCKED","Realtime microphone path is disabled");voiceBroadcast("realtime:state","blocked","Microphone is using the selected STT provider.");return false}
  if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}const key=s.realtimeApiKey||s.apiKey||"";
@@ -33,7 +35,7 @@ function startRealtime(options={}){
    else if(event.type==="response.output_audio_transcript.done"&&event.transcript){
     const answer=String(event.transcript||"").trim();
     voiceBroadcast("realtime:assistant-final",answer);
-    if(s.voiceRouting==="direct" && realtimeUserText && answer){
+    if(realtimeBrainMode==="api" && realtimeUserText && answer){
      getAgent()?.recordConversationExchange?.(realtimeUserText,answer);
      realtimeUserText="";
     }
@@ -42,7 +44,7 @@ function startRealtime(options={}){
     realtimeUserText=String(event.transcript||"").trim();
     voiceBroadcast("realtime:user-final",realtimeUserText);
    }
-   else if(event.type==="response.done" && s.voiceRouting==="direct")voiceBroadcast("realtime:response-done");
+   else if(event.type==="response.done" && realtimeBrainMode==="api")voiceBroadcast("realtime:response-done");
    else if(event.type==="response.function_call_arguments.done"&&event.call_id){
     const name=String(event.name||"");
     let args={};
@@ -58,7 +60,7 @@ function startRealtime(options={}){
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
   }
  });
- realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:s.voiceRouting||"controller"});
+ realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:realtimeVoiceRouting});
  return true;
 }
 
