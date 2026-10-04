@@ -12,8 +12,10 @@ function createCiE2E(deps={}){
  };
  const metrics=label=>{
   const rows=app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,name:m.name||"",cpuPercent:+((m.cpu?.percentCPUUsage||0)).toFixed(2),workingSetMB:+((m.memory?.workingSetSize||0)/1024).toFixed(1),privateMB:+((m.memory?.privateBytes||0)/1024).toFixed(1)}));
-  report.resources.push({time:new Date().toISOString(),label,processes:rows});
-  return rows;
+  const totalWorkingSetMB=+rows.reduce((n,r)=>n+(r.workingSetMB||0),0).toFixed(1);
+  const totalPrivateMB=+rows.reduce((n,r)=>n+(r.privateMB||0),0).toFixed(1);
+  report.resources.push({time:new Date().toISOString(),label,processes:rows,totalWorkingSetMB,totalPrivateMB});
+  return {processes:rows,totalWorkingSetMB,totalPrivateMB};
  };
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const chatWindow=()=>getChatHost?.().getChatWindow?.()||null;
@@ -23,6 +25,8 @@ function createCiE2E(deps={}){
    report.phases.startup={idleStart:metrics("startup-idle-start")};
    await wait(10000);
    report.phases.startup.idle10s=metrics("idle-10s");
+   await check("startup.glb-file",()=>{const p=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");return {pass:fs.existsSync(p)&&fs.statSync(p).size>1024,path:p,size:fs.existsSync(p)?fs.statSync(p).size:0}});
+   await check("startup.glb-rendered",async()=>{const w=getCharacterWindow?.();if(!w)return false;const s=await w.webContents.executeJavaScript(`(()=>{try{return window.saeedAvatar?.get3DStatus?.()||null}catch(e){return {error:String(e)}}})()`,true);return {pass:Boolean(s?.overall?.state==="ready"&&s?.components?.sceneContent?.state==="rendered"),status:s}});
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
    await check("startup.tray",()=>Boolean(getTray?.()));
    await check("startup.mic-off",()=>String(getVoiceHost?.()?.getCurrentMicMode?.()||"off")==="off");
@@ -32,7 +36,8 @@ function createCiE2E(deps={}){
    await check("chat.local-time",async()=>{
     const w=chatWindow();if(!w)return false;
     const result=await w.webContents.executeJavaScript('(async()=>{try{await window.saeed.clearHistory()}catch{};const input=document.getElementById("input"),send=document.getElementById("send"),messages=document.getElementById("messages");messages.innerHTML="";input.value="What is the local time?";send.click();const started=Date.now();while(Date.now()-started<20000){const a=[...document.querySelectorAll("#messages .assistant")].map(x=>x.textContent.trim()).filter(Boolean);if(a.length)return a[a.length-1];await new Promise(r=>setTimeout(r,250));}return ""})()',true);
-    return Boolean(String(result||"").trim());
+    const text=String(result||"").trim();
+    return {pass:Boolean(text),responseText:text};
    });
    report.phases.chat={afterLocalTime:metrics("chat-local-time")};
 
@@ -64,8 +69,8 @@ function createCiE2E(deps={}){
    });
    await check("voice.tts-local-output",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
-    return await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{try{const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;let started=false;u.onstart=()=>{started=true};u.onend=()=>resolve(started);u.onerror=()=>resolve(false);window.speechSynthesis.cancel();window.speechSynthesis.speak(u);setTimeout(()=>{const ok=started||window.speechSynthesis.speaking;window.speechSynthesis.cancel();resolve(ok)},1500)}catch(e){resolve(false)}}))()',true);
-   },{required:false});
+    return await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{try{const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;let started=false;u.onstart=()=>{started=true};u.onend=()=>resolve({pass:started,audioStarted:started});u.onerror=e=>resolve({pass:false,audioStarted:false,error:String(e?.error||"speech error")});window.speechSynthesis.cancel();window.speechSynthesis.speak(u);setTimeout(()=>{const speaking=Boolean(window.speechSynthesis.speaking);window.speechSynthesis.cancel();resolve({pass:started||speaking,audioStarted:started,speaking})},2000)}catch(e){resolve({pass:false,audioStarted:false,error:String(e)})}}))()',true);
+   },{required:true,timeoutMs:10000});
 
    await check("voice.mic-device-capability",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
@@ -115,6 +120,7 @@ function createCiE2E(deps={}){
    await check("idle-final",async()=>{await wait(10000);const p=metrics("idle-final-10s");return {pass:p.length>0,processes:p}});
    report.finishedAt=new Date().toISOString();
    report.durationMs=Date.now()-started;
+   const byPid={};for(const sample of report.resources)for(const p of sample.processes||[]) {const k=String(p.pid);const x=byPid[k]||(byPid[k]={pid:p.pid,type:p.type,name:p.name,maxWorkingSetMB:0,maxPrivateMB:0,maxCpuPercent:0,samples:0});x.maxWorkingSetMB=Math.max(x.maxWorkingSetMB,p.workingSetMB||0);x.maxPrivateMB=Math.max(x.maxPrivateMB,p.privateMB||0);x.maxCpuPercent=Math.max(x.maxCpuPercent,p.cpuPercent||0);x.samples++}report.processResourceSummary=Object.values(byPid);
    report.pass=Object.values(report.checks).filter(x=>x.required!==false).every(x=>x.pass);
   }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString()}
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
