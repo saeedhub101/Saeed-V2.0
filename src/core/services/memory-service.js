@@ -16,4 +16,12 @@ function writeFacts(u,facts){ensure(u);const f=factsFile(u),tmp=f+".tmp";fs.writ
 function migrateLegacyFacts(u,legacyFile){const facts=readFacts(u);if(facts.length)return facts;try{if(!legacyFile||!fs.existsSync(legacyFile))return facts;const legacy=JSON.parse(fs.readFileSync(legacyFile,"utf8"));const incoming=Array.isArray(legacy?.facts)?legacy.facts:[];if(!incoming.length)return facts;const migrated=incoming.map(x=>({key:String(x.key||x.text||"").toLowerCase().replace(/\s+/g," ").slice(0,180),text:String(x.text||"").trim(),createdAt:x.createdAt||new Date().toISOString(),updatedAt:x.updatedAt||new Date().toISOString()})).filter(x=>x.text);writeFacts(u,migrated);return migrated}catch{return facts}}
 function addFact(u,text){const value=String(text||"").trim();if(!value)return null;const facts=readFacts(u),key=value.toLowerCase().replace(/\s+/g," ").slice(0,180),now=new Date().toISOString(),existing=facts.find(x=>x.key===key);if(existing){existing.text=value;existing.updatedAt=now}else facts.push({key,text:value,createdAt:now,updatedAt:now});writeFacts(u,facts.slice(-100));return facts.find(x=>x.key===key)}
 function listFacts(u){return readFacts(u)}
-module.exports={root,ensure,embed,cosine,add,search,rememberConversation,addKnowledge,rag,factsFile,readFacts,writeFacts,migrateLegacyFacts,addFact,listFacts};
+function forget(u,q){
+ const query=String(q||"").trim().toLowerCase();
+ if(!query)return{removed:0};
+ const d=readVectors(u),before=d.items.length;
+ d.items=d.items.filter(x=>!(String(x.id)===query||String(x.text||"").toLowerCase().includes(query)));
+ if(d.items.length!==before)writeVectors(u,d);
+ return{removed:before-d.items.length};
+}
+module.exports={root,ensure,embed,cosine,add,search,rememberConversation,addKnowledge,rag,forget,factsFile,readFacts,writeFacts,migrateLegacyFacts,addFact,listFacts};
