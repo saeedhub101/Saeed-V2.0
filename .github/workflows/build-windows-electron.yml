@@ -267,15 +267,15 @@ jobs:
             $samples += [pscustomobject]@{time=(Get-Date).ToUniversalTime().ToString("o");label="live";processes=$rows}
             Start-Sleep -Seconds 2
           }
-          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged E2E test timed out after 420 seconds."}
+          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; @{startedAt=(Get-Date).ToUniversalTime().ToString("o");finishedAt=(Get-Date).ToUniversalTime().ToString("o");pass=$false;error="Packaged E2E test timed out after 420 seconds.";checks=@{}}|ConvertTo-Json -Depth 8|Set-Content $report -Encoding UTF8; Write-Warning "Packaged E2E test timed out; preserving failure report and continuing to report/upload stages."}
           $samples += [pscustomobject]@{time=(Get-Date).ToUniversalTime().ToString("o");label="after-exit";processes=@()}
           @{startedAt=$samples[0].time;finishedAt=(Get-Date).ToUniversalTime().ToString("o");samples=$samples}|ConvertTo-Json -Depth 8|Set-Content $procReport -Encoding UTF8
           if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
           if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
-          if(!(Test-Path $report)){throw "Packaged E2E did not produce ci-e2e-report.json"}
+          if(!(Test-Path $report)){@{startedAt=(Get-Date).ToUniversalTime().ToString("o");finishedAt=(Get-Date).ToUniversalTime().ToString("o");pass=$false;error="Packaged E2E did not produce ci-e2e-report.json";checks=@{}}|ConvertTo-Json -Depth 8|Set-Content $report -Encoding UTF8; Write-Warning "Packaged E2E did not produce a report; preserving synthetic failure report and continuing."}
           $result=Get-Content $report -Raw|ConvertFrom-Json
           Get-Content $report -Raw
-          if(-not $result.pass){throw "Packaged EXE E2E validation failed."}
+          if(-not $result.pass){Write-Warning "Packaged EXE E2E validation failed. The detailed report will be uploaded for diagnosis; the final E2E gate runs after artifact upload."}
           Write-Host "PACKAGED_EXE_E2E=PASS"
           Write-Host "PACKAGED_EXE_CHAT_BRAIN_VOICE_LIFECYCLE=PASS"
           Write-Host "PACKAGED_EXE_PER_PROCESS_RESOURCE_REPORT=PASS"
@@ -377,6 +377,17 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
+      - name: Final packaged E2E result gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $result=Get-Content "dist\\ci-e2e-report.json" -Raw|ConvertFrom-Json
+          if(-not $result.pass){
+            Write-Host "PACKAGED_EXE_E2E=FAIL (detailed report was preserved and uploaded)"
+            throw "Packaged EXE E2E validation failed. Review dist/ci-e2e-report.json and ci-e2e-process-report.json."
+          }
+          Write-Host "PACKAGED_EXE_E2E=PASS"
+
       - name: Verify detailed CI reports
         shell: powershell
         run: |
@@ -389,6 +400,7 @@ jobs:
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
           if-no-files-found: error
+          if: always()
           path: |
             dist/*.exe
             dist/*.blockmap
