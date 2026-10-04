@@ -86,35 +86,23 @@ function findNamedBone(sideName,part){
  return found;
 }
 function normalizeHumanoidRestPose(){
- const left=rig.get("leftUpperArm")||findNamedBone("left","upper");
- const right=rig.get("rightUpperArm")||findNamedBone("right","upper");
- if(!left||!right)return{detected:"unknown",normalized:false,reason:"Upper arm bones could not be identified"};
+ const hips=rig.get("hips"),head=rig.get("head"),left=rig.get("leftUpperArm"),right=rig.get("rightUpperArm");
+ if(!hips||!head)return{detected:"unknown",normalized:false,reason:"Required hips/head bones could not be identified"};
  model.updateWorldMatrix(true,true);
- const direction=b=>{
-  const child=b?.children?.find(x=>x.isBone);
-  if(!child)return new THREE.Vector3();
-  const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());
-  return q.sub(p).normalize();
- };
+ const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);
+ if(vertical<.45)return{detected:"laydown",normalized:false,reason:"Character is not upright"};
+ const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};
  const ld=direction(left),rd=direction(right);
- const horizontal=Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5;
- const spread=Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65;
- if(!(horizontal&&spread))return{detected:"standing-or-a-pose",normalized:false};
- aimBoneChild(left,new THREE.Vector3(-.08,-.995,0));
- aimBoneChild(right,new THREE.Vector3(.08,-.995,0));
- model.updateWorldMatrix(true,true);
- const lf=rig.get("leftForeArm")||findNamedBone("left","fore");
- const rf=rig.get("rightForeArm")||findNamedBone("right","fore");
- if(lf)aimBoneChild(lf,new THREE.Vector3(-.04,-.999,.02));
- if(rf)aimBoneChild(rf,new THREE.Vector3(.04,-.999,.02));
- model.updateWorldMatrix(true,true);
- return{detected:"t-pose",normalized:true};
+ if(!ld||!rd)return{detected:"upright-unknown-arms",normalized:true};
+ const horizontal=Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5,spread=Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65;
+ return{detected:horizontal&&spread?"t-pose":"upright",normalized:true};
 }
 function validateRig(mapping={}){
- const required=["hips","spine","neck","head","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot"];
+ const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
+ const optional=["spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
  const missing=required.filter(k=>!mapping[k]&&!rig.get(k));
- const critical=["head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
- return{ok:missing.length===0,missing,criticalMissing:critical.filter(k=>missing.includes(k)),mapped:Object.keys(mapping).length};
+ const optionalMissing=optional.filter(k=>!mapping[k]&&!rig.get(k));
+ return{ok:missing.length===0,missing,criticalMissing:[...missing],optionalMissing,mapped:Object.keys(mapping).length,required,optional};
 }
 function resetCharacterPose(){
  for(const [slot,b] of rig){
