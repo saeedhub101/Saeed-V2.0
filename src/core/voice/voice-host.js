@@ -1,65 +1,9 @@
-function createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcastExternal,getAgent,getVoiceRuntime,permissionPolicy,confirmPermission,rebuildTray,showChat,getStatusWindow,diagnosticState}){
- function whisperRuntimePaths(){
-  const roots=[
-   getAddonService().addonDir(app.getPath("userData"),"stt-whisper"),
-   path.join(process.resourcesPath||"","whisper"),
-   path.join(process.resourcesPath||"","addons","stt-whisper"),
-   path.join(process.resourcesPath||"","saeed-addon-stt-whisper")
-  ].filter(Boolean);
-  const found=[];
-  const walk=(root,depth=0)=>{
-   if(!root||depth>4||!fs.existsSync(root))return;
-   let entries=[];try{entries=fs.readdirSync(root,{withFileTypes:true})}catch{return}
-   for(const e of entries){
-    const p=path.join(root,e.name);
-    if(e.isFile()&&e.name.toLowerCase()==="whisper-cli.exe")found.push({root:path.dirname(p),exe:p});
-    else if(e.isDirectory())walk(p,depth+1);
-   }
-  };
-  roots.forEach(r=>walk(r));
-  for(const item of found){
-   let model="";
-   const preferred=["ggml-base-q5_1.bin","ggml-base.bin","ggml-base.en-q5_1.bin","ggml-base.en.bin"];
-   for(const name of preferred){const p=path.join(item.root,name);if(fs.existsSync(p)){model=p;break}}
-   if(!model){try{const n=fs.readdirSync(item.root).find(x=>/^ggml-.*\\.bin$/i.test(x));if(n)model=path.join(item.root,n)}catch{}}
-   if(model)return{root:item.root,exe:item.exe,model};
-  }
-  const root=roots[0]||getAddonService().addonDir(app.getPath("userData"),"stt-whisper");
-  return{root,exe:path.join(root,"whisper-cli.exe"),model:path.join(root,"ggml-base-q5_1.bin")};
- }
- 
- function voiceBroadcast(channel,...args){return voiceBroadcastExternal(channel,...args)}
+function createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent,getVoiceRuntime,getAddonService,ensureBrain,permissionPolicy,confirmPermission,rebuildTray,showChat,getStatusWindow,diagnosticState}){
  let currentMicMode="off",voiceMuted=false;
- 
- function setVoiceMuted(muted){voiceMuted=Boolean(muted);if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings();}if(voiceMuted){try{getVoiceRuntime().stop()}catch{}voiceBroadcast("voice:stop")}else if(currentMicMode==="on"&&agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api"){getVoiceRuntime().start()}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray();return voiceMuted}
- 
- async function setMicMode(mode,fromUser=false){
-  const value=String(mode||"off")==="on"?"on":"off";
-  if(value==="on")await ensureBrain();
-  if(value==="on"){
-   const policy=permissionPolicy("microphone");
-   if(policy==="deny"){diagnostic("INFO","MIC PERMISSION","Microphone access is denied by Permissions settings");return false}
-   if(policy==="ask"&&!await confirmPermission("microphone",{name:"microphone",args:{action:"enable"}})){diagnostic("INFO","MIC PERMISSION","Microphone access was denied by user");return false}
-  }
-  currentMicMode=value;
-  if(agent)agent.settings={...agent.settings,micMode:value};
-  diagnosticState.mic={...diagnosticState.mic,state:value==="on"?"active":"disabled",level:value==="on"?diagnosticState.mic.level:0,detail:value==="on"?"Microphone ON":"Microphone OFF"};
-  voiceBroadcast("mic:mode",value);
-  if(statusWin&&!statusWin.isDestroyed())statusWin.webContents.send("mic:mode",value);
-  if(value==="off"){
-   try{getVoiceRuntime().stop()}catch{}
-   diagnostic("INFO","MIC INPUT","Microphone input is OFF; voice input services stopped");
-   voiceBroadcast("local-stt:state","disconnected","Microphone input is off");
-  }else{
-   if(agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api")getVoiceRuntime().start();
-   else if(agent?.settings?.sttProvider==="whisper"){voiceBroadcast("local-stt:state","ready","Local Whisper ready");diagnostic("INFO","STT READY","Local Whisper is ready for microphone input");}
-   else diagnostic("INFO","STT READY","Selected API STT is ready for microphone input");
-   diagnostic("INFO","TTS READY","TTS is ready for voice replies");
-  }
-  diagnostic("INFO","MIC MODE","Microphone mode: "+value);
-  rebuildTray();
- }
- 
- return {whisperRuntimePaths,setMicMode,setVoiceMuted,getCurrentMicMode:()=>currentMicMode,getVoiceMuted:()=>voiceMuted};
+ function whisperRuntimePaths(){const roots=[getAddonService().addonDir(app.getPath("userData"),"stt-whisper"),path.join(process.resourcesPath||"","whisper"),path.join(process.resourcesPath||"","addons","stt-whisper"),path.join(process.resourcesPath||"","saeed-addon-stt-whisper")].filter(Boolean),found=[];const walk=(root,depth=0)=>{if(!root||depth>4||!fs.existsSync(root))return;let entries=[];try{entries=fs.readdirSync(root,{withFileTypes:true})}catch{return}for(const e of entries){const p=path.join(root,e.name);if(e.isFile()&&e.name.toLowerCase()==="whisper-cli.exe")found.push({root:path.dirname(p),exe:p});else if(e.isDirectory())walk(p,depth+1)}};roots.forEach(walk);for(const item of found){let model="";for(const name of ["ggml-base-q5_1.bin","ggml-base.bin","ggml-base.en-q5_1.bin","ggml-base.en.bin"]){const p=path.join(item.root,name);if(fs.existsSync(p)){model=p;break}}if(!model){try{const n=fs.readdirSync(item.root).find(x=>/^ggml-.*\\.bin$/i.test(x));if(n)model=path.join(item.root,n)}catch{}}if(model)return{root:item.root,exe:item.exe,model}}const root=roots[0]||getAddonService().addonDir(app.getPath("userData"),"stt-whisper");return{root,exe:path.join(root,"whisper-cli.exe"),model:path.join(root,"ggml-base-q5_1.bin")}}
+ async function transcribeLocalWav(base64){const p=whisperRuntimePaths();if(!fs.existsSync(p.exe)||!fs.existsSync(p.model)){diagnostic("ERROR","LOCAL STT","Whisper runtime/model is missing",{runtime:p.root,cliExists:fs.existsSync(p.exe),modelExists:fs.existsSync(p.model)});throw new Error("Bundled Whisper runtime/model is missing from this Saeed installation.")}const wav=path.join(app.getPath("temp"),"saeed-stt-"+Date.now()+".wav");try{const pcm=Buffer.from(String(base64||""),"base64"),h=Buffer.alloc(44);h.write("RIFF",0);h.writeUInt32LE(36+pcm.length,4);h.write("WAVE",8);h.write("fmt ",12);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(24000,24);h.writeUInt32LE(48000,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write("data",36);h.writeUInt32LE(pcm.length,40);fs.writeFileSync(wav,Buffer.concat([h,pcm]));const child=spawn(p.exe,["-m",p.model,"-f",wav,"-nt","-np","--no-timestamps"],{cwd:path.dirname(p.exe),windowsHide:true});let out="",err="";child.stdout.setEncoding("utf8");child.stderr.setEncoding("utf8");child.stdout.on("data",d=>out+=d);child.stderr.on("data",d=>err+=d);return await new Promise((resolve,reject)=>{child.on("error",reject);child.on("close",code=>{if(code!==0)return reject(new Error(err.slice(-1200)||("Whisper CLI exited with code "+code)));resolve(out.replace(/\\x1b\\[[0-9;]*[A-Za-z]/g,"").split(/\\r?\\n/).map(x=>x.trim()).filter(x=>x&&!x.startsWith("[")&&!x.startsWith("whisper_")).join(" ").trim())})})}finally{try{fs.unlinkSync(wav)}catch{}}}
+ function setVoiceMuted(muted){voiceMuted=Boolean(muted);const agent=getAgent();if(agent){agent.settings={...agent.settings,voiceMuted};agent.persistSettings()}if(voiceMuted){try{getVoiceRuntime().stop()}catch{};voiceBroadcast("voice:stop")}else if(currentMicMode==="on"&&agent?.settings?.micPath==="realtime"&&agent?.settings?.realtimeEnabled&&String(agent?.settings?.brainMode||"auto")==="api"){getVoiceRuntime().start()}voiceBroadcast("voice:mute",voiceMuted);diagnostic("INFO","TTS MUTE",voiceMuted?"Saeed voice muted":"Saeed voice unmuted");rebuildTray?.();return voiceMuted}
+ async function setMicMode(mode){const value=String(mode||"off")==="on"?"on":"off";if(value==="on")await ensureBrain();if(value==="on"){const policy=permissionPolicy("microphone");if(policy==="deny")return false;if(policy==="ask"&&!await confirmPermission("microphone",{name:"microphone",args:{action:"enable"}}))return false}currentMicMode=value;const agent=getAgent();if(agent)agent.settings={...agent.settings,micMode:value};diagnosticState.mic={...diagnosticState.mic,state:value==="on"?"active":"disabled",level:value==="on"?diagnosticState.mic.level:0,detail:value==="on"?"Microphone ON":"Microphone OFF"};voiceBroadcast("mic:mode",value);const status=getStatusWindow();if(status&&!status.isDestroyed())status.webContents.send("mic:mode",value);if(value==="off"){try{getVoiceRuntime().stop()}catch{}voiceBroadcast("local-stt:state","disconnected","Microphone input is off")}else if(agent?.settings?.micPath==="realtime"&&agent.settings.realtimeEnabled&&String(agent.settings.brainMode||"auto")==="api"){getVoiceRuntime().start()}else voiceBroadcast("local-stt:state","ready",agent?.settings?.sttProvider==="whisper"?"Local Whisper ready":"Selected API STT ready");diagnostic("INFO","MIC MODE","Microphone mode: "+value);rebuildTray?.();return true}
+ return{whisperRuntimePaths,transcribeLocalWav,setMicMode,setVoiceMuted,getCurrentMicMode:()=>currentMicMode,getVoiceMuted:()=>voiceMuted};
 }
 module.exports={createVoiceHost};
