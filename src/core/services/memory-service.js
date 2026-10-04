@@ -1,5 +1,5 @@
 const fs=require("fs"),path=require("path"),crypto=require("crypto");
-function root(userData){return path.join(userData,"memory")}
+function root(userData){return path.join(userData,"addons","memory-stack")}
 function ensure(userData){for(const d of ["knowledge","vectors","conversations"])fs.mkdirSync(path.join(root(userData),d),{recursive:true});return root(userData)}
 function tokenize(text){return String(text||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean)}
 function embed(text,dimensions=256){const v=new Array(dimensions).fill(0);for(const t of tokenize(text)){const h=crypto.createHash("sha256").update(t).digest();v[h.readUInt32BE(0)%dimensions]+=1;v[h.readUInt32BE(4)%dimensions]-=.5}const n=Math.sqrt(v.reduce((a,x)=>a+x*x,0))||1;return v.map(x=>x/n)}
