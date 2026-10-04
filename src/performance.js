@@ -73,7 +73,7 @@ $("rigAuto")?.addEventListener("click",async()=>{
 $("rigRefresh")?.addEventListener("click",refreshRigTab);
 window.saeed.onCharacterSelected?.(()=>{if(document.querySelector(".tabs button.active")?.dataset.tab==="character"){refreshCharacterController();refreshMotionEditor()}});
 
-const rigTabJoints=["hips","spine","chest","neck","head","jaw","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","leftEye","rightEye"];
+const rigTabJoints=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh","spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
 async function refreshRigTab(){
  try{
   const s=await window.saeed.getCharacterController();
@@ -88,7 +88,7 @@ async function refreshRigTab(){
   const caps=s?.retargeting?.capabilities||{};
   const missing=rigTabJoints.filter(x=>!mapped[x]);
   $("rigTabStatus").textContent=missing.length?"Rig incomplete":"Rig mapped";
-  $("rigTabDetails").textContent=(s?.retargeting?.boneCount??Object.keys(mapped).length)+" mapped bones"+(missing.length?" • Missing: "+missing.join(", "):" • All configured logical bones are mapped");
+  const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"],requiredMissing=required.filter(x=>!mapped[x]);const optionalMissing=rigTabJoints.filter(x=>!required.includes(x)&&!mapped[x]);$("rigTabStatus").textContent=requiredMissing.length?"Required rig incomplete":"Required rig ready";$("rigTabDetails").textContent=(s?.retargeting?.boneCount??Object.keys(mapped).length)+" mapped bones • Required 6: "+(requiredMissing.length?"missing "+requiredMissing.join(", "):"OK")+(optionalMissing.length?" • Optional unavailable: "+optionalMissing.join(", "):" • Optional rig complete");
   $("rigTabState").textContent="Select a real GLB bone for each logical joint, then Apply Manual Mapping.";
  }catch(e){$("rigTabStatus").textContent="Rig unavailable";$("rigTabDetails").textContent=e.message;$("rigTabState").textContent=e.message}
 }
