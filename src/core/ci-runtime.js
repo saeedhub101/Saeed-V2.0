@@ -22,23 +22,18 @@ async function runCiRuntimeSmoke(){
   try{report.checks[name]={pass:false,required,latencyMs:0};const value=await fn();const pass=value===true||value?.pass===true;report.checks[name]={...report.checks[name],pass,required,latencyMs:Date.now()-started,detail:typeof value==="object"&&value&&!Array.isArray(value)?value:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-started,error:String(e?.stack||e)};return report.checks[name]}
  };
- let characterWin,agent,brainSupervisor,currentMicMode="off",runtime; await ensureBrain(); characterWin=getCharacterWindow?.(); agent=getAgent?.(); brainSupervisor=getBrainSupervisor?.(); currentMicMode=getCurrentMicMode?.()||"off"; runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(getTray?.()),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
+ let characterWin,agent,currentMicMode="off",runtime; await ensureBrain(); characterWin=getCharacterWindow?.(); agent=getAgent?.(); currentMicMode=getCurrentMicMode?.()||"off"; runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(getTray?.()),agent:Boolean(agent),brain:Boolean(agent?.brain&&typeof agent.brain.run==="function"),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
  try{
   report.phases.startup={runtime,resources:resourceService.resourceReport("startup")};
   report.checks.startup={pass:runtime.characterWindow&&runtime.tray&&runtime.micMode==="off"&&!runtime.realtime,detail:runtime};
 
-  const glbCandidates=[path.join(app.getAppPath(),"assets","Saeed_Test-3D.glb"),path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb")];
+  const glbCandidates=[path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb")];
   const glb=glbCandidates.find(fs.existsSync)||glbCandidates[0];
   report.checks.glbFile={pass:fs.existsSync(glb)&&fs.statSync(glb).size>1024,path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
 
   report.phases.core={resources:resourceService.resourceReport("core-ready")};
   await check("core.agent",()=>Boolean(agent&&agent.registry&&typeof agent.run==="function"));
-  await check("core.localBrain",()=>Boolean(agent?.localBrain&&typeof agent.localBrain.handle==="function"));
-  await check("core.brainSupervisor",()=>Boolean(brainSupervisor&&brainSupervisor.active&&typeof brainSupervisor.state==="function"));
-  await check("core.instantBrain",async()=>{
-   const state=brainSupervisor?.state?.();
-   return Boolean(state?.controller);
-  });
+  await check("core.brain",()=>Boolean(agent?.brain&&typeof agent.brain.run==="function"&&agent.brain.local&&agent.brain.api));
 
   const originalBrainMode=agent.settings.brainMode;
   let localChatResult=null;
