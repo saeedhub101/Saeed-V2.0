@@ -1,9 +1,2 @@
-function registerChatIpc(deps){const {ipcMain}=deps;ipcMain.handle("chat",async(_,payload)=>{
- await ensureBrain();
- const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"user-input",text:String(data.text||"")});
- const result=await agent.run(String(data.text||""),data.image||null);
- if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
- return result;
-});
-}
+function registerChatIpc({ipcMain,ensureBrain,getAgent,getBrainSupervisor,getCharacterWindow}){ipcMain.handle("chat",async(_,payload)=>{await ensureBrain();const data=typeof payload==="string"?{text:payload}:payload||{};getBrainSupervisor()?.markActivity?.();const win=getCharacterWindow();win&&!win.isDestroyed()&&win.webContents.send("character:behavior",{type:"user-input",text:String(data.text||"")});const result=await getAgent().run(String(data.text||""),data.image||null);const out=getCharacterWindow();out&&!out.isDestroyed()&&out.webContents.send("character:behavior","answer");return result})}
 module.exports={registerChatIpc};
