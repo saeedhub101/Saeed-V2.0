@@ -14,7 +14,6 @@ class OpenAIRealtime {
     this.stopped = true;
     this.retryTimer = null;
     this.retryMs = 3000;
-    this.voiceRouting = "controller";
   }
 
   start(key, options = {}) {
@@ -23,7 +22,6 @@ class OpenAIRealtime {
     this.voice = options.voice || "marin";
     this.instructions = options.instructions || this.instructions;
     this.tools = Array.isArray(options.tools) ? options.tools : [];
-    this.voiceRouting = options.voiceRouting === "direct" ? "direct" : "controller";
     this.stopped = false;
     this.clearRetry();
     this.connect();
