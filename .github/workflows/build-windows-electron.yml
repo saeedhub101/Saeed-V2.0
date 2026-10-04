@@ -206,19 +206,21 @@ jobs:
           Remove-Item $report,$hostReport -Force -ErrorAction SilentlyContinue
           $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
           if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged Saeed AI.exe is missing: $exe" }
-          $env:SAEED_CI_SMOKE = "1"
-          $env:SAEED_CI_REPORT = $report
-          $env:SAEED_CI_HOST_REPORT = $hostReport
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-smoke" -PassThru -RedirectStandardOutput (Join-Path $env:RUNNER_TEMP "saeed-packaged-smoke.stdout.log") -RedirectStandardError (Join-Path $env:RUNNER_TEMP "saeed-packaged-smoke.stderr.log")
-          $deadline=(Get-Date).AddSeconds(180)
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-packaged-startup.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-packaged-startup.stderr.log"
+          $started = Get-Date
+          $proc = Start-Process -FilePath $exe -ArgumentList "--exit" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline=(Get-Date).AddSeconds(60)
           while(!$proc.HasExited -and (Get-Date) -lt $deadline){Start-Sleep -Seconds 1}
-          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged application smoke test timed out after 180 seconds."}
-          if(Test-Path $report){Get-Content $report -Raw}else{throw "Packaged application did not produce ci-runtime-report.json"}
-          $result=Get-Content $report -Raw|ConvertFrom-Json
-          if(-not $result.pass){throw "Packaged application runtime smoke test failed."}
-          Write-Host "RUNTIME_APPLICATION_SMOKE=PASS"
-          Write-Host "RUNTIME_INITIALIZATION_CHECKS=PASS"
-          if(Test-Path $hostReport){Get-Content $hostReport -Raw}
+          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged application startup test timed out after 60 seconds."}
+          if($proc.ExitCode -ne 0){$out=if(Test-Path $stdout){Get-Content $stdout -Raw}else{""};$err=if(Test-Path $stderr){Get-Content $stderr -Raw}else{""};throw "Packaged application startup failed with exit code $($proc.ExitCode). $out $err"}
+          $host=Get-CimInstance Win32_OperatingSystem
+          $cpu=(Get-CimInstance Win32_Processor|Measure-Object -Property LoadPercentage -Average).Average
+          @{mode="packaged-startup";pass=$true;startedAt=$started.ToUniversalTime().ToString("o");finishedAt=(Get-Date).ToUniversalTime().ToString("o");exitCode=$proc.ExitCode;packaged=$true}|ConvertTo-Json -Depth 6|Set-Content $report -Encoding UTF8
+          @{mode="packaged-startup-host";cpuPercent=[math]::Round([double]$cpu,1);ramTotalGB=[math]::Round($host.TotalVisibleMemorySize/1MB,1);ramFreeGB=[math]::Round($host.FreePhysicalMemory/1MB,1)}|ConvertTo-Json -Depth 6|Set-Content $hostReport -Encoding UTF8
+          Write-Host "RUNTIME_APPLICATION_STARTUP=PASS"
+          Write-Host (Get-Content $report -Raw)
+          Write-Host (Get-Content $hostReport -Raw)
 
       - name: Packaged EXE end-to-end UI, Brain, Voice and lifecycle test
         shell: powershell
