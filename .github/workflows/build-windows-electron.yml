@@ -137,7 +137,7 @@ jobs:
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-prebuild-smoke.stderr.log"
           $env:SAEED_CI_SMOKE = "1"
-          $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", "." -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", ".", "--exit" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           try {
             $deadline = (Get-Date).AddSeconds(120)
             while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
