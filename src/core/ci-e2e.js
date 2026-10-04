@@ -31,7 +31,7 @@ function createCiE2E(deps={}){
    await check("chat.open",async()=>{await getChatHost().showChat();await wait(800);return visible(chatWindow())});
    await check("chat.local-time",async()=>{
     const w=chatWindow();if(!w)return false;
-    const result=await w.webContents.executeJavaScript('(async()=>{const input=document.getElementById("input"),send=document.getElementById("send");input.value="What is the local time?";send.click();const started=Date.now();while(Date.now()-started<20000){const a=[...document.querySelectorAll("#messages .assistant")].map(x=>x.textContent.trim()).filter(Boolean);if(a.length)return a[a.length-1];await new Promise(r=>setTimeout(r,250));}return ""})()',true);
+    const result=await w.webContents.executeJavaScript('(async()=>{try{await window.saeed.clearHistory()}catch{};const input=document.getElementById("input"),send=document.getElementById("send"),messages=document.getElementById("messages");messages.innerHTML="";input.value="What is the local time?";send.click();const started=Date.now();while(Date.now()-started<20000){const a=[...document.querySelectorAll("#messages .assistant")].map(x=>x.textContent.trim()).filter(Boolean);if(a.length)return a[a.length-1];await new Promise(r=>setTimeout(r,250));}return ""})()',true);
     return Boolean(String(result||"").trim());
    });
    report.phases.chat={afterLocalTime:metrics("chat-local-time")};
