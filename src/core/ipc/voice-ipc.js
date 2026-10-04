@@ -1,4 +1,4 @@
-function registerVoiceIpc({ipcMain,getAgent,diagnostic,app,getVoiceHost,diagnosticState,getStatusWindow,getThreeDStatusWindow,getCharacterWindow}){
+function registerVoiceIpc({ipcMain,getAgent,diagnostic,app,getVoiceHost,getBrainHost,diagnosticState,getStatusWindow,getThreeDStatusWindow,getCharacterWindow}){
  const setMicMode=(...args)=>getVoiceHost().setMicMode(...args);
  const setVoiceMuted=(...args)=>getVoiceHost().setVoiceMuted(...args);
  const transcribeLocalWav=(...args)=>getVoiceHost().transcribeLocalWav(...args);
