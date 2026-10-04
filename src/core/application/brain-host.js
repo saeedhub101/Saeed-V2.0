@@ -1,4 +1,4 @@
-function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,characterSettingsExists}){
+function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setAgent,setVoiceMuted,recordLearningStep}){
  let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
  const confirm=async({name,args,permissionCategory})=>{
@@ -41,7 +41,6 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
    lastActivity=Date.now();
    scheduleIdleRelease();
    voiceBroadcast("character:behavior",{type:"settings",settings:agent.publicSettings()});
-   if(!characterSettingsExists())setSaeedSize(agent.settings.characterSize||"small");
    return agent;
   })().catch(e=>{brainInitPromise=null;agent=null;setAgent(null);diagnostic("ERROR","BRAIN INIT",e.message);throw e});
   return brainInitPromise;
@@ -54,7 +53,7 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
   try{await oldAgent?.dispose?.()}catch(e){diagnostic("ERROR","BRAIN RELEASE",e.message)}
   setAgent(null);
   voiceBroadcast("character:behavior",{type:"brain-released"});
-  diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no Chat or Mic input surface is active");
+  diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no active input surface is using it");
   return true;
  }
  return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,isActive:()=>Boolean(agent)};
