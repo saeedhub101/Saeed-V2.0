@@ -74,8 +74,30 @@ function createCiE2E(deps={}){
    },{required:false});
    await check("voice.tts-local-output",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
-    return await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{try{const synth=window.speechSynthesis;if(!synth)return resolve({pass:false,audioStarted:false,error:"speechSynthesis unavailable"});const voices=synth.getVoices();const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;let started=false,ended=false,done=false;const finish=v=>{if(done)return;done=true;try{synth.cancel()}catch{};resolve(v)};u.onstart=()=>{started=true};u.onend=()=>{ended=true;finish({pass:true,audioStarted:true,speaking:false,voiceCount:voices.length})};u.onerror=e=>finish({pass:voices.length===0,audioStarted:false,speaking:Boolean(synth.speaking),voiceCount:voices.length,error:String(e?.error||"speech error"),environmentLimited:voices.length===0});try{synth.cancel();synth.speak(u)}catch(e){finish({pass:voices.length===0,audioStarted:false,error:String(e),voiceCount:voices.length,environmentLimited:voices.length===0})};setTimeout(()=>{if(done)return;const speaking=Boolean(synth.speaking);finish({pass:voices.length===0||started,audioStarted:started,speaking,ended,voiceCount:voices.length,environmentLimited:voices.length===0,reason:started?"speech started":"speech start event not observed"});},8000)}catch(e){resolve({pass:false,audioStarted:false,error:String(e)})}}))()',true);
-   },{required:true,timeoutMs:12000});
+    return await w.webContents.executeJavaScript(`(()=>new Promise(async resolve=>{try{
+      const synth=window.speechSynthesis;
+      if(!synth)return resolve({pass:false,audioStarted:false,error:"speechSynthesis unavailable"});
+      const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+      const waitForVoices=async()=>{let v=synth.getVoices();if(v.length)return v;await new Promise(r=>{let done=false;const f=()=>{if(done)return;done=true;synth.removeEventListener("voiceschanged",f);r()};synth.addEventListener("voiceschanged",f);setTimeout(f,1000)});return synth.getVoices()};
+      let voices=await waitForVoices();
+      if(!voices.length)return resolve({pass:true,audioStarted:false,speaking:false,ended:false,voiceCount:0,environmentLimited:true,reason:"no voices available"});
+      let attempt=0,started=false,ended=false,done=false,lastError="";
+      const finish=v=>{if(done)return;done=true;try{synth.cancel()}catch{};resolve(v)};
+      const speakAttempt=async()=>{
+        attempt++;
+        try{synth.cancel()}catch{}
+        await sleep(250);
+        voices=await waitForVoices();
+        const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;
+        u.onstart=()=>{started=true};
+        u.onend=()=>{ended=true;finish({pass:true,audioStarted:true,speaking:false,ended:true,voiceCount:voices.length,attempt})};
+        u.onerror=e=>{lastError=String(e?.error||"speech error");if(lastError==="interrupted"&&attempt<2&&!started){setTimeout(()=>speakAttempt(),300);return}finish({pass:false,audioStarted:started,speaking:Boolean(synth.speaking),ended,voiceCount:voices.length,error:lastError,attempt})};
+        try{synth.speak(u)}catch(e){lastError=String(e);if(attempt<2&&!started){setTimeout(()=>speakAttempt(),300);return}finish({pass:false,audioStarted:started,error:lastError,voiceCount:voices.length,attempt})}
+      };
+      await speakAttempt();
+      setTimeout(()=>{if(done)return;finish({pass:started,audioStarted:started,speaking:Boolean(synth.speaking),ended,voiceCount:voices.length,error:lastError||undefined,attempt,reason:started?"speech started":"speech start event not observed"})},12000);
+    }catch(e){resolve({pass:false,audioStarted:false,error:String(e)})}}))()`,true);
+   },{required:true,timeoutMs:16000});
 
    await check("voice.mic-device-capability",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
