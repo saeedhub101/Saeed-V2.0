@@ -1,4 +1,4 @@
-function createBrainHost({app,dialog,getChatWindow,getMicMode,characterCommand,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
+function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,characterSettingsExists}){
  let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
  const confirm=async({name,args,permissionCategory})=>{
