@@ -68,6 +68,12 @@ class OpenAIRealtime {
     return true;
   }
 
+  requestResponse() {
+    if (this.ws?.readyState !== WebSocket.OPEN) return false;
+    this.send({type:"response.create"});
+    return true;
+  }
+
   cancel() {
     if (this.ws?.readyState === WebSocket.OPEN) this.send({type:"response.cancel"});
   }
