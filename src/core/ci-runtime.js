@@ -1,6 +1,6 @@
 const fs=require("fs"),path=require("path");
 function createCiRuntime(deps={}){
- const {ciSmoke,app,characterWin,tray,agent,brainSupervisor,currentMicMode,resourceService,addons,learning,OpenAIRealtime,request3DStatus,apiHealth,diagnosticState,voiceRuntime,transcribeLocalWav,whisperRuntimePaths,ensureBrain}=deps;
+ const {ciSmoke,app,getCharacterWindow,getTray,getAgent,getBrainSupervisor,getCurrentMicMode,resourceService,addons,learning,OpenAIRealtime,request3DStatus,apiHealth,diagnosticState,voiceRuntime,transcribeLocalWav,whisperRuntimePaths,ensureBrain}=deps;
  async function runCi3DBaseline(){
  if(!ciSmoke||process.env.SAEED_CI_3D_OFF!=="1")return;
  const started=Date.now();
@@ -22,7 +22,7 @@ async function runCiRuntimeSmoke(){
   try{report.checks[name]={pass:false,required,latencyMs:0};const value=await fn();const pass=value===true||value?.pass===true;report.checks[name]={...report.checks[name],pass,required,latencyMs:Date.now()-started,detail:typeof value==="object"&&value&&!Array.isArray(value)?value:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-started,error:String(e?.stack||e)};return report.checks[name]}
  };
- const runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(tray),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
+ const characterWin=getCharacterWindow?.(),agent=getAgent?.(),brainSupervisor=getBrainSupervisor?.(),currentMicMode=getCurrentMicMode?.()||"off",runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(getTray?.()),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
  try{
   report.phases.startup={runtime,resources:resourceService.resourceReport("startup")};
   report.checks.startup={pass:runtime.characterWindow&&runtime.tray&&runtime.micMode==="off"&&!runtime.realtime,detail:runtime};
