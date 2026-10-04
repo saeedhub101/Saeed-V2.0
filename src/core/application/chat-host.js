@@ -2,7 +2,13 @@ function createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensu
  let chatWin=null;
  let closing=false;
  async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show");void ensureBrain().catch(e=>diagnostic("ERROR","BRAIN INIT",e.message))}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
- async function closeChat(){if(chatWin&&!chatWin.isDestroyed())chatWin.destroy();chatWin=null;await onClose?.()}
+ async function closeChat(){
+  if(closing)return;
+  closing=true;
+  const win=chatWin;
+  chatWin=null;
+  try{if(win&&!win.isDestroyed()){try{await win.webContents.executeJavaScript('window.speechSynthesis?.cancel?.();void 0',true)}catch{};win.destroy()}}finally{closing=false;await onClose?.()}
+ }
  function setMousePassthrough(ignore){if(chatWin&&!chatWin.isDestroyed())chatWin.setIgnoreMouseEvents(Boolean(ignore),{forward:true});}
  function minimize(){if(chatWin&&!chatWin.isDestroyed())chatWin.minimize();}
  function moveBy(dx,dy){if(!chatWin||chatWin.isDestroyed())return;const [x,y]=chatWin.getPosition();chatWin.setPosition(x+Number(dx||0),y+Number(dy||0));}
