@@ -278,14 +278,16 @@ if(window.__saeedPendingCharacterData){
 }
 
 function apply3DSettings(settings={}){
+ const character=settings.character||settings;
  Object.assign(viewSettings,{
-  characterScale:Number.isFinite(Number(settings.characterScale))?Number(settings.characterScale):viewSettings.characterScale,
-  characterPositionX:Number.isFinite(Number(settings.characterPositionX))?Number(settings.characterPositionX):viewSettings.characterPositionX,
-  characterPositionY:Number.isFinite(Number(settings.characterPositionY))?Number(settings.characterPositionY):viewSettings.characterPositionY,
-  characterPositionZ:Number.isFinite(Number(settings.characterPositionZ))?Number(settings.characterPositionZ):viewSettings.characterPositionZ,
-  characterRotationY:Number.isFinite(Number(settings.characterRotationY))?Number(settings.characterRotationY):viewSettings.characterRotationY,
+  characterScale:Number.isFinite(Number(character.scale??character.characterScale))?Number(character.scale??character.characterScale):viewSettings.characterScale,
+  characterPositionX:Number.isFinite(Number(character.positionX??character.characterPositionX))?Number(character.positionX??character.characterPositionX):viewSettings.characterPositionX,
+  characterPositionY:Number.isFinite(Number(character.positionY??character.characterPositionY))?Number(character.positionY??character.characterPositionY):viewSettings.characterPositionY,
+  characterPositionZ:Number.isFinite(Number(character.positionZ??character.characterPositionZ))?Number(character.positionZ??character.characterPositionZ):viewSettings.characterPositionZ,
+  characterRotationY:Number.isFinite(Number(character.rotationY??character.characterRotationY))?Number(character.rotationY??character.characterRotationY):viewSettings.characterRotationY,
   canvasPadding:0
  });
+ if(Number.isFinite(Number(settings.camera?.fov)))camera.fov=Number(settings.camera.fov);
  fit();
  render();
  return {...viewSettings};
