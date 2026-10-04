@@ -47,7 +47,7 @@ const getVoiceRuntime=()=>voiceRuntime||(voiceRuntime=require("./voice/voice-run
 const getResourceService=()=>resourceService||(resourceService=require("./services/resource-service").createResourceService({app,BrowserWindow,process}));
 const getAutoUpdater=()=>autoUpdater||(autoUpdater=require("electron-updater").autoUpdater);
 const getChatWindow=()=>chatHost?.getChatWindow?.();
-const ensureChatHost=()=>chatHost||(chatHost=load("chatHost","./application/chat-host").createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain}));
+const ensureChatHost=()=>chatHost||(chatHost=load("chatHost","./application/chat-host").createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain,onClose:releaseBrainIfIdle}));
 const getCurrentMicMode=()=>voiceHost?.getCurrentMicMode?.()||"off";
 const getVoiceMuted=()=>voiceHost?.getVoiceMuted?.()||false;
 const ensureVoiceHost=()=>voiceHost||(voiceHost=load("voiceHost","./voice/voice-host").createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,getAddonService,ensureBrain,releaseBrainIfIdle,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>ensureChatHost().showChat(),getCharacterWindow:()=>characterWin,getChatWindow,getStatusWindow:()=>statusWin,diagnosticState}));
@@ -138,6 +138,7 @@ load("learningIpc","./ipc/learning-ipc").registerLearningIpc({ipcMain,app,getLea
 load("addonsIpc","./ipc/addons-ipc").registerAddonsIpc({ipcMain,app,getAddonService});
 load("characterIpc","./ipc/character-ipc").registerCharacterIpc({ipcMain,getCharacterWindow:()=>characterWin,chooseCharacter,command:(payload)=>characterHost.command(payload),captureCharacter3DWindowSettings,writeCharacter3DSettings});
 load("settingsIpc","./ipc/settings-ipc").registerSettingsIpc({ipcMain,ensureBrain,getAgent:()=>agent,getVoiceRuntime,setMicMode,setSaeedSize,getCharacterWindow:()=>characterWin,diagnostic});
+load("voiceIpc","./ipc/voice-ipc").registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime,diagnostic,app,getVoiceHost:ensureVoiceHost,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin});
 load("updateIpc","./ipc/update-ipc").registerUpdateIpc({ipcMain,getUpdateManager:ensureUpdateManager});
 load("historyIpc","./ipc/history-ipc").registerHistoryIpc({ipcMain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations});
 
