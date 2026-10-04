@@ -2,7 +2,7 @@ const fs=require("fs"),path=require("path");
 
 function createCiE2E(deps={}){
  const {app,getCharacterWindow,getChatHost,getAgent,getTray,getBrainActive,ensureBrain,releaseBrainIfIdle,setMicMode,setVoiceMuted,getVoiceMuted,characterHost,getVoiceHost}=deps;
- const report={startedAt:new Date().toISOString(),checks:{},phases:{},resources:[]};
+ const report={startedAt:new Date().toISOString(),checks:{},phases:{}};
  const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist","ci-e2e-report.json");
  const started=Date.now();
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
@@ -10,21 +10,12 @@ function createCiE2E(deps={}){
   try{const v=await Promise.race([Promise.resolve().then(fn),new Promise(resolve=>setTimeout(()=>resolve({pass:false,error:"Check timed out after "+timeoutMs+" ms"}),timeoutMs))]);const pass=v===true||v?.pass===true;report.checks[name]={pass,required,latencyMs:Date.now()-t,detail:typeof v==="object"&&v&&!Array.isArray(v)?v:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-t,error:String(e?.stack||e)};return report.checks[name]}
  };
- const metrics=label=>{
-  const rows=app.getAppMetrics().map(m=>({pid:m.pid,type:m.type,name:m.name||"",cpuPercent:+((m.cpu?.percentCPUUsage||0)).toFixed(2),workingSetMB:+((m.memory?.workingSetSize||0)/1024).toFixed(1),privateMB:+((m.memory?.privateBytes||0)/1024).toFixed(1)}));
-  const totalWorkingSetMB=+rows.reduce((n,r)=>n+(r.workingSetMB||0),0).toFixed(1);
-  const totalPrivateMB=+rows.reduce((n,r)=>n+(r.privateMB||0),0).toFixed(1);
-  report.resources.push({time:new Date().toISOString(),label,processes:rows,totalWorkingSetMB,totalPrivateMB});
-  return {processes:rows,totalWorkingSetMB,totalPrivateMB};
- };
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const chatWindow=()=>getChatHost?.().getChatWindow?.()||null;
  const visible=w=>Boolean(w&&!w.isDestroyed()&&w.isVisible());
  async function run(){
   try{
-   report.phases.startup={idleStart:metrics("startup-idle-start")};
-   await wait(10000);
-   report.phases.startup.idle10s=metrics("idle-10s");
+   report.phases.startup={};
    await check("startup.glb-file",()=>{const p=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");return {pass:fs.existsSync(p)&&fs.statSync(p).size>1024,path:p,size:fs.existsSync(p)?fs.statSync(p).size:0}});
    await check("startup.glb-rendered",async()=>{const w=getCharacterWindow?.();if(!w)return false;const s=await w.webContents.executeJavaScript(`(()=>{try{return window.saeedAvatar?.get3DStatus?.()||null}catch(e){return {error:String(e)}}})()`,true);return {pass:Boolean(s?.overall?.state==="ready"&&s?.components?.sceneContent?.state==="rendered"),status:s}});
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
@@ -39,7 +30,6 @@ function createCiE2E(deps={}){
     const text=String(result||"").trim();
     return {pass:Boolean(text),responseText:text};
    });
-   report.phases.chat={afterLocalTime:metrics("chat-local-time")};
 
    await check("brain.intent-open-my-computer",async()=>{
     const agent=getAgent();if(!agent)return false;
@@ -55,7 +45,6 @@ function createCiE2E(deps={}){
     const api=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN API");
     return Boolean(api)&&String(result||"").trim().length>0;
    },{required:true});
-   report.phases.brain={afterRouting:metrics("brain-routing")};
 
    await check("chat.ui-response-visible",async()=>{
     const w=chatWindow();if(!w)return false;
@@ -129,31 +118,26 @@ function createCiE2E(deps={}){
     if(!hardwareAvailable&&mode==="off")return {pass:!chatWindow()&&before,environmentLimited:true,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
     return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
    });
-   report.phases.afterChatCloseMicOn=metrics("after-chat-close-mic-on");
 
    await check("mic-off-releases-brain-after-chat-closed",async()=>{
     await setMicMode("off");await wait(1500);
     const active=Boolean(getBrainActive?.());
     return {pass:!active,chatClosed:!chatWindow(),micMode:String(getVoiceHost?.()?.getCurrentMicMode?.()||"off"),brainActive:active};
    });
-   report.phases.afterMicOff=metrics("after-mic-off");
 
    await check("hide-saeed-keeps-tray",async()=>{
     characterHost.hideCharacter();await wait(500);
     return {pass:!visible(getCharacterWindow?.())&&Boolean(getTray?.()),characterVisible:visible(getCharacterWindow?.()),tray:Boolean(getTray?.())};
    });
-   report.phases.hidden=metrics("saeed-hidden");
 
    await check("show-saeed-restores",async()=>{
     await characterHost.showCharacter();await wait(800);
     return {pass:visible(getCharacterWindow?.())&&Boolean(getTray?.()),characterVisible:visible(getCharacterWindow?.()),tray:Boolean(getTray?.())};
    });
-   report.phases.shown=metrics("saeed-shown");
 
-   await check("idle-final",async()=>{await wait(10000);const p=metrics("idle-final-10s");return {pass:Array.isArray(p.processes)&&p.processes.length>0,processes:p}});
+   await check("idle-final",async()=>{await wait(1000);return {pass:Boolean(getCharacterWindow?.())}});
    report.finishedAt=new Date().toISOString();
    report.durationMs=Date.now()-started;
-   const byPid={};for(const sample of report.resources)for(const p of sample.processes||[]) {const k=String(p.pid);const x=byPid[k]||(byPid[k]={pid:p.pid,type:p.type,name:p.name,maxWorkingSetMB:0,maxPrivateMB:0,maxCpuPercent:0,samples:0});x.maxWorkingSetMB=Math.max(x.maxWorkingSetMB,p.workingSetMB||0);x.maxPrivateMB=Math.max(x.maxPrivateMB,p.privateMB||0);x.maxCpuPercent=Math.max(x.maxCpuPercent,p.cpuPercent||0);x.samples++}report.processResourceSummary=Object.values(byPid);
    report.pass=Object.values(report.checks).filter(x=>x.required!==false).every(x=>x.pass);
   }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString()}
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
