@@ -75,7 +75,7 @@ registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime,diagnostic,diagnost
 let characterHost;
 const characterStore=createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
 const {persistedCharacterFile,character3DSettingsFile,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,persistSelectedCharacter,readPersistedCharacter}=characterStore;
-characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>chatHost?.showChat?.(),permissionPolicy,confirmPermission});
+characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>chatHost?.showChat?.(),permissionPolicy,confirmPermission,contextMenu:()=>contextMenu()});
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterHost;
 const windowManager=createWindowManager({BrowserWindow,path,getWindow:name=>({performanceWin,learningWin,addonsWin,statusWin}[name]),setWindow:(name,value)=>{if(name==="performanceWin")performanceWin=value;else if(name==="learningWin")learningWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="statusWin")statusWin=value},iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","preload.js"),rootPath:path.join(__dirname,"..")});
 const {showPerformance,showSettings,showLearning,showAddons}=windowManager;
@@ -149,22 +149,4 @@ app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQ
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{getVoiceRuntime().stop()}catch{}});
 
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return chatHost.showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
-async function createWindow(){
- await createCharacterWindow();
- if(ciSmoke)scheduleCiRuntimeSmoke();
-}
-async function createCharacterWindow(){
- characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
- characterWin.setIcon(windowsIconPath());
- if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
- characterWin.on("closed",()=>{try{captureCharacter3DWindowSettings()}catch{};characterWin=null});
- characterWin.on("close",()=>{if(!app.isQuitting())diagnostic("INFO","WINDOW","Saeed character window closed");});
- characterWin.webContents.on("context-menu",()=>contextMenu());
- await characterWin.loadFile(path.join(__dirname,"..","character.html"));
- applyCharacter3DWindowSettings();
- try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
- if(!Number.isFinite(Number(readCharacter3DSettings().window.x))||!Number.isFinite(Number(readCharacter3DSettings().window.y)))fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
- characterWin.show();
-}
-
-;
+async function createWindow(){await createCharacterWindow();if(ciSmoke)scheduleCiRuntimeSmoke()}
