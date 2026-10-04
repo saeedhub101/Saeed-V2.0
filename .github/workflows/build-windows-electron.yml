@@ -222,10 +222,10 @@ jobs:
           # test below is responsible for behavioral validation.
           $exitCode=if($null -eq $proc.ExitCode){0}else{[int]$proc.ExitCode}
           if($exitCode -ne 0){$out=if(Test-Path $stdout){Get-Content $stdout -Raw}else{""};$err=if(Test-Path $stderr){Get-Content $stderr -Raw}else{""};throw "Packaged application startup failed with exit code $exitCode. $out $err"}
-          $host=Get-CimInstance Win32_OperatingSystem
+          $hostOs=Get-CimInstance Win32_OperatingSystem
           $cpu=(Get-CimInstance Win32_Processor|Measure-Object -Property LoadPercentage -Average).Average
           @{mode="packaged-startup";pass=$true;startedAt=$started.ToUniversalTime().ToString("o");finishedAt=(Get-Date).ToUniversalTime().ToString("o");exitCode=$exitCode;packaged=$true}|ConvertTo-Json -Depth 6|Set-Content $report -Encoding UTF8
-          @{mode="packaged-startup-host";cpuPercent=[math]::Round([double]$cpu,1);ramTotalGB=[math]::Round($host.TotalVisibleMemorySize/1MB,1);ramFreeGB=[math]::Round($host.FreePhysicalMemory/1MB,1)}|ConvertTo-Json -Depth 6|Set-Content $hostReport -Encoding UTF8
+          @{mode="packaged-startup-host";cpuPercent=[math]::Round([double]$cpu,1);ramTotalGB=[math]::Round($hostOs.TotalVisibleMemorySize/1MB,1);ramFreeGB=[math]::Round($hostOs.FreePhysicalMemory/1MB,1)}|ConvertTo-Json -Depth 6|Set-Content $hostReport -Encoding UTF8
           Write-Host "RUNTIME_APPLICATION_STARTUP=PASS"
           Write-Host (Get-Content $report -Raw)
           Write-Host (Get-Content $hostReport -Raw)
