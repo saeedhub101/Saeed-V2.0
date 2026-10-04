@@ -65,7 +65,7 @@ const updateManager=createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagn
 const updateNow=()=>updateManager.check();
 const systemControls=createSystemControls({app,diagnostic,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
 const {rebuildTray,contextMenu}=systemControls;
-const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain});
+const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain:(...args)=>brainHost?.ensureBrain?.(...args)});
 const {createChatWindow,closeChat}=chatHost;
 const screenCapture=createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic});
 const captureScreen=screenCapture.captureScreen;
