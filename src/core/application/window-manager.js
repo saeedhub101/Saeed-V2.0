@@ -1,12 +1,11 @@
 function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath,rootPath}){
  async function showPerformance(){
   try{
-   startCpuMonitoring();
    let win=getWindow("performanceWin");
    if(win&&!win.isDestroyed()){win.show();win.focus();return}
    win=new BrowserWindow({width:980,height:720,minWidth:760,minHeight:560,title:"Saeed Performance",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
    win.setIcon(iconPath());
-   win.on("closed",()=>{setWindow("performanceWin",null);stopCpuMonitoring()});
+   win.on("closed",()=>{setWindow("performanceWin",null)});
    setWindow("performanceWin",win);
    await win.loadFile(path.join(rootPath,"performance.html"));
    win.show();win.focus();
