@@ -38,7 +38,6 @@ class Brain{
   const route=this.classify(s);
   this.onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTE",message:"Single brain route selected: "+(route.mode==="auto"?"local-first":route.mode),meta:route});
 
-  if(route.mode==="realtime")return{handled:true,answer:"Realtime mode is active. Use the microphone for the live conversation.",source:"realtime"};
 
   if(route.mode!=="api"){
    try{
