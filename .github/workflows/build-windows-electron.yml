@@ -209,7 +209,8 @@ jobs:
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-packaged-startup.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-packaged-startup.stderr.log"
           $started = Get-Date
-          $proc = Start-Process -FilePath $exe -ArgumentList "--exit" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $cmdArgs = '/d /c "' + '"'+'$exe' + '" --exit"' + '
+          $proc = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           $deadline=(Get-Date).AddSeconds(60)
           while(!$proc.HasExited -and (Get-Date) -lt $deadline){Start-Sleep -Seconds 1}
           if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged application startup test timed out after 60 seconds."}
