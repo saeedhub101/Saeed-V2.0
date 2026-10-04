@@ -52,7 +52,7 @@ export class CharacterController{
  play(id,options={}){
   if(!this.characterId)this.bindCurrentCharacter();
   const key=String(id||"idle");
-  if(key==="idle"){this.animation.stopAll();this.idleBusy=false;this.scheduleIdle(7000);return true;}
+  if(key==="idle"){this.animation.stopAll();this.idleBusy=false;this.animation.play("idle",{loop:true,layer:"base",priority:0});this.startFrameLoop();this.scheduleIdle(7000);return true;}
   const ok=this.animation.play(key,options);
   if(ok)this.startFrameLoop();
   return ok;
@@ -136,6 +136,7 @@ export class CharacterController{
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
+  this.play("idle",{loop:true});
   this.startIdleScheduler(7000);
  }
  update(dt){if(this.visible&&this.animation.active.length)this.animation.update(dt);}
