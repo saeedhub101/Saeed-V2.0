@@ -250,7 +250,7 @@ jobs:
             foreach($pid in (Get-Tree $proc.Id)){
               $p=Get-Process -Id $pid -ErrorAction SilentlyContinue
               if($p){
-                $rows += [pscustomobject]@{pid=$pid;name=$p.ProcessName;cpuSeconds=[math]::Round($p.CPU,3);workingSetMB=[math]::Round($p.WorkingSet64/1MB,1);privateMB=[math]::Round($p.PrivateMemorySize64/1MB,1)}
+                $perf=Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -Filter "IDProcess=$pid" -ErrorAction SilentlyContinue; $rows += [pscustomobject]@{pid=$pid;name=$p.ProcessName;cpuPercent=[math]::Round([double]($perf.PercentProcessorTime),2);cpuSeconds=[math]::Round($p.CPU,3);workingSetMB=[math]::Round($p.WorkingSet64/1MB,1);privateMB=[math]::Round($p.PrivateMemorySize64/1MB,1)}
               }
             }
             $samples += [pscustomobject]@{time=(Get-Date).ToUniversalTime().ToString("o");label="live";processes=$rows}
