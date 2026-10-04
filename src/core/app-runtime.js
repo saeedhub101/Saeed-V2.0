@@ -102,26 +102,7 @@ const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 
-function displayForWindow(target=characterWin){
- if(!target)return screen.getPrimaryDisplay();
- const [x,y]=target.getPosition();const [w,h]=target.getSize();
- return screen.getDisplayMatching({x,y,width:w,height:h})||screen.getDisplayNearestPoint({x:x+w/2,y:y+h/2})||screen.getPrimaryDisplay();
-}
-function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}){
- if(!characterWin)return;
- const area=display.workArea;const [w,h]=characterWin.getSize();const margin=18;
- const [x0,y0]=characterWin.getPosition();
- const x=bottomRight?area.x+Math.max(0,area.width-w-margin):Math.max(area.x,Math.min(x0,area.x+Math.max(0,area.width-w)));
- const y=bottomRight?area.y+Math.max(0,area.height-h-margin):Math.max(area.y,Math.min(y0,area.y+Math.max(0,area.height-h)));
- characterWin.setPosition(Math.round(x),Math.round(y),false);
-}
-function stopCharacterRuntime(){if(!characterWin||characterWin.isDestroyed())return;try{characterWin.webContents.send("character:visibility","hidden")}catch{} try{characterWin.webContents.setBackgroundThrottling(true)}catch{}}
-function wakeCharacterRuntime(){if(!characterWin||characterWin.isDestroyed())return;try{characterWin.webContents.setBackgroundThrottling(false)}catch{} try{characterWin.webContents.send("character:visibility","visible")}catch{} }
-function hideCharacter(){if(!characterWin||characterWin.isDestroyed())return;try{captureCharacter3DWindowSettings()}catch{};stopCharacterRuntime();try{characterWin.hide()}catch{}}
-async function showCharacter(){try{if(!characterWin||characterWin.isDestroyed())await createCharacterWindow();if(!characterWin||characterWin.isDestroyed())return;wakeCharacterRuntime();characterWin.show();characterWin.focus()}catch(e){diagnostic("ERROR","3D WINDOW",e.message)}}
 function showStatus(){startCpuMonitoring();if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState});return}statusWin=new BrowserWindow({width:880,height:660,minWidth:680,minHeight:500,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null;stopCpuMonitoring()});statusWin.loadFile(path.join(__dirname,"..","status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
-let characterLoadGeneration=0;
-function sendCharacterData(data){const generation=++characterLoadGeneration;if(!characterWin||characterWin.isDestroyed()){pendingCharacterData={data,generation};return false}pendingCharacterData={data,generation};characterWin.webContents.send("character:selected",data,generation);return true}
 
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
 
