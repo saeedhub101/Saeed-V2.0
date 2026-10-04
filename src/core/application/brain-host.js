@@ -1,5 +1,5 @@
 function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
- let brainInitPromise=null,agent=null;
+ let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
  const confirm=async({name,args,permissionCategory})=>{
   await showChat();
@@ -17,7 +17,10 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
    chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit"});
   });
  };
+ function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{if(agent&&Date.now()-lastActivity>=45000)void releaseBrain()},45000)}
+ function touchActivity(){lastActivity=Date.now();scheduleIdleRelease()}
  async function ensureBrain(){
+  touchActivity();
   if(brainInitPromise)return brainInitPromise;
   brainInitPromise=(async()=>{
    const {Agent}=require("../../agent");
@@ -33,6 +36,8 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
    agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease});
    setAgent(agent);
    setVoiceMuted(Boolean(agent.settings.voiceMuted));
+   lastActivity=Date.now();
+   scheduleIdleRelease();
    voiceBroadcast("character:behavior",{type:"settings",settings:agent.publicSettings()});
    if(!characterSettingsExists())setSaeedSize(agent.settings.characterSize||"small");
    return agent;
@@ -40,6 +45,7 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
   return brainInitPromise;
  }
  async function releaseBrain(){
+  clearTimeout(idleTimer);idleTimer=null;
   const oldAgent=agent;
   agent=null;
   brainInitPromise=null;
@@ -49,6 +55,6 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
   diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no Chat or Mic input surface is active");
   return true;
  }
- return{ensureBrain,releaseBrain,isActive:()=>Boolean(agent)};
+ return{ensureBrain,releaseBrain,touchActivity,isActive:()=>Boolean(agent)};
 }
 module.exports={createBrainHost};
