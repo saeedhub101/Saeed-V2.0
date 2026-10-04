@@ -19,7 +19,6 @@ class Brain{
  capabilities(){return this.registry?.schemas?.().map(x=>x?.function?.name).filter(Boolean)||[]}
  classify(text){
   const s=String(text||"").trim(),settings=this.getSettings()||{},mode=String(settings.brainMode||"auto");
-  if(mode==="realtime")return{mode:"realtime",reason:"forced-realtime"};
   if(mode==="api")return{mode:"api",reason:"forced-api"};
   if(mode==="local")return{mode:"local",reason:"forced-local"};
   return{mode:"auto",reason:"local-first"};
