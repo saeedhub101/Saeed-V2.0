@@ -66,23 +66,22 @@ const updateNow=()=>updateManager.check();
 const systemControls=createSystemControls({app,diagnostic,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
 const {rebuildTray,contextMenu}=systemControls;
 const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain:(...args)=>brainHost?.ensureBrain?.(...args)});
-const {createChatWindow,closeChat}=chatHost;
 const screenCapture=createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic});
 const captureScreen=screenCapture.captureScreen;
 
 registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime,diagnostic,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin,voiceHost});
 let characterHost;
 const characterStore=createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
-const {persistedCharacterFile,character3DSettingsFile,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,persistSelectedCharacter,readPersistedCharacter}=characterStore;
+const {character3DSettingsFile,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,readPersistedCharacter}=characterStore;
 characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>chatHost?.showChat?.(),permissionPolicy,confirmPermission,contextMenu:()=>contextMenu()});
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterHost;
 const windowManager=createWindowManager({BrowserWindow,path,getWindow:name=>({performanceWin,learningWin,addonsWin,statusWin}[name]),setWindow:(name,value)=>{if(name==="performanceWin")performanceWin=value;else if(name==="learningWin")learningWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="statusWin")statusWin=value},iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","preload.js"),rootPath:path.join(__dirname,"..")});
 const {showPerformance,showSettings,showLearning,showAddons}=windowManager;
 let brainHost;
-brainHost=createBrainHost({app,getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getLearning:getLearning,permissionPolicy,showChat:()=>chatHost?.showChat?.(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize, setAgent:value=>{agent=value},setBrainSupervisor:value=>{brainSupervisor=value},setVoiceMuted:value=>setVoiceMuted(value),recordLearningStep:step=>{if(learningRecording)getLearning().recordStep(learningRecording,step.tool,step.args)},confirmations,characterSettingsExists:()=>fs.existsSync(character3DSettingsFile())});
+brainHost=createBrainHost({app,getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getLearning:getLearning,permissionPolicy,showChat:()=>chatHost?.showChat?.(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize, setAgent:value=>{agent=value},setBrainSupervisor:value=>{brainSupervisor=value},setVoiceMuted:value=>setVoiceMuted(value),recordLearningStep:()=>{},confirmations,characterSettingsExists:()=>fs.existsSync(character3DSettingsFile())});
 const ensureBrain=(...args)=>brainHost.ensureBrain(...args);
 function show3DStatus(){if(threeDStatusWin&&!threeDStatusWin.isDestroyed()){threeDStatusWin.show();threeDStatusWin.focus();request3DStatus().then(r=>threeDStatusWin?.webContents.send("3d:status",r));return}threeDStatusWin=new BrowserWindow({width:960,height:720,minWidth:760,minHeight:560,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});threeDStatusWin.on("closed",()=>{threeDStatusWin=null});threeDStatusWin.loadFile(path.join(__dirname,"..","3d-status.html")).then(async()=>{threeDStatusWin?.show();threeDStatusWin?.focus();const r=await request3DStatus();threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
-let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
+let pendingCharacterData=null;
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
 // This code defines the official Saeed Windows application/taskbar icon source.
 function windowsIconPath(){
@@ -111,7 +110,7 @@ function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
 async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
-app.on("before-quit",()=>{try{getLearningRecorder().stop()}catch{};learningRecorderActive=false;learningRecording=null});
+
 
 app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();updateManager.bind();ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
  try{await createWindow();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
