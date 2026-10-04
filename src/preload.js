@@ -51,7 +51,7 @@ contextBridge.exposeInMainWorld("saeed",{isCiE2E:process.argv.includes("--ci-e2e
  onRealtimeAssistantFinal:f=>ipcRenderer.on("realtime:assistant-final",(_,t)=>f(t)),
  onRealtimeUserDelta:f=>ipcRenderer.on("realtime:user-delta",(_,t)=>f(t)),
  onRealtimeUserFinal:f=>ipcRenderer.on("realtime:user-final",(_,t)=>f(t)),
- onRealtimeDone:f=>ipcRenderer.on("realtime:done",(_,s)=>f(s)),
+ onRealtimeDone:f=>ipcRenderer.on("realtime:done",(_,s)=>f(s)),onVoiceAnswer:f=>ipcRenderer.on("voice:answer",(_,t)=>f(t)),
  onRealtimeError:f=>ipcRenderer.on("realtime:error",(_,e)=>f(e)),
  onUpdateState:f=>ipcRenderer.on("update:state",(_,state,message)=>f(state,message)),
  onUpdateAvailable:f=>ipcRenderer.on("update:available",(_,info)=>f(info)),
