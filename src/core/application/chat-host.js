@@ -1,5 +1,6 @@
 function createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain,onClose}){
  let chatWin=null;
+ let closing=false;
  async function showChat(){try{if(!chatWin||chatWin.isDestroyed())await createChatWindow();if(!chatWin||chatWin.isDestroyed())return;chatWin.setIgnoreMouseEvents(false);if(chatWin.isMinimized())chatWin.restore();chatWin.show();chatWin.focus();chatWin.webContents.send("chat:show");void ensureBrain().catch(e=>diagnostic("ERROR","BRAIN INIT",e.message))}catch(e){diagnostic("ERROR","CHAT WINDOW",e.message)}}
  async function closeChat(){if(chatWin&&!chatWin.isDestroyed())chatWin.destroy();chatWin=null;await onClose?.()}
  function setMousePassthrough(ignore){if(chatWin&&!chatWin.isDestroyed())chatWin.setIgnoreMouseEvents(Boolean(ignore),{forward:true});}
