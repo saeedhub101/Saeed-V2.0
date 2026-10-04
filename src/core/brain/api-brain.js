@@ -1,12 +1,10 @@
 const addonRuntime=()=>require("../../addons/runtime");
-class ApiBrain{
- async run({text,image=null,settings,history,registry,onEvent,dir,route=null,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults}){
+class ApiExecutor{
+ async run({text,image=null,settings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults}){
   const s=settings||{};
-  const mode=String(s.brainMode||"auto");
-  const nextLevel=route||{};
-  const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
+    const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
   const addonLlm=addonRuntime().find(dir,"llm",addonPreference);
-  if(addonLlm && (mode!=="api" || addonPreference)){
+  if(addonLlm){
    try{
     const provider=addonRuntime().load(dir,addonLlm.id);
     if(typeof provider.chat==="function"){
@@ -136,4 +134,4 @@ class ApiBrain{
   history.push({role:"user",content:String(text)},{role:"assistant",content:answer});saveHistory();return answer;
  }
 }
-module.exports={ApiBrain};
+module.exports={ApiExecutor};
