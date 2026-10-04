@@ -59,7 +59,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/character-feelings.js","src/character-animation-controller.js","src/character-interaction.js","src/character-controls.js","src/character-voice.js","src/autonomous/tasks.js","src/autonomous/feelings.js","src/autonomous/context.js","src/autonomous/default-brain.js","src/autonomous/brain-supervisor.js","src/3d-status.html","src/3d-status.js","src/3d-status.css","src/three/GLTFLoader.js","src/three/BufferGeometryUtils.js","src/index.html","src/agent.js","src/brain-levels.js","src/local-brain.js","src/realtime.js","src/tools.js","src/tools/registry.js","src/tools/files.js","src/tools/office.js","src/tools/windows.js","src/tools/web.js","src/tools/interaction.js","src/tools/memory-tasks.js","src/performance.html","src/performance.js","src/performance.css","src/settings.html","src/settings.css","src/settings.js")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/agent.js","src/realtime.js","src/local-executor.js","src/tools/registry.js","src/core/brain/brain.js","src/core/brain/model-executor.js","src/core/ci-runtime.js","src/core/ci-e2e.js","src/core/app-runtime.js","src/core/application/brain-host.js","src/core/voice/voice-host.js","src/voice/client.js","src/character/CharacterController.js","src/character/client.js","src/core/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
@@ -218,6 +218,66 @@ jobs:
           Write-Host "RUNTIME_APPLICATION_SMOKE=PASS"
           Write-Host "RUNTIME_INITIALIZATION_CHECKS=PASS"
           if(Test-Path $hostReport){Get-Content $hostReport -Raw}
+
+      - name: Packaged EXE end-to-end UI, Brain, Voice and lifecycle test
+        shell: powershell
+        timeout-minutes: 8
+        run: |
+          $ErrorActionPreference = "Stop"
+          $report = Join-Path $PWD "dist\ci-e2e-report.json"
+          $procReport = Join-Path $PWD "dist\ci-e2e-process-report.json"
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e.stderr.log"
+          Remove-Item $report,$procReport -Force -ErrorAction SilentlyContinue
+          $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged EXE missing: $exe" }
+          $env:SAEED_CI_E2E_REPORT = $report
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $samples = @()
+          function Get-Tree([int]$rootPid) {
+            $all = @(Get-CimInstance Win32_Process)
+            $map = @{}
+            foreach($p in $all){$map[[int]$p.ProcessId]=$p}
+            $ids = New-Object System.Collections.Generic.HashSet[int]
+            [void]$ids.Add($rootPid)
+            $changed=$true
+            while($changed){$changed=$false;foreach($p in $all){$pp=[int]$p.ParentProcessId;if($ids.Contains($pp) -and -not $ids.Contains([int]$p.ProcessId)){[void]$ids.Add([int]$p.ProcessId);$changed=$true}}}
+            return @($ids)
+          }
+          $deadline=(Get-Date).AddSeconds(420)
+          while(!$proc.HasExited -and (Get-Date) -lt $deadline) {
+            $rows=@()
+            foreach($pid in (Get-Tree $proc.Id)){
+              $p=Get-Process -Id $pid -ErrorAction SilentlyContinue
+              if($p){
+                $rows += [pscustomobject]@{pid=$pid;name=$p.ProcessName;cpuSeconds=[math]::Round($p.CPU,3);workingSetMB=[math]::Round($p.WorkingSet64/1MB,1);privateMB=[math]::Round($p.PrivateMemorySize64/1MB,1)}
+              }
+            }
+            $samples += [pscustomobject]@{time=(Get-Date).ToUniversalTime().ToString("o");label="live";processes=$rows}
+            Start-Sleep -Seconds 2
+          }
+          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged E2E test timed out after 420 seconds."}
+          $samples += [pscustomobject]@{time=(Get-Date).ToUniversalTime().ToString("o");label="after-exit";processes=@()}
+          @{startedAt=$samples[0].time;finishedAt=(Get-Date).ToUniversalTime().ToString("o");samples=$samples}|ConvertTo-Json -Depth 8|Set-Content $procReport -Encoding UTF8
+          if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
+          if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
+          if(!(Test-Path $report)){throw "Packaged E2E did not produce ci-e2e-report.json"}
+          $result=Get-Content $report -Raw|ConvertFrom-Json
+          Get-Content $report -Raw
+          if(-not $result.pass){throw "Packaged EXE E2E validation failed."}
+          Write-Host "PACKAGED_EXE_E2E=PASS"
+          Write-Host "PACKAGED_EXE_CHAT_BRAIN_VOICE_LIFECYCLE=PASS"
+          Write-Host "PACKAGED_EXE_PER_PROCESS_RESOURCE_REPORT=PASS"
+
+      - name: Verify packaged EXE E2E reports
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach($p in @("dist\ci-e2e-report.json","dist\ci-e2e-process-report.json")) {
+            if (!(Test-Path $p)) { throw "Required packaged E2E report missing: $p" }
+            $item=Get-Item $p
+            Write-Host "Verified E2E report: $p ($($item.Length) bytes)"
+          }
 
       - name: Capture final build host CPU and RAM
         shell: powershell
