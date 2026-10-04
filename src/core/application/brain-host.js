@@ -3,7 +3,7 @@ function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permi
  async function ensureBrain(){
   if(brainInitPromise)return brainInitPromise;
   brainInitPromise=(async()=>{
-   const {CoreRuntime}=require("../runtime");
+   const {CoreRuntime}=require("../runtime/core-runtime");
    const characterWin=getCharacterWindow();
    const runtime=new CoreRuntime({
     captureScreen,userDataPath:app.getPath("userData"),
