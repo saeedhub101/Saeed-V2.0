@@ -1,5 +1,5 @@
-const {LocalExecutor}=require("../../local-brain");
-const {ApiExecutor}=require("./api-brain");
+const {LocalExecutor}=require("../../local-executor");
+const {ApiExecutor}=require("./api-executor");
 const learning=()=>require("../../learning");
 
 class Brain{
