@@ -111,7 +111,7 @@ function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRu
 
 const {createCiRuntime}=require("./ci-runtime");
 let ciRuntime;
-function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime({ciSmoke,app,characterWin,tray,agent,brainSupervisor,currentMicMode:voiceHost.getCurrentMicMode(),resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:getVoiceRuntime(),transcribeLocalWav:voiceHost.transcribeLocalWav,whisperRuntimePaths,ensureBrain});return ciRuntime;}
+function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>brainSupervisor,getCurrentMicMode:voiceHost.getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:getVoiceRuntime(),transcribeLocalWav:voiceHost.transcribeLocalWav,whisperRuntimePaths,ensureBrain});return ciRuntime;}
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
 async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
