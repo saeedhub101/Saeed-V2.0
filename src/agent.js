@@ -1,4 +1,4 @@
-const fs=require("fs"),path=require("path"),{app}=require("electron"),{AgentRouter}=require("./core/brain/agent-router"),addonRuntime=require("./addons/runtime"),learning=require("./learning");
+const fs=require("fs"),path=require("path"),{app}=require("electron"),{AgentRouter}=require("./core/brain/agent-router"),addonRuntime=require("./addons/runtime"),learning=require("./learning"),{createSettingsStore}=require("./core/services/settings-store");
 
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
