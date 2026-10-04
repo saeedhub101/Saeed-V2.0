@@ -1,5 +1,5 @@
-function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
- let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0;
+function createBrainHost({app,getChatWindow,getMicMode,characterCommand,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
+ let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
  const confirm=async({name,args,permissionCategory})=>{
   await showChat();
@@ -17,8 +17,10 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
    chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit"});
   });
  };
- function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{if(agent&&Date.now()-lastActivity>=45000)void releaseBrain()},45000)}
+ function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{if(agent&&activeRequests===0&&getMicMode?.()!=="on"&&Date.now()-lastActivity>=45000)void releaseBrain()},45000)}
  function touchActivity(){lastActivity=Date.now();scheduleIdleRelease()}
+ function beginRequest(){activeRequests++;touchActivity()}
+ function endRequest(){activeRequests=Math.max(0,activeRequests-1);touchActivity()}
  async function ensureBrain(){
   touchActivity();
   if(brainInitPromise)return brainInitPromise;
@@ -55,6 +57,6 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
   diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no Chat or Mic input surface is active");
   return true;
  }
- return{ensureBrain,releaseBrain,touchActivity,isActive:()=>Boolean(agent)};
+ return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,isActive:()=>Boolean(agent)};
 }
 module.exports={createBrainHost};
