@@ -22,7 +22,7 @@ async function runCiRuntimeSmoke(){
   try{report.checks[name]={pass:false,required,latencyMs:0};const value=await fn();const pass=value===true||value?.pass===true;report.checks[name]={...report.checks[name],pass,required,latencyMs:Date.now()-started,detail:typeof value==="object"&&value&&!Array.isArray(value)?value:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-started,error:String(e?.stack||e)};return report.checks[name]}
  };
- const characterWin=getCharacterWindow?.(),agent=getAgent?.(),brainSupervisor=getBrainSupervisor?.(),currentMicMode=getCurrentMicMode?.()||"off",runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(getTray?.()),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
+ let characterWin,agent,brainSupervisor,currentMicMode="off",runtime; await ensureBrain(); characterWin=getCharacterWindow?.(); agent=getAgent?.(); brainSupervisor=getBrainSupervisor?.(); currentMicMode=getCurrentMicMode?.()||"off"; runtime={characterWindow:Boolean(characterWin&&!characterWin.isDestroyed()),tray:Boolean(getTray?.()),agent:Boolean(agent),localBrain:Boolean(agent?.localBrain),brainSupervisor:Boolean(brainSupervisor),micMode:currentMicMode,realtime:Boolean(voiceRuntime?.getRealtime?.()),addonsManager:Boolean(addons&&typeof addons.install==="function"&&typeof addons.uninstall==="function"),learning:Boolean(learning&&typeof learning.beginRecording==="function"),realtimeClass:Boolean(typeof OpenAIRealtime==="function")};
  try{
   report.phases.startup={runtime,resources:resourceService.resourceReport("startup")};
   report.checks.startup={pass:runtime.characterWindow&&runtime.tray&&runtime.micMode==="off"&&!runtime.realtime,detail:runtime};
@@ -31,7 +31,6 @@ async function runCiRuntimeSmoke(){
   const glb=glbCandidates.find(fs.existsSync)||glbCandidates[0];
   report.checks.glbFile={pass:fs.existsSync(glb)&&fs.statSync(glb).size>1024,path:glb,size:fs.existsSync(glb)?fs.statSync(glb).size:0};
 
-  await ensureBrain();
   report.phases.core={resources:resourceService.resourceReport("core-ready")};
   await check("core.agent",()=>Boolean(agent&&agent.registry&&typeof agent.run==="function"));
   await check("core.localBrain",()=>Boolean(agent?.localBrain&&typeof agent.localBrain.handle==="function"));
