@@ -27,7 +27,7 @@ function startRealtime(options={}){
  realtime=new OpenAIRealtime({
   state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");voiceBroadcast("realtime:state",state,message)},
   event:async(event)=>{
-   if(event.type==="input_audio_buffer.speech_stopped" && s.voiceRouting==="direct"){
+   if(event.type==="input_audio_buffer.speech_stopped" && realtimeBrainMode==="api"){
     realtime?.requestResponse();
    }
    else if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
