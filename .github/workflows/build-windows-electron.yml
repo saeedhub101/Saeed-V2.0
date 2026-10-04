@@ -194,7 +194,7 @@ jobs:
           $report = Join-Path $PWD "dist\ci-e2e-report.json"
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e.stderr.log"
-          Remove-Item $report,$procReport -Force -ErrorAction SilentlyContinue
+          Remove-Item $report -Force -ErrorAction SilentlyContinue
           $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged EXE missing: $exe" }
           $env:SAEED_CI_E2E_REPORT = $report
