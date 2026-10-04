@@ -34,8 +34,10 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
   window.speechSynthesis.speak(u);return true;
  }
  window.saeedPrayerSpeak=speakArabicPrayer;
+ window.saeedSpeakText=speak;
  function speak(text){
   if(!text||voiceMuted)return;
+  window.saeedShowMessage?.(text);
   if(voiceRouting==="direct")return;
   if(["openai","groq","elevenlabs"].includes(ttsProvider))return speakApi(text);
   return speakLocal(text);
