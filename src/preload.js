@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld("saeed",{isCiE2E:process.argv.includes("--ci-e2e
  setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),
  setVoiceMuted:muted=>ipcRenderer.invoke("voice:mute",Boolean(muted)),
  onVoiceMute:f=>ipcRenderer.on("voice:mute",(_,muted)=>f(muted)),
+ onVoiceSpeak:f=>ipcRenderer.on("voice:speak",(_,text)=>f(text)),
  onVoiceStop:f=>ipcRenderer.on("voice:stop",()=>f()),
  onMicMode:f=>ipcRenderer.on("mic:mode",(_,mode)=>f(mode)),
  sendRealtimeAudio:b=>ipcRenderer.invoke("realtime:audio",b),
