@@ -28,7 +28,6 @@ function startRealtime(options={}){
    if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
    else if(event.type==="response.output_audio_transcript.delta"&&event.delta)voiceBroadcast("realtime:assistant-delta",event.delta);
    else if(event.type==="response.output_audio_transcript.done"&&event.transcript)voiceBroadcast("realtime:assistant-final",event.transcript);
-   else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)voiceBroadcast("realtime:user-delta",event.delta);
    else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)voiceBroadcast("realtime:user-final",event.transcript);
    else if(event.type==="response.function_call_arguments.done"&&event.call_id){
     const name=String(event.name||"");
@@ -42,7 +41,6 @@ function startRealtime(options={}){
     else voiceBroadcast("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
    }
-   else if(event.type==="response.done")voiceBroadcast("realtime:done",event.response?.status||"completed");
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
   }
  });
