@@ -11,7 +11,6 @@ function stopRealtime(){
 function startRealtime(options={}){
  const s=getAgent()?.settings||{};
  const realtimeBrainMode=["saeed","api","auto"].includes(String(s.realtimeBrainMode||"auto"))?String(s.realtimeBrainMode):"auto";
- const realtimeVoiceRouting=realtimeBrainMode==="api"?"direct":"controller";
  if(String(s.realtimeProvider||"openai")!=="openai"){diagnostic("INFO","REALTIME BLOCKED","The selected Realtime provider has no native speech-to-speech implementation in Saeed yet.");voiceBroadcast("realtime:state","blocked","Selected Realtime provider is not supported.");return false}const key=s.realtimeApiKey||s.apiKey||"";
  if(!key || s.provider==="ollama"){diagnostic("ERROR","STT API KEY","Realtime/OpenAI API key is missing");diagnostic("ERROR","TTS API KEY","Realtime/OpenAI API key is missing");voiceBroadcast("realtime:state","not-configured","OpenAI API key is not configured.");return false}
  diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
@@ -58,7 +57,7 @@ function startRealtime(options={}){
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
   }
  });
- realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools,voiceRouting:realtimeVoiceRouting});
+ realtime.start(key,{model:s.realtimeModel||"gpt-realtime-2.1",voice:s.realtimeVoice||"marin",tools:realtimeTools});
  return true;
 }
 
