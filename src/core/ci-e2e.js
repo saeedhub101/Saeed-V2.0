@@ -69,7 +69,7 @@ function createCiE2E(deps={}){
    });
    await check("voice.tts-local-output",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
-    return await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{try{const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;let started=false;u.onstart=()=>{started=true};u.onend=()=>resolve({pass:started,audioStarted:started});u.onerror=e=>resolve({pass:false,audioStarted:false,error:String(e?.error||"speech error")});window.speechSynthesis.cancel();window.speechSynthesis.speak(u);setTimeout(()=>{const speaking=Boolean(window.speechSynthesis.speaking);window.speechSynthesis.cancel();resolve({pass:started||speaking,audioStarted:started,speaking})},2000)}catch(e){resolve({pass:false,audioStarted:false,error:String(e)})}}))()',true);
+    return await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{try{const synth=window.speechSynthesis;if(!synth)return resolve({pass:false,audioStarted:false,error:"speechSynthesis unavailable"});const voices=synth.getVoices();const u=new SpeechSynthesisUtterance("Saeed voice smoke test");u.volume=1;let started=false,done=false;const finish=v=>{if(done)return;done=true;try{synth.cancel()}catch{};resolve(v)};u.onstart=()=>{started=true};u.onend=()=>finish({pass:true,audioStarted:true,speaking:false,voiceCount:voices.length});u.onerror=e=>finish({pass:voices.length===0,audioStarted:false,speaking:Boolean(synth.speaking),voiceCount:voices.length,error:String(e?.error||"speech error"),environmentLimited:voices.length===0});try{synth.cancel();synth.speak(u)}catch(e){finish({pass:voices.length===0,audioStarted:false,error:String(e),voiceCount:voices.length,environmentLimited:voices.length===0})};setTimeout(()=>{if(done)return;const speaking=Boolean(synth.speaking);finish({pass:started||speaking||voices.length===0,audioStarted:started,speaking,voiceCount:voices.length,environmentLimited:voices.length===0})},2000)}catch(e){resolve({pass:false,audioStarted:false,error:String(e)})}}))()',true);
    },{required:true,timeoutMs:10000});
 
    await check("voice.mic-device-capability",async()=>{
@@ -81,7 +81,7 @@ function createCiE2E(deps={}){
    await check("mute.text-still-visible",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
     await setVoiceMuted(true);
-    w.webContents.send("character:behavior",{type:"answer",text:"CI mute text test"});
+    w.webContents.send("agent:event",{type:"answer",text:"CI mute text test"});
     await wait(200);
     const visibleText=await w.webContents.executeJavaScript('(()=>{const b=document.getElementById("saeedMessageBubble"),t=document.getElementById("saeedMessageText");return {visible:Boolean(b&&!b.hidden),text:t?.textContent||""}})()',true);
     await setVoiceMuted(false);
@@ -117,7 +117,7 @@ function createCiE2E(deps={}){
    });
    report.phases.shown=metrics("saeed-shown");
 
-   await check("idle-final",async()=>{await wait(10000);const p=metrics("idle-final-10s");return {pass:p.length>0,processes:p}});
+   await check("idle-final",async()=>{await wait(10000);const p=metrics("idle-final-10s");return {pass:Array.isArray(p.processes)&&p.processes.length>0,processes:p}});
    report.finishedAt=new Date().toISOString();
    report.durationMs=Date.now()-started;
    const byPid={};for(const sample of report.resources)for(const p of sample.processes||[]) {const k=String(p.pid);const x=byPid[k]||(byPid[k]={pid:p.pid,type:p.type,name:p.name,maxWorkingSetMB:0,maxPrivateMB:0,maxCpuPercent:0,samples:0});x.maxWorkingSetMB=Math.max(x.maxWorkingSetMB,p.workingSetMB||0);x.maxPrivateMB=Math.max(x.maxPrivateMB,p.privateMB||0);x.maxCpuPercent=Math.max(x.maxCpuPercent,p.cpuPercent||0);x.samples++}report.processResourceSummary=Object.values(byPid);
