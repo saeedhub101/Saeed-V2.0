@@ -42,20 +42,11 @@ async function controllerCommand(command){try{return await window.saeed.characte
 async function refreshCharacterController(){
  try{
   const s=await window.saeed.getCharacterController();characterControllerState=s;
-  $("characterRigState").textContent=s?.retargeting?("Retargeting: "+s.retargeting.restPose+" • "+s.retargeting.boneCount+" mapped bones"): "Character controller unavailable";
   const current=s?.pose||{};
   const joint=$("characterJoint").value,r=current[joint]||{};
   $("characterPoseX").value=Math.round((Number(r.x)||0)*180/Math.PI);
   $("characterPoseY").value=Math.round((Number(r.y)||0)*180/Math.PI);
   $("characterPoseZ").value=Math.round((Number(r.z)||0)*180/Math.PI);
-  const grid=$("characterRigGrid");
-  if(!grid.dataset.ready){
-    const names=await window.saeed.characterController({action:"boneNames"});
-    const opts=(names?.bones||[]).map(n=>'<option value="'+String(n).replace(/"/g,'&quot;')+'">'+String(n).replace(/</g,'&lt;')+'</option>').join("");
-    grid.innerHTML=characterJoints.map(slot=>'<label>'+slot+'<select data-rig-slot="'+slot+'"><option value="">Automatic</option>'+opts+'</select></label>').join("");
-    const mapped=s?.retargeting?.bones||{};for(const el of grid.querySelectorAll("[data-rig-slot]"))el.value=mapped[el.dataset.rigSlot]||"";
-    grid.dataset.ready="1";
-  }
  }catch(e){$("characterControllerState").textContent="Controller unavailable: "+e.message}
 }
 $("characterPlayMotion").onclick=async()=>{const motion=$("characterMotion").value;await controllerCommand({action:"play",motion,options:{duration:Number($("characterMotionDuration").value)||undefined,speed:Number($("characterMotionSpeed").value)||1,intensity:Number($("characterMotionIntensity").value)||1,loop:motion==="idle"}});$("characterControllerState").textContent="Playing "+motion};
@@ -68,11 +59,6 @@ $("characterSaveIdle").onclick=async()=>{
  const pose=s.status.pose||{};settings=await window.saeed.setSettings({...settings,characterController:{...(settings.characterController||{}),idlePose:pose}});
  await controllerCommand({action:"idlePose",pose});$("characterControllerState").textContent="Idle pose saved";
 };
-$("characterApplyRig").onclick=async()=>{
- const mapping={};for(const el of document.querySelectorAll("[data-rig-slot]"))if(el.value)mapping[el.dataset.rigSlot]=el.value;
- const r=await controllerCommand({action:"remap",mapping});$("characterControllerState").textContent=r?.ok?"Rig mapping applied":"Rig mapping failed";await refreshCharacterController();
-};
-$("characterRefreshRig").onclick=()=>{const g=$("characterRigGrid");g.dataset.ready="";refreshCharacterController()};
 $("rigApply")?.addEventListener("click",async()=>{
  const mapping={};for(const el of document.querySelectorAll("[data-rig-tab-slot]"))if(el.value)mapping[el.dataset.rigTabSlot]=el.value;
  const r=await controllerCommand({action:"remap",mapping});
