@@ -24,7 +24,7 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
   if(!agent)return false;
   if(getMicMode?.()==="on"){lastActivity=Date.now();return false}
   if(activeRequests>0){return false}
-  if(!force&&Date.now()-lastActivity<IDLE_TIMEOUT_MS<IDLE_TIMEOUT_MS){scheduleIdleRelease();return false}
+  if(!force&&Date.now()-lastActivity<IDLE_TIMEOUT_MS){scheduleIdleRelease();return false}
   void releaseBrain();
   return true;
  }
