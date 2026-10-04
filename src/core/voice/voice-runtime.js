@@ -1,7 +1,7 @@
 const {OpenAIRealtime}=require("../../realtime");
 function createVoiceRuntime(deps={}){
  const getAgent=deps.getAgent||(()=>null), diagnostic=deps.diagnostic||(()=>{}), voiceBroadcast=deps.voiceBroadcast||(()=>{});
- let realtime=null;
+ let realtime=null,realtimeUserText="";
 function stopRealtime(){
  if(realtime){realtime.stop();realtime=null}
  diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");
@@ -30,8 +30,18 @@ function startRealtime(options={}){
    }
    else if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
    else if(event.type==="response.output_audio_transcript.delta"&&event.delta)voiceBroadcast("realtime:assistant-delta",event.delta);
-   else if(event.type==="response.output_audio_transcript.done"&&event.transcript)voiceBroadcast("realtime:assistant-final",event.transcript);
-   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)voiceBroadcast("realtime:user-final",event.transcript);
+   else if(event.type==="response.output_audio_transcript.done"&&event.transcript){
+    const answer=String(event.transcript||"").trim();
+    voiceBroadcast("realtime:assistant-final",answer);
+    if(s.voiceRouting==="direct" && realtimeUserText && answer){
+     getAgent()?.recordConversationExchange?.(realtimeUserText,answer);
+     realtimeUserText="";
+    }
+   }
+   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript){
+    realtimeUserText=String(event.transcript||"").trim();
+    voiceBroadcast("realtime:user-final",realtimeUserText);
+   }
    else if(event.type==="response.done" && s.voiceRouting==="direct")voiceBroadcast("realtime:response-done");
    else if(event.type==="response.function_call_arguments.done"&&event.call_id){
     const name=String(event.name||"");
