@@ -13,7 +13,6 @@ function ciWriteStartupReport(kind,error){
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-const {createRuntimeDependencies}=require("./services/runtime-dependencies");
 const {createBrainHost}=require("./application/brain-host");
 const {createVoiceHost}=require("./voice/voice-host");
 const {createSystemControls}=require("./application/system-controls");
@@ -52,8 +51,14 @@ function configureMediaPermissions(){
 
 
 let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,brainSupervisor;
-const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
-const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
+let addonService,learning,learningRecorder,apiHealth,voiceRuntime,resourceService,autoUpdater;
+const getAddonService=()=>addonService||(addonService=require("./services/addon-service"));
+const getLearning=()=>learning||(learning=require("../learning"));
+const getLearningRecorder=()=>learningRecorder||(learningRecorder=require("../learning/windows-recorder"));
+const getApiHealth=()=>apiHealth||(apiHealth=require("./services/api-health").createApiHealth({getAgent:()=>agent}));
+const getVoiceRuntime=()=>voiceRuntime||(voiceRuntime=require("./voice/voice-runtime").createVoiceRuntime({getAgent:()=>agent,diagnostic,voiceBroadcast}));
+const getResourceService=()=>resourceService||(resourceService=require("./services/resource-service").createResourceService({app,BrowserWindow,process}));
+const getAutoUpdater=()=>autoUpdater||(autoUpdater=require("electron-updater").autoUpdater);
 const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow:()=>chatHost?.getChatWindow?.(),diagnostic:(...a)=>diagnostic(...a)});
 const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
 const voiceBroadcast=(channel,...args)=>{for(const win of [getChatWindow(),characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
