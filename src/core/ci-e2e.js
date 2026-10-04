@@ -5,9 +5,9 @@ function createCiE2E(deps={}){
  const report={startedAt:new Date().toISOString(),checks:{},phases:{},resources:[]};
  const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist","ci-e2e-report.json");
  const started=Date.now();
- const check=async(name,fn,{required=true}={})=>{
+ const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   const t=Date.now();
-  try{const v=await fn();const pass=v===true||v?.pass===true;report.checks[name]={pass,required,latencyMs:Date.now()-t,detail:typeof v==="object"&&v&&!Array.isArray(v)?v:undefined};return report.checks[name]}
+  try{const v=await Promise.race([Promise.resolve().then(fn),new Promise(resolve=>setTimeout(()=>resolve({pass:false,error:"Check timed out after "+timeoutMs+" ms"}),timeoutMs))]);const pass=v===true||v?.pass===true;report.checks[name]={pass,required,latencyMs:Date.now()-t,detail:typeof v==="object"&&v&&!Array.isArray(v)?v:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-t,error:String(e?.stack||e)};return report.checks[name]}
  };
  const metrics=label=>{
