@@ -1,5 +1,6 @@
 const clean=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
 const fingers=["Thumb","Index","Middle","Ring","Pinky"];
+const knownFingerNames=new Set(["LeftHandMiddle2","RightHandMiddle2","LeftHandMiddle3","RightHandMiddle3","LeftHandIndex1","RightHandIndex1","LeftHandIndex2","RightHandIndex2","LeftHandIndex3","RightHandIndex3","LeftHandRing1","RightHandRing1","LeftHandRing2","RightHandRing2","LeftHandRing3","RightHandRing3","LeftHandPinky1","RightHandPinky1","LeftHandPinky2","RightHandPinky2","LeftHandPinky3","RightHandPinky3","LeftHandThumb1","RightHandThumb1","LeftHandThumb2","RightHandThumb2","LeftHandThumb3","RightHandThumb3"]);
 export class FingerController{
  constructor(avatar){this.avatar=avatar;this.map={};}
  bind(names=[]){
