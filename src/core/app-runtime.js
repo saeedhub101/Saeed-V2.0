@@ -54,7 +54,7 @@ function configureMediaPermissions(){
 let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,brainSupervisor;
 const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
 const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
-const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow,diagnostic:(...a)=>diagnostic(...a)});
+const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow:()=>chatHost?.getChatWindow?.(),diagnostic:(...a)=>diagnostic(...a)});
 const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
 const voiceBroadcast=(channel,...args)=>{for(const win of [getChatWindow(),characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
 const diagnostics=createDiagnostics({getWindows:()=>({chatWin:getChatWindow(),characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
