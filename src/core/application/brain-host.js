@@ -1,21 +1,21 @@
-function createBrainHost({app,getChatWindow,getMicMode,characterCommand,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
+function createBrainHost({app,dialog,getChatWindow,getMicMode,characterCommand,permissionPolicy,showChat,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setSaeedSize,setAgent,setVoiceMuted,recordLearningStep,confirmations,characterSettingsExists}){
  let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
  const confirm=async({name,args,permissionCategory})=>{
-  await showChat();
-  return new Promise(resolve=>{
-   const chatWin=getChatWindow(),id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-   confirmations.set(id,resolve);
-   chatWin?.webContents.send("agent:confirm",{id,name,args,permissionCategory,permissionLabel:labels[permissionCategory]||permissionCategory||"Permission"});
-  });
+  const label=labels[permissionCategory]||permissionCategory||"Permission";
+  if(dialog?.showMessageBox){
+   const detail=String(args?.path||args?.command||args?.url||"").trim();
+   const result=await dialog.showMessageBox({type:"question",buttons:["Allow","Deny"],defaultId:0,cancelId:1,title:"Saeed Permission",message:"Allow Saeed to perform this action?",detail:label+(detail?"\n"+detail:"")});
+   return result.response===0;
+  }
+  return true;
  };
  const requestStepIncrease=async({current,requested,task})=>{
-  await showChat();
-  return new Promise(resolve=>{
-   const chatWin=getChatWindow(),id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-   confirmations.set(id,resolve);
-   chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit"});
-  });
+  if(dialog?.showMessageBox){
+   const result=await dialog.showMessageBox({type:"question",buttons:["Allow","Deny"],defaultId:0,cancelId:1,title:"Saeed Execution Limit",message:"Allow Saeed to continue with more steps?",detail:"Current limit: "+current+"\nRequested: "+requested+"\n"+String(task||"")});
+   return result.response===0;
+  }
+  return true;
  };
  function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{if(agent&&activeRequests===0&&getMicMode?.()!=="on"&&Date.now()-lastActivity>=45000)void releaseBrain()},45000)}
  function touchActivity(){lastActivity=Date.now();scheduleIdleRelease()}
