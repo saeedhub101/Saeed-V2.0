@@ -56,5 +56,6 @@ class Brain{
   });
   return{handled:false,answer,source:"api"};
  }
+ async dispose(){try{await this.local?.dispose?.()}catch{}try{await this.api?.dispose?.()}catch{}this.local=null;this.api=null;this.registry=null;this.onEvent=()=>{};return true}
 }
 module.exports={Brain};
