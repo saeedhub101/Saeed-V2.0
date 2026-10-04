@@ -14,7 +14,7 @@ class Brain{
   this.saveHistory=saveHistory||(()=>{});
   this.baseStepLimit=baseStepLimit||(()=>16);
   this.local=new LocalExecutor(registry,this.onEvent);
-  this.model=new ApiExecutor();
+  this.api=new ModelExecutor();
  }
  capabilities(){return this.registry?.schemas?.().map(x=>x?.function?.name).filter(Boolean)||[]}
  classify(text){
