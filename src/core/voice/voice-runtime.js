@@ -29,7 +29,7 @@ function startRealtime(options={}){
    else if(event.type==="response.output_audio_transcript.delta"&&event.delta)voiceBroadcast("realtime:assistant-delta",event.delta);
    else if(event.type==="response.output_audio_transcript.done"&&event.transcript)voiceBroadcast("realtime:assistant-final",event.transcript);
    else if(event.type==="conversation.item.input_audio_transcription.delta"&&event.delta)voiceBroadcast("realtime:user-delta",event.delta);
-   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript){const text=String(event.transcript).trim();if(text){voiceBroadcast("realtime:user-final",text);const agent=getAgent();if(agent){try{voiceBroadcast("agent:event",{type:"thinking",source:"voice",text});const answer=await agent.run(text);voiceBroadcast("agent:event",{type:"answer",text:String(answer||""),source:"voice"});if(answer)voiceBroadcast("voice:answer",String(answer));}catch(e){diagnostic("ERROR","VOICE BRAIN",e.message);voiceBroadcast("realtime:error",e.message)}}}}
+   else if(event.type==="conversation.item.input_audio_transcription.completed"&&event.transcript)voiceBroadcast("realtime:user-final",event.transcript);
    else if(event.type==="response.function_call_arguments.done"&&event.call_id){
     const name=String(event.name||"");
     let args={};
