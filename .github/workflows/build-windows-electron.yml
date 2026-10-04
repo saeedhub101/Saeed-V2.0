@@ -34,10 +34,10 @@ jobs:
     timeout-minutes: 75
     steps:
       - name: Checkout exact commit
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.14.0
 
@@ -385,7 +385,7 @@ jobs:
             Write-Host "Verified report: $p"
           }
       - name: Upload verified build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
