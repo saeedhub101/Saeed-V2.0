@@ -30,14 +30,14 @@ function createCiE2E(deps={}){
    });
 
    await check("brain.intent-open-my-computer",async()=>{
-    const agent=getAgent();if(!agent)return false;
+    const agent=await ensureBrain?.();if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
     const result=await agent.run("Open my computer");
     const route=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN ROUTE");
     return Boolean(String(result||"").trim())&&String(route?.message||"").includes("local");
    });
    await check("brain.intent-api-escalation",async()=>{
-    const agent=getAgent();if(!agent)return false;
+    const agent=await ensureBrain?.();if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
     const result=await agent.run("Open Excel and then book me a ticket");
     const api=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN API");
