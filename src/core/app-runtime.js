@@ -22,6 +22,13 @@ const {registerVoiceIpc}=require("./ipc/voice-ipc");
 const {createWindowManager}=require("./application/window-manager");
 const {createCharacterStore}=require("./character/character-store");
 const {createCharacterHost}=require("./character/character-host");
+const {registerChatIpc}=require("./ipc/chat-ipc");
+const {registerLearningIpc}=require("./ipc/learning-ipc");
+const {registerAddonsIpc}=require("./ipc/addons-ipc");
+const {registerCharacterIpc}=require("./ipc/character-ipc");
+const {registerSettingsIpc}=require("./ipc/settings-ipc");
+const {registerUpdateIpc}=require("./ipc/update-ipc");
+const {registerHistoryIpc}=require("./ipc/history-ipc");
 
 
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
@@ -147,147 +154,5 @@ app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready"
 });
 ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);const resolve=pending3DQueries.get(String(requestId||""));if(resolve)resolve(report)});
 ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
-ipcMain.handle("chat",async(_,payload)=>{
- await ensureBrain();
- const data=typeof payload==="string"?{text:payload}:payload||{};brainSupervisor?.markActivity?.();if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior",{type:"user-input",text:String(data.text||"")});
- const result=await agent.run(String(data.text||""),data.image||null);
- if(characterWin&&!characterWin.isDestroyed())characterWin.webContents.send("character:behavior","answer");
- return result;
-});
 ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>getApiHealth().test(String(service||"")));ipcMain.handle("api-status:test-all",()=>getApiHealth().testAll());ipcMain.handle("resource:snapshot",()=>getResourceService().resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});ipcMain.handle("learning:show",()=>{showLearning();return true});ipcMain.handle("learning:list",()=>getLearning().list(app.getPath("userData")));ipcMain.handle("learning:get",(_,id)=>getLearning().get(app.getPath("userData"),id));ipcMain.handle("learning:record-start",(_,name,phrases)=>{if(learningRecording)throw new Error("Learning recorder is already running");learningRecording=getLearning().beginRecording(app.getPath("userData"),name,phrases);try{getLearningRecorder().start(e=>{if(learningRecording&&e?.type==="action")getLearning().recordStep(learningRecording,e.tool,e.args)},app.getPath("userData"));learningRecorderActive=true;return true}catch(e){learningRecording=null;getLearningRecorder().stop();throw e}});ipcMain.handle("learning:record-stop",()=>{if(!learningRecording)throw new Error("Learning recorder is not running");getLearningRecorder().stop();learningRecorderActive=false;if(!Array.isArray(learningRecording.skill?.steps)||learningRecording.skill.steps.length===0){learningRecording=null;return{ok:false,empty:true,message:"No actions were recorded. Perform at least one action in another Windows application, then record again."}}const result=getLearning().finishRecording(app.getPath("userData"),learningRecording);learningRecording=null;return result});ipcMain.handle("learning:save",(_,skill)=>require("../learning").save(app.getPath("userData"),skill));ipcMain.handle("learning:remove",(_,id)=>require("../learning").remove(app.getPath("userData"),id));ipcMain.handle("learning:enable",(_,id,enabled)=>require("../learning").setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("learning:run",async(_,id)=>{await ensureBrain();const skill=getLearning().get(app.getPath("userData"),id);if(!skill)throw new Error("Skill not found: "+id);return getLearning().run(app.getPath("userData"),agent.registry,skill,{confirm:async({skill,step})=>{await showChat();return new Promise(resolve=>{const cid=Date.now().toString(36)+Math.random().toString(36).slice(2,7);confirmations.set(cid,resolve);chatWin?.webContents.send("agent:confirm",{id:cid,name:step.tool,args:step.args,permissionCategory:agent.registry.categoryFor(step.tool),permissionLabel:"Learned skill: "+skill.name,reason:"Approve this learned step?"})})}})});ipcMain.handle("learning:export",(_,id)=>require("../learning").exportSkill(app.getPath("userData"),id));ipcMain.handle("learning:import",(_,data)=>require("../learning").importSkill(app.getPath("userData"),data));ipcMain.handle("addons:catalog",async()=>{const catalog=await getAddonService().fetchCatalog();return{catalog,installed:getAddonService().listInstalled(app.getPath("userData"))}});ipcMain.handle("addons:install",async(event,id)=>{const catalog=await getAddonService().fetchCatalog();const item=(catalog.addons||[]).find(x=>x.id===String(id));if(!item)throw new Error("Add-on not found in catalog: "+id);return getAddonService().install(app.getPath("userData"),item,state=>{if(event.sender&&!event.sender.isDestroyed())event.sender.send("addons:progress",id,state)})});ipcMain.handle("addons:uninstall",async(_,id)=>getAddonService().uninstall(app.getPath("userData"),id));ipcMain.handle("addons:enable",async(_,id,enabled)=>getAddonService().setEnabled(app.getPath("userData"),id,enabled));ipcMain.handle("character:choose",()=>{chooseCharacter();return true});
-ipcMain.handle("character:controller:get",async()=>{
- if(!characterWin||characterWin.isDestroyed()) return {available:false};
- try{return characterWin.webContents.executeJavaScript("window.saeedCharacterController?.status?.()||null",true).then(x=>x||{available:false});}
- catch(e){return {available:false,error:e.message}}
-});
-ipcMain.handle("character:controller:command",async(_,command={})=>{
- if(!characterWin||characterWin.isDestroyed()) return {ok:false,error:"Character window is not available"};
- const payload=JSON.stringify(command||{});
- const script="(async()=>{const c=window.saeedCharacterController;if(!c)return {ok:false,error:'Character controller unavailable'};const x="+payload+";if(x.action==='play')return {ok:c.play(String(x.motion||'idle'),x.options||{})};if(x.action==='stop')return {ok:c.stop(x.motion)};if(x.action==='stopAll')return {ok:c.stopAll()};if(x.action==='pose')return {ok:true,pose:c.setPose(x.pose||{})};if(x.action==='idlePose')return {ok:true,pose:c.setIdlePose(x.pose||{})};if(x.action==='resetPose')return {ok:c.resetPose()};if(x.action==='status')return {ok:true,status:c.status()};if(x.action==='remap')return {ok:c.remap(x.mapping||{})};if(x.action==='limit')return {ok:c.setLimit(x.slot,x.limit)};if(x.action==='semantic')return c.semantic(x.intent,x.options||{});if(x.action==='defineMotion')return {ok:true,motion:c.defineMotion(x.motion||{})};if(x.action==='deleteMotion')return {ok:c.deleteMotion(x.id)};if(x.action==='listMotions')return {ok:true,motions:c.listMotions()};if(x.action==='face')return {ok:true,result:c.face?.expression?.(x.expression,x.intensity)};if(x.action==='blink')return {ok:c.face?.blink?.()};if(x.action==='lookAt')return {ok:c.face?.lookAt?.(x.x,x.y,x.z)};if(x.action==='viseme')return {ok:c.face?.viseme?.(x.viseme,x.value)};if(x.action==='fingers')return {ok:c.fingers?.curl?.(x.hand,x.amount)};if(x.action==='boneNames')return {ok:true,bones:window.saeedAvatar?.getAvailableBoneNames?.()||[]};return {ok:false,error:'Unknown character controller action'}})()";
- try{return await characterWin.webContents.executeJavaScript(script,true)}catch(e){return {ok:false,error:e.message}}
-});
-ipcMain.handle("character:3d:get",()=>captureCharacter3DWindowSettings());
-ipcMain.handle("character:3d:set",(_,patch={})=>{
- const current=captureCharacter3DWindowSettings(), next={...current,...patch,window:{...current.window,...(patch.window||{})},camera:{...current.camera,...(patch.camera||{})},character:{...current.character,...(patch.character||{})},canvas:{...current.canvas,...(patch.canvas||{})}};
- const saved=writeCharacter3DSettings(next);
- if(characterWin&&!characterWin.isDestroyed()){
-  const w=Math.max(300,Math.min(1400,Math.round(Number(saved.window.width)||430))),h=Math.max(360,Math.min(1400,Math.round(Number(saved.window.height)||520)));
-  characterWin.setSize(w,h,false);
-  if(Number.isFinite(Number(saved.window.x))&&Number.isFinite(Number(saved.window.y))){const d=screen.getDisplayNearestPoint({x:Math.round(Number(saved.window.x))+w/2,y:Math.round(Number(saved.window.y))+h/2})||screen.getPrimaryDisplay();const a=d.workArea;const x=Math.max(a.x,Math.min(Math.round(Number(saved.window.x)),a.x+Math.max(0,a.width-w)));const y=Math.max(a.y,Math.min(Math.round(Number(saved.window.y)),a.y+Math.max(0,a.height-h)));saved.window.x=x;saved.window.y=y;}
-  writeCharacter3DSettings(saved);
-  characterWin.webContents.send("character:3d-settings",saved);
- }
- return saved;
-});
-
-ipcMain.handle("settings:set",async(_,s)=>{
- await ensureBrain();
- const previous={...agent.settings};
- agent.settings={...previous,...(s||{}),brainMode:["api","local","auto"].includes(String((s||{}).brainMode||""))?String((s||{}).brainMode):String(previous.brainMode||"auto")};
- delete agent.settings.alwaysListening;
- if(agent.settings.micMode==="always"||agent.settings.micMode==="ptt")agent.settings.micMode="on";
- if(agent.settings.micMode!=="on")agent.settings.micMode="off";
- const mode=String(agent.settings.brainMode||"auto");
- let micMode=String(agent.settings.micMode||currentMicMode||"off");
- const realtimeChanged=Object.prototype.hasOwnProperty.call(s||{},"realtimeEnabled")&&previous.realtimeEnabled!==agent.settings.realtimeEnabled;
- const voiceConfigChanged=["sttProvider","sttModel","sttLanguage","ttsProvider","ttsModel","ttsVoice","voiceRouting","micPath","realtimeProvider","realtimeModel","realtimeVoice","micSpeechRms","micInterruptRms"].some(k=>Object.prototype.hasOwnProperty.call(s||{},k)&&previous[k]!==agent.settings[k]);
- // Non-local STT must use the selected STT pipeline unless the user explicitly chooses Realtime.
- if(Object.prototype.hasOwnProperty.call(s||{},"sttProvider")&&String(agent.settings.sttProvider||"whisper")!=="whisper"&&!Object.prototype.hasOwnProperty.call(s||{},"micPath"))agent.settings.micPath="whisper";
- if(mode!=="api"&&agent.settings.realtimeEnabled)agent.settings.realtimeEnabled=false;
- if(mode!=="api"||!agent.settings.realtimeEnabled||agent.settings.micPath!=="realtime")getVoiceRuntime().stop();
- if(Object.prototype.hasOwnProperty.call(s||{},"micMode"))setMicMode(micMode);
- if(Object.prototype.hasOwnProperty.call(s||{},"micPath")&&previous.micPath!==agent.settings.micPath&&micMode==="on"){setMicMode("off").then(()=>setMicMode("on"));} if(realtimeChanged&&micMode==="on")setMicMode("off").then(()=>setMicMode("on"));
- if(Object.prototype.hasOwnProperty.call(s||{},"characterSize"))setSaeedSize(agent.settings.characterSize);
- if(Object.prototype.hasOwnProperty.call(s||{},"displayMode")&&characterWin&&!characterWin.isDestroyed())characterWin.setAlwaysOnTop(agent.settings.displayMode==="always-on-top");
- if(Object.prototype.hasOwnProperty.call(s||{},"characterController")||Object.prototype.hasOwnProperty.call(s||{},"characterBehavior")||Object.prototype.hasOwnProperty.call(s||{},"idleThoughtsEnabled")||Object.prototype.hasOwnProperty.call(s||{},"brainController")||Object.prototype.hasOwnProperty.call(s||{},"mood")||Object.prototype.hasOwnProperty.call(s||{},"appearance")||Object.prototype.hasOwnProperty.call(s||{},"zoom")||Object.prototype.hasOwnProperty.call(s||{},"muteSounds")||Object.prototype.hasOwnProperty.call(s||{},"brainMode")||Object.prototype.hasOwnProperty.call(s||{},"voiceRouting")||Object.prototype.hasOwnProperty.call(s||{},"ttsProvider"))characterWin?.webContents.send("character:behavior",{type:"settings",settings:agent.publicSettings()});
- if(previous.sttProvider!==agent.settings.sttProvider||previous.micMode!==micMode)diagnostic("INFO","MIC CONFIG","Microphone configuration applied",{mode:micMode,sttProvider:agent.settings.sttProvider});
- if(Object.prototype.hasOwnProperty.call(s||{},"characterController")&&characterWin&&!characterWin.isDestroyed()){
-  const cc=agent.settings.characterController||{};
-  const script="(()=>{const c=window.saeedCharacterController;if(!c)return false;if("+JSON.stringify(cc)+".idlePose)return c.setIdlePose("+JSON.stringify(cc)+".idlePose);return true})()";
-  characterWin.webContents.executeJavaScript(script,true).catch(()=>{});
-}
-if(brainSupervisor)void brainSupervisor.refresh?.();
- diagnostic("INFO","BRAIN MODE","Brain mode selected: "+mode);
- return agent.publicSettings();
-});
-ipcMain.handle("chat:minimize",()=>{if(!chatWin||chatWin.isDestroyed())return false;chatWin.minimize();return true});
-ipcMain.on("chat:mouse-passthrough",(event,ignore)=>{
- const win=BrowserWindow.fromWebContents(event.sender);
- if(!win||win.isDestroyed()||win!==chatWin)return;
- win.setIgnoreMouseEvents(Boolean(ignore),{forward:true});
-});
-
-ipcMain.handle("capture",async()=>{
- const policy=permissionPolicy("screen");
- if(policy==="deny")return null;
- if(policy==="ask"&&!await confirmPermission("screen",{name:"screen_capture",args:{action:"capture screen"}}))return null;
- return captureScreen();
-});
-ipcMain.handle("update:check",async()=>{if(!app.isPackaged)return {ok:false,state:"unavailable",message:"Updates are available only in the installed Windows build."};try{updateUiRequested=true;updateState="checking";showUpdateToast("checking","Checking for updates…");voiceBroadcast("update:state","checking");const result=await getAutoUpdater().checkForUpdates();return {ok:true,state:updateState,version:result?.updateInfo?.version||null}}catch(e){updateState="error";showUpdateToast("error","Update check failed");chatWin?.webContents.send("update:state","error",e.message);setTimeout(()=>{updateUiRequested=false;hideUpdateToast();voiceBroadcast("update:state","idle")},3200);return {ok:false,state:"error",message:e.message}}});
-ipcMain.handle("update:download",async()=>{if(updateState!=="available")return false;try{showUpdateStatus();updateState="downloading";publishUpdate("update:state","downloading");await getAutoUpdater().downloadUpdate();return true}catch(e){updateState="error";publishUpdate("update:state","error",e.message);return false}});
-ipcMain.handle("update:install",()=>{if(updateState!=="downloaded")return false;getAutoUpdater().quitAndInstall(false,true);return true});
-ipcMain.handle("update:show-status",()=>showUpdateStatus());
-ipcMain.handle("update:toast-close",()=>{updateUiRequested=false;hideUpdateToast();return true});
-ipcMain.handle("update:snapshot",()=>({state:updateState,info:updateInfo,currentVersion:app.getVersion()}));
-ipcMain.handle("update:state",()=>updateState);
-
-ipcMain.handle("history:get",()=>agent?.history||[]);
-ipcMain.handle("chat:list",()=>agent?.listConversations?.()||[]);
-ipcMain.handle("chat:current",()=>agent?.getCurrentConversation?.()||null);
-ipcMain.handle("chat:memory",()=>agent?.getGlobalMemory?.()||[]);
-ipcMain.handle("chat:new",()=>{if(!agent)return null;const chat=agent.newConversation();chatWin?.webContents.send("chat:switched",chat,[]);return {chat,history:[]};});
-ipcMain.handle("chat:select",(_,id)=>{if(!agent)return null;const chat=agent.selectConversation(String(id||""));if(!chat)return null;const history=agent.history||[];chatWin?.webContents.send("chat:switched",chat,history);return {chat,history};});
-ipcMain.handle("history:clear",()=>{if(!agent)return false;agent.clearHistory();chatWin?.webContents.send("history:cleared");return true});
-ipcMain.handle("agent:confirm-response",(_,id,approved)=>{
- const resolve=confirmations.get(id);if(!resolve)return false;
- confirmations.delete(id);resolve(Boolean(approved));return true;
-});
-
-ipcMain.on("window:move-by",(_,dx,dy)=>{
- if(!characterWin)return;
- const [x,y]=characterWin.getPosition(),[w,h]=characterWin.getSize();
- const nextX=x+Math.round(Number(dx)||0),nextY=y+Math.round(Number(dy)||0);
- const center={x:nextX+w/2,y:nextY+h/2};
- const d=screen.getDisplayNearestPoint(center)||screen.getPrimaryDisplay();
- const a=d.workArea;
- const nx=Math.max(a.x,Math.min(nextX,a.x+Math.max(0,a.width-w)));
- const ny=Math.max(a.y,Math.min(nextY,a.y+Math.max(0,a.height-h)));
- characterWin.setPosition(nx,ny,true);
-});
-ipcMain.on("chat:move-by",(_,dx,dy)=>{if(!chatWin||chatWin.isDestroyed())return;const [x,y]=chatWin.getPosition(),[w,h]=chatWin.getSize();const nx=x+Math.round(Number(dx)||0),ny=y+Math.round(Number(dy)||0);const d=screen.getDisplayNearestPoint({x:nx+w/2,y:ny+h/2})||screen.getPrimaryDisplay(),a=d.workArea;chatWin.setPosition(Math.max(a.x,Math.min(nx,a.x+Math.max(0,a.width-w))),Math.max(a.y,Math.min(ny,a.y+Math.max(0,a.height-h))),true)});
-ipcMain.on("window:show-chat",()=>{void showChat()});
-ipcMain.on("window:close-chat",()=>{if(chatWin&&!chatWin.isDestroyed()){chatWin.setIgnoreMouseEvents(false);chatWin.close()}});
-
-app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>console.error(e))});
-app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});
-app.on("before-quit",()=>{
- try{captureCharacter3DWindowSettings()}catch{}
- app.isQuitting=true;
- try{getVoiceRuntime().stop()}catch(e){console.error("Voice shutdown failed:",e)}
- for(const win of [chatWin,performanceWin,settingsWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin]){try{if(win&&!win.isDestroyed())win.destroy()}catch(e){console.error("Window shutdown failed:",e)}}
- try{if(tray){tray.destroy();tray=null}}catch(e){console.error("Tray shutdown failed:",e)}
-});
-app.on("will-quit",()=>{globalShortcut.unregisterAll();try{getVoiceRuntime().stop()}catch{}try{if(cpuTimer)clearInterval(cpuTimer)}catch{}cpuTimer=null})
-
-
-function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
-async function createWindow(){
- await createCharacterWindow();
- if(ciSmoke)scheduleCiRuntimeSmoke();
-}
-async function createCharacterWindow(){
- characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
- characterWin.setIcon(windowsIconPath());
- if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
- characterWin.on("closed",()=>{try{captureCharacter3DWindowSettings()}catch{};characterWin=null});
- characterWin.on("close",()=>{if(!app.isQuitting())diagnostic("INFO","WINDOW","Saeed character window closed");});
- characterWin.webContents.on("context-menu",()=>contextMenu());
- await characterWin.loadFile(path.join(__dirname,"..","character.html"));
- applyCharacter3DWindowSettings();
- try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
- if(!Number.isFinite(Number(readCharacter3DSettings().window.x))||!Number.isFinite(Number(readCharacter3DSettings().window.y)))fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
- characterWin.show();
-}
-
-;
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>getApiHealth().test(String(service||"")));ipcMain.handle("api-status:test-all",()=>getApiHealth().testAll());ipcMain.handle("resource:snapshot",()=>getResourceService().resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});;
