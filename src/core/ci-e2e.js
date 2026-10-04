@@ -83,11 +83,22 @@ function createCiE2E(deps={}){
     return Boolean(visibleText.visible&&visibleText.text.includes("CI mute text test"));
    });
 
-   await check("chat.close-releases-brain",async()=>{
+   await check("chat.close-keeps-brain-when-mic-on",async()=>{
+    await setMicMode("on");
+    await wait(1200);
+    const before=Boolean(getBrainActive?.());
     await getChatHost().closeChat();await wait(1200);
-    return {pass:!chatWindow()&&!Boolean(getBrainActive?.()),chatClosed:!chatWindow(),brainActive:Boolean(getBrainActive?.())};
+    const after=Boolean(getBrainActive?.());
+    return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:String(getVoiceHost?.()?.getCurrentMicMode?.()||"off")};
    });
-   report.phases.afterChatClose=metrics("after-chat-close");
+   report.phases.afterChatCloseMicOn=metrics("after-chat-close-mic-on");
+
+   await check("mic-off-releases-brain-after-chat-closed",async()=>{
+    await setMicMode("off");await wait(1500);
+    const active=Boolean(getBrainActive?.());
+    return {pass:!active,chatClosed:!chatWindow(),micMode:String(getVoiceHost?.()?.getCurrentMicMode?.()||"off"),brainActive:active};
+   });
+   report.phases.afterMicOff=metrics("after-mic-off");
 
    await check("hide-saeed-keeps-tray",async()=>{
     characterHost.hideCharacter();await wait(500);
