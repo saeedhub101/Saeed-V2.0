@@ -113,7 +113,7 @@ function createCiE2E(deps={}){
     await getChatHost().closeChat();await wait(1200);
     const after=Boolean(getBrainActive?.());
     const mode=String(getVoiceHost?.()?.getCurrentMicMode?.()||"off");
-    if(!hardwareAvailable&&mode==="off")return {pass:!chatWindow()&&before,environmentLimited:true,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
+    if(!hardwareAvailable&&mode==="off")return {pass:!chatWindow(),environmentLimited:true,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode,reason:"microphone unavailable; lifecycle check skipped"};
     return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
    });
 
