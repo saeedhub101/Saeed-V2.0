@@ -126,7 +126,7 @@ function applyCharacterPose(pose={},retargeter=null){
  for(const [slot,r] of Object.entries(pose)){
   if(retargeter?.apply?.(slot,r))continue;
   const b=rig.get(slot),p=base.get(slot);
-  if(b&&p)b.rotation.set(p.x+(Number(r?.x)||0),p.y+(Number(r?.y)||0),p.z+(Number(r?.z)||0);
+  if(b&&p)b.rotation.set(p.x+(Number(r?.x)||0),p.y+(Number(r?.y)||0),p.z+(Number(r?.z)||0));
  }
  render();
  return true;
