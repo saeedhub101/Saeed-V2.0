@@ -1,5 +1,5 @@
 const {LocalExecutor}=require("../../local-executor");
-const {ApiExecutor}=require("./api-executor");
+const {ModelExecutor}=require("./api-executor");
 const learning=()=>require("../../learning");
 
 class Brain{
@@ -14,7 +14,7 @@ class Brain{
   this.saveHistory=saveHistory||(()=>{});
   this.baseStepLimit=baseStepLimit||(()=>16);
   this.local=new LocalExecutor(registry,this.onEvent);
-  this.api=new ApiExecutor();
+  this.model=new ApiExecutor();
  }
  capabilities(){return this.registry?.schemas?.().map(x=>x?.function?.name).filter(Boolean)||[]}
  classify(text){
