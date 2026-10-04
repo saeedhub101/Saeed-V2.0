@@ -51,13 +51,13 @@ function configureMediaPermissions(){
 }
 
 
-let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,updateToastWin,brainSupervisor,brainInitPromise;
+let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,brainSupervisor;
 const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
 const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
-const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow:()=>chatWin,diagnostic:(...a)=>diagnostic(...a)});
+const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow,diagnostic:(...a)=>diagnostic(...a)});
 const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
-const voiceBroadcast=(channel,...args)=>{for(const win of [chatWin,characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
-const diagnostics=createDiagnostics({getWindows:()=>({chatWin,characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
+const voiceBroadcast=(channel,...args)=>{for(const win of [getChatWindow(),characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
+const diagnostics=createDiagnostics({getWindows:()=>({chatWin:getChatWindow(),characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
 const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
 const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,getAddonService,ensureBrain:()=>brainHost?.ensureBrain?.(),permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>chatHost?.showChat?.(),getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getStatusWindow:()=>statusWin,diagnosticState});
 const {whisperRuntimePaths,setMicMode,setVoiceMuted}=voiceHost;
@@ -66,6 +66,7 @@ const updateNow=()=>updateManager.check();
 const systemControls=createSystemControls({app,diagnostic,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
 const {rebuildTray,contextMenu}=systemControls;
 const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain:(...args)=>brainHost?.ensureBrain?.(...args)});
+const getChatWindow=()=>chatHost?.getChatWindow?.();
 const screenCapture=createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic});
 const captureScreen=screenCapture.captureScreen;
 
@@ -119,7 +120,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();
 
  globalShortcut.register("CommandOrControl+Shift+M",()=>chatHost.showChat());
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
-  try{const image=await captureScreen();await chatHost.showChat();chatWin?.webContents.send("screen:capture",image)}
+  try{const image=await captureScreen();await chatHost.showChat();getChatWindow()?.webContents.send("screen:capture",image)}
   catch(e){console.error("Screen capture failed:",e)}
  });
  const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
@@ -142,7 +143,7 @@ registerHistoryIpc({ipcMain,getAgent:()=>agent,getChatWindow:()=>chatWin,getConf
 
 app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>diagnostic("ERROR","APPLICATION ACTIVATE",e.message))});
 app.on("window-all-closed",()=>{if(process.platform!=="darwin"&&!app.isQuitting)app.quit()});
-app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQuitting=true;try{getVoiceRuntime().stop()}catch{};try{getLearningRecorder().stop()}catch{};for(const win of [chatWin,performanceWin,settingsWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin])try{if(win&&!win.isDestroyed())win.destroy()}catch{};try{if(tray){tray.destroy();tray=null}}catch{}});
+app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQuitting=true;try{getVoiceRuntime().stop()}catch{};try{getLearningRecorder().stop()}catch{};for(const win of [getChatWindow(),performanceWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin])try{if(win&&!win.isDestroyed())win.destroy()}catch{};try{if(tray){tray.destroy();tray=null}}catch{}});
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{getVoiceRuntime().stop()}catch{}});
 
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return chatHost.showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
