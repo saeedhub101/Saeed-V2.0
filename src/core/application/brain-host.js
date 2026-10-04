@@ -40,8 +40,10 @@ function createBrainHost({app,getChatWindow,characterCommand,permissionPolicy,sh
   return brainInitPromise;
  }
  async function releaseBrain(){
+  const oldAgent=agent;
   agent=null;
   brainInitPromise=null;
+  try{await oldAgent?.dispose?.()}catch(e){diagnostic("ERROR","BRAIN RELEASE",e.message)}
   setAgent(null);
   voiceBroadcast("character:behavior",{type:"brain-released"});
   diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no Chat or Mic input surface is active");
