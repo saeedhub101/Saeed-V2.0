@@ -14,8 +14,9 @@ const aliases={
  leftShin:["leftshin","leftcalf","leftlowerleg","leftleg","mixamorigleftleg"],
  rightShin:["rightshin","rightcalf","rightlowerleg","rightleg","mixamorigrightleg"],
  leftFoot:["leftfoot","leftankle","mixamorigleftfoot"],rightFoot:["rightfoot","rightankle","mixamorigrightfoot"],
- leftEye:["lefteye","eyel"],rightEye:["righteye","eyer"]
+ leftEye:["LeftEye","lefteye","eyel"],rightEye:["RightEye","righteye","eyer"]
 };
+const fingerAliases=Object.fromEntries(["Left","Right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(f=>[1,2,3,4].map(n=>[side+f+n,side+"Hand"+f+n]))));
 const side=(name)=>{const n=clean(name);return n.includes("left")||/(^|[^a-z])l([^a-z]|$)/i.test(String(name||""))?"left":n.includes("right")||/(^|[^a-z])r([^a-z]|$)/i.test(String(name||""))?"right":"unknown"};
 function sideOk(name,slot){const expected=slot.startsWith("left")?"left":slot.startsWith("right")?"right":"unknown";const actual=side(name);return expected==="unknown"||actual==="unknown"||actual===expected}
 export function autoMapBones(bones=[]){
@@ -41,3 +42,4 @@ export function autoMapBones(bones=[]){
  return {mapping,scores,confidence:Object.fromEntries(Object.entries(scores).map(([k,v])=>[k,Math.round(Math.min(100,v/1.2))]))};
 }
 export function logicalSlots(){return Object.keys(aliases);}
+export function getFingerAliases(){return {...fingerAliases};}
