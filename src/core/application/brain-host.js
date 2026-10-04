@@ -17,10 +17,21 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
   }
   return true;
  };
- function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{if(agent&&activeRequests===0&&getMicMode?.()!=="on"&&Date.now()-lastActivity>=45000)void releaseBrain()},45000)}
+ const IDLE_TIMEOUT_MS=180000;
+ function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent)return;idleTimer=setTimeout(()=>{void evaluateLifecycle()},IDLE_TIMEOUT_MS)}
+ function evaluateLifecycle(){
+  clearTimeout(idleTimer);idleTimer=null;
+  if(!agent)return false;
+  if(getMicMode?.()==="on"){lastActivity=Date.now();return false}
+  if(activeRequests>0){return false}
+  if(Date.now()-lastActivity<IDLE_TIMEOUT_MS){scheduleIdleRelease();return false}
+  void releaseBrain();
+  return true;
+ }
  function touchActivity(){lastActivity=Date.now();scheduleIdleRelease()}
  function beginRequest(){activeRequests++;touchActivity()}
  function endRequest(){activeRequests=Math.max(0,activeRequests-1);touchActivity()}
+ function notifyLifecycle(){return evaluateLifecycle()}
  async function ensureBrain(){
   touchActivity();
   if(brainInitPromise)return brainInitPromise;
@@ -56,6 +67,6 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
   diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no active input surface is using it");
   return true;
  }
- return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,isActive:()=>Boolean(agent)};
+ return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,notifyLifecycle,evaluateLifecycle,isActive:()=>Boolean(agent)};
 }
 module.exports={createBrainHost};
