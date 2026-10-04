@@ -72,7 +72,7 @@ const captureScreen=screenCapture.captureScreen;
 registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime,diagnostic,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin,voiceHost});
 let characterHost;
 const characterStore=createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
-const {character3DSettingsFile,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,readPersistedCharacter}=characterStore;
+const {character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings}=characterStore;
 characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>chatHost?.showChat?.(),permissionPolicy,confirmPermission,contextMenu:()=>contextMenu()});
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterHost;
 const windowManager=createWindowManager({BrowserWindow,path,getWindow:name=>({performanceWin,learningWin,addonsWin,statusWin}[name]),setWindow:(name,value)=>{if(name==="performanceWin")performanceWin=value;else if(name==="learningWin")learningWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="statusWin")statusWin=value},iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","preload.js"),rootPath:path.join(__dirname,"..")});
