@@ -14,7 +14,7 @@ function createRuntimeComposition(ctx){
  const show3DStatus=()=>api?.show3DStatus?.();
  const contextMenu=()=>api?.contextMenu?.();
  const rebuildTray=(tray)=>api?.rebuildTray?.(tray);
- const diagnostics=load("diagnostics","../application/diagnostics").createDiagnostics({getWindows:()=>{const s=getState();return{chatWin:getChatWindow(),characterWin:s.characterWin,statusWin:s.statusWin,performanceWin:s.performanceWin,threeDStatusWin:s.threeDStatusWin}},getResourceService});
+ const diagnostics=load("diagnostics","../application/diagnostics").createDiagnostics({getWindows:()=>{const s=getState();return{chatWin:getChatWindow(),characterWin:s.characterWin,statusWin:s.statusWin,performanceWin:s.performanceWin,settingsWin:s.settingsWin,threeDStatusWin:s.threeDStatusWin}},getResourceService});
  const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
  const getApiHealth=()=>ctx.state.apiHealth||(ctx.state.apiHealth=require("../services/api-health").createApiHealth({getAgent}));
  const ensureChatHost=()=>ctx.state.chatHost||(ctx.state.chatHost=load("chatHost","../application/chat-host").createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain,onClose:releaseBrainIfIdle}));
