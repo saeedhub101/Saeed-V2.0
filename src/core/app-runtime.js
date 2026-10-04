@@ -139,9 +139,9 @@ app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
 
- globalShortcut.register("CommandOrControl+Shift+M",showChat);
+ globalShortcut.register("CommandOrControl+Shift+M",()=>chatHost.showChat());
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
-  try{const image=await captureScreen();await chatHost.chatHost.showChat();chatWin?.webContents.send("screen:capture",image)}
+  try{const image=await captureScreen();await chatHost.showChat();chatWin?.webContents.send("screen:capture",image)}
   catch(e){console.error("Screen capture failed:",e)}
  });
  const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
