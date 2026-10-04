@@ -9,7 +9,7 @@ function createRuntimeComposition(ctx){
  const getChatWindow=()=>ctx.state.chatHost?.getChatWindow?.();
  const getCurrentMicMode=()=>ctx.state.voiceHost?.getCurrentMicMode?.()||"off";
  const getVoiceMuted=()=>ctx.state.voiceHost?.getVoiceMuted?.()||false;
- let api=null;
+ let api=null,updateStatusWin=null;
  const showStatus=()=>api?.showStatus?.();
  const show3DStatus=()=>api?.show3DStatus?.();
  const contextMenu=()=>api?.contextMenu?.();
@@ -18,7 +18,7 @@ function createRuntimeComposition(ctx){
  const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
  const getApiHealth=()=>ctx.state.apiHealth||(ctx.state.apiHealth=require("../services/api-health").createApiHealth({getAgent}));
  const ensureChatHost=()=>ctx.state.chatHost||(ctx.state.chatHost=load("chatHost","../application/chat-host").createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain,onClose:releaseBrainIfIdle}));
- const voiceBroadcast=(channel,...args)=>{const s=getState();for(const win of [getChatWindow(),s.characterWin,s.statusWin,s.threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
+ const voiceBroadcast=(channel,...args)=>{const s=getState();for(const win of [getChatWindow(),s.characterWin,s.statusWin,s.threeDStatusWin,updateStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
  const permissionManager=load("permissionManager","../application/permission-manager").createPermissionManager({getAgent,showChat:()=>ensureChatHost().showChat(),getChatWindow,diagnostic:(...a)=>diagnostic(...a)});
  const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
  const ensureVoiceHost=()=>ctx.state.voiceHost||(ctx.state.voiceHost=load("voiceHost","../voice/voice-host").createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent,getAddonService,ensureBrain,releaseBrainIfIdle,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(getState().tray),showChat:()=>ensureChatHost().showChat(),getCharacterWindow:()=>getState().characterWin,getChatWindow,getStatusWindow:()=>getState().statusWin,diagnosticState}));
@@ -33,8 +33,9 @@ function createRuntimeComposition(ctx){
  const characterApi={...characterHost};
  const ensureWindowManager=()=>ctx.state.windowManager||(ctx.state.windowManager=load("windowManager","../application/window-manager").createWindowManager({BrowserWindow,path,getWindow:name=>getState()[name],setWindow,iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","..","preload.js"),rootPath:path.join(__dirname,"..","..")}));
  const showPerformance=()=>ensureWindowManager().showPerformance(),showSettings=()=>ensureWindowManager().showSettings(),showLearning=()=>ensureWindowManager().showLearning(),showAddons=()=>ensureWindowManager().showAddons();
- const ensureUpdateManager=()=>ctx.state.updateManager||(ctx.state.updateManager=load("updateManager","../application/update-manager").createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic}));
- const updateNow=()=>ensureUpdateManager().check();
+ const showUpdateStatus=()=>{if(updateStatusWin&&!updateStatusWin.isDestroyed()){updateStatusWin.show();updateStatusWin.focus();updateStatusWin.webContents.send("update:state",ctx.state.updateManager?.getState?.()||"idle");return true}updateStatusWin=new BrowserWindow({width:760,height:540,minWidth:620,minHeight:440,title:"Saeed Update",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});updateStatusWin.on("closed",()=>{updateStatusWin=null});updateStatusWin.loadFile(path.join(__dirname,"..","..","update-status.html")).then(()=>{if(!updateStatusWin||updateStatusWin.isDestroyed())return;updateStatusWin.show();updateStatusWin.focus();updateStatusWin.webContents.send("update:state",ctx.state.updateManager?.getState?.()||"idle")}).catch(e=>diagnostic("ERROR","UPDATE WINDOW",e.message));return true};
+ const ensureUpdateManager=()=>{if(!ctx.state.updateManager){ctx.state.updateManager=load("updateManager","../application/update-manager").createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic});ctx.state.updateManager.bind?.()}return ctx.state.updateManager};
+ const updateNow=async()=>{showUpdateStatus();return ensureUpdateManager().check();};
  const systemControls=load("systemControls","../application/system-controls").createSystemControls({app,diagnostic,showChat:()=>ensureChatHost().showChat(),showCharacter:characterApi.showCharacter,hideCharacter:characterApi.hideCharacter,showAddons,showLearning,showPerformance,showStatus,show3DStatus,showSettings,setSaeedSize:characterApi.setSaeedSize,chooseCharacter:characterApi.chooseCharacter,Menu,getCharacterWindow:()=>getState().characterWin,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,updateNow});
  const ensureBrainHost=()=>ctx.state.brainHost||(ctx.state.brainHost=load("brainHost","../application/brain-host").createBrainHost({app,getChatWindow,getMicMode:getCurrentMicMode,characterCommand:payload=>characterHost.command(payload),permissionPolicy,showChat:()=>ensureChatHost().showChat(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize:characterApi.setSaeedSize,setAgent,setVoiceMuted:value=>setVoiceMuted(value),recordLearningStep:()=>{},confirmations,characterSettingsExists:()=>fs.existsSync(character3DSettingsFile())}));
  const ensureBrain=(...args)=>ensureBrainHost().ensureBrain(...args);
