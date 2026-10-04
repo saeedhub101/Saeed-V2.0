@@ -33,7 +33,7 @@ function createBrainHost({app,getCharacterWindow,getChatWindow,getLearning,permi
      return new Promise(resolve=>{
       const chatWin=getChatWindow();
       const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-      pendingConfirmations.set(id,resolve);
+      confirmations.set(id,resolve);
       chatWin?.webContents.send("agent:confirm",{id,name:"agent_step_increase",args:{currentLimit:current,requestedLimit:requested,task:String(task||"")},permissionCategory:"execution",permissionLabel:"Execution limit",reason:"This task needs more execution steps. Allow an additional "+(requested-current)+" steps for this task?"});
      });
     }
