@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld("saeed",{isCiE2E:process.argv.includes("--ci-e2e
  closeUpdateToast:()=>ipcRenderer.invoke("update:toast-close"),
  getUpdateSnapshot:()=>ipcRenderer.invoke("update:snapshot"),
  getHistory:()=>ipcRenderer.invoke("history:get"), clearHistory:()=>ipcRenderer.invoke("history:clear"),
- listChats:()=>ipcRenderer.invoke("chat:list"),getCurrentChat:()=>ipcRenderer.invoke("chat:current"),getGlobalMemory:()=>ipcRenderer.invoke("chat:memory"),newChat:()=>ipcRenderer.invoke("chat:new"),selectChat:id=>ipcRenderer.invoke("chat:select",id),onChatSwitched:f=>ipcRenderer.on("chat:switched",(_,chat,history)=>f(chat,history)),
+ listChats:()=>ipcRenderer.invoke("chat:list"),getCurrentChat:()=>ipcRenderer.invoke("chat:current"),getGlobalMemory:()=>ipcRenderer.invoke("chat:memory"),newChat:()=>ipcRenderer.invoke("chat:new"),selectChat:id=>ipcRenderer.invoke("chat:select",id),deleteChat:id=>ipcRenderer.invoke("chat:delete",id),onChatSwitched:f=>ipcRenderer.on("chat:switched",(_,chat,history)=>f(chat,history)),
  getSettings:()=>ipcRenderer.invoke("settings:get"),
  setSettings:s=>ipcRenderer.invoke("settings:set",s),clearAllApis:()=>ipcRenderer.invoke("api:clear-all"),
  reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),reportMicLevel:level=>ipcRenderer.send("mic:level",Number(level)||0),onMicLevel:f=>ipcRenderer.on("mic:level",(_,level)=>f(level)),
