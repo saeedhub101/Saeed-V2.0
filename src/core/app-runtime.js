@@ -50,7 +50,7 @@ function configureMediaPermissions(){
 }
 
 
-let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin,brainSupervisor;
+let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin;
 let addonService,learning,learningRecorder,apiHealth,voiceRuntime,resourceService,autoUpdater;
 const getAddonService=()=>addonService||(addonService=require("./services/addon-service"));
 const getLearning=()=>learning||(learning=require("../learning"));
@@ -111,7 +111,7 @@ function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRu
 
 const {createCiRuntime}=require("./ci-runtime");
 let ciRuntime;
-function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>brainSupervisor,getCurrentMicMode:voiceHost.getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:getVoiceRuntime(),transcribeLocalWav:voiceHost.transcribeLocalWav,whisperRuntimePaths,ensureBrain});return ciRuntime;}
+function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>null,getCurrentMicMode:voiceHost.getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:getVoiceRuntime(),transcribeLocalWav:voiceHost.transcribeLocalWav,whisperRuntimePaths,ensureBrain});return ciRuntime;}
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
 async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
@@ -135,7 +135,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();
 });
 
 ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report)});ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
-ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
+ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>{});
 ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>getApiHealth().test(String(service||"")));ipcMain.handle("api-status:test-all",()=>getApiHealth().testAll());ipcMain.handle("resource:snapshot",()=>getResourceService().resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});
 registerChatIpc({ipcMain,ensureBrain,getAgent:()=>agent,getBrainSupervisor:()=>brainSupervisor,getCharacterWindow:()=>characterWin});
 registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensureBrain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations,showLearning:()=>showLearning});
