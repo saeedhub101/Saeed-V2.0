@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let settings={};const brainProviderDefaults={openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-5"},gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},"openai-compatible":{baseUrl:"",model:""}};const tabs=[...document.querySelectorAll(".tabs button")];function activateTab(name){const target=String(name||"");tabs.forEach(x=>x.classList.toggle("active",x.dataset.tab===target));document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.id==="tab-"+target));if(target==="resources"){refreshResources();clearInterval(resourceTimer);resourceTimer=setInterval(refreshResources,1000)}else{clearInterval(resourceTimer);resourceTimer=null}if(target==="diagnostics")refreshDiagnostics();if(target==="character"){refreshCharacterController();refreshMotionEditor()}}tabs.forEach(b=>b.addEventListener("click",e=>{e.preventDefault();activateTab(b.dataset.tab)}));$("close").onclick=()=>window.close();const defaults={characterBehavior:{breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30,autonomousMovement:true,idleThoughts:true,sleep:true,eyeTracking:true,sleepAfterMin:20,renderWakeMs:1200}};const behaviorSettings=()=>({...defaults.characterBehavior,...(settings.characterBehavior||{})});const permissionDefaults={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};const permissionSettings=()=>({...permissionDefaults,...(settings.permissions||{})});
+const $=id=>document.getElementById(id);let settings={};const brainProviderDefaults={openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-5"},gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},"openai-compatible":{baseUrl:"",model:""}};const tabs=[...document.querySelectorAll(".tabs button")];function activateTab(name){const target=String(name||"");tabs.forEach(x=>x.classList.toggle("active",x.dataset.tab===target));document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.id==="tab-"+target));if(target==="resources"){refreshResources();clearInterval(resourceTimer);resourceTimer=setInterval(refreshResources,1000)}else{clearInterval(resourceTimer);resourceTimer=null}if(target==="diagnostics")refreshDiagnostics();if(target==="character"){refreshCharacterController();refreshMotionEditor()}if(target==="rig"){refreshRigTab()}}tabs.forEach(b=>b.addEventListener("click",e=>{e.preventDefault();activateTab(b.dataset.tab)}));$("close").onclick=()=>window.close();const defaults={characterBehavior:{breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30,autonomousMovement:true,idleThoughts:true,sleep:true,eyeTracking:true,sleepAfterMin:20,renderWakeMs:1200}};const behaviorSettings=()=>({...defaults.characterBehavior,...(settings.characterBehavior||{})});const permissionDefaults={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};const permissionSettings=()=>({...permissionDefaults,...(settings.permissions||{})});
 let settings3d=null;
 const $3=id=>$(id);
 function fill3D(s){settings3d=s||{};const w=settings3d.window||{},c=settings3d.camera||{},ch=settings3d.character||{},cv=settings3d.canvas||{};$3("threeWindowWidth").value=Number(w.width||430);$3("threeWindowHeight").value=Number(w.height||520);$3("threeWindowX").value=Number.isFinite(Number(w.x))?Number(w.x):"";$3("threeWindowY").value=Number.isFinite(Number(w.y))?Number(w.y):"";$3("threeZoom").value=Number(c.zoom??1);$3("threeFov").value=Number(c.fov??30);$3("threeRotX").value=Number(c.rotationX??0);$3("threeRotY").value=Number(c.rotationY??0);$3("threeRotZ").value=Number(c.rotationZ??0);$3("threeOffX").value=Number(c.offsetX??0);$3("threeOffY").value=Number(c.offsetY??0);$3("threeOffZ").value=Number(c.offsetZ??0);$3("threeCharScale").value=Number(ch.scale??1);$3("threeCharX").value=Number(ch.positionX??0);$3("threeCharY").value=Number(ch.positionY??0);$3("threeCharZ").value=Number(ch.positionZ??0);$3("threeCharRotY").value=Number(ch.rotationY??0);$3("threeCanvasPadding").value=Number(cv.padding??0)}
@@ -73,8 +73,39 @@ $("characterApplyRig").onclick=async()=>{
  const r=await controllerCommand({action:"remap",mapping});$("characterControllerState").textContent=r?.ok?"Rig mapping applied":"Rig mapping failed";await refreshCharacterController();
 };
 $("characterRefreshRig").onclick=()=>{const g=$("characterRigGrid");g.dataset.ready="";refreshCharacterController()};
+$("rigApply")?.addEventListener("click",async()=>{
+ const mapping={};for(const el of document.querySelectorAll("[data-rig-tab-slot]"))if(el.value)mapping[el.dataset.rigTabSlot]=el.value;
+ const r=await controllerCommand({action:"remap",mapping});
+ $("rigTabState").textContent=r?.ok?"Manual rig mapping applied and saved.":"Manual rig mapping failed.";
+ await refreshRigTab();
+});
+$("rigAuto")?.addEventListener("click",async()=>{
+ const r=await controllerCommand({action:"autoMap"});
+ $("rigTabState").textContent=r?.ok?"Automatic rig mapping restored and saved.":("Automatic mapping failed: "+(r?.error||"unknown error"));
+ await refreshRigTab();
+});
+$("rigRefresh")?.addEventListener("click",refreshRigTab);
 window.saeed.onCharacterSelected?.(()=>{if(document.querySelector(".tabs button.active")?.dataset.tab==="character"){refreshCharacterController();refreshMotionEditor()}});
 
+const rigTabJoints=["hips","spine","chest","neck","head","jaw","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","leftEye","rightEye"];
+async function refreshRigTab(){
+ try{
+  const s=await window.saeed.getCharacterController();
+  const namesResult=await controllerCommand({action:"boneNames"});
+  const names=[...new Set(namesResult?.bones||[])];
+  const mapped=s?.retargeting?.bones||{};
+  const grid=$("rigMappingGrid");
+  const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const opts='<option value="">— Not mapped —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join("");
+  grid.innerHTML=rigTabJoints.map(slot=>'<label>'+slot+'<select data-rig-tab-slot="'+slot+'">'+opts+'</select></label>').join("");
+  for(const el of grid.querySelectorAll("[data-rig-tab-slot]"))el.value=mapped[el.dataset.rigTabSlot]||"";
+  const caps=s?.retargeting?.capabilities||{};
+  const missing=rigTabJoints.filter(x=>!mapped[x]);
+  $("rigTabStatus").textContent=missing.length?"Rig incomplete":"Rig mapped";
+  $("rigTabDetails").textContent=(s?.retargeting?.boneCount??Object.keys(mapped).length)+" mapped bones"+(missing.length?" • Missing: "+missing.join(", "):" • All configured logical bones are mapped");
+  $("rigTabState").textContent="Select a real GLB bone for each logical joint, then Apply Manual Mapping.";
+ }catch(e){$("rigTabStatus").textContent="Rig unavailable";$("rigTabDetails").textContent=e.message;$("rigTabState").textContent=e.message}
+}
 async function refreshMotionEditor(){try{const r=await controllerCommand({action:"listMotions"});const list=r?.motions||[];const sel=$("motionEditorList");if(sel)sel.innerHTML=list.map(m=>'<option value="'+String(m.id).replace(/"/g,"&quot;")+'">'+String(m.id)+'</option>').join("");$("motionEditorState").textContent=list.length+" custom motions available";}catch(e){$("motionEditorState").textContent=e.message}}
 $("motionEditorSave")?.addEventListener("click",async()=>{try{const id=$("motionEditorId").value.trim();if(!id)throw new Error("Motion ID is required");const keyframes=JSON.parse($("motionEditorKeyframes").value||"[]");const motion={id,duration:Number($("motionEditorDuration").value)||1,layer:$("motionEditorLayer").value,loop:$("motionEditorLoop").value==="true",keyframes};const r=await controllerCommand({action:"defineMotion",motion});$("motionEditorState").textContent=r?.ok?"Motion saved":"Motion save failed";await refreshMotionEditor();}catch(e){$("motionEditorState").textContent="Invalid motion: "+e.message}});
 $("motionEditorDelete")?.addEventListener("click",async()=>{const id=$("motionEditorId").value.trim()||$("motionEditorList").value;if(!id)return;await controllerCommand({action:"deleteMotion",id});$("motionEditorState").textContent="Motion deleted";await refreshMotionEditor()});
