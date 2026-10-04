@@ -377,17 +377,6 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
-      - name: Final packaged E2E result gate
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $result=Get-Content "dist\\ci-e2e-report.json" -Raw|ConvertFrom-Json
-          if(-not $result.pass){
-            Write-Host "PACKAGED_EXE_E2E=FAIL (detailed report was preserved and uploaded)"
-            throw "Packaged EXE E2E validation failed. Review dist/ci-e2e-report.json and ci-e2e-process-report.json."
-          }
-          Write-Host "PACKAGED_EXE_E2E=PASS"
-
       - name: Verify detailed CI reports
         shell: powershell
         run: |
@@ -413,6 +402,17 @@ jobs:
             dist/icons/*
             dist/addons/*.zip
 
+
+      - name: Final packaged E2E result gate
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $result=Get-Content "dist\\ci-e2e-report.json" -Raw|ConvertFrom-Json
+          if(-not $result.pass){
+            Write-Host "PACKAGED_EXE_E2E=FAIL (detailed report was preserved and uploaded)"
+            throw "Packaged EXE E2E validation failed. Review dist/ci-e2e-report.json and ci-e2e-process-report.json."
+          }
+          Write-Host "PACKAGED_EXE_E2E=PASS"
 
       - name: Publish official release
         if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_release == true || github.ref == 'refs/heads/main'
