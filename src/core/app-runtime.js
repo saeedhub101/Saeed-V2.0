@@ -36,21 +36,20 @@ function configureMediaPermissions(){
 
 
 let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,threeDStatusWin;
-let addonService,learning,learningRecorder,apiHealth,voiceRuntime,resourceService,autoUpdater;
+let addonService,learning,learningRecorder,apiHealth,resourceService,autoUpdater;
 let chatHost=null,voiceHost=null,brainHost=null,screenCapture=null,windowManager=null,updateManager=null,characterHost,ciE2E=null;
 
 const getAddonService=()=>addonService||(addonService=require("./services/addon-service"));
 const getLearning=()=>learning||(learning=require("../learning"));
 const getLearningRecorder=()=>learningRecorder||(learningRecorder=require("../learning/windows-recorder"));
 const getApiHealth=()=>apiHealth||(apiHealth=require("./services/api-health").createApiHealth({getAgent:()=>agent}));
-const getVoiceRuntime=()=>voiceRuntime||(voiceRuntime=require("./voice/voice-runtime").createVoiceRuntime({getAgent:()=>agent,diagnostic,voiceBroadcast}));
 const getResourceService=()=>resourceService||(resourceService=require("./services/resource-service").createResourceService({app,BrowserWindow,process}));
 const getAutoUpdater=()=>autoUpdater||(autoUpdater=require("electron-updater").autoUpdater);
 const getChatWindow=()=>chatHost?.getChatWindow?.();
 const ensureChatHost=()=>chatHost||(chatHost=load("chatHost","./application/chat-host").createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain,onClose:releaseBrainIfIdle}));
 const getCurrentMicMode=()=>voiceHost?.getCurrentMicMode?.()||"off";
 const getVoiceMuted=()=>voiceHost?.getVoiceMuted?.()||false;
-const ensureVoiceHost=()=>voiceHost||(voiceHost=load("voiceHost","./voice/voice-host").createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,getAddonService,ensureBrain,releaseBrainIfIdle,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>ensureChatHost().showChat(),getCharacterWindow:()=>characterWin,getChatWindow,getStatusWindow:()=>statusWin,diagnosticState}));
+const ensureVoiceHost=()=>voiceHost||(voiceHost=load("voiceHost","./voice/voice-host").createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getAddonService,ensureBrain,releaseBrainIfIdle,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>ensureChatHost().showChat(),getCharacterWindow:()=>characterWin,getChatWindow,getStatusWindow:()=>statusWin,diagnosticState}));
 const setMicMode=mode=>ensureVoiceHost().setMicMode(mode);
 const setVoiceMuted=muted=>ensureVoiceHost().setVoiceMuted(muted);
 const ensureScreenCapture=()=>screenCapture||(screenCapture=load("screenCapture","./application/screen-capture").createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic}));
@@ -137,16 +136,16 @@ load("chatIpc","./ipc/chat-ipc").registerChatIpc({ipcMain,ensureBrain,getBrainHo
 load("learningIpc","./ipc/learning-ipc").registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensureBrain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations,showLearning:()=>showLearning});
 load("addonsIpc","./ipc/addons-ipc").registerAddonsIpc({ipcMain,app,getAddonService});
 load("characterIpc","./ipc/character-ipc").registerCharacterIpc({ipcMain,getCharacterWindow:()=>characterWin,chooseCharacter,command:(payload)=>characterHost.command(payload),captureCharacter3DWindowSettings,writeCharacter3DSettings});
-load("settingsIpc","./ipc/settings-ipc").registerSettingsIpc({ipcMain,ensureBrain,getAgent:()=>agent,getVoiceRuntime,setMicMode,setSaeedSize,getCharacterWindow:()=>characterWin,diagnostic});
-load("voiceIpc","./ipc/voice-ipc").registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime,diagnostic,app,getVoiceHost:ensureVoiceHost,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin});
+load("settingsIpc","./ipc/settings-ipc").registerSettingsIpc({ipcMain,ensureBrain,getAgent:()=>agent,getVoiceRuntime:()=>ensureVoiceHost().getVoiceRuntime(),setMicMode,setSaeedSize,getCharacterWindow:()=>characterWin,diagnostic});
+load("voiceIpc","./ipc/voice-ipc").registerVoiceIpc({ipcMain,getAgent:()=>agent,getVoiceRuntime:()=>ensureVoiceHost().getVoiceRuntime(),diagnostic,app,getVoiceHost:ensureVoiceHost,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin});
 load("updateIpc","./ipc/update-ipc").registerUpdateIpc({ipcMain,getUpdateManager:ensureUpdateManager});
 load("historyIpc","./ipc/history-ipc").registerHistoryIpc({ipcMain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations});
 
 
 app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>diagnostic("ERROR","APPLICATION ACTIVATE",e.message))});
 app.on("window-all-closed",()=>{if(app.isQuitting)return;diagnostic("INFO","WINDOW LIFECYCLE","All windows closed; Saeed remains alive in the tray")});
-app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQuitting=true;try{voiceRuntime?.stop?.()}catch{};try{learningRecorder?.stop?.()}catch{};for(const win of [getChatWindow(),performanceWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin])try{if(win&&!win.isDestroyed())win.destroy()}catch{};try{if(tray){tray.destroy();tray=null}}catch{}});
-app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceRuntime?.stop?.()}catch{}});
+app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQuitting=true;try{voiceHost?.stopVoiceServices?.("app quit")}catch{};try{learningRecorder?.stop?.()}catch{};for(const win of [getChatWindow(),performanceWin,addonsWin,learningWin,statusWin,threeDStatusWin,characterWin])try{if(win&&!win.isDestroyed())win.destroy()}catch{};try{if(tray){tray.destroy();tray=null}}catch{}});
+app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceHost?.stopVoiceServices?.("app quit")}catch{}});
 
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");if(a.includes("--ci-e2e"))return initCiE2E().run().then(r=>{console.log("SAEED_CI_E2E",JSON.stringify({pass:r.pass,checks:Object.fromEntries(Object.entries(r.checks||{}).map(([k,v])=>[k,v?.pass]))}));return app.quit()});return showCharacter()}
 async function createWindow(){await createCharacterWindow();if(ciSmoke)scheduleCiRuntimeSmoke()}
