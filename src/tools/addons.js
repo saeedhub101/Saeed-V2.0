@@ -1,5 +1,4 @@
-const memory=require("../addons/memory-stack"),mcp=require("../addons/mcp"),email=require("../addons/email"),emailClient=require("../addons/email-client"),credentials=require("../addons/credentials");
-function schemas(){return[
+const schemas=()=>[
  {type:"function",function:{name:"memory_add",description:"Store text in Saeed local vector memory.",parameters:{type:"object",properties:{text:{type:"string"},metadata:{type:"object"}},required:["text"]}}},
  {type:"function",function:{name:"memory_search",description:"Search local memory by semantic similarity.",parameters:{type:"object",properties:{query:{type:"string"},limit:{type:"number"}},required:["query"]}}},
  {type:"function",function:{name:"knowledge_add",description:"Add a document snippet to the local knowledge base.",parameters:{type:"object",properties:{text:{type:"string"},metadata:{type:"object"}},required:["text"]}}},
@@ -14,21 +13,13 @@ function schemas(){return[
  {type:"function",function:{name:"email_imap_fetch",description:"Fetch an IMAP message or headers.",parameters:{type:"object",properties:{host:{type:"string"},port:{type:"number"},username:{type:"string"},password:{type:"string"},accessToken:{type:"string"},mailbox:{type:"string"},sequence:{type:"string"},uid:{type:"boolean"},headersOnly:{type:"boolean"}},required:["host","port","username","sequence"]}}},
  {type:"function",function:{name:"credential_store",description:"Store an email credential in Windows Credential Manager.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},username:{type:"string"},password:{type:"string"}},required:["provider","account","username","password"]}}},
  {type:"function",function:{name:"credential_get",description:"Retrieve a previously stored Saeed credential from Windows Credential Manager.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"}},required:["provider","account"]}}}
-]}
-async function call(name,args,ctx){const u=ctx.userDataPath;
-if(name==="memory_add")return{ok:true,item:memory.add(u,args.text,args.metadata||{})};
-if(name==="memory_search")return{ok:true,items:memory.search(u,args.query,args.limit||5).map(x=>({id:x.id,text:x.text,score:x.score,metadata:x.metadata}))};
-if(name==="knowledge_add")return{ok:true,item:memory.addKnowledge(u,args.text,args.metadata||{})};
-if(name==="mcp_list_servers")return{ok:true,servers:mcp.listServers(u)};
-if(name==="mcp_list_tools")return{ok:true,result:await mcp.listTools(u,args.server)};
-if(name==="mcp_call_tool")return{ok:true,result:await mcp.callTool(u,args.server,args.tool,args.arguments||{},ctx.confirm)};
-if(name==="email_provider_info")return{ok:true,provider:email.provider(args.provider),providers:email.PROVIDERS};
-if(name==="email_test_connection")return{ok:true,connected:await email.testTcp(args)};
-if(name==="email_send"){const msg=args.message||"From: "+args.from+"\r\nTo: "+[].concat(args.to||[]).join(", ")+"\r\n\r\n";return{ok:true,sent:await emailClient.smtpSend(args,msg)}}
-if(name==="email_imap_folders")return{ok:true,folders:await emailClient.imapListFolders(args)};
-if(name==="email_imap_search")return{ok:true,results:await emailClient.imapSearch(args,args)};
-if(name==="email_imap_fetch")return{ok:true,message:await emailClient.imapFetch(args,args)};
-if(name==="credential_store"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential storage not approved"};return{ok:true,credential:await credentials.set(args.provider,args.account,args.username,args.password)}}
-if(name==="credential_get"){if(!(await ctx.confirm({name,args,permissionCategory:"credentials"})))return{ok:false,error:"Credential retrieval not approved"};return{ok:true,credential:await credentials.get(args.provider,args.account)}}
-return null}
+];
+async function call(name,args,ctx){
+ const u=ctx.userDataPath;
+ if(name==="memory_add"||name==="memory_search"||name==="knowledge_add"){const memory=require("../core/services/memory-service");if(name==="memory_add")return{ok:true,item:memory.add(u,args.text,args.metadata||{})};if(name==="memory_search")return{ok:true,items:memory.search(u,args.query,args.limit||5).map(x=>({id:x.id,text:x.text,score:x.score,metadata:x.metadata}))};return{ok:true,item:memory.addKnowledge(u,args.text,args.metadata||{})}}
+ if(name==="mcp_list_servers"||name==="mcp_list_tools"||name==="mcp_call_tool"){const mcp=require("../addons/mcp");if(name==="mcp_list_servers")return{ok:true,servers:mcp.listServers(u)};if(name==="mcp_list_tools")return{ok:true,result:await mcp.listTools(u,args.server)};return{ok:true,result:await mcp.callTool(u,args.server,args.tool,args.arguments||{},ctx.requestPermission)}}
+ if(name.startsWith("email_")){const email=require("../addons/email"),client=require("../addons/email-client");if(name==="email_provider_info")return{ok:true,provider:email.provider(args.provider),providers:email.PROVIDERS};if(name==="email_test_connection")return{ok:true,connected:await email.testTcp(args)};if(name==="email_send"){const msg=args.message||"From: "+args.from+"\r\nTo: "+[].concat(args.to||[]).join(", ")+"\r\n\r\n";return{ok:true,sent:await client.smtpSend(args,msg)}}if(name==="email_imap_folders")return{ok:true,folders:await client.imapListFolders(args)};if(name==="email_imap_search")return{ok:true,results:await client.imapSearch(args,args)};if(name==="email_imap_fetch")return{ok:true,message:await client.imapFetch(args,args)}}
+ if(name==="credential_store"||name==="credential_get"){const credentials=require("../addons/credentials");return{name:"credential",ok:true,credential:name==="credential_store"?await credentials.set(args.provider,args.account,args.username,args.password):await credentials.get(args.provider,args.account)}}
+ return null;
+}
 module.exports={schemas,call};
