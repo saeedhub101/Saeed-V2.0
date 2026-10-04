@@ -12,7 +12,18 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}
  }
- async function showSettings(){return showPerformance()}
+ async function showSettings(){
+  try{
+   let win=getWindow("settingsWin");
+   if(win&&!win.isDestroyed()){win.show();win.focus();return}
+   win=new BrowserWindow({width:1060,height:760,minWidth:820,minHeight:600,title:"Saeed Settings",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
+   win.setIcon(iconPath());
+   win.on("closed",()=>setWindow("settingsWin",null));
+   setWindow("settingsWin",win);
+   await win.loadFile(path.join(rootPath,"settings.html"));
+   win.show();win.focus();
+  }catch(e){diagnostic("ERROR","SETTINGS WINDOW",e.message)}
+}
  async function showLearning(){
   try{
    let win=getWindow("learningWin");
