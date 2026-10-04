@@ -138,7 +138,7 @@ load("learningIpc","./ipc/learning-ipc").registerLearningIpc({ipcMain,app,getLea
 load("addonsIpc","./ipc/addons-ipc").registerAddonsIpc({ipcMain,app,getAddonService});
 load("characterIpc","./ipc/character-ipc").registerCharacterIpc({ipcMain,getCharacterWindow:()=>characterWin,chooseCharacter,command:(payload)=>characterHost.command(payload),captureCharacter3DWindowSettings,writeCharacter3DSettings});
 load("settingsIpc","./ipc/settings-ipc").registerSettingsIpc({ipcMain,ensureBrain,getAgent:()=>agent,getVoiceRuntime,setMicMode,setSaeedSize,getCharacterWindow:()=>characterWin,diagnostic});
-load("updateIpc","./ipc/update-ipc").registerUpdateIpc({ipcMain,updateManager:ensureUpdateManager()});
+load("updateIpc","./ipc/update-ipc").registerUpdateIpc({ipcMain,getUpdateManager:ensureUpdateManager});
 load("historyIpc","./ipc/history-ipc").registerHistoryIpc({ipcMain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations});
 
 
