@@ -8,14 +8,14 @@ import { MotionEditor } from "./MotionEditor.js";
 import { CharacterProfileStore } from "./CharacterProfileStore.js";
 export class CharacterController{
  constructor(avatar){
-  this.avatar=avatar;this.animation=new AnimationController(avatar);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.last=performance.now();this.characterId=null;registerCoreMotions(this.animation);
+  this.avatar=avatar;this.animation=new AnimationController(avatar);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.last=performance.now();this.characterId=null;this.mood="cheerful";registerCoreMotions(this.animation);
  }
  bindCurrentCharacter(){
   const bones=this.avatar?.getBoneMap?.()||this.avatar?.getBones?.()||{};const names=this.avatar?.getAvailableBoneNames?.()||Object.values(bones).map(b=>b?.name).filter(Boolean);
-  const auto=autoMapBones(names);if(Object.keys(auto.mapping).length)this.avatar?.setCharacterRigMap?.(auto.mapping);
+  const auto=autoMapBones(names);if(Object.keys(auto.mapping).length)this.avatar?.bindRig?.(auto.mapping);
   const mapped=this.avatar?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);
   this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");
-  const profile=this.profiles.load(this.characterId);if(profile){if(profile.mapping)this.avatar?.setCharacterRigMap?.(profile.mapping);if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
+  const profile=this.profiles.load(this.characterId);if(profile){if(profile.mapping)this.avatar?.bindRig?.(profile.mapping);if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
   else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose});
   return {rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId};
  }
@@ -23,7 +23,7 @@ export class CharacterController{
  stop(id){return this.animation.stop(id);}stopAll(){return this.animation.stopAll();}
  setPose(pose={}){return this.animation.setPose(pose);}
  setIdlePose(pose={}){const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out;}
- remap(mapping={}){const ok=this.avatar?.setCharacterRigMap?.(mapping);if(ok){this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{mapping});}return Boolean(ok);}
+ remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(ok){this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{mapping});}return Boolean(ok);}
  resetPose(){this.avatar?.resetCharacterPose?.();this.animation.pose.clear();this.avatar?.wakeRender?.(250);return true;}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit);}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out;}
