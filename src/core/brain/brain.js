@@ -49,6 +49,7 @@ class Brain{
    if(route.mode==="local")return{handled:true,answer:"I can handle common Windows computer tasks offline, but this request needs the API brain.",source:"local-fallback"};
   }
 
+  if(settings.apiServices?.brain===false)return{handled:true,answer:"API Brain is disabled in Performance settings. Enable API Brain or switch Agent to Local only.",source:"api-disabled"};
   const answer=await this.api.run({
    text:s,image,settings,history,registry:this.registry,onEvent:this.onEvent,dir:this.getDir(),
    memoryContext:this.memoryContext,saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,
