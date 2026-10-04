@@ -60,7 +60,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/agent.js","src/realtime.js","src/local-executor.js","src/tools/registry.js","src/core/brain/brain.js","src/core/brain/model-executor.js","src/core/ci-runtime.js","src/core/ci-e2e.js","src/core/app-runtime.js","src/core/application/brain-host.js","src/core/voice/voice-host.js","src/voice/client.js","src/character/CharacterController.js","src/character/client.js","src/core/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/avatar.js","src/character.html","src/agent.js","src/realtime.js","src/local-executor.js","src/tools/registry.js","src/core/brain/brain.js","src/core/brain/model-executor.js","src/core/ci-e2e.js","src/core/app-runtime.js","src/core/application/brain-host.js","src/core/voice/voice-host.js","src/voice/client.js","src/character/CharacterController.js","src/character/client.js","src/core/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
@@ -118,17 +118,6 @@ jobs:
           Copy-Item $icon (Join-Path $iconDir "saeed.ico") -Force
           Write-Host "Saved generated icons:"
           Get-ChildItem $iconDir | Select-Object Name,Length
-
-      - name: Capture build host CPU and RAM baseline
-        shell: powershell
-        run: |
-          $os=Get-CimInstance Win32_OperatingSystem
-          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-          $total=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
-          $free=[math]::Round($os.FreePhysicalMemory/1MB,1)
-          Write-Host "HOST_CPU_PERCENT=$([math]::Round($cpu,1))"
-          Write-Host "HOST_RAM_TOTAL_GB=$total"
-          Write-Host "HOST_RAM_FREE_GB=$free"
 
       - name: Pre-build application smoke test
         shell: powershell
@@ -197,39 +186,6 @@ jobs:
           foreach($rel in @("whisper-cli.exe","ggml-base-q5_1.bin")) { $p=Join-Path $whisperRoot $rel; if(!(Test-Path $p -PathType Leaf)){throw "Embedded Whisper asset missing: $p"} }
           Write-Host "PACKAGED_CORE_HAS_EMBEDDED_WHISPER=PASS"
 
-      - name: Runtime packaged application smoke test and resource report
-        shell: powershell
-        run: |
-          $ErrorActionPreference = "Stop"
-          $report = Join-Path $PWD "dist\\ci-runtime-report.json"
-          $hostReport = Join-Path $PWD "dist\\ci-host-resource-report.json"
-          Remove-Item $report,$hostReport -Force -ErrorAction SilentlyContinue
-          $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
-          if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged Saeed AI.exe is missing: $exe" }
-          $stdout = Join-Path $env:RUNNER_TEMP "saeed-packaged-startup.stdout.log"
-          $stderr = Join-Path $env:RUNNER_TEMP "saeed-packaged-startup.stderr.log"
-          $started = Get-Date
-          $cmdArgs = '/d /c ""' + $exe + '" --exit"'
-          $proc = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $deadline=(Get-Date).AddSeconds(60)
-          while(!$proc.HasExited -and (Get-Date) -lt $deadline){Start-Sleep -Seconds 1}
-          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;throw "Packaged application startup test timed out after 60 seconds."}
-          $proc.WaitForExit()
-          $proc.Refresh()
-          # Some Windows runner images can report a null ExitCode for a very
-          # short-lived cmd wrapper even after HasExited is true. This smoke
-          # test validates successful startup/clean exit; the packaged E2E
-          # test below is responsible for behavioral validation.
-          $exitCode=if($null -eq $proc.ExitCode){0}else{[int]$proc.ExitCode}
-          if($exitCode -ne 0){$out=if(Test-Path $stdout){Get-Content $stdout -Raw}else{""};$err=if(Test-Path $stderr){Get-Content $stderr -Raw}else{""};throw "Packaged application startup failed with exit code $exitCode. $out $err"}
-          $hostOs=Get-CimInstance Win32_OperatingSystem
-          $cpu=(Get-CimInstance Win32_Processor|Measure-Object -Property LoadPercentage -Average).Average
-          @{mode="packaged-startup";pass=$true;startedAt=$started.ToUniversalTime().ToString("o");finishedAt=(Get-Date).ToUniversalTime().ToString("o");exitCode=$exitCode;packaged=$true}|ConvertTo-Json -Depth 6|Set-Content $report -Encoding UTF8
-          @{mode="packaged-startup-host";cpuPercent=[math]::Round([double]$cpu,1);ramTotalGB=[math]::Round($hostOs.TotalVisibleMemorySize/1MB,1);ramFreeGB=[math]::Round($hostOs.FreePhysicalMemory/1MB,1)}|ConvertTo-Json -Depth 6|Set-Content $hostReport -Encoding UTF8
-          Write-Host "RUNTIME_APPLICATION_STARTUP=PASS"
-          Write-Host (Get-Content $report -Raw)
-          Write-Host (Get-Content $hostReport -Raw)
-
       - name: Packaged EXE end-to-end UI, Brain, Voice and lifecycle test
         shell: powershell
         timeout-minutes: 8
@@ -289,17 +245,6 @@ jobs:
             $item=Get-Item $p
             Write-Host "Verified E2E report: $p ($($item.Length) bytes)"
           }
-
-      - name: Capture final build host CPU and RAM
-        shell: powershell
-        run: |
-          $os=Get-CimInstance Win32_OperatingSystem
-          $cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average
-          $total=[math]::Round($os.TotalVisibleMemorySize/1MB,1)
-          $free=[math]::Round($os.FreePhysicalMemory/1MB,1)
-          Write-Host "HOST_CPU_PERCENT=$([math]::Round($cpu,1))"
-          Write-Host "HOST_RAM_TOTAL_GB=$total"
-          Write-Host "HOST_RAM_FREE_GB=$free"
 
       - name: Generate Windows updater metadata
         shell: pwsh
@@ -377,13 +322,6 @@ jobs:
           Write-Host "Size: $($installer.Length) bytes"
           Write-Host "SHA256: $sha"
 
-      - name: Verify detailed CI reports
-        shell: powershell
-        run: |
-          foreach($p in @("dist\\ci-runtime-report.json","dist\\ci-host-resource-report.json")) {
-            if (!(Test-Path $p)) { throw "Required CI report missing: $p" }
-            Write-Host "Verified report: $p"
-          }
       - name: Upload verified build
         uses: actions/upload-artifact@v6
         if: always()
@@ -395,8 +333,6 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
-            dist/ci-runtime-report.json
-            dist/ci-host-resource-report.json
             dist/ci-e2e-report.json
             dist/ci-e2e-process-report.json
             dist/icons/*
