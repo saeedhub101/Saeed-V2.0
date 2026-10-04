@@ -1,1 +1,0 @@
-let mode="off",active=false;function setMode(v){mode=String(v)==="on"?"on":"off";active=mode==="on";return{mode,active}}module.exports={get mode(){return mode},get active(){return active},setMode};
