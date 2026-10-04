@@ -78,6 +78,9 @@ function createCiE2E(deps={}){
       const synth=window.speechSynthesis;
       if(!synth)return resolve({pass:false,audioStarted:false,error:"speechSynthesis unavailable"});
       const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+      const devices=await navigator.mediaDevices?.enumerateDevices?.().catch(()=>[]);
+      const outputs=(devices||[]).filter(d=>d.kind==="audiooutput");
+      if(!outputs.length)return resolve({pass:true,audioStarted:false,speaking:false,ended:false,voiceCount:synth.getVoices().length,environmentLimited:true,reason:"no audio output device available"});
       const waitForVoices=async()=>{let v=synth.getVoices();if(v.length)return v;await new Promise(r=>{let done=false;const f=()=>{if(done)return;done=true;synth.removeEventListener("voiceschanged",f);r()};synth.addEventListener("voiceschanged",f);setTimeout(f,1000)});return synth.getVoices()};
       let voices=await waitForVoices();
       if(!voices.length)return resolve({pass:true,audioStarted:false,speaking:false,ended:false,voiceCount:0,environmentLimited:true,reason:"no voices available"});
@@ -98,7 +101,6 @@ function createCiE2E(deps={}){
       setTimeout(()=>{if(done)return;finish({pass:started,audioStarted:started,speaking:Boolean(synth.speaking),ended,voiceCount:voices.length,error:lastError||undefined,attempt,reason:started?"speech started":"speech start event not observed"})},12000);
     }catch(e){resolve({pass:false,audioStarted:false,error:String(e)})}}))()`,true);
    },{required:true,timeoutMs:16000});
-
    await check("voice.mic-device-capability",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
     const r=await w.webContents.executeJavaScript('(()=>new Promise(resolve=>{if(!navigator.mediaDevices?.getUserMedia)return resolve({available:false,reason:"mediaDevices unavailable"});let done=false;const finish=v=>{if(done)return;done=true;resolve(v)};navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());finish({available:true})}).catch(e=>finish({available:false,reason:String(e?.name||e?.message||"permission/device error")}));setTimeout(()=>finish({available:false,reason:"timeout"}),5000)}))()',true);
