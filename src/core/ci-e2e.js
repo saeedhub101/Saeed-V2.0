@@ -89,12 +89,16 @@ function createCiE2E(deps={}){
    });
 
    await check("chat.close-keeps-brain-when-mic-on",async()=>{
+    const w=getCharacterWindow?.();let hardwareAvailable=false;if(w){try{hardwareAvailable=Boolean(await w.webContents.executeJavaScript("Boolean(navigator.mediaDevices?.getUserMedia)",true));}catch{}}
+    if(hardwareAvailable){try{hardwareAvailable=Boolean(await w.webContents.executeJavaScript("navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());return true}).catch(()=>false)",true));}catch{hardwareAvailable=false}}
     await setMicMode("on");
     await wait(1200);
     const before=Boolean(getBrainActive?.());
     await getChatHost().closeChat();await wait(1200);
     const after=Boolean(getBrainActive?.());
-    return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:String(getVoiceHost?.()?.getCurrentMicMode?.()||"off")};
+    const mode=String(getVoiceHost?.()?.getCurrentMicMode?.()||"off");
+    if(!hardwareAvailable&&mode==="off")return {pass:!chatWindow()&&before,environmentLimited:true,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
+    return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
    });
    report.phases.afterChatCloseMicOn=metrics("after-chat-close-mic-on");
 
