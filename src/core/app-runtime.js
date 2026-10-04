@@ -22,6 +22,9 @@ const {registerVoiceIpc}=require("./ipc/voice-ipc");
 const {createWindowManager}=require("./application/window-manager");
 const {createCharacterStore}=require("./character/character-store");
 const {createCharacterHost}=require("./character/character-host");
+const {createPermissionManager}=require("./application/permission-manager");
+const {createScreenCapture}=require("./application/screen-capture");
+const {createUpdateManager}=require("./application/update-manager");
 const {registerChatIpc}=require("./ipc/chat-ipc");
 const {registerLearningIpc}=require("./ipc/learning-ipc");
 const {registerAddonsIpc}=require("./ipc/addons-ipc");
@@ -51,28 +54,34 @@ let chatWin,characterWin,performanceWin,settingsWin,addonsWin,learningWin,agent,
 const runtimeDeps=createRuntimeDependencies({app,BrowserWindow,process,getAgent:()=>agent,diagnostic:(...a)=>diagnostic(...a),voiceBroadcast:(...a)=>voiceBroadcast(...a)});
 const getAddonService=()=>runtimeDeps.getAddonService(),getLearning=()=>runtimeDeps.getLearning(),getLearningRecorder=()=>runtimeDeps.getLearningRecorder(),getApiHealth=()=>runtimeDeps.getApiHealth(),getVoiceRuntime=()=>runtimeDeps.getVoiceRuntime(),getResourceService=()=>runtimeDeps.getResourceService(),getAutoUpdater=()=>runtimeDeps.getAutoUpdater();
 const pendingConfirmations=new Map();
+const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>chatHost?.showChat?.(),getChatWindow:()=>chatWin,diagnostic:(...a)=>diagnostic(...a)});
+const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
 const diagnostics=createDiagnostics({getWindows:()=>({chatWin,characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
 const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
-const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(),showChat:()=>showChat(),getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getStatusWindow:()=>statusWin,diagnosticState});
+const voiceHost=createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getVoiceRuntime,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>chatHost?.showChat?.(),getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getStatusWindow:()=>statusWin,diagnosticState});
 const {whisperRuntimePaths,setMicMode,setVoiceMuted}=voiceHost;
-const systemControls=createSystemControls({app,diagnostic,voiceBroadcast,getAutoUpdater,showUpdateToast,showUpdateStatus,hideUpdateToast,publishUpdate,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),windowsIconPath,Menu,characterSizeMenu:()=>characterHost.characterSizeMenu(),getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getStatusWindow:()=>statusWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),getAgent:()=>agent,screen,diagnosticState});
-const {updateNow,rebuildTray,contextMenu}=systemControls;
-const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,showChat:()=>showChat(),ensureBrain,getCharacterWindow:()=>characterWin});
+const systemControls=createSystemControls({app,diagnostic,voiceBroadcast,getAutoUpdater,showChat:()=>chatHost.showChat(),showCharacter:()=>characterHost.showCharacter(),hideCharacter:()=>characterHost.hideCharacter(),showAddons:()=>showAddons(),showLearning:()=>showLearning(),showPerformance:()=>showPerformance(),showStatus:()=>showStatus(),show3DStatus:()=>show3DStatus(),showSettings:()=>showSettings(),setSaeedSize:(v)=>characterHost.setSaeedSize(v),chooseCharacter:()=>characterHost.chooseCharacter(),Menu,getCharacterWindow:()=>characterWin,getVoiceMuted:()=>voiceHost.getVoiceMuted(),setVoiceMuted:(v)=>setVoiceMuted(v),setMicMode:(m)=>setMicMode(m),getCurrentMicMode:()=>voiceHost.getCurrentMicMode(),updateNow,getAgent:()=>agent});
+const {rebuildTray,contextMenu}=systemControls;
+const chatHost=createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain});
 const {createChatWindow,closeChat}=chatHost;
+const screenCapture=createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic});
+const captureScreen=screenCapture.captureScreen;
+const updateManager=createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic});
+const updateNow=()=>updateManager.check();
+
 registerVoiceIpc({ipcMain,agent,getVoiceRuntime,diagnostic,app,path,fs,spawn,permissionPolicy,confirmPermission,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin,voiceHost});
 const characterStore=createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>characterWin,fitCharacterToDisplay,diagnostic});
 const {persistedCharacterFile,character3DSettingsFile,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,persistSelectedCharacter,readPersistedCharacter}=characterStore;
-const characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>showChat(),permissionPolicy,confirmPermission});
+const characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>chatHost?.showChat?.(),permissionPolicy,confirmPermission});
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterHost;
 const windowManager=createWindowManager({BrowserWindow,path,getWindow:name=>({performanceWin,learningWin,addonsWin,statusWin}[name]),setWindow:(name,value)=>{if(name==="performanceWin")performanceWin=value;else if(name==="learningWin")learningWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="statusWin")statusWin=value},iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","preload.js"),rootPath:path.join(__dirname,"..")});
 const {showPerformance,showSettings,showLearning,showAddons}=windowManager;
-const brainHost=createBrainHost({app,getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getLearning:getLearning,permissionPolicy,showChat:()=>showChat(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize, setAgent:value=>{agent=value},setBrainSupervisor:value=>{brainSupervisor=value},setVoiceMuted:value=>{voiceMuted=value},recordLearningStep:step=>{if(learningRecording)getLearning().recordStep(learningRecording,step.tool,step.args)},confirmations:pendingConfirmations,characterSettingsExists:()=>fs.existsSync(character3DSettingsFile())});
+const brainHost=createBrainHost({app,getCharacterWindow:()=>characterWin,getChatWindow:()=>chatWin,getLearning:getLearning,permissionPolicy,showChat:()=>chatHost?.showChat?.(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize, setAgent:value=>{agent=value},setBrainSupervisor:value=>{brainSupervisor=value},setVoiceMuted:value=>setVoiceMuted(value),recordLearningStep:step=>{if(learningRecording)getLearning().recordStep(learningRecording,step.tool,step.args)},confirmations:pendingConfirmations,characterSettingsExists:()=>fs.existsSync(character3DSettingsFile())});
 const ensureBrain=brainHost.ensureBrain;
 function show3DStatus(){if(threeDStatusWin&&!threeDStatusWin.isDestroyed()){threeDStatusWin.show();threeDStatusWin.focus();request3DStatus().then(r=>threeDStatusWin?.webContents.send("3d:status",r));return}threeDStatusWin=new BrowserWindow({width:960,height:720,minWidth:760,minHeight:560,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});threeDStatusWin.on("closed",()=>{threeDStatusWin=null});threeDStatusWin.loadFile(path.join(__dirname,"..","3d-status.html")).then(async()=>{threeDStatusWin?.show();threeDStatusWin?.focus();const r=await request3DStatus();threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
 let pendingCharacterData=null;let learningRecorderActive=false;let learningRecording=null;
 const DEFAULT_PERMISSIONS={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};
 function permissionPolicy(category){const p=agent?.settings?.permissions||DEFAULT_PERMISSIONS;return p[category]||"allow"}
-const confirmations=pendingConfirmations;
 async function confirmPermission(category,request){
  const label={files:"file access",applications:"application control",system:"system access",network:"network access",screen:"screen capture",mouseKeyboard:"mouse and keyboard control",microphone:"microphone access",tasksMemory:"tasks and memory",credentials:"credentials and secrets",destructive:"destructive actions"}[category]||category;
  await showChat();
@@ -98,12 +107,7 @@ app.setAppUserModelId("ai.saeed.desktop");
 const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
-let updateState="idle",updateUiRequested=false,updateStatusWin=null,updateInfo=null;
 
-async function captureScreen(){
- const sources=await desktopCapturer.getSources({types:["screen"],thumbnailSize:{width:1920,height:1080}});
- return sources[0]?.thumbnail.toDataURL()||null;
-}
 function displayForWindow(target=characterWin){
  if(!target)return screen.getPrimaryDisplay();
  const [x,y]=target.getPosition();const [w,h]=target.getSize();
@@ -136,11 +140,10 @@ async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 app.on("before-quit",()=>{try{getLearningRecorder().stop()}catch{};learningRecorderActive=false;learningRecording=null});
 
 app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
- configureUpdater();
- try{await createWindow();currentMicMode="off";setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
+ try{await createWindow();setMicMode("off")}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-")))handleLaunchArgs(process.argv.slice(1));
- try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray()}catch(e){console.error("Tray failed:",e)}
+ try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
 
  globalShortcut.register("CommandOrControl+Shift+M",showChat);
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
@@ -152,7 +155,36 @@ app.whenReady().then(async()=>{app.isQuitting=false;ciWriteStartupReport("ready"
  screen.on("display-removed",()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())});
  screen.on("display-metrics-changed",refresh);
 });
-ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report);const resolve=pending3DQueries.get(String(requestId||""));if(resolve)resolve(report)});
-ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
+
+ipcMain.on("3d:status-report",(_,requestId,report)=>{publish3DStatus(report)});ipcMain.handle("3d:query",()=>request3DStatus());ipcMain.handle("3d-status:show",()=>{show3DStatus();return true});
 ipcMain.handle("settings:get",async()=>{await ensureBrain();return agent.publicSettings()});ipcMain.on("character:activity",()=>brainSupervisor?.markActivity?.());
-ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>getApiHealth().test(String(service||"")));ipcMain.handle("api-status:test-all",()=>getApiHealth().testAll());ipcMain.handle("resource:snapshot",()=>getResourceService().resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu;});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});;
+ipcMain.handle("diagnostic:report",(_,level,stage,message,meta)=>diagnostic(level,stage,message,meta));ipcMain.handle("diagnostic:snapshot",()=>({state:diagnosticState}));ipcMain.handle("api-status:test",(_,service)=>getApiHealth().test(String(service||"")));ipcMain.handle("api-status:test-all",()=>getApiHealth().testAll());ipcMain.handle("resource:snapshot",()=>getResourceService().resourceReport());ipcMain.handle("cpu:metrics",()=>{updateCpuMetrics();return diagnosticState.cpu});ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("settings:show",()=>{showPerformance();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});
+registerChatIpc({ipcMain,ensureBrain,getAgent:()=>agent,getBrainSupervisor:()=>brainSupervisor,getCharacterWindow:()=>characterWin});
+registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensureBrain,getAgent:()=>agent,getChatWindow:()=>chatWin,getConfirmations:()=>confirmations,showChat:()=>chatHost.showChat});
+registerAddonsIpc({ipcMain,app,getAddonService});
+registerCharacterIpc({ipcMain,getCharacterWindow:()=>characterWin,chooseCharacter,captureCharacter3DWindowSettings,writeCharacter3DSettings,screen});
+registerSettingsIpc({ipcMain,ensureBrain,getAgent:()=>agent,getVoiceRuntime,setMicMode,setSaeedSize,getCharacterWindow:()=>characterWin,getBrainSupervisor:()=>brainSupervisor,diagnostic});
+registerUpdateIpc({ipcMain,updateManager});
+registerHistoryIpc({ipcMain,getAgent:()=>agent,getChatWindow:()=>chatWin,getConfirmations:()=>confirmations});
+
+
+function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
+async function createWindow(){
+ await createCharacterWindow();
+ if(ciSmoke)scheduleCiRuntimeSmoke();
+}
+async function createCharacterWindow(){
+ characterWin=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});
+ characterWin.setIcon(windowsIconPath());
+ if(process.platform==="win32")characterWin.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
+ characterWin.on("closed",()=>{try{captureCharacter3DWindowSettings()}catch{};characterWin=null});
+ characterWin.on("close",()=>{if(!app.isQuitting())diagnostic("INFO","WINDOW","Saeed character window closed");});
+ characterWin.webContents.on("context-menu",()=>contextMenu());
+ await characterWin.loadFile(path.join(__dirname,"..","character.html"));
+ applyCharacter3DWindowSettings();
+ try{const saved=readPersistedCharacter();const bundled=path.join(__dirname,"..","..","assets","Saeed_Test-3D.glb");const source=saved||((fs.existsSync(bundled))?{data:new Uint8Array(fs.readFileSync(bundled)),path:bundled,size:fs.statSync(bundled).size}:null);if(source){pendingCharacterData={data:source.data,generation:++characterLoadGeneration};setTimeout(()=>{if(characterWin&&!characterWin.isDestroyed()&&pendingCharacterData)characterWin.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)},0);diagnostic("INFO",saved?"GLB RESTORE":"GLB DEFAULT",saved?"Previously selected character restored":"Bundled Saeed_Test-3D.glb loaded as the default character",{size:source.size,path:source.path})}else diagnostic("ERROR","GLB DEFAULT","No default or persisted Saeed GLB is available")}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}
+ if(!Number.isFinite(Number(readCharacter3DSettings().window.x))||!Number.isFinite(Number(readCharacter3DSettings().window.y)))fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});
+ characterWin.show();
+}
+
+;
