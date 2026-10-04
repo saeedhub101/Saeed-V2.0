@@ -1,5 +1,5 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
-const path=require("path"),fs=require("fs"),os=require("os"),{spawn}=require("child_process");
+const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
 if(ciSmoke){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
 function ciWriteStartupReport(kind,error){
@@ -105,9 +105,8 @@ function showStatus(){startCpuMonitoring();if(statusWin&&!statusWin.isDestroyed(
 
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
 
-const {createCiRuntime}=require("./ci-runtime");
 let ciRuntime;
-function initCiRuntime(){if(ciRuntime)return ciRuntime;ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>null,getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:getVoiceRuntime(),transcribeLocalWav:ensureVoiceHost().transcribeLocalWav,whisperRuntimePaths:ensureVoiceHost().whisperRuntimePaths,ensureBrain});return ciRuntime;}
+function initCiRuntime(){if(ciRuntime)return ciRuntime;const {createCiRuntime}=require("./ci-runtime");ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>null,getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:getVoiceRuntime(),transcribeLocalWav:ensureVoiceHost().transcribeLocalWav,whisperRuntimePaths:ensureVoiceHost().whisperRuntimePaths,ensureBrain});return ciRuntime;}
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
 async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
