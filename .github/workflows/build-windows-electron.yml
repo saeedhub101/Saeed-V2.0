@@ -385,6 +385,8 @@ jobs:
             dist/latest.yml
             dist/ci-runtime-report.json
             dist/ci-host-resource-report.json
+            dist/ci-e2e-report.json
+            dist/ci-e2e-process-report.json
             dist/icons/*
             dist/addons/*.zip
 
