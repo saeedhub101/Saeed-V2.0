@@ -71,6 +71,7 @@ export class CharacterController{
  setPose(pose={}){const out=this.animation.setPose(pose);this.startFrameLoop();return out;}
  setIdlePose(pose={}){const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out;}
  remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(ok){this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{mapping});}return Boolean(ok);}
+ autoMap(){const names=this.avatar?.getAvailableBoneNames?.()||[];const auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.avatar?.bindRig?.(auto.mapping);if(ok){this.retargeter.bind(this.avatar?.getBoneMap?.()||{});this.animation.bindRig(this.avatar?.getBoneMap?.()||{},this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence});}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence};}
  resetPose(){this.avatar?.resetCharacterPose?.();this.animation.pose.clear();this.avatar?.wakeRender?.(250);return true;}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit);}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out;}
@@ -166,7 +167,7 @@ window.addEventListener("load",()=>{
  window.saeedCharacterController.api={
   play:(id,o)=>window.saeedCharacterController.play(id,o),stop:id=>window.saeedCharacterController.stop(id),stopAll:()=>window.saeedCharacterController.stopAll(),
   setPose:p=>window.saeedCharacterController.setPose(p),setIdlePose:p=>window.saeedCharacterController.setIdlePose(p),resetPose:()=>window.saeedCharacterController.resetPose(),
-  remap:m=>window.saeedCharacterController.remap(m),setLimit:(s,l)=>window.saeedCharacterController.setLimit(s,l),
+  remap:m=>window.saeedCharacterController.remap(m),autoMap:()=>window.saeedCharacterController.autoMap(),setLimit:(s,l)=>window.saeedCharacterController.setLimit(s,l),
   semantic:(i,o)=>window.saeedCharacterController.semantic(i,o),defineMotion:d=>window.saeedCharacterController.defineMotion(d),deleteMotion:id=>window.saeedCharacterController.deleteMotion(id),
   listMotions:()=>window.saeedCharacterController.listMotions(),status:()=>window.saeedCharacterController.status(),register:def=>window.saeedCharacterController.animation.register(def),
   setMood:v=>window.saeedCharacterController.setMood(v),getMood:()=>window.saeedCharacterController.getMood(),moodPalette:()=>window.saeedCharacterController.moodPalette(),
