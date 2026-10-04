@@ -1,12 +1,12 @@
 const path=require("path"),{Computer}=require("../computer");
-const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./addons")];
+const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks")];
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy,recordHook,characterController}={}){
   this.computer=new Computer();this.memory=null;this.tasks=null;this.userDataPath=userDataPath||process.cwd();this.captureScreen=captureScreen||(()=>null);
   this.confirm=confirm||(async()=>false);this.permissionPolicy=permissionPolicy||(()=> "allow");this.recordHook=typeof recordHook==="function"?recordHook:null;this.characterController=typeof characterController==="function"?characterController:null;this.tasksFile=path.join(this.userDataPath,"tasks.json");
  }
  setRecordHook(fn){this.recordHook=typeof fn==="function"?fn:null}
- schemas(){return domains.filter(d=>d!==require("./addons")).flatMap(d=>d.schemas()).concat([{type:"function",function:{name:"character_motion",description:"Control Saeed's character semantically. Use gestures such as wave, nod, think, talk, celebrate, clap or jump; never provide bone angles.",parameters:{type:"object",properties:{intent:{type:"string"},duration:{type:"number"},intensity:{type:"number"}},required:["intent"]}}]).concat(require("./addons").schemas())}
+ schemas(){return domains.flatMap(d=>d.schemas()).concat([{type:"function",function:{name:"character_motion",description:"Control Saeed's character semantically. Use gestures such as wave, nod, think, talk, celebrate, clap or jump; never provide bone angles.",parameters:{type:"object",properties:{intent:{type:"string"},duration:{type:"number"},intensity:{type:"number"}},required:["intent"]}}]).concat(require("./addons").schemas())}
  categoryFor(name){
   if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info"].includes(name))return"system";
   if(["list_directory","read_file","write_file","open_file","reveal_file","inspect_document","extract_pdf_text","read_excel","calculate_excel","write_excel"].includes(name))return"files";
