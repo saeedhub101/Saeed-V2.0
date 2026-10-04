@@ -5,7 +5,7 @@ const controller=read("src/character/client.js"),avatar=read("src/avatar.js"),mo
 for(const token of ["window.saeedAnimationController","getRenderWakeMs","setVisible"])if(!controller.includes(token))throw new Error("Character client check failed: missing "+token);
 if(/\bsetInterval\b/.test(controller))throw new Error("Character client must not create a continuous animation timer.");
 for(const token of ['id:"idle"','id:"nod"','id:"shake"','id:"wave"','id:"think"','id:"jump"','id:"clap"','id:"dance"','id:"talkGesture"','sequence("lookCloser"','sequence("sitKnee"','sequence("standUp"','sequence("stretch"','sequence("yawn"','sequence("crackBack"','sequence("crackFingers"','sequence("turnBody"','sequence("walk"','sequence("sleep"','sequence("wake"','id:"adhanOpening"'])if(!motions.includes(token))throw new Error("Core motion registry check failed: missing "+token);
-for(const token of ["play(name,options)","hasAnimation(name)","getAnimations()","wakeRender"])if(!avatar.includes(token))throw new Error("Avatar animation API check failed: missing "+token);
+for(const token of ["getBoneMap","applyCharacterPose","getAvailableBoneNames","wakeRender"])if(!avatar.includes(token))throw new Error("Avatar animation API check failed: missing "+token);
 if(!sequence.includes("sampleSequence")||!sequence.includes("function sequence"))throw new Error("Motion sequence engine check failed");
 if(!animation.includes("fadeIn")||!animation.includes("fadeOut")||!animation.includes("weight")||!animation.includes("priority"))throw new Error("Weighted animation blending check failed");
 if(!prayer.includes("calendarByCity")||!prayer.includes("localStorage")||!prayer.includes("setTimeout"))throw new Error("Prayer scheduler/cache/audio hooks check failed");
