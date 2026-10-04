@@ -1,6 +1,7 @@
 const {contextBridge,ipcRenderer}=require("electron");
 contextBridge.exposeInMainWorld("saeed",{isCiE2E:process.argv.includes("--ci-e2e"),
  chat:(text,image=null)=>ipcRenderer.invoke("chat",{text,image}),
+ voiceChat:text=>ipcRenderer.invoke("voice:chat",String(text||"")),
  capture:()=>ipcRenderer.invoke("capture"),
  checkForUpdates:()=>ipcRenderer.invoke("update:check"),
  installUpdate:()=>ipcRenderer.invoke("update:install"),
