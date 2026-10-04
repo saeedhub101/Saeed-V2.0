@@ -50,7 +50,12 @@ class ModelExecutor{
     if(last?.role==="user"&&typeof last.content==="string"){last.content=[{type:"text",text:last.content},{type:"image",source:{type:"base64",media_type:match[1],data:match[2]}}]}
    }
   }
-  let stepBudget=baseStepLimit();
+  let stepBudget=ciE2E?Math.min(baseStepLimit(),4):baseStepLimit();
+  const runTool=async(name,args)=>{
+   if(!ciE2E)return registry.call(name,args);
+   try{return await Promise.race([registry.call(name,args),new Promise(resolve=>setTimeout(()=>resolve({ok:false,error:"CI E2E tool timeout"}),8000))])}
+   catch(e){return{ok:false,error:e.message}}
+  };
   for(let step=0;;step++){
    if(step>=stepBudget){
     if(ciE2E){
@@ -115,8 +120,8 @@ class ModelExecutor{
     const actionText=actionName==="open_url"?"Okay, I’ll open that.":actionName==="open_application"?"Okay, I’ll open it.":actionName==="web_search"?"Okay, I’ll look that up.":actionName==="screenshot"?"Okay, I’ll check the screen.":actionName==="read_file"||actionName==="inspect_document"||actionName==="extract_pdf_text"||actionName==="read_excel"?"Okay, I’ll check that.":"Okay, I’ll do that.";
     onEvent({type:"speech-status",text:actionText});
     onEvent({type:"tool",name:c.function.name,args:a});
-    let out;try{out=await registry.call(c.function.name,a)}catch(e){out={ok:false,error:e.message}}
-    if(out?.ok===false&&["web_search","fetch_web_page","network_info","read_file","inspect_document","extract_pdf_text","read_excel"].includes(c.function.name)){onEvent({type:"diagnostic",level:"INFO",stage:"TOOL RETRY",message:"Retrying safe read/network tool after failure",meta:{tool:c.function.name}});try{const retry=await registry.call(c.function.name,a);if(retry?.ok!==false)out=retry}catch{}}
+    let out=await runTool(c.function.name,a);
+    if(out?.ok===false&&["web_search","fetch_web_page","network_info","read_file","inspect_document","extract_pdf_text","read_excel"].includes(c.function.name)){onEvent({type:"diagnostic",level:"INFO",stage:"TOOL RETRY",message:"Retrying safe read/network tool after failure",meta:{tool:c.function.name}});try{const retry=await runTool(c.function.name,a);if(retry?.ok!==false)out=retry}catch{}}
     if(out?.ok===false)onEvent({type:"tool_error",name:c.function.name,error:out.error||"Tool failed"});
     else onEvent({type:"tool_result",name:c.function.name,result:out});
     if(isAnthropic){
