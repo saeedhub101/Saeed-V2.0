@@ -19,5 +19,6 @@ class Agent{
  chatMeta(chat){return{id:chat.id,title:chat.title||"New Chat",createdAt:chat.createdAt,updatedAt:chat.updatedAt,messageCount:Array.isArray(chat.messages)?chat.messages.length:0}}
  listConversations(){return this.conversations.map(x=>this.chatMeta(x))}getCurrentConversation(){const x=this.conversations.find(c=>c.id===this.currentConversationId);return x?this.chatMeta(x):null}getGlobalMemory(){return this.getMemoryService().listFacts(this.dir)}
  async run(text,image=null){const result=await this.brain.run({text,image,history:this.history});if(result?.event)this.onEvent(result.event);if(result?.handled){const answer=String(result.answer||"");this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:result.source});return answer}return String(result?.answer||"")}
+ async dispose(){try{await this.brain?.dispose?.()}catch{}try{await this.registry?.dispose?.()}catch{}this.brain=null;this.registry=null;this.memoryService=null;this.onEvent=()=>{};return true}
 }
 module.exports={Agent};
