@@ -34,6 +34,7 @@ export class CharacterController{
  bindCurrentCharacter(){
   const bones=this.avatar?.getBoneMap?.()||this.avatar?.getBones?.()||{};
   const names=this.avatar?.getAvailableBoneNames?.()||Object.values(bones).map(b=>b?.name).filter(Boolean);
+  if(!names.length)return {rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
   const auto=autoMapBones(names);
   const profileId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");
   const profile=this.profiles.load(profileId);
