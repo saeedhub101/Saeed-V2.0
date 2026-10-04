@@ -2,7 +2,6 @@ import {sequence} from "./MotionSequence.js";
 
 export function registerCoreMotions(controller){
   const r=controller.register.bind(controller);
-  r({id:"idle",loop:true,duration:0,layer:"body",update:({t})=>({spine:{z:Math.sin(t*1.4)*.012},chest:{z:Math.sin(t*1.4+.5)*.018},leftUpperArm:{z:Math.sin(t*1.1)*.025},rightUpperArm:{z:-Math.sin(t*1.1)*.025}})});
   r({id:"nod",duration:.65,layer:"head",update:({p})=>({head:{x:Math.sin(p*Math.PI*2)*.11}})});
   r({id:"shake",duration:.7,layer:"head",update:({p})=>({head:{y:Math.sin(p*Math.PI*4)*.16}})});
   r({id:"wave",duration:1.8,layer:"arms",update:({p})=>({rightUpperArm:{y:1.55,z:.18},rightForeArm:{z:-1.55+Math.sin(p*Math.PI*6)*.22}})});
