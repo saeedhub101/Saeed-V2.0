@@ -39,49 +39,13 @@ let characterWin,performanceWin,addonsWin,learningWin,agent,tray,statusWin,three
 let addonService,learning,learningRecorder,apiHealth,resourceService,autoUpdater;
 let chatHost=null,voiceHost=null,brainHost=null,screenCapture=null,windowManager=null,updateManager=null,characterHost,ciE2E=null;
 
-const getAddonService=()=>addonService||(addonService=require("./services/addon-service"));
-const getLearning=()=>learning||(learning=require("../learning"));
-const getLearningRecorder=()=>learningRecorder||(learningRecorder=require("../learning/windows-recorder"));
-const getApiHealth=()=>apiHealth||(apiHealth=require("./services/api-health").createApiHealth({getAgent:()=>agent}));
-const getResourceService=()=>resourceService||(resourceService=require("./services/resource-service").createResourceService({app,BrowserWindow,process}));
-const getAutoUpdater=()=>autoUpdater||(autoUpdater=require("electron-updater").autoUpdater);
-const getChatWindow=()=>chatHost?.getChatWindow?.();
-const ensureChatHost=()=>chatHost||(chatHost=load("chatHost","./application/chat-host").createChatHost({BrowserWindow,path,Menu,windowsIconPath,diagnostic,ensureBrain,onClose:releaseBrainIfIdle}));
-const getCurrentMicMode=()=>voiceHost?.getCurrentMicMode?.()||"off";
-const getVoiceMuted=()=>voiceHost?.getVoiceMuted?.()||false;
-const ensureVoiceHost=()=>voiceHost||(voiceHost=load("voiceHost","./voice/voice-host").createVoiceHost({app,path,fs,spawn,diagnostic,voiceBroadcast,getAgent:()=>agent,getAddonService,ensureBrain,releaseBrainIfIdle,permissionPolicy,confirmPermission,rebuildTray:()=>rebuildTray(tray),showChat:()=>ensureChatHost().showChat(),getCharacterWindow:()=>characterWin,getChatWindow,getStatusWindow:()=>statusWin,diagnosticState}));
-const setMicMode=mode=>ensureVoiceHost().setMicMode(mode);
-const setVoiceMuted=muted=>ensureVoiceHost().setVoiceMuted(muted);
-const ensureScreenCapture=()=>screenCapture||(screenCapture=load("screenCapture","./application/screen-capture").createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic}));
-const captureScreen=()=>ensureScreenCapture().captureScreen();
-const {createDiagnostics}=load("diagnostics","./application/diagnostics");
-const diagnostics=createDiagnostics({getWindows:()=>({chatWin:getChatWindow(),characterWin,statusWin,performanceWin,threeDStatusWin}),getResourceService});
-const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent}=diagnostics;
-const {createPermissionManager}=load("permissionManager","./application/permission-manager");
-const permissionManager=createPermissionManager({getAgent:()=>agent,showChat:()=>ensureChatHost().showChat(),getChatWindow,diagnostic:(...a)=>diagnostic(...a)});
-const {permissionPolicy,confirmPermission,confirmations}=permissionManager;
-const voiceBroadcast=(channel,...args)=>{for(const win of [getChatWindow(),characterWin,statusWin,threeDStatusWin])if(win&&!win.isDestroyed())try{win.webContents.send(channel,...args)}catch{}};
-const {createCharacterStore}=load("characterStore","./character/character-store");
-const characterStore=createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
-const {character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings}=characterStore;
-const {createCharacterHost}=load("characterHost","./character/character-host");
-characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>characterWin,setCharacterWindow:v=>{characterWin=v},getAgent:()=>agent,characterStore,showChat:()=>ensureChatHost().showChat(),permissionPolicy,confirmPermission,contextMenu:()=>contextMenu()});
-const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterHost;
-const ensureWindowManager=()=>windowManager||(windowManager=load("windowManager","./application/window-manager").createWindowManager({BrowserWindow,path,getWindow:name=>({performanceWin,learningWin,addonsWin,statusWin}[name]),setWindow:(name,value)=>{if(name==="performanceWin")performanceWin=value;else if(name==="learningWin")learningWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="statusWin")statusWin=value},iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","preload.js"),rootPath:path.join(__dirname,"..")}));
-const showPerformance=()=>ensureWindowManager().showPerformance();
-const showSettings=()=>ensureWindowManager().showSettings();
-const showLearning=()=>ensureWindowManager().showLearning();
-const showAddons=()=>ensureWindowManager().showAddons();
-const ensureUpdateManager=()=>updateManager||(updateManager=load("updateManager","./application/update-manager").createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic}));
-const updateNow=()=>ensureUpdateManager().check();
-const {createSystemControls}=load("systemControls","./application/system-controls");
-const systemControls=createSystemControls({app,diagnostic,showChat:()=>ensureChatHost().showChat(),showCharacter,hideCharacter,showAddons,showLearning,showPerformance,showStatus,show3DStatus,showSettings,setSaeedSize,chooseCharacter,Menu,getCharacterWindow:()=>characterWin,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,updateNow});
-const {rebuildTray,contextMenu}=systemControls;
-const ensureBrainHost=()=>brainHost||(brainHost=load("brainHost","./application/brain-host").createBrainHost({app,getChatWindow,getMicMode:getCurrentMicMode,characterCommand:(payload)=>characterHost.command(payload),permissionPolicy,showChat:()=>ensureChatHost().showChat(),diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,getCharacter3DSettingsFile:()=>character3DSettingsFile(),setSaeedSize,setAgent:value=>{agent=value},setVoiceMuted:value=>setVoiceMuted(value),recordLearningStep:()=>{},confirmations,characterSettingsExists:()=>fs.existsSync(character3DSettingsFile())}));
-const ensureBrain=(...args)=>ensureBrainHost().ensureBrain(...args);
-const releaseBrainIfIdle=()=>!getChatWindow()&&getCurrentMicMode()==="off"?(brainHost?.releaseBrain?.()||true):true;
+const compositionState={get addonService(){return addonService},set addonService(v){addonService=v},get learning(){return learning},set learning(v){learning=v},get learningRecorder(){return learningRecorder},set learningRecorder(v){learningRecorder=v},get apiHealth(){return apiHealth},set apiHealth(v){apiHealth=v},get resourceService(){return resourceService},set resourceService(v){resourceService=v},get autoUpdater(){return autoUpdater},set autoUpdater(v){autoUpdater=v},get chatHost(){return chatHost},set chatHost(v){chatHost=v},get voiceHost(){return voiceHost},set voiceHost(v){voiceHost=v},get brainHost(){return brainHost},set brainHost(v){brainHost=v},get screenCapture(){return screenCapture},set screenCapture(v){screenCapture=v},get windowManager(){return windowManager},set windowManager(v){windowManager=v},get updateManager(){return updateManager},set updateManager(v){updateManager=v}};
+const getState=()=>({characterWin,performanceWin,addonsWin,learningWin,statusWin,threeDStatusWin,tray});
+const setWindow=(name,value)=>{if(name==="characterWin")characterWin=value;else if(name==="performanceWin")performanceWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="learningWin")learningWin=value;else if(name==="statusWin")statusWin=value;else if(name==="threeDStatusWin")threeDStatusWin=value;else if(name==="tray")tray=value};
+const {createRuntimeComposition}=require("./application/runtime-composition");
+const composition=createRuntimeComposition({app,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,state:compositionState,getState,setWindow,getAgent:()=>agent,setAgent:value=>{agent=value}});
+const {diagnosticState,diagnostic,publish3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent,getAddonService,getLearning,getLearningRecorder,getApiHealth,getChatWindow,ensureChatHost,getCurrentMicMode,getVoiceMuted,ensureVoiceHost,setMicMode,setVoiceMuted,ensureScreenCapture,captureScreen,permissionPolicy,confirmPermission,confirmations,voiceBroadcast,characterStore,character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings,characterHost,characterApi,ensureWindowManager,showPerformance,showSettings,showLearning,showAddons,ensureUpdateManager,updateNow,rebuildTray,contextMenu,ensureBrainHost,ensureBrain,releaseBrainIfIdle,showStatus,show3DStatus}=composition;
 
-function show3DStatus(){if(threeDStatusWin&&!threeDStatusWin.isDestroyed()){threeDStatusWin.show();threeDStatusWin.focus();request3DStatus().then(r=>threeDStatusWin?.webContents.send("3d:status",r));return}threeDStatusWin=new BrowserWindow({width:960,height:720,minWidth:760,minHeight:560,title:"Saeed 3D Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});threeDStatusWin.on("closed",()=>{threeDStatusWin=null});threeDStatusWin.loadFile(path.join(__dirname,"..","3d-status.html")).then(async()=>{threeDStatusWin?.show();threeDStatusWin?.focus();const r=await request3DStatus();threeDStatusWin?.webContents.send("3d:status",r)}).catch(e=>diagnostic("ERROR","3D STATUS WINDOW",e.message))}
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
 // This code defines the official Saeed Windows application/taskbar icon source.
 function windowsIconPath(){
@@ -99,8 +63,6 @@ app.setAppUserModelId("ai.saeed.desktop");
 const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
-
-function showStatus(){startCpuMonitoring();if(statusWin&&!statusWin.isDestroyed()){statusWin.show();statusWin.focus();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState});return}statusWin=new BrowserWindow({width:880,height:660,minWidth:680,minHeight:500,title:"Saeed Status",show:false,backgroundColor:"#f5f7fb",icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:false}});statusWin.on("closed",()=>{statusWin=null;stopCpuMonitoring()});statusWin.loadFile(path.join(__dirname,"..","status.html")).then(()=>{statusWin.show();statusWin.webContents.send("diagnostic:snapshot",{state:diagnosticState})}).catch(e=>diagnostic("ERROR","STATUS WINDOW",e.message))}
 
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
 
