@@ -12,7 +12,7 @@ function cls(v){if(v==="error")return"err";if(v==="connected"||v==="active"||v==
 function render(){
  const items=[["mic","Microphone"],["cpu","CPU"],["brainApi","Brain API"],["brainLocal","Brain Local"],["stt","STT"],["tts","TTS"],["glb","GLB / Character"]];
  $("cards").innerHTML=items.map(([k,n])=>{const v=state[k]||{};const level=k==="mic"?Math.max(0,Math.min(1,Number(v.level||0))):0;return `<div class="card"><div class="row"><i class="dot ${cls(v.state)}"></i><span class="name">${n}</span><span class="state">${esc(label[v.state]||String(v.state||"UNKNOWN").toUpperCase())}</span></div><div class="detail">${esc(v.detail||"No verified state yet")}</div>${k==="mic"?`<div class="meter"><i style="width:${Math.round(level*100)}%"></i></div><div class="levelText">Input level ${Math.round(level*100)}%</div>`:k==="cpu"?`<div class="meter"><i style="width:${Math.min(100,Math.max(0,Number(v.percent||0)))}%"></i></div><div class="levelText">CPU ${Number(v.percent||0).toFixed(1)}%</div>`:""}</div>`}).join("");
- $("modeValue").textContent="Auto — Local first, API on demand";$("micValue").textContent=settings.micMode==="on"?"Mic ON":"Mic OFF";
+ const bm=["api","local","auto"].includes(String(settings.brainMode))?String(settings.brainMode):"auto";$("modeValue").textContent=bm==="api"?"Direct API":bm==="local"?"Local only":"Auto — Local first, API on demand";$("micValue").textContent=settings.micMode==="on"?"Mic ON":"Mic OFF";
 }
 function add(e){return;}async function refresh(){try{const x=await window.saeed.getDiagnosticSnapshot();state=x?.state||{};render();const s=await window.saeed.getSettings();settings=s||{};render()}catch(e){add({time:new Date().toISOString(),level:"ERROR",stage:"STATUS",message:e.message})}}
 $("refresh").onclick=refresh;
