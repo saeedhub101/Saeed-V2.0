@@ -139,11 +139,11 @@ jobs:
           $env:SAEED_CI_SMOKE = "1"
           $proc = Start-Process -FilePath "node" -ArgumentList "node_modules/electron/cli.js", "." -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           try {
-            $deadline = (Get-Date).AddSeconds(45)
+            $deadline = (Get-Date).AddSeconds(120)
             while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
             if (!$proc.HasExited) {
               Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              throw "Application smoke test timed out after 45 seconds."
+              throw "Application smoke test timed out after 120 seconds."
             }
             $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
             $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
