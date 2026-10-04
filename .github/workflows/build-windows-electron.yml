@@ -66,6 +66,59 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Character animation idle emotion and rig diagnostics (non-gating)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          node scripts/ci-character-diagnostics.js
+          Write-Host "CHARACTER_DIAGNOSTICS_NON_GATING=true"
+
+      - name: Application RAM startup diagnostic (non-gating)
+        continue-on-error: true
+        shell: powershell
+        timeout-minutes: 2
+        run: |
+          $ErrorActionPreference = "Continue"
+          $electron = Join-Path $PWD "node_modules/electron/dist/electron.exe"
+          if (!(Test-Path $electron)) {
+            Write-Warning "Electron executable not found; RAM diagnostic skipped."
+            exit 0
+          }
+          $proc = Start-Process -FilePath $electron -ArgumentList ".", "--exit" -PassThru
+          $peakMB = 0
+          $samples = 0
+          $deadline = (Get-Date).AddSeconds(30)
+          function Get-DescendantIds([int]$rootPid) {
+            $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+            $ids = New-Object System.Collections.Generic.List[int]
+            $queue = New-Object System.Collections.Generic.Queue[int]
+            $queue.Enqueue($rootPid)
+            while($queue.Count -gt 0) {
+              $pid = $queue.Dequeue()
+              if($ids.Contains($pid)){ continue }
+              $ids.Add($pid)
+              foreach($child in $all | Where-Object { $_.ParentProcessId -eq $pid }) { $queue.Enqueue([int]$child.ProcessId) }
+            }
+            return $ids
+          }
+          while(!$proc.HasExited -and (Get-Date) -lt $deadline) {
+            $sum = 0
+            foreach($pid in (Get-DescendantIds $proc.Id)) {
+              try { $p=Get-Process -Id $pid -ErrorAction Stop; $sum += [int64]$p.WorkingSet64 } catch {}
+            }
+            $mb=[math]::Round($sum/1MB,1)
+            if($mb -gt $peakMB){$peakMB=$mb}
+            $samples++
+            Start-Sleep -Milliseconds 500
+          }
+          if(!$proc.HasExited){
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            Write-Warning "RAM diagnostic process exceeded 30 seconds."
+          }
+          Write-Host "RAM_DIAGNOSTIC_SAMPLES=$samples"
+          Write-Host "RAM_DIAGNOSTIC_PEAK_MB=$peakMB"
+          Write-Host "RAM_DIAGNOSTIC_NON_GATING=true"
+
       - name: Static JavaScript validation
         run: npm test
 
