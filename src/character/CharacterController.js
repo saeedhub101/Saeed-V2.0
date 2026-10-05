@@ -130,7 +130,11 @@ window.saeedCharacterController=null;
 function installCharacterController(){
  const avatar=window.saeedAvatar;
  if(!avatar||typeof avatar.getCharacterPoseStatus!=="function")return false;
- if(window.saeedCharacterController?.avatar===avatar)return true;
+ if(window.saeedCharacterController?.avatar===avatar){
+  const ready=avatar.getCharacterPoseStatus?.();
+  if(ready?.loaded&&!window.saeedCharacterController.characterId)window.saeedCharacterController.onCharacterLoaded?.();
+  return true;
+ }
  const controller=new CharacterController(avatar);
  window.saeedCharacterController=controller;
  controller.api={
@@ -143,9 +147,12 @@ function installCharacterController(){
   setVisible:v=>controller.setVisible(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
  };
  controller.setVisible(!document.hidden);
+ const ready=avatar.getCharacterPoseStatus?.();
+ if(ready?.loaded)controller.onCharacterLoaded?.();
  return true;
 }
 installCharacterController();
 window.addEventListener("saeed-avatar-ready",installCharacterController);
+window.addEventListener("DOMContentLoaded",()=>installCharacterController());
 window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterController?.onCharacterLoaded?.());
 document.addEventListener("visibilitychange",()=>window.saeedCharacterController?.setVisible(!document.hidden));
