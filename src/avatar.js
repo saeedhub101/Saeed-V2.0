@@ -32,32 +32,43 @@ const viewSettings={
  characterRotationY:0,canvasPadding:0
 };
 
-let model=null,rig=new Map(),base=new Map(),morphs=new Map();
+let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),morphs=new Map();
 let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false;
 let lastRestPose={detected:"unknown",normalized:false};
 
+function getSceneBoneGroups(){
+ const groups=new Map();
+ const add=(b)=>{
+  if(!b?.name)return;
+  const key=String(b.name),list=groups.get(key)||[];
+  if(!list.includes(b))list.push(b);
+  groups.set(key,list);
+ };
+ model?.traverse(o=>{if(o?.isBone)add(o)});
+ model?.traverse(o=>{if(!o?.isSkinnedMesh||!o.skeleton?.bones)return;for(const b of o.skeleton.bones)add(b)});
+ return groups;
+}
 function getSceneBones(){
- const found=new Map();
- model?.traverse(o=>{if(o?.isBone&&o.name)found.set(String(o.name),o)});
- model?.traverse(o=>{
-  if(!o?.isSkinnedMesh||!o.skeleton?.bones)return;
-  for(const b of o.skeleton.bones)if(b?.name&&!found.has(String(b.name)))found.set(String(b.name),b);
- });
- return [...found.values()];
+ boneGroups=getSceneBoneGroups();
+ return [...boneGroups.values()].map(list=>list[0]).filter(Boolean);
 }
 function getBoneMap(){return Object.fromEntries(rig)}
 function getAvailableBoneNames(){return getSceneBones().map(b=>b.name)}
 function bindRig(mapping={}){
  if(!model)return false;
- const by={};
- for(const b of getSceneBones())by[String(b.name).toLowerCase()]=b;
+ const groups=getSceneBoneGroups(),by={};
+ for(const [name,list] of groups)by[String(name).toLowerCase()]=list[0];
  rig.clear();base.clear();
  for(const [slot,name] of Object.entries(mapping)){
   const b=by[String(name||"").toLowerCase()];
   if(b)rig.set(slot,b);
  }
  lastRestPose=normalizeHumanoidRestPose();
- for(const [slot,b] of rig)base.set(slot,{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z});
+ for(const [slot,b] of rig){
+  const list=boneGroups.get(String(b.name))||[b];
+  for(const target of list)target.quaternion.copy(b.quaternion);
+  base.set(slot,{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z});
+ }
  resetCharacterPose();
  render();
  return rig.size>0;
@@ -129,28 +140,32 @@ function validateRig(mapping={}){
 }
 function resetCharacterPose(){
  for(const [slot,b] of rig){
-  const p=base.get(slot);
-  if(p)b.rotation.set(p.x,p.y,p.z);
+  const p=base.get(slot);if(!p)continue;
+  const list=boneGroups.get(String(b.name))||[b];
+  for(const target of list)target.rotation.set(p.x,p.y,p.z);
  }
 }
 function applyCharacterPose(pose={},retargeter=null){
  for(const [slot,r] of Object.entries(pose)){
-  if(retargeter?.apply?.(slot,r))continue;
-  const b=rig.get(slot),p=base.get(slot);
-  if(b&&p)b.rotation.set(p.x+(Number(r?.x)||0),p.y+(Number(r?.y)||0),p.z+(Number(r?.z)||0));
+  const b=rig.get(slot);if(!b)continue;
+  const applied=Boolean(retargeter?.apply?.(slot,r));
+  if(!applied){
+   const p=base.get(slot);if(p)b.rotation.set(p.x+(Number(r?.x)||0),p.y+(Number(r?.y)||0),p.z+(Number(r?.z)||0));
+  }
+  const list=boneGroups.get(String(b.name))||[b];
+  for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);
  }
  render();
  return true;
 }
 function applyRawBonePose(pose={}){
- const by=new Map(getSceneBones().map(b=>[String(b.name),b]));
- let changed=false;
+ getSceneBones();let changed=false;
  for(const [name,r] of Object.entries(pose)){
-  const b=by.get(String(name));
-  if(!b)continue;
-  b.rotation.x+=Number(r?.x)||0;
-  b.rotation.y+=Number(r?.y)||0;
-  b.rotation.z+=Number(r?.z)||0;
+  const list=boneGroups.get(String(name))||[];
+  if(!list.length)continue;
+  for(const b of list){
+   b.rotation.x+=Number(r?.x)||0;b.rotation.y+=Number(r?.y)||0;b.rotation.z+=Number(r?.z)||0;
+  }
   changed=true;
  }
  if(changed)render();
@@ -318,7 +333,7 @@ function getCharacterPoseStatus(){
  const hips=rig.get("hips"),head=rig.get("head"),left=rig.get("leftUpperArm")||findNamedBone("left","upper"),right=rig.get("rightUpperArm")||findNamedBone("right","upper");
  let isTPose=false,detected="unknown";
  if(hips&&head){const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);if(vertical>=.45){const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};const ld=direction(left),rd=direction(right);isTPose=Boolean(ld&&rd&&Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5&&Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65);detected=isTPose?"t-pose":"not-t-pose";}else detected="not-upright";}
- return {loaded:Boolean(model),requiredRig:{},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,tPose:{isTPose,detected},restPose:{...lastRestPose}};
+ return {loaded:Boolean(model),requiredRig:{},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,skeletonCount:boneGroups.size,duplicateBoneGroups:[...boneGroups.entries()].filter(([,list])=>list.length>1).map(([name,list])=>({name,count:list.length})),tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
 window.saeedAvatar={
  get3DStatus:()=>({
