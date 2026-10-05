@@ -28,6 +28,19 @@ async function run(){
   for(const id of ids){last={};if(!a.play(id,{duration:.6})){continue;}played++;let max=0;for(let i=0;i<4;i++){a.update(.1);max=Math.max(max,magnitude(last));}if(max>0)moved++;a.stop(id);}
   report("all registered motions play",played===ids.length,`played=${played}/${ids.length}`);
   report("all registered motions produce poses",moved===ids.length,`moved=${moved}/${ids.length}`);
+  let finite=true,withinLimits=true,shapeSamples=0;
+  for(const id of ids){
+   a.play(id,{duration:1});
+   for(let i=0;i<12;i++){
+    const pose=a.update(1/60)||{}; shapeSamples++;
+    for(const v of Object.values(pose)){ if(!Number.isFinite(v?.x)||!Number.isFinite(v?.y)||!Number.isFinite(v?.z)) finite=false; }
+    const limits=a.status().limits||{};
+    for(const [slot,v] of Object.entries(pose)){const l=limits[slot];if(l&&((Math.abs(v.x)>l.x+.001)||(Math.abs(v.y)>l.y+.001)||(Math.abs(v.z)>l.z+.001)))withinLimits=false;}
+   }
+   a.stop(id);
+  }
+  report("motion shape samples finite",finite,`samples=${shapeSamples}`);
+  report("motion shape samples within safety limits",withinLimits);
   report("controller returns to idle",a.status().state==="idle"&&!a.status().active.length);
  }catch(e){report("animation runtime",false,e?.stack||e);}
  try{
