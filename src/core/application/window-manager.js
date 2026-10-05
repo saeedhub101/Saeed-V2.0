@@ -15,11 +15,11 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
   try{
    let win=getWindow("restPoseEditorWin");
    if(win&&!win.isDestroyed()){win.show();win.focus();return}
-   win=new BrowserWindow({width:1180,height:820,minWidth:900,minHeight:650,title:"Saeed — Rest Pose Editor",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
+  win=new BrowserWindow({width:760,height:620,minWidth:560,minHeight:460,title:"Set Normalize Humanoid Rest Pose",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
    win.setIcon(iconPath());
    win.on("closed",()=>{setWindow("restPoseEditorWin",null)});
    setWindow("restPoseEditorWin",win);
-   await win.loadFile(path.join(rootPath,"rest-pose.html"));
+  await win.loadFile(path.join(rootPath,"normalizehumanoidrestpose.html"));
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","REST POSE EDITOR",e.message)}
  }

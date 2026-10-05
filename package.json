@@ -22,7 +22,8 @@
     "files": [
       "**/*",
       "!artifacts/**",
-      "!dist/**"
+      "!dist/**",
+      "!animation-health-report.json"
     ],
     "appId": "ai.saeed.desktop",
     "productName": "Saeed AI",

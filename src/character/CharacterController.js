@@ -26,7 +26,8 @@ export class CharacterController{
   const mapping={...auto.mapping};
   for(const [slot,name] of Object.entries(profile?.mapping||{}))if(name&&available.has(String(name).toLowerCase()))mapping[slot]=name;
   if(Object.keys(mapping).length)this.avatar?.bindRig?.(mapping);
-  if(profile?.restPose?.bones)this.avatar?.applyRestPoseSnapshot?.(profile.restPose.bones,profile.restPose.normalization);
+    const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
+    if(savedRestPose?.bones)this.avatar?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
   const mapped=this.avatar?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
   const validation=this.avatar?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.avatar?.getRestPoseNormalization?.()||{normalized:true};
   if(validation.criticalMissing?.length||rest.normalized===false){
@@ -54,16 +55,7 @@ export class CharacterController{
  stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
  finishMotion(){this.idleBusy=false;this.startIdleScheduler()}
- setPose(pose={}){
-  const {__bones={},__captureRest=false,__restoreRest=false,...logicalPose}=pose||{};
-  for(const [name,transform] of Object.entries(__bones))this.avatar?.setBoneRotation?.(name,transform);
-  if(__restoreRest)this.resetPose();
-  let restPose=null;
-  if(__captureRest){restPose=this.avatar?.saveRestPose?.()||{};if(this.characterId)this.profiles.save(this.characterId,{normalizehumanoidrestpose:restPose,boneRestPose:restPose})}
-  const out=Object.keys(logicalPose).length?this.animation.setPose(logicalPose):{};
-  this.avatar?.wakeRender?.(250);this.startFrameLoop();
-  return __captureRest?{pose:out,boneRestPose:restPose}:out;
- }
+ setPose(pose={}){const out=this.animation.setPose(pose);this.startFrameLoop();return out}
  setIdlePose(pose={}){const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(!ok)return false;const names=this.avatar?.getAvailableBoneNames?.()||[];const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
  autoMap(){const names=this.avatar?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.avatar?.bindRig?.(auto.mapping);if(ok){const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
@@ -71,8 +63,8 @@ export class CharacterController{
   if(!this.characterId)this.bindCurrentCharacter();
   const normalization=this.avatar?.getRestPoseNormalization?.()||null;
   const bones=this.avatar?.snapshotBoneRotations?.()||{};
-  const restPose={normalization,bones};
-  if(this.characterId)this.profiles.save(this.characterId,{restPose});
+    const restPose={normalization,bones};
+    if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
  }
  normalizeRestPose(){
