@@ -96,7 +96,7 @@ function normalizeHumanoidRestPose(){
  const hips=rig.get("hips"),head=rig.get("head");
  const left=rig.get("leftUpperArm")||findNamedBone("left","upper");
  const right=rig.get("rightUpperArm")||findNamedBone("right","upper");
- if(!hips||!head)return{detected:"unknown",normalized:false,reason:"Required hips/head bones could not be identified"};
+ if(!hips||!head)return{detected:"custom",normalized:true,corrected:false,stillTPose:false,reason:"No humanoid hips/head pair; preserving the GLB rest pose"};
  model.updateWorldMatrix(true,true);
  const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);
  if(vertical<.45)return{detected:"laydown",normalized:false,reason:"Character is not upright"};
@@ -122,11 +122,10 @@ function normalizeHumanoidRestPose(){
  return{detected:"upright",normalized:true,corrected:false,stillTPose:false};
 }
 function validateRig(mapping={}){
- const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
- const optional=["spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
- const missing=required.filter(k=>!mapping[k]&&!rig.get(k));
- const optionalMissing=optional.filter(k=>!mapping[k]&&!rig.get(k));
- return{ok:missing.length===0,missing,criticalMissing:[...missing],optionalMissing,mapped:Object.keys(mapping).length,required,optional};
+ const optional=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh","spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
+ const mapped=Object.keys(mapping).filter(k=>rig.get(k));
+ const missing=optional.filter(k=>!mapping[k]&&!rig.get(k));
+ return{ok:mapped.length>0,missing,criticalMissing:[],optionalMissing:missing,mapped:mapped.length,required:[],optional};
 }
 function resetCharacterPose(){
  for(const [slot,b] of rig){
@@ -313,7 +312,7 @@ window.saeedAvatarSetRuntimeActive=()=>true;
 window.saeed?.onCharacter3DSettings?.(apply3DSettings);
 
 function getCharacterPoseStatus(){
- const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
+ const required=[];
  const bones={};
  for(const [slot,b] of rig){if(!b)continue;bones[slot]={name:b.name,rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}};}
  const hips=rig.get("hips"),head=rig.get("head"),left=rig.get("leftUpperArm")||findNamedBone("left","upper"),right=rig.get("rightUpperArm")||findNamedBone("right","upper");
