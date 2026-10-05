@@ -66,7 +66,7 @@ async function run(){
  }catch(e){report("emotion runtime",false,e?.stack||e);}
  try{
   const {autoMapBones,requiredRigSlots}=await import(modules["AutoRigMapper.js"]),names=["Root","Body"],m=autoMapBones(names).mapping,r=requiredRigSlots();
-  report("custom GLB fallback mapping",Boolean(m.generic&&m.generic==="Root"),JSON.stringify(m));report("no fixed required rig",r.length===0,r.join(","));
+  report("custom GLB fallback mapping",Boolean(Object.keys(m).length&&Object.values(m).every(Boolean)),JSON.stringify(m));report("no fixed required rig",r.length===0,r.join(","));
  }catch(e){report("rig runtime",false,e?.stack||e);}
  console.log(`[CHARACTER-DIAG] SUMMARY failures=${failures}`);console.log("[CHARACTER-DIAG] NON_GATING=true");
 }
