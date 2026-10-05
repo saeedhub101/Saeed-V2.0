@@ -1,13 +1,25 @@
 const fs=require("node:fs"),path=require("node:path"),{spawnSync}=require("node:child_process"),{pathToFileURL}=require("node:url");
 const root=process.cwd();let failures=0;
 const report=(name,ok,detail="")=>{console.log(`[CHARACTER-DIAG] ${ok?"PASS":"FAIL"} ${name}${detail?": "+detail:""}`);if(!ok)failures++;};
-const load=p=>import(pathToFileURL(path.resolve(root,p)).href);
+const fsCopy=(src,dst)=>fs.copyFileSync(path.resolve(root,src),dst);
+async function loadCharacterModules(){
+ const dir=fs.mkdtempSync(path.join(root,".character-diag-"));
+ const files=["AnimationController.js","MotionRegistry.js","MotionSafety.js","MotionSequence.js","motions.js"];
+ for(const file of files){
+  const source=fs.readFileSync(path.join(root,"src/character",file),"utf8").replaceAll(".js\\\"",".mjs\\\"").replaceAll(".js\\\'",".mjs\\\'");
+  fs.writeFileSync(path.join(dir,file.replace(/\\.js$/,".mjs")),source);
+ }
+ const imports={};
+ for(const file of files)imports[file]=pathToFileURL(path.join(dir,file.replace(/\\.js$/,".mjs"))).href;
+ return imports;
+}
 const syntax=p=>{const r=spawnSync(process.execPath,["--check",path.join(root,p)],{encoding:"utf8"});return r.status===0?"":(r.stderr||r.stdout||"syntax error").trim();};
 const magnitude=p=>Object.values(p||{}).reduce((n,r)=>n+Math.abs(Number(r?.x)||0)+Math.abs(Number(r?.y)||0)+Math.abs(Number(r?.z)||0),0);
 async function run(){
  for(const p of ["src/character/AnimationController.js","src/character/MotionRegistry.js","src/character/MotionSequence.js","src/character/MotionSafety.js","src/character/motions.js","src/character/CharacterController.js"])report("syntax "+p,!syntax(p),syntax(p));
  try{
-  const {AnimationController}=await load("src/character/AnimationController.js"),{registerCoreMotions}=await load("src/character/motions.js");
+  const modules=await loadCharacterModules();
+  const {AnimationController}=await import(modules["AnimationController.js"]),{registerCoreMotions}=await import(modules["motions.js"]);
   let last={};const mock={wakeRender(){},resetCharacterPose(){},applyCharacterPose(p){last=JSON.parse(JSON.stringify(p||{}));}};
   const a=new AnimationController(mock);registerCoreMotions(a);const ids=a.registry.list();
   const expected=["nod","shake","wave","think","jump","clap","dance","talkGesture","lookCloser","sitKnee","standUp","stretch","yawn","crackBack","crackFingers","turnBody","walk","sleep","wake","adhanOpening"];
