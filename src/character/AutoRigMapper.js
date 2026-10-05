@@ -19,7 +19,7 @@ const aliases={
 const REQUIRED_RIG=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
 const OPTIONAL_RIG=Object.keys(aliases).filter(x=>!REQUIRED_RIG.includes(x));
 const fingerAliases=Object.fromEntries(["Left","Right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(f=>[1,2,3,4].map(n=>[side+f+n,side+"Hand"+f+n]))));
-const side=name=>{const n=clean(name);return n.includes("left")?"left":n.includes("right")?"right":"unknown"};
+const side=name=>{const raw=String(name||"").toLowerCase(),n=clean(name);return raw.includes(".l")||raw.endsWith("_l")||n.endsWith("l")&&!n.includes("lower")&&!n.includes("left")?"left":raw.includes(".r")||raw.endsWith("_r")||n.endsWith("r")&&!n.includes("right")?"right":n.includes("left")?"left":n.includes("right")?"right":"unknown"};
 function sideOk(name,slot){const expected=slot.startsWith("left")?"left":slot.startsWith("right")?"right":"unknown";const actual=side(name);return expected==="unknown"||actual==="unknown"||actual===expected}
 export function autoMapBones(bones=[]){
  const list=(bones||[]).map((b,i)=>({name:typeof b==="string"?b:b?.name||"",clean:clean(typeof b==="string"?b:b?.name),index:i})).filter(x=>x.name);
