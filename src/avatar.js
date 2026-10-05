@@ -56,7 +56,7 @@ function getBoneMap(){return Object.fromEntries(rig)}
 function getAvailableBoneNames(){return getSceneBones().map(b=>b.name)}
 function bindRig(mapping={},savedRestPose=null){
  if(!model)return false;
- const groups=getSceneBoneGroups(),by={};
+ const groups=getSceneBoneGroups(),by={};boneGroups=groups;
  for(const [name,list] of groups)by[String(name).toLowerCase()]=list[0];
  rig.clear();base.clear();
  for(const [slot,name] of Object.entries(mapping)){
