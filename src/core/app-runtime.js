@@ -35,7 +35,7 @@ function configureMediaPermissions(){
 }
 
 
-let characterWin,performanceWin,settingsWin,addonsWin,learningWin,restPoseWin,agent,tray,statusWin,threeDStatusWin;
+let characterWin,performanceWin,settingsWin,addonsWin,learningWin,restPoseEditorWin,agent,tray,statusWin,threeDStatusWin;
 let addonService,learning,learningRecorder,apiHealth,resourceService,autoUpdater;
 let chatHost=null,voiceHost=null,brainHost=null,screenCapture=null,windowManager=null,updateManager=null,characterHost,ciE2E=null;
 
