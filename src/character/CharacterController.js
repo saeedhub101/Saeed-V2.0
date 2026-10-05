@@ -52,7 +52,7 @@ export class CharacterController{
   if(ok)this.startFrameLoop();
   return ok;
  }
- stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
+ pause(){this.clearIdleTimer();this.idleBusy=false;return this.animation.pause()}\n resume(){const out=this.animation.resume();if(this.animation.active.length)this.startFrameLoop();return out}\n stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
  finishMotion(){this.idleBusy=false;this.startIdleScheduler()}
  setPose(pose={}){const out=this.animation.setPose(pose);this.startFrameLoop();return out}
@@ -153,7 +153,7 @@ function installCharacterController(){
  window.saeedCharacterController=controller;
  controller.api={
   play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
-  setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
+  setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),pause:()=>controller.pause(),resume:()=>controller.resume(),
   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
   listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
