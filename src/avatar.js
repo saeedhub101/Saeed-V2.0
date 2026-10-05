@@ -335,3 +335,5 @@ window.saeedAvatar={
  lookCharacterAt:lookAt,wakeRender:render
 };
 resize();
+
+window.dispatchEvent(new CustomEvent("saeed-avatar-ready"));
