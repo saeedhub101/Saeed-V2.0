@@ -24,7 +24,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: saeed-windows-build-main
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -42,6 +42,7 @@ jobs:
           node-version: 22.14.0
 
       - name: Validate version identity
+        id: version
         shell: pwsh
         run: |
           $releaseVersion = (Get-Content "VERSION" -Raw).Trim()
@@ -49,10 +50,17 @@ jobs:
           $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
           if ($pkg.version -ne "$releaseVersion.0") { throw "package.json version $($pkg.version) does not match VERSION $releaseVersion (expected $releaseVersion.0)" }
           if ($pkg.build.buildVersion -ne $pkg.version) { throw "Electron buildVersion must equal package.json version" }
+          $officialTag = "v$releaseVersion"
+          "official_tag=$officialTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           if ($env:GITHUB_REF -like 'refs/tags/v*') {
-            $tagVersion = $env:GITHUB_REF_NAME.Substring(1)
-            if ($tagVersion -ne $releaseVersion) { throw "Release tag $env:GITHUB_REF_NAME does not match VERSION v$releaseVersion" }
-            Write-Host "Release tag validated: $env:GITHUB_REF_NAME"
+            $testTagPattern = '^v' + [regex]::Escape($pkg.version) + '-test(\.\d+)*$'
+            if ($env:GITHUB_REF_NAME -eq $officialTag) {
+              Write-Host "Official release tag validated: $env:GITHUB_REF_NAME"
+            } elseif ($env:GITHUB_REF_NAME -match $testTagPattern) {
+              Write-Host "Test build tag validated: $env:GITHUB_REF_NAME (will not publish to the stable release)"
+            } else {
+              throw "Release tag $env:GITHUB_REF_NAME must be $officialTag or match v$($pkg.version)-test.<build>"
+            }
           }
           Write-Host "Official product version: v$releaseVersion"
           Write-Host "Workflow build number: $env:GITHUB_RUN_NUMBER"
@@ -94,17 +102,17 @@ jobs:
             $queue = New-Object System.Collections.Generic.Queue[int]
             $queue.Enqueue($rootPid)
             while($queue.Count -gt 0) {
-              $pid = $queue.Dequeue()
-              if($ids.Contains($pid)){ continue }
-              $ids.Add($pid)
-              foreach($child in $all | Where-Object { $_.ParentProcessId -eq $pid }) { $queue.Enqueue([int]$child.ProcessId) }
+              $processId = $queue.Dequeue()
+              if($ids.Contains($processId)){ continue }
+              $ids.Add($processId)
+              foreach($child in $all | Where-Object { $_.ParentProcessId -eq $processId }) { $queue.Enqueue([int]$child.ProcessId) }
             }
             return $ids
           }
           while(!$proc.HasExited -and (Get-Date) -lt $deadline) {
             $sum = 0
-            foreach($pid in (Get-DescendantIds $proc.Id)) {
-              try { $p=Get-Process -Id $pid -ErrorAction Stop; $sum += [int64]$p.WorkingSet64 } catch {}
+            foreach($processId in (Get-DescendantIds $proc.Id)) {
+              try { $p=Get-Process -Id $processId -ErrorAction Stop; $sum += [int64]$p.WorkingSet64 } catch {}
             }
             $mb=[math]::Round($sum/1MB,1)
             if($mb -gt $peakMB){$peakMB=$mb}
@@ -184,8 +192,11 @@ jobs:
             $deadline = (Get-Date).AddSeconds(120)
             while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
             if (!$proc.HasExited) {
-              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-              throw "Application smoke test timed out after 120 seconds."
+              & taskkill.exe /PID $proc.Id /T /F | Out-Null
+              $proc.WaitForExit(10000)
+              $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+              $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+              throw "Application smoke test timed out after 120 seconds. stdout: $outText stderr: $errText"
             }
             $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
             $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
@@ -355,7 +366,7 @@ jobs:
         if: always()
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
             dist/*.exe
             dist/*.blockmap
@@ -379,7 +390,7 @@ jobs:
           Write-Host "PACKAGED_EXE_E2E=PASS"
 
       - name: Publish official release
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_release == true
+        if: (github.ref == format('refs/tags/{0}', steps.version.outputs.official_tag)) || inputs.publish_release == true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
