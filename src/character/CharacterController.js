@@ -26,6 +26,7 @@ export class CharacterController{
   const mapping={...auto.mapping};
   for(const [slot,name] of Object.entries(profile?.mapping||{}))if(name&&available.has(String(name).toLowerCase()))mapping[slot]=name;
   if(Object.keys(mapping).length)this.avatar?.bindRig?.(mapping);
+  if(profile?.restPose?.bones)this.avatar?.applyRestPoseSnapshot?.(profile.restPose.bones,profile.restPose.normalization);
   const mapped=this.avatar?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
   const validation=this.avatar?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.avatar?.getRestPoseNormalization?.()||{normalized:true};
   if(validation.criticalMissing?.length||rest.normalized===false){
