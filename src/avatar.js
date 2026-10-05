@@ -250,8 +250,9 @@ function display(parsed){
  root.add(model);
  rig.clear();base.clear();
  collectMorphs();
- window.saeedCharacterController?.onCharacterLoaded?.();
+ // The GLB scene is authoritative before controller binding.
   window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
+  queueMicrotask(()=>window.saeedCharacterController?.onCharacterLoaded?.());
  fit();
  render();
 }
