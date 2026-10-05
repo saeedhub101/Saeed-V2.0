@@ -35,6 +35,16 @@ async function run(){
   }catch(error){report("animation runtime",false,error?.stack||error);}
 
   try{
+    const avatar=read("src/avatar.js");
+    const controllerSource=read("src/character/CharacterController.js");
+    report("T-pose detection",avatar.includes("normalizeHumanoidRestPose")&&avatar.includes('detected:"t-pose"'));
+    report("T-pose normalization hook",avatar.includes("normalizeHumanoidRestPose();")&&avatar.includes("resetCharacterPose();"));
+    report("no GLB animation dependency",!avatar.includes("gltf.animations")&&!avatar.includes("AnimationMixer"));
+    report("default idle after character load",controllerSource.includes("onCharacterLoaded()")&&controllerSource.includes("setIdlePose(this.animation.idlePose||{})"));
+    report("zero character padding",avatar.includes("canvasPadding:0"));
+  }catch(error){report("T-pose/GLB behavior diagnostics",false,error?.stack||error);}
+
+  try{
     const controller=read("src/character/CharacterController.js");
     report("idle scheduler present",controller.includes("startIdleScheduler")&&controller.includes("runIdle"));
     report("idle not a permanent render loop",!controller.includes("setInterval"));
