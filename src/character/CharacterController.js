@@ -115,7 +115,7 @@ export class CharacterController{
   const tick=()=>{
    this.frame=null;
    if(!this.visible)return;
-   if(this.animation.active.length){this.animation.update(1/60);this.avatar?.wakeRender?.(120);this.frame=requestAnimationFrame(tick)}
+   if(this.animation.active.length&&!this.animation.paused){this.animation.update(1/60);this.avatar?.wakeRender?.(120);this.frame=requestAnimationFrame(tick)}
    else if(this.idleBusy)this.finishMotion();
   };
   this.frame=requestAnimationFrame(tick);
