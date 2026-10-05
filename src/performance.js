@@ -57,11 +57,16 @@ async function refreshCharacterController(){
   $("characterPoseY").value=Math.round((Number(r.y)||0)*180/Math.PI);
   $("characterPoseZ").value=Math.round((Number(r.z)||0)*180/Math.PI);
   await refreshCharacterMotionControls();
+  await refreshTopCharacterMotionControls();
  }catch(e){$("characterControllerState").textContent="Controller unavailable: "+e.message}
 }
 $("characterPlayMotion").onclick=async()=>{const motion=$("characterMotion").value;await controllerCommand({action:"play",motion,options:{duration:Number($("characterMotionDuration").value)||undefined,speed:Number($("characterMotionSpeed").value)||1,intensity:Number($("characterMotionIntensity").value)||1,loop:motion==="idle"}});$("characterControllerState").textContent="Playing "+motion};
 $("characterStopMotion").onclick=async()=>{await controllerCommand({action:"stopAll"});$("characterControllerState").textContent="Stopped"};
 async function refreshCharacterMotionControls(){try{const r=await controllerCommand({action:"status"});const s=r?.status||{};const toggle=$("characterAnimationsToggle"),pause=$("characterPauseMotion");if(toggle)toggle.textContent=s.animationEnabled===false?"Animations OFF":"Animations ON";if(pause)pause.textContent=s.animationPaused?"Resume":"Pause";}catch{}}
+async function refreshTopCharacterMotionControls(){try{const r=await controllerCommand({action:"status"});const s=r?.status||{};const t=$("characterAnimationsToggleTop"),p=$("characterPauseMotionTop"),m=$("characterMotionControlState");if(t)t.textContent=s.animationEnabled===false?"Animations OFF":"Animations ON";if(p)p.textContent=s.animationPaused?"Resume":"Pause";if(m)m.textContent=s.animationEnabled===false?"Animations are OFF — all character motions are blocked.":s.animationPaused?"Character motion is paused.":"Character animations are ON."; }catch{}}
+$("characterPauseMotionTop").onclick=async()=>{const r=await controllerCommand({action:"status"});const paused=!(r?.status?.animationPaused===true);await controllerCommand({action:"setAnimationPaused",paused});await refreshCharacterMotionControls();await refreshTopCharacterMotionControls()};
+$("characterAnimationsToggleTop").onclick=async()=>{const r=await controllerCommand({action:"status"});const enabled=r?.status?.animationEnabled!==false;await controllerCommand({action:"setAnimationEnabled",enabled:!enabled});await refreshCharacterMotionControls();await refreshTopCharacterMotionControls()};
+
 $("characterPauseMotion").onclick=async()=>{const r=await controllerCommand({action:"status"});const paused=!(r?.status?.animationPaused===true);await controllerCommand({action:"setAnimationPaused",paused});$("characterControllerState").textContent=paused?"Character motion paused":"Character motion resumed";await refreshCharacterMotionControls()};
 $("characterAnimationsToggle").onclick=async()=>{const r=await controllerCommand({action:"status"});const enabled=r?.status?.animationEnabled!==false;await controllerCommand({action:"setAnimationEnabled",enabled:!enabled});$("characterControllerState").textContent=enabled?"All animations disabled":"All animations enabled";await refreshCharacterMotionControls()};
 $("characterResetPose").onclick=async()=>{await controllerCommand({action:"resetPose"});$("characterControllerState").textContent="Pose reset";};
