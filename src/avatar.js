@@ -95,7 +95,17 @@ function normalizeHumanoidRestPose(){
  const ld=direction(left),rd=direction(right);
  if(!ld||!rd)return{detected:"upright-unknown-arms",normalized:true};
  const horizontal=Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5,spread=Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65;
- return{detected:horizontal&&spread?"t-pose":"upright",normalized:true};
+ if(horizontal&&spread){
+  const leftUpper=findNamedBone("left","upper"),rightUpper=findNamedBone("right","upper");
+  const leftFore=findNamedBone("left","fore"),rightFore=findNamedBone("right","fore");
+  aimBoneChild(leftUpper,new THREE.Vector3(-.55,-.84,0));
+  aimBoneChild(rightUpper,new THREE.Vector3(.55,-.84,0));
+  aimBoneChild(leftFore,new THREE.Vector3(-.25,-.97,0));
+  aimBoneChild(rightFore,new THREE.Vector3(.25,-.97,0));
+  model.updateWorldMatrix(true,true);
+  return{detected:"t-pose",normalized:true,corrected:true};
+ }
+ return{detected:"upright",normalized:true,corrected:false};
 }
 function validateRig(mapping={}){
  const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
@@ -233,9 +243,9 @@ function display(parsed){
  root.add(model);
  rig.clear();base.clear();
  collectMorphs();
+ window.saeedCharacterController?.onCharacterLoaded?.();
  fit();
  render();
- window.saeedCharacterController?.onCharacterLoaded?.();
 }
 async function load(data,generation){
  activeLoad=true;
