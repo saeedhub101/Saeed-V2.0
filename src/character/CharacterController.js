@@ -49,12 +49,12 @@ export class CharacterController{
  finishMotion(){this.idleBusy=false;this.startIdleScheduler()}
  setPose(pose={}){const out=this.animation.setPose(pose);this.startFrameLoop();return out}
  setIdlePose(pose={}){const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
- remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(ok){this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{mapping})}return Boolean(ok)}
+ remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(!ok)return false;const names=this.avatar?.getAvailableBoneNames?.()||[];const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
  autoMap(){const names=this.avatar?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.avatar?.bindRig?.(auto.mapping);if(ok){const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
  resetPose(){this.avatar?.resetCharacterPose?.();this.animation.pose.clear();this.avatar?.wakeRender?.(250);return true}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
- deleteMotion(id){return this.editor.remove(id)}
+ deleteMotion(id){const ok=this.editor.remove(id);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  listMotions(){return this.editor.list()}
  setMood(value){const valid=["cheerful","curious","thoughtful","mischievous","pleased","sleepy","puzzled","sad"],v=String(value||"cheerful").toLowerCase();this.mood=valid.includes(v)?v:"cheerful";return this.mood}
  getMood(){return this.mood}
