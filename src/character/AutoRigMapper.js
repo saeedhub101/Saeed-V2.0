@@ -16,8 +16,8 @@ const aliases={
  leftFoot:["leftfoot","leftankle","Foot.L","footl","mixamorigleftfoot"],rightFoot:["rightfoot","rightankle","Foot.R","footr","mixamorigrightfoot"],
  leftEye:["lefteye","eyel"],rightEye:["righteye","eyer"]
 };
-const REQUIRED_RIG=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
-const OPTIONAL_RIG=Object.keys(aliases).filter(x=>!REQUIRED_RIG.includes(x));
+const REQUIRED_RIG=[];
+const OPTIONAL_RIG=Object.keys(aliases);
 const fingerAliases=Object.fromEntries(["Left","Right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(f=>[1,2,3,4].map(n=>[side+f+n,side+"Hand"+f+n]))));
 const side=name=>{const raw=String(name||"").toLowerCase(),n=clean(name);return raw.includes(".l")||raw.endsWith("_l")||n.endsWith("l")&&!n.includes("lower")&&!n.includes("left")?"left":raw.includes(".r")||raw.endsWith("_r")||n.endsWith("r")&&!n.includes("right")?"right":n.includes("left")?"left":n.includes("right")?"right":"unknown"};
 function sideOk(name,slot){const expected=slot.startsWith("left")?"left":slot.startsWith("right")?"right":"unknown";const actual=side(name);return expected==="unknown"||actual==="unknown"||actual===expected}
@@ -41,16 +41,16 @@ export function autoMapBones(bones=[]){
   }
   if(best&&best.score>=55){mapping[slot]=best.name;scores[slot]=best.score;used.add(best.name)}
  }
- const fallbackBones=list.filter(item=>!used.has(item.name));
- let fi=0;
- for(const slot of Object.keys(aliases)){
-  if(mapping[slot]||fi>=fallbackBones.length)continue;
-  const item=fallbackBones[fi++];
-  mapping[slot]=item.name;scores[slot]=30;used.add(item.name);
+ // A non-humanoid/custom GLB is still controllable. Never invent six humanoid
+ // bones; expose one real fallback bone only when semantic mapping found nothing.
+ if(!Object.keys(mapping).length&&list.length){
+  const item=list[0];
+  mapping.generic=item.name;
+  scores.generic=30;
  }
  return {mapping,scores,confidence:Object.fromEntries(Object.entries(scores).map(([k,v])=>[k,Math.round(Math.min(100,v/1.2))]))};
 }
-export function requiredRigSlots(){return [...REQUIRED_RIG]}
+export function requiredRigSlots(){return []}
 export function optionalRigSlots(){return [...OPTIONAL_RIG]}
-export function logicalSlots(){return Object.keys(aliases)}
+export function logicalSlots(){return [...Object.keys(aliases),"generic"]}
 export function getFingerAliases(){return {...fingerAliases}}
