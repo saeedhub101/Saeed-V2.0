@@ -49,7 +49,7 @@ check("weighted blending priority",/\bpriority\b/.test(animation));
 const motionIds=[...motions.matchAll(/id\s*:\s*["']([^"']+)["']/g)].map(m=>m[1]);
 const sequenceIds=[...motions.matchAll(/sequence\s*\(\s*["']([^"']+)["']/g)].map(m=>m[1]);
 const uniqueMotion=[...new Set(motionIds)],uniqueSequence=[...new Set(sequenceIds)];
-check("motion registry has entries",uniqueMotion.length>0,"no id:"..." definitions found");
+check("motion registry has entries",uniqueMotion.length>0,"no motion id definitions found");
 console.log("MOTION_IDS="+uniqueMotion.join(","));
 console.log("SEQUENCE_IDS="+uniqueSequence.join(","));
 console.log("MOTION_COUNT="+uniqueMotion.length);
