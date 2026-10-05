@@ -41,6 +41,13 @@ export function autoMapBones(bones=[]){
   }
   if(best&&best.score>=55){mapping[slot]=best.name;scores[slot]=best.score;used.add(best.name)}
  }
+ const fallbackBones=list.filter(item=>!used.has(item.name));
+ let fi=0;
+ for(const slot of Object.keys(aliases)){
+  if(mapping[slot]||fi>=fallbackBones.length)continue;
+  const item=fallbackBones[fi++];
+  mapping[slot]=item.name;scores[slot]=30;used.add(item.name);
+ }
  return {mapping,scores,confidence:Object.fromEntries(Object.entries(scores).map(([k,v])=>[k,Math.round(Math.min(100,v/1.2))]))};
 }
 export function requiredRigSlots(){return [...REQUIRED_RIG]}
