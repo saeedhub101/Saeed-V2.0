@@ -1,4 +1,4 @@
-function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,updateNow}){
+function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,updateNow}){
  function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
  function rebuildTray(tray){
   if(!tray)return;
@@ -8,7 +8,7 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
    {label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter}]},
    {label:muted?"Unmute":"Mute",type:"checkbox",checked:muted,click:()=>setVoiceMuted(!muted)},
    {label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:mic==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:mic==="off",click:()=>setMicMode("off")}]},
-   {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},
+   {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Rest Pose Editor",click:showRestPoseEditor},{label:"Size",submenu:characterSizeMenu()}]},
    {label:"Add-ons / Plug-ins",click:showAddons},
    {label:"Learning / Teach Mode",click:showLearning},
    {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
