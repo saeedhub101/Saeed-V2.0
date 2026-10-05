@@ -318,7 +318,7 @@ function getCharacterPoseStatus(){
  const hips=rig.get("hips"),head=rig.get("head"),left=rig.get("leftUpperArm")||findNamedBone("left","upper"),right=rig.get("rightUpperArm")||findNamedBone("right","upper");
  let isTPose=false,detected="unknown";
  if(hips&&head){const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);if(vertical>=.45){const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};const ld=direction(left),rd=direction(right);isTPose=Boolean(ld&&rd&&Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5&&Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65);detected=isTPose?"t-pose":"not-t-pose";}else detected="not-upright";}
- return {loaded:Boolean(model),requiredRig:Object.fromEntries(required.map(k=>[k,Boolean(rig.get(k))])),boneCount:rig.size,bones,tPose:{isTPose,detected},restPose:{...lastRestPose}};
+ return {loaded:Boolean(model),requiredRig:{},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
 window.saeedAvatar={
  get3DStatus:()=>({
