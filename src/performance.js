@@ -87,8 +87,8 @@ async function refreshRigTab(){
   for(const el of grid.querySelectorAll("[data-rig-tab-slot]"))el.value=mapped[el.dataset.rigTabSlot]||"";
   const caps=s?.retargeting?.capabilities||{};
   const missing=rigTabJoints.filter(x=>!mapped[x]);
-  $("rigTabStatus").textContent=missing.length?"Rig incomplete":"Rig mapped";
-  const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"],requiredMissing=required.filter(x=>!mapped[x]);const optionalMissing=rigTabJoints.filter(x=>!required.includes(x)&&!mapped[x]);$("rigTabStatus").textContent=requiredMissing.length?"Required rig incomplete":"Required rig ready";$("rigTabDetails").textContent=(s?.retargeting?.boneCount??Object.keys(mapped).length)+" mapped bones • Required 6: "+(requiredMissing.length?"missing "+requiredMissing.join(", "):"OK")+(optionalMissing.length?" • Optional unavailable: "+optionalMissing.join(", "):" • Optional rig complete");
+  $("rigTabStatus").textContent=names.length?"Bones available":"No GLB bones available";
+  const requiredMissing=[];const optionalMissing=rigTabJoints.filter(x=>!mapped[x]);$("rigTabStatus").textContent=Object.keys(mapped).length?"Rig ready":"No controllable bones";$("rigTabDetails").textContent=(s?.retargeting?.boneCount??Object.keys(mapped).length)+" mapped bones • Real-bone control: "+(Object.keys(mapped).length?"READY":"UNAVAILABLE")+(optionalMissing.length?" • Optional unavailable: "+optionalMissing.join(", "):"");
   $("rigTabState").textContent="★ = required. Select the exact bone from your GLB; do not invent or type a name. Then Apply Manual Mapping.";
  }catch(e){$("rigTabStatus").textContent="Rig unavailable";$("rigTabDetails").textContent=e.message;$("rigTabState").textContent=e.message}
 }
