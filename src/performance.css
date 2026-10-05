@@ -4,3 +4,35 @@ body{min-height:100vh}header{height:112px;padding:22px 30px;box-shadow:0 8px 26p
 .behaviorGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.toggle{display:flex;align-items:center;gap:12px;padding:15px 16px;background:rgba(255,255,255,.92);border:1px solid #dfe5ef;border-radius:15px;cursor:pointer;box-shadow:0 6px 18px rgba(31,44,68,.04)}.toggle input{width:18px;height:18px;margin:0;min-height:auto;accent-color:#182235}.toggle span{display:flex;flex-direction:column;gap:4px}.toggle b{font-size:13px;color:#182235}.toggle small{font-size:11px;color:#718096;font-weight:500}.behaviorControls{margin-top:18px}@media(max-width:680px){.behaviorGrid{grid-template-columns:1fr}}
 .mark img{width:100%;height:100%;display:block;object-fit:contain;border-radius:12px}.permissionGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.permissionRow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px;background:rgba(255,255,255,.92);border:1px solid #dfe5ef;border-radius:15px;box-shadow:0 6px 18px rgba(31,44,68,.04)}.permissionRow span{display:flex;flex-direction:column;gap:4px}.permissionRow b{font-size:13px;color:#182235}.permissionRow small{font-size:11px;color:#718096;font-weight:500}.permissionRow select{width:150px;margin:0;min-height:40px}@media(max-width:680px){.permissionGrid{grid-template-columns:1fr}.permissionRow{align-items:flex-start;flex-direction:column}.permissionRow select{width:100%}}
 .resourceCards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.metricCard{border:1px solid #2c2c34;border-radius:8px;padding:14px;background:#20202a}.metricCard b{display:block;font-size:20px;color:#e8e8ec}.metricCard span{font-size:11px;color:#888}.processTable{border:1px solid #2c2c34;border-radius:8px;overflow:hidden;background:#20202a}.processHead,.processRow{display:grid;grid-template-columns:2fr 1fr 1.2fr 1.2fr;gap:8px;padding:9px 12px;align-items:center}.processHead{font-size:11px;color:#888;background:#18181d}.processRow{border-top:1px solid #2c2c34;font-size:12px;color:#cfcfd5}.processRow small{color:#777}.diagnosticGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.diagCard{border:1px solid #2c2c34;border-radius:8px;padding:12px;background:#20202a;display:grid;grid-template-columns:1fr auto;gap:6px 10px}.diagCard b{color:#b0b0b8}.diagCard strong{font-size:10px}.diagCard small{grid-column:1/-1;color:#888;line-height:1.4}.diagCard strong.active,.diagCard strong.ready,.diagCard strong.connected{color:#6dca7e}.diagCard strong.error{color:#e06c75}.diagCard strong.disabled{color:#999}@media(max-width:760px){.resourceCards{grid-template-columns:repeat(2,minmax(0,1fr))}.diagnosticGrid{grid-template-columns:1fr}}
+
+body{height:100vh;min-height:560px;overflow:hidden;display:grid;grid-template-columns:224px minmax(0,1fr);grid-template-rows:88px minmax(0,1fr);background:#f3f6fa}
+body>header{grid-column:1/-1;grid-row:1;height:auto;min-height:88px;padding:14px 24px;background:#fff;box-shadow:none}
+body>.tabs{grid-column:1;grid-row:2;display:flex;flex-direction:column;align-items:stretch;gap:18px;padding:20px 12px;background:#fff;border-right:1px solid #e1e6ee;border-bottom:0;overflow-y:auto;overflow-x:hidden;box-shadow:none}
+.tabGroup{display:flex;flex-direction:column;gap:4px}
+.tabGroupLabel{padding:0 12px 6px;color:#8996a8;font-size:9px;font-weight:800;letter-spacing:.12em}
+.tabs button{width:100%;min-height:38px;padding:0 12px;text-align:left;border-radius:8px;background:transparent;color:#526075;font-size:12px}
+.tabs button:hover{background:#f3f6fa}
+.tabs button.active{background:#eaf2ff;color:#245aa8;box-shadow:inset 3px 0 #3781db}
+body>main{grid-column:2;grid-row:2;min-width:0;overflow:auto;overscroll-behavior:contain}
+.tab{width:min(100%,1440px);max-width:none;margin:0 auto;padding:30px 36px 48px}
+.sectionHead{margin-bottom:22px}
+.sectionHead h2{font-size:23px}
+.serviceCard,.characterControllerPanel,.infoCard,.historyStat{border-radius:8px}
+.resourceCards .metricCard,.processTable,.diagCard{border-color:#dce4ee;background:#fff;color:#344256;border-radius:8px}
+.metricCard b,.diagCard b{color:#344256}
+.metricCard span,.processHead,.processRow small,.diagCard small{color:#718096}
+.processHead{background:#f0f4f8}
+.processRow{color:#425169}
+textarea{display:block;width:100%;max-width:100%;margin-top:7px;padding:12px 13px;border:1px solid #d5dce8;border-radius:8px;background:#fff;color:#182235;font:13px/1.5 "Segoe UI",system-ui,sans-serif;resize:vertical}
+@media(max-width:760px){
+ body{height:auto;min-height:100vh;overflow:auto;display:flex;flex-direction:column}
+ body>header{min-height:82px;padding:12px 16px}
+ body>.tabs{position:sticky;top:0;z-index:5;display:flex;flex-direction:row;gap:14px;padding:10px 12px;border-right:0;border-bottom:1px solid #e1e6ee;overflow-x:auto;overflow-y:hidden}
+ .tabGroup{flex-direction:row;flex:0 0 auto;gap:6px;align-items:center}
+ .tabGroupLabel{display:none}
+ .tabs button{width:auto;min-height:38px;padding:0 12px}
+ .tabs button.active{box-shadow:inset 0 -3px #3781db}
+ body>main{overflow:visible}
+ .tab{padding:22px 18px 36px}
+}
+@media(max-width:520px){.formGrid{grid-template-columns:1fr}.formGrid .wide{grid-column:auto}.resourceCards{grid-template-columns:repeat(2,minmax(0,1fr))}.processHead,.processRow{grid-template-columns:1.5fr .7fr 1fr 1fr;gap:5px;padding:8px;font-size:10px}}

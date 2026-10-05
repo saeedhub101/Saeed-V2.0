@@ -115,19 +115,24 @@ function normalizeHumanoidRestPose(){
  const armState=()=>{
   const ld=direction(left),rd=direction(right);
   if(!ld||!rd)return null;
-  return{ld,rd,horizontal:Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5,spread:Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65};
+    const spread=Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65;
+    const horizontal=Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5;
+    const relaxed=Math.abs(ld.x)+Math.abs(rd.x)>1.2;
+    return{ld,rd,horizontal,spread,relaxed};
  };
  const before=armState();
  if(!before)return{detected:"upright-unknown-arms",normalized:true,corrected:false,stillTPose:false};
- if(before.horizontal&&before.spread){
+ if(before.horizontal&&before.spread&&before.relaxed){
   const leftFore=rig.get("leftForeArm")||findNamedBone("left","fore"),rightFore=rig.get("rightForeArm")||findNamedBone("right","fore");
-  aimBoneChild(left,new THREE.Vector3(-.55,-.84,0));
-  aimBoneChild(right,new THREE.Vector3(.55,-.84,0));
-  if(leftFore)aimBoneChild(leftFore,new THREE.Vector3(-.25,-.97,0));
-  if(rightFore)aimBoneChild(rightFore,new THREE.Vector3(.25,-.97,0));
+    const neutralLeft=new THREE.Vector3(-.62,-.82,.18),neutralRight=new THREE.Vector3(.62,-.82,.18);
+    const neutralLeftFore=new THREE.Vector3(-.24,-.94,.12),neutralRightFore=new THREE.Vector3(.24,-.94,.12);
+    aimBoneChild(left,neutralLeft);
+    aimBoneChild(right,neutralRight);
+    if(leftFore)aimBoneChild(leftFore,neutralLeftFore);
+    if(rightFore)aimBoneChild(rightFore,neutralRightFore);
   model.updateWorldMatrix(true,true);
   const after=armState();
-  const stillTPose=Boolean(after?.horizontal&&after?.spread);
+    const stillTPose=Boolean(after?.horizontal&&after?.spread&&after?.relaxed);
   return{detected:"t-pose",normalized:!stillTPose,corrected:true,stillTPose};
  }
  return{detected:"upright",normalized:true,corrected:false,stillTPose:false};

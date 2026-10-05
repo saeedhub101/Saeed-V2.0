@@ -3,6 +3,14 @@ const {Brain}=require("./core/brain/brain"),{createSettingsStore}=require("./cor
 class Agent{
  constructor({registry,onEvent,requestStepIncrease}){
   this.registry=registry;this.onEvent=onEvent||(()=>{});this.memoryService=null;this.getMemoryService=()=>this.memoryService||(this.memoryService=require("./core/services/memory-service"));this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.dir=app.getPath("userData");this.settingsStore=createSettingsStore(this.dir);this.file=this.settingsStore.file;this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");fs.mkdirSync(this.dir,{recursive:true});this._settings=this.settingsStore.load();this.loadConversations();this.globalMemory={facts:[]};this.currentConversationId=null;this.history=[];this.newConversation();this.brain=new Brain({registry,getSettings:()=>this.settings,memoryContext:()=>this.memoryContext(),saveHistory:()=>this.saveHistory(),baseStepLimit:()=>this.baseStepLimit(),getDir:()=>this.dir,onEvent:e=>this.onEvent(e),requestStepIncrease:o=>this.askForMoreSteps(o.current,o.task),providerDefaults:n=>this.providerDefaults(n)})}
+ ensureConversationState(){
+  if(!Array.isArray(this.conversations)||!this.conversations.length){this.newConversation();return this.currentConversationId;}
+  const selected=this.conversations.find(x=>x.id===this.currentConversationId);
+  if(!selected){this.currentConversationId=this.conversations[0].id;}
+  const chat=this.conversations.find(x=>x.id===this.currentConversationId)||this.conversations[0];
+  if(chat){this.currentConversationId=chat.id;this.history=Array.isArray(chat.messages)?chat.messages.slice(-200):[];}
+  return this.currentConversationId;
+ }
  readJson(file,fallback){try{return JSON.parse(fs.readFileSync(file,"utf8"))}catch{return fallback}}
  loadConversations(){const legacy=this.readJson(this.historyFile,[]),stored=this.readJson(this.chatsFile,{conversations:[]});this.conversations=Array.isArray(stored?.conversations)?stored.conversations:[];this.conversations=this.conversations.filter(x=>(Array.isArray(x?.messages)&&x.messages.length>0)||x?.title!=="New Chat");if(!this.conversations.length&&Array.isArray(legacy)&&legacy.length){this.conversations=[{id:this.newId(),title:"Previous conversation",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),messages:legacy.slice(-200)}];this.saveConversations()}}
  baseStepLimit(){return Math.max(1,Math.min(100,Number(this.settings?.maxSteps)||16))}
@@ -20,7 +28,14 @@ class Agent{
  chatMeta(chat){return{id:chat.id,title:chat.title||"New Chat",createdAt:chat.createdAt,updatedAt:chat.updatedAt,messageCount:Array.isArray(chat.messages)?chat.messages.length:0}}
  listConversations(){return this.conversations.map(x=>this.chatMeta(x))}getCurrentConversation(){const x=this.conversations.find(c=>c.id===this.currentConversationId);return x?this.chatMeta(x):null}getGlobalMemory(){return this.getMemoryService().listFacts(this.dir)}
  async run(text,image=null){const result=await this.brain.run({text,image,history:this.history});if(result?.event)this.onEvent(result.event);if(result?.handled){const answer=String(result.answer||"");this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:result.source});return answer}return String(result?.answer||"")}
- async runVoice(text,image=null){const input=String(text||"").trim();if(!input)return "";const result=await this.brain.run({text:input,image,history:this.history});if(result?.event)this.onEvent(result.event);if(result?.handled){const answer=String(result?.answer||"");this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.saveHistory();return answer}return String(result?.answer||"")}
+ async runVoice(text,image=null){
+  this.ensureConversationState();
+  const input=String(text||"").trim();if(!input)return "";
+  const result=await this.brain.run({text:input,image,history:this.history});
+  if(result?.event)this.onEvent(result.event);
+  if(result?.handled){const answer=String(result?.answer||"");this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.saveHistory();return answer}
+  return String(result?.answer||"");
+ }
  recordConversationExchange(user,assistant){const input=String(user||"").trim(),answer=String(assistant||"").trim();if(!input||!answer)return false;this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.saveHistory();return true}
  async dispose(){try{await this.brain?.dispose?.()}catch{}try{await this.registry?.dispose?.()}catch{}this.brain=null;this.registry=null;this.memoryService=null;this.onEvent=()=>{};return true}
 }
