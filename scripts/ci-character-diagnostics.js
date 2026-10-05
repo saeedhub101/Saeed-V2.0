@@ -6,19 +6,22 @@ async function loadCharacterModules(){
  const dir=fs.mkdtempSync(path.join(root,".character-diag-"));
  const files=["AnimationController.js","MotionRegistry.js","MotionSafety.js","MotionSequence.js","motions.js","FaceController.js","AutoRigMapper.js"];
  for(const file of files){
-  const source=fs.readFileSync(path.join(root,"src/character",file),"utf8").replaceAll(".js\\\"",".mjs\\\"").replaceAll(".js\\\'",".mjs\\\'");
-  fs.writeFileSync(path.join(dir,file.replace(/\\.js$/,".mjs")),source);
+  let source=fs.readFileSync(path.join(root,"src/character",file),"utf8");
+  source=source.replaceAll(".js\"",".mjs\"").replaceAll(".js'"," .mjs'");
+  source=source.replaceAll(" .mjs'"," .mjs'");
+  fs.writeFileSync(path.join(dir,file.replace(/\.js$/,".mjs")),source);
  }
  const imports={};
- for(const file of files)imports[file]=pathToFileURL(path.join(dir,file.replace(/\\.js$/,".mjs"))).href;
+ for(const file of files)imports[file]=pathToFileURL(path.join(dir,file.replace(/\.js$/,".mjs"))).href;
  return imports;
 }
 const syntax=p=>{const r=spawnSync(process.execPath,["--check",path.join(root,p)],{encoding:"utf8"});return r.status===0?"":(r.stderr||r.stdout||"syntax error").trim();};
 const magnitude=p=>Object.values(p||{}).reduce((n,r)=>n+Math.abs(Number(r?.x)||0)+Math.abs(Number(r?.y)||0)+Math.abs(Number(r?.z)||0),0);
 async function run(){
+ let modules;
+ try{modules=await loadCharacterModules()}catch(e){report("module preparation",false,e?.stack||e)}
  for(const p of ["src/character/AnimationController.js","src/character/MotionRegistry.js","src/character/MotionSequence.js","src/character/MotionSafety.js","src/character/motions.js","src/character/CharacterController.js"])report("syntax "+p,!syntax(p),syntax(p));
  try{
-  const modules=await loadCharacterModules();
   const {AnimationController}=await import(modules["AnimationController.js"]),{registerCoreMotions}=await import(modules["motions.js"]);
   let last={};const mock={wakeRender(){},resetCharacterPose(){},applyCharacterPose(p){last=JSON.parse(JSON.stringify(p||{}));}};
   const a=new AnimationController(mock);registerCoreMotions(a);const ids=a.registry.list();
