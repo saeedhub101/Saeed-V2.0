@@ -67,7 +67,8 @@ export class CharacterController{
  touch(){this.lastInteraction=performance.now();this.clearIdleTimer();if(this.visible)this.startIdleScheduler(4500);return true}
  handleEvent(event){
   const type=typeof event==="string"?event:String(event?.type||"");
-  if(!this.behavior.events)return false;\n  if(type==="speech-start"||type==="thinking"){this.clearIdleTimer();this.idleBusy=true;if(type==="thinking")this.play("think",{duration:2.2,priority:35});else this.play("talkGesture",{duration:.9,priority:25});return true}
+  if(!this.behavior.events)return false;
+  if(type==="speech-start"||type==="thinking"){this.clearIdleTimer();this.idleBusy=true;if(type==="thinking")this.play("think",{duration:2.2,priority:35});else this.play("talkGesture",{duration:.9,priority:25});return true}
   if(type==="speech-end"){this.stop("talkGesture");this.idleBusy=false;this.startIdleScheduler(3500);return true}
   if(type==="user-input"){this.clearIdleTimer();this.play("think",{duration:1.8,priority:35});return true}
   if(type==="tool"){this.clearIdleTimer();this.play("think",{duration:1.4,priority:30});return true}
