@@ -124,8 +124,8 @@ function normalizeHumanoidRestPose(){
  if(!before)return{detected:"upright-unknown-arms",normalized:true,corrected:false,stillTPose:false};
  if(before.horizontal&&before.spread&&before.relaxed){
   const leftFore=rig.get("leftForeArm")||findNamedBone("left","fore"),rightFore=rig.get("rightForeArm")||findNamedBone("right","fore");
-    const neutralLeft=new THREE.Vector3(-.62,-.82,.18),neutralRight=new THREE.Vector3(.62,-.82,.18);
-    const neutralLeftFore=new THREE.Vector3(-.24,-.94,.12),neutralRightFore=new THREE.Vector3(.24,-.94,.12);
+    const neutralLeft=new THREE.Vector3(-.62,-.82,0),neutralRight=new THREE.Vector3(.62,-.82,0);
+    const neutralLeftFore=new THREE.Vector3(-.24,-.94,0),neutralRightFore=new THREE.Vector3(.24,-.94,0);
     aimBoneChild(left,neutralLeft);
     aimBoneChild(right,neutralRight);
     if(leftFore)aimBoneChild(leftFore,neutralLeftFore);
