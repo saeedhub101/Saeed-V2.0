@@ -15,7 +15,11 @@ export class CharacterController{
  }
  bindCurrentCharacter(){
   const bones=this.avatar?.getBoneMap?.()||this.avatar?.getBones?.()||{};
-  const names=this.avatar?.getAvailableBoneNames?.()||Object.values(bones).map(b=>b?.name).filter(Boolean);
+  const names=this.avatar?.getAvailableBoneNames?.()||[];
+  if(!names.length){
+   const fallback=Object.values(bones).map(b=>b?.name).filter(Boolean);
+   if(fallback.length)names.push(...fallback);
+  }
   if(!names.length)return{rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
   const auto=autoMapBones(names),profileId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed"),profile=this.profiles.load(profileId);
   const available=new Set(names.map(n=>String(n).toLowerCase()));
