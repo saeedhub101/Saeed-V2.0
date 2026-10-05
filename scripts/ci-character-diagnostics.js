@@ -4,7 +4,7 @@ const report=(name,ok,detail="")=>{console.log(`[CHARACTER-DIAG] ${ok?"PASS":"FA
 const fsCopy=(src,dst)=>fs.copyFileSync(path.resolve(root,src),dst);
 async function loadCharacterModules(){
  const dir=fs.mkdtempSync(path.join(root,".character-diag-"));
- const files=["AnimationController.js","MotionRegistry.js","MotionSafety.js","MotionSequence.js","motions.js"];
+ const files=["AnimationController.js","MotionRegistry.js","MotionSafety.js","MotionSequence.js","motions.js","FaceController.js","AutoRigMapper.js"];
  for(const file of files){
   const source=fs.readFileSync(path.join(root,"src/character",file),"utf8").replaceAll(".js\\\"",".mjs\\\"").replaceAll(".js\\\'",".mjs\\\'");
   fs.writeFileSync(path.join(dir,file.replace(/\\.js$/,".mjs")),source);
@@ -58,12 +58,12 @@ async function run(){
   report("idle pool",/this\.idlePool=\[([\s\S]*?)\];/.test(c));
  }catch(e){report("idle diagnostics",false,e?.stack||e);}
  try{
-  const {FaceController}=await load("src/character/FaceController.js"),calls=[],face=new FaceController({setCharacterExpression:(n,v)=>{calls.push([n,v]);return true;}});
+  const {FaceController}=await import(modules["FaceController.js"]),calls=[],face=new FaceController({setCharacterExpression:(n,v)=>{calls.push([n,v]);return true;}});
   const names=face.status().availableExpressions||[];for(const n of ["happy","sad","angry","surprised","confused","sleepy","thinking"])face.expression(n,.8);
   report("all emotional profiles",names.length>=8,`profiles=${names.length}`);report("emotional application",calls.length>0,`calls=${calls.length}`);
  }catch(e){report("emotion runtime",false,e?.stack||e);}
  try{
-  const {autoMapBones,requiredRigSlots}=await load("src/character/AutoRigMapper.js"),names=["Hips","Head","LeftUpperArm","RightUpperArm","LeftThigh","RightThigh","LeftForeArm","RightForeArm","LeftHand","RightHand"],m=autoMapBones(names).mapping,r=requiredRigSlots();
+  const {autoMapBones,requiredRigSlots}=await import(modules["AutoRigMapper.js"]),names=["Hips","Head","LeftUpperArm","RightUpperArm","LeftThigh","RightThigh","LeftForeArm","RightForeArm","LeftHand","RightHand"],m=autoMapBones(names).mapping,r=requiredRigSlots();
   report("required rig mapping",r.every(x=>m[x]),JSON.stringify(m));report("required rig definition",r.length===6,r.join(","));
  }catch(e){report("rig runtime",false,e?.stack||e);}
  console.log(`[CHARACTER-DIAG] SUMMARY failures=${failures}`);console.log("[CHARACTER-DIAG] NON_GATING=true");
