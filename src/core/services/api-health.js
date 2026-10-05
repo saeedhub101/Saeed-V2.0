@@ -24,13 +24,13 @@ function createApiHealth(deps={}){
    if(s.ttsProvider==="local")return finish({connected:true,detail:"Local Browser TTS configured; no API connection required"});
     const base=(s.ttsBaseUrl|| (s.ttsProvider==="groq"?"https://api.groq.com/openai/v1":s.ttsProvider==="elevenlabs"?"https://api.elevenlabs.io/v1":"https://api.openai.com/v1")).replace(/\/$/,"");url=base+"/models";const key=s.ttsApiKey||(s.ttsProvider==="openai"?s.apiKey:"");if(key)headers=s.ttsProvider==="elevenlabs"?{"xi-api-key":key}:{Authorization:"Bearer "+key};
   }else if(service==="realtime"){
-   result.provider=s.realtimeProvider==="openai"?"OpenAI Realtime":"Realtime disabled";result.model=s.realtimeModel||"gpt-realtime-2.1";result.endpoint="wss://api.openai.com/v1/realtime";
+   result.provider=s.realtimeProvider==="gemini"?"Google Gemini Live":"OpenAI Realtime";result.model=s.realtimeModel||(s.realtimeProvider==="gemini"?"gemini-3.8-live":"gpt-realtime-2.1");result.endpoint=s.realtimeProvider==="gemini"?"wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent":"wss://api.openai.com/v1/realtime";
    url="https://api.openai.com/v1/models";if(s.realtimeApiKey||s.apiKey)headers.Authorization="Bearer "+(s.realtimeApiKey||s.apiKey);
   }else return finish({detail:"Unknown API service"});
   if(!s.apiKey&&service==="brain"&&s.provider!=="ollama")return finish({detail:"Brain API key is missing"});
   if(service==="stt"&&s.sttProvider!=="whisper"&&!s.sttApiKey&&!((s.sttProvider==="openai")&&s.apiKey))return finish({detail:"STT API key is missing"});
   if(service==="tts"&&s.ttsProvider!=="local"&&!s.ttsApiKey&&!((s.ttsProvider==="openai")&&s.apiKey))return finish({detail:"TTS API key is missing"});
-  if(service==="realtime"&&s.realtimeProvider!=="openai")return finish({connected:false,detail:"No native Realtime audio provider is configured"});if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
+  if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
   const r=await fetch(url,{method,headers,signal:AbortSignal.timeout(8000)});const body=await r.text().catch(()=>"");
   if(!r.ok)return finish({detail:"HTTP "+r.status+(body?": "+body.slice(0,180):"")});
   let modelAvailable=true;try{const j=JSON.parse(body),ids=[...(j.data||[]).map(x=>x.id).filter(Boolean),...(j.models||[]).map(x=>x.name||x.id).filter(Boolean)];if(ids.length&&service==="brain")modelAvailable=ids.includes(result.model)||result.model==="—"}catch{}
