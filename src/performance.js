@@ -83,13 +83,13 @@ async function refreshRigTab(){
   const grid=$("rigMappingGrid");
   const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const opts='<option value="">— Not mapped —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join("");
-  const requiredSlots=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];grid.innerHTML=rigTabJoints.map(slot=>{const required=requiredSlots.includes(slot);const hint=required?"REQUIRED — map this exact logical joint.":"OPTIONAL — improves motion/face detail; leaving it unmapped is OK.";return '<label><b>'+slot+(required?" ★":"")+"</b><small>"+hint+"</small><select data-rig-tab-slot=\""+slot+"\">"+opts+"</select></label>"}).join("");
+  const requiredSlots=[];grid.innerHTML=rigTabJoints.map(slot=>{const required=requiredSlots.includes(slot);const hint="OPTIONAL — map this logical joint to a real GLB bone when available; automatic fallback remains controllable.";return '<label><b>'+slot+(required?" ★":"")+"</b><small>"+hint+"</small><select data-rig-tab-slot=\""+slot+"\">"+opts+"</select></label>"}).join("");
   for(const el of grid.querySelectorAll("[data-rig-tab-slot]"))el.value=mapped[el.dataset.rigTabSlot]||"";
   const caps=s?.retargeting?.capabilities||{};
   const missing=rigTabJoints.filter(x=>!mapped[x]);
   $("rigTabStatus").textContent=names.length?"Bones available":"No GLB bones available";
   const requiredMissing=[];const optionalMissing=rigTabJoints.filter(x=>!mapped[x]);$("rigTabStatus").textContent=Object.keys(mapped).length?"Rig ready":"No controllable bones";$("rigTabDetails").textContent=(s?.retargeting?.boneCount??Object.keys(mapped).length)+" mapped bones • Real-bone control: "+(Object.keys(mapped).length?"READY":"UNAVAILABLE")+(optionalMissing.length?" • Optional unavailable: "+optionalMissing.join(", "):"");
-  $("rigTabState").textContent="★ = required. Select the exact bone from your GLB; do not invent or type a name. Then Apply Manual Mapping.";
+  $("rigTabState").textContent="Automatic mapping uses real bones from the loaded GLB. Manual mapping is optional.";
  }catch(e){$("rigTabStatus").textContent="Rig unavailable";$("rigTabDetails").textContent=e.message;$("rigTabState").textContent=e.message}
 }
 async function refreshMotionEditor(){try{const r=await controllerCommand({action:"listMotions"});const list=r?.motions||[];const sel=$("motionEditorList");if(sel)sel.innerHTML=list.map(m=>'<option value="'+String(m.id).replace(/"/g,"&quot;")+'">'+String(m.id)+'</option>').join("");$("motionEditorState").textContent=list.length+" custom motions available";}catch(e){$("motionEditorState").textContent=e.message}}
