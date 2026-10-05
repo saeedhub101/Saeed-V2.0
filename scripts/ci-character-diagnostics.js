@@ -4,11 +4,10 @@ const report=(name,ok,detail="")=>{console.log(`[CHARACTER-DIAG] ${ok?"PASS":"FA
 const fsCopy=(src,dst)=>fs.copyFileSync(path.resolve(root,src),dst);
 async function loadCharacterModules(){
  const dir=fs.mkdtempSync(path.join(root,".character-diag-"));
- const files=["AnimationController.js","MotionRegistry.js","MotionSafety.js","MotionSequence.js","motions.js","FaceController.js","AutoRigMapper.js"];
+ const files=["AnimationController.js","CharacterRig.js","PoseController.js","MotionRegistry.js","MotionSafety.js","MotionSequence.js","motions.js","FaceController.js","AutoRigMapper.js"];
  for(const file of files){
   let source=fs.readFileSync(path.join(root,"src/character",file),"utf8");
-  source=source.replaceAll(".js\"",".mjs\"").replaceAll(".js'"," .mjs'");
-  source=source.replaceAll(" .mjs'"," .mjs'");
+  source=source.replaceAll(".js\"",".mjs\"").replaceAll(".js'",".mjs'");
   fs.writeFileSync(path.join(dir,file.replace(/\.js$/,".mjs")),source);
  }
  const imports={};
