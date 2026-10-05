@@ -55,7 +55,12 @@
 <label>Event cooldown (seconds)<small>Minimum time between automatic character events. Higher values mean fewer interruptions.</small><input id="behaviorCooldown" type="number" min="5" max="300"></label>
 <label>Sleep after (minutes)<small>How long Saeed must remain inactive before sleep behavior can start.</small><input id="behaviorSleepAfterMin" type="number" min="1" max="240"></label>
 <label>Render wake duration (ms)<small>How long rendering stays awake for a character update. Lower values reduce work; higher values give longer visible motion.</small><input id="behaviorRenderWakeMs" type="number" min="80" max="5000" step="50"></label>
-</div><button id="saveCharacter" class="primary">Save Character</button><p id="characterState" class="hint"></p><section class="characterControllerPanel">
+</div><button id="saveCharacter" class="primary">Save Character</button><p id="characterState" class="hint"></p><section class="characterControllerPanel" id="characterMotionControlCard">
+<div class="sectionHead"><span class="eyebrow">MOTION CONTROL</span><h2>Character Motion Control</h2><p>These controls only control whether the existing character motions may run. They do not change the rig, retargeter, rest pose or motion definitions.</p></div>
+<div class="permissionActions"><button id="characterPauseMotionTop" class="secondary">Pause</button><button id="characterAnimationsToggleTop" class="secondary">Animations ON</button></div>
+<p id="characterMotionControlState" class="hint">Loading character motion state…</p>
+</section>
+<section class="characterControllerPanel">
 <div class="sectionHead"><span class="eyebrow">CHARACTER CONTROLLER</span><h2>Pose, Motions & Rig</h2><p>Use logical joints and named motions. <b>Do not enter Blender bone names here.</b> Motions use Saeed logical names such as <code>rightUpperArm</code>. Any real GLB bone can be controlled; recognized humanoid joints improve motion quality, but no fixed six-bone rig is required.</p></div>
 <div class="formGrid">
 <label>Motion<select id="characterMotion"><option>idle</option><option>nod</option><option>shake</option><option>wave</option><option>think</option><option>jump</option><option>clap</option><option>dance</option><option>talkGesture</option></select></label>
