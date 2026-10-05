@@ -25,12 +25,13 @@ async function run(){
     report("animation registry",motions.length>=10,`motions=${motions.length}`);
     report("motion coverage",expected.every(id=>motions.some(m=>m.id===id)),`expected=${expected.length},registered=${motions.length}`);
     let played=0;
-    for(const id of ["nod","wave","dance","walk","stretch","jump","clap","sleep","wake"]){
+    for(const motion of motions){
+      const id=motion.id;
       if(animation.play(id,{duration:.2})) played++;
       animation.update(1/60);
       animation.stop(id);
     }
-    report("animation play/update",played===9,`played=${played}/9`);
+    report("full motion play/update",played===motions.length,"played="+played+"/"+motions.length);
     report("animation controller lifecycle",animation.status().motions.length>=expected.length);
   }catch(error){report("animation runtime",false,error?.stack||error);}
 
