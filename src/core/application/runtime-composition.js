@@ -26,7 +26,7 @@ function createRuntimeComposition(ctx){
  const setVoiceMuted=muted=>ensureVoiceHost().setVoiceMuted(muted);
  const ensureScreenCapture=()=>ctx.state.screenCapture||(ctx.state.screenCapture=load("screenCapture","../application/screen-capture").createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic}));
  const captureScreen=()=>ensureScreenCapture().captureScreen();
- const showRestPoseEditor=()=>ensureWindowManager().showRestPoseEditor();
+ const showRestPoseEditor=async()=>{const result=await ensureWindowManager().showRestPoseEditor();characterHost?.sendPendingCharacterData?.();return result};
  const characterStore=load("characterStore","../character/character-store").createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>getState().characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
  const {character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings}=characterStore;
  const {createCharacterHost}=load("characterHost","../character/character-host");
