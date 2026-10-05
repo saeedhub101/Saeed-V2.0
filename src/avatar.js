@@ -351,4 +351,38 @@ window.saeedAvatar={
 };
 resize();
 
+async function ensureCharacterController(){
+ try{
+  const mod=await import("./character/CharacterController.js");
+  const Existing=window.saeedCharacterController;
+  if(Existing?.avatar===window.saeedAvatar){
+   const ready=window.saeedAvatar.getCharacterPoseStatus?.();
+   if(ready?.loaded&&!Existing.characterId)Existing.onCharacterLoaded?.();
+   return Existing;
+  }
+  const controller=new mod.CharacterController(window.saeedAvatar);
+  window.saeedCharacterController=controller;
+  controller.api={
+   play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
+   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
+   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),setLimit:(s,l)=>controller.setLimit(s,l),
+   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
+   listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
+   setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};return {...controller.behavior}},
+   getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),setVisible:v=>controller.setVisible(v),
+   handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
+  };
+  controller.setVisible(!document.hidden);
+  const ready=window.saeedAvatar.getCharacterPoseStatus?.();
+  if(ready?.loaded)controller.onCharacterLoaded?.();
+  window.dispatchEvent(new CustomEvent("saeed-character-controller-ready"));
+  return controller;
+ }catch(error){
+  window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=error?.stack||String(error));
+  window.saeed?.reportDiagnostic?.("ERROR","CHARACTER CONTROLLER LOAD",error?.stack||String(error));
+  return null;
+ }
+}
+void ensureCharacterController();
+window.saeedEnsureCharacterController=ensureCharacterController;
 window.dispatchEvent(new CustomEvent("saeed-avatar-ready"));
