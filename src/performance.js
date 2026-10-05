@@ -1,4 +1,4 @@
-const $=id=>document.getElementById(id);let settings={};const brainProviderDefaults={openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-5"},gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},"openai-compatible":{baseUrl:"",model:""}};const tabs=[...document.querySelectorAll(".tabs button")];function activateTab(name){const target=String(name||"");tabs.forEach(x=>x.classList.toggle("active",x.dataset.tab===target));document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.id==="tab-"+target));if(target==="resources"){refreshResources();clearInterval(resourceTimer);resourceTimer=setInterval(refreshResources,1000)}else{clearInterval(resourceTimer);resourceTimer=null}if(target==="diagnostics")refreshDiagnostics();if(target==="character"){refreshCharacterController();refreshMotionEditor()}if(target==="rig"){refreshRigTab()}}tabs.forEach(b=>b.addEventListener("click",e=>{e.preventDefault();activateTab(b.dataset.tab)}));$("close").onclick=()=>window.close();const defaults={characterBehavior:{breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30,autonomousMovement:true,idleThoughts:true,sleep:true,eyeTracking:true,sleepAfterMin:20,renderWakeMs:1200}};const behaviorSettings=()=>({...defaults.characterBehavior,...(settings.characterBehavior||{})});const permissionDefaults={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};const permissionSettings=()=>({...permissionDefaults,...(settings.permissions||{})});
+const $=id=>document.getElementById(id);let settings={};const brainProviderDefaults={openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-5"},gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},"openai-compatible":{baseUrl:"",model:""}};const tabs=[...document.querySelectorAll(".tabs button")];function activateTab(name){const target=String(name||"");tabs.forEach(x=>x.classList.toggle("active",x.dataset.tab===target));document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.id==="tab-"+target));if(target==="resources"){refreshResources();clearInterval(resourceTimer);resourceTimer=setInterval(refreshResources,1000)}else{clearInterval(resourceTimer);resourceTimer=null}if(target==="diagnostics")refreshDiagnostics();if(target==="character"){refreshCharacterController();refreshRestPoseEditor();refreshMotionEditor()}if(target==="rig"){refreshRigTab()}}tabs.forEach(b=>b.addEventListener("click",e=>{e.preventDefault();activateTab(b.dataset.tab)}));$("close").onclick=()=>window.close();const defaults={characterBehavior:{breathing:true,blinking:true,expressions:true,speechFace:true,idle:true,walking:true,dancing:true,greeting:true,events:true,random:true,frequency:"normal",eventCooldownSec:30,autonomousMovement:true,idleThoughts:true,sleep:true,eyeTracking:true,sleepAfterMin:20,renderWakeMs:1200}};const behaviorSettings=()=>({...defaults.characterBehavior,...(settings.characterBehavior||{})});const permissionDefaults={files:"allow",applications:"allow",system:"allow",network:"allow",screen:"allow",mouseKeyboard:"allow",microphone:"allow",tasksMemory:"allow",credentials:"allow",destructive:"allow"};const permissionSettings=()=>({...permissionDefaults,...(settings.permissions||{})});
 let settings3d=null;
 const $3=id=>$(id);
 function fill3D(s){settings3d=s||{};const w=settings3d.window||{},c=settings3d.camera||{},ch=settings3d.character||{};$3("threeWindowWidth").value=Number(w.width||430);$3("threeWindowHeight").value=Number(w.height||520);$3("threeWindowX").value=Number.isFinite(Number(w.x))?Number(w.x):"";$3("threeWindowY").value=Number.isFinite(Number(w.y))?Number(w.y):"";$3("threeZoom").value=Number(c.zoom??1);$3("threeFov").value=Number(c.fov??30);$3("threeRotX").value=Number(c.rotationX??0);$3("threeRotY").value=Number(c.rotationY??0);$3("threeRotZ").value=Number(c.rotationZ??0);$3("threeOffX").value=Number(c.offsetX??0);$3("threeOffY").value=Number(c.offsetY??0);$3("threeOffZ").value=Number(c.offsetZ??0);$3("threeCharScale").value=Number(ch.scale??1);$3("threeCharX").value=Number(ch.positionX??0);$3("threeCharY").value=Number(ch.positionY??0);$3("threeCharZ").value=Number(ch.positionZ??0);$3("threeCharRotY").value=Number(ch.rotationY??0)}
@@ -39,6 +39,60 @@ $("provider")?.addEventListener("change",()=>{const p=String($("provider").value
 let characterControllerState=null;
 const characterJoints=["head","neck","spine","chest","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot"];
 async function controllerCommand(command){try{return await window.saeed.characterController(command)}catch(e){$("characterControllerState").textContent=e.message;return{ok:false,error:e.message}}}
+async function refreshRestPoseEditor(){
+ try{
+  const namesResult=await controllerCommand({action:"boneNames"});
+  const names=[...new Set(namesResult?.bones||[])].sort((a,b)=>String(a).localeCompare(String(b)));
+  const select=$("restPoseBone");
+  if(!select)return;
+  const current=select.value;
+  select.innerHTML='<option value="">Select bone…</option>'+names.map(n=>'<option value="'+String(n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")+'">'+String(n).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")+'</option>').join("");
+  if(names.includes(current))select.value=current;
+  if(select.value)await refreshRestPoseBone();
+  else $("restPoseState").textContent=names.length+" bones available";
+ }catch(e){$("restPoseState").textContent="Rest pose editor unavailable: "+e.message}
+}
+async function refreshRestPoseBone(){
+ const bone=$("restPoseBone")?.value;
+ if(!bone)return;
+ const r=await controllerCommand({action:"boneRotation",bone});
+ const v=r?.rotation||{};
+ $("restPoseX").value=Math.round((Number(v.x)||0)*180/Math.PI);
+ $("restPoseY").value=Math.round((Number(v.y)||0)*180/Math.PI);
+ $("restPoseZ").value=Math.round((Number(v.z)||0)*180/Math.PI);
+}
+function restPoseDegrees(){
+ const rad=v=>Number(v||0)*Math.PI/180;
+ return{x:rad($("restPoseX").value),y:rad($("restPoseY").value),z:rad($("restPoseZ").value)};
+}
+$("restPoseBone")?.addEventListener("change",refreshRestPoseBone);
+$("restPoseApply")?.addEventListener("click",async()=>{
+ const bone=$("restPoseBone").value;
+ if(!bone){$("restPoseState").textContent="Select a bone first.";return}
+ const r=await controllerCommand({action:"setBoneRotation",bone,rotation:restPoseDegrees()});
+ $("restPoseState").textContent=r?.ok?"Bone rotation applied to the live character.":"Failed to apply bone rotation.";
+});
+$("restPoseNormalize")?.addEventListener("click",async()=>{
+ const r=await controllerCommand({action:"normalizeRestPose"});
+ if(r?.ok){
+  $("restPoseState").textContent="normalizeHumanoidRestPose applied.";
+  await refreshRestPoseBone();
+ }else $("restPoseState").textContent="Normalization failed.";
+});
+$("restPoseReset")?.addEventListener("click",async()=>{
+ const r=await controllerCommand({action:"resetPose"});
+ $("restPoseState").textContent=r?.ok?"Rest pose reset.":"Reset failed.";
+ await refreshRestPoseBone();
+});
+$("restPoseSave")?.addEventListener("click",async()=>{
+ try{
+  const normalized=await controllerCommand({action:"normalizeRestPose"});
+  if(!normalized?.ok)throw new Error("normalizeHumanoidRestPose failed");
+  const snapshot=await controllerCommand({action:"snapshotRestPose"});
+  settings=await window.saeed.setSettings({...settings,characterRestPose:{normalization:normalized.normalization,bones:snapshot?.bones||{}}});
+  $("restPoseState").textContent="Normal pose saved, including normalizeHumanoidRestPose.";
+ }catch(e){$("restPoseState").textContent="Save normal pose failed: "+e.message}
+});
 async function refreshCharacterController(){
  try{
   const s=await window.saeed.getCharacterController();characterControllerState=s;
