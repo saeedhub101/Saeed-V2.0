@@ -127,19 +127,12 @@ export class CharacterController{
  }
 }
 window.saeedCharacterController=null;
-let characterControllerBootTimer=null;
 function installCharacterController(){
  const avatar=window.saeedAvatar;
  if(!avatar||typeof avatar.getCharacterPoseStatus!=="function")return false;
- const pose=avatar.getCharacterPoseStatus();
- if(!pose?.loaded)return false;
- if(window.saeedCharacterController?.avatar===avatar){
-  window.saeedCharacterController.onCharacterLoaded();
-  return true;
- }
+ if(window.saeedCharacterController?.avatar===avatar)return true;
  const controller=new CharacterController(avatar);
  window.saeedCharacterController=controller;
- controller.onCharacterLoaded();
  controller.api={
   play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
@@ -152,16 +145,7 @@ function installCharacterController(){
  controller.setVisible(!document.hidden);
  return true;
 }
-function scheduleCharacterControllerBoot(){
- if(installCharacterController())return;
- if(characterControllerBootTimer)return;
- let attempts=0;
- characterControllerBootTimer=setInterval(()=>{
-  attempts++;
-  if(installCharacterController()||attempts>=100){clearInterval(characterControllerBootTimer);characterControllerBootTimer=null}
- },100);
-}
-scheduleCharacterControllerBoot();
-window.addEventListener("load",scheduleCharacterControllerBoot);
-window.addEventListener("saeed-character-loaded",scheduleCharacterControllerBoot);
+installCharacterController();
+window.addEventListener("saeed-avatar-ready",installCharacterController);
+window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterController?.onCharacterLoaded?.());
 document.addEventListener("visibilitychange",()=>window.saeedCharacterController?.setVisible(!document.hidden));
