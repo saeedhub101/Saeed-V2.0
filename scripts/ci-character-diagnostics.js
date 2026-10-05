@@ -65,8 +65,8 @@ async function run(){
   report("all emotional profiles",names.length>=8,`profiles=${names.length}`);report("emotional application",calls.length>0,`calls=${calls.length}`);
  }catch(e){report("emotion runtime",false,e?.stack||e);}
  try{
-  const {autoMapBones,requiredRigSlots}=await import(modules["AutoRigMapper.js"]),names=["Hips","Head","LeftUpperArm","RightUpperArm","LeftThigh","RightThigh","LeftForeArm","RightForeArm","LeftHand","RightHand"],m=autoMapBones(names).mapping,r=requiredRigSlots();
-  report("required rig mapping",r.every(x=>m[x]),JSON.stringify(m));report("required rig definition",r.length===6,r.join(","));
+  const {autoMapBones,requiredRigSlots}=await import(modules["AutoRigMapper.js"]),names=["Root","Body"],m=autoMapBones(names).mapping,r=requiredRigSlots();
+  report("custom GLB fallback mapping",Boolean(m.generic&&m.generic==="Root"),JSON.stringify(m));report("no fixed required rig",r.length===0,r.join(","));
  }catch(e){report("rig runtime",false,e?.stack||e);}
  console.log(`[CHARACTER-DIAG] SUMMARY failures=${failures}`);console.log("[CHARACTER-DIAG] NON_GATING=true");
 }
