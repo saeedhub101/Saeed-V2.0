@@ -139,4 +139,5 @@ window.addEventListener("load",()=>{
  };
  window.saeedCharacterController.setVisible(!document.hidden);
 });
+window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterController?.onCharacterLoaded?.());
 document.addEventListener("visibilitychange",()=>window.saeedCharacterController?.setVisible(!document.hidden));
