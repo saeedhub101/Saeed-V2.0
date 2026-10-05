@@ -362,6 +362,7 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-e2e-report.json
+            animation-health-report.json
             dist/icons/*
             dist/addons/*.zip
 
