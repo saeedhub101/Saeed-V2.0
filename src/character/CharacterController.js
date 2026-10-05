@@ -18,7 +18,7 @@ export class CharacterController{
   const names=this.avatar?.getAvailableBoneNames?.()||Object.values(bones).map(b=>b?.name).filter(Boolean);
   if(!names.length)return{rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
   const auto=autoMapBones(names),profileId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed"),profile=this.profiles.load(profileId);
-  const mapping=profile?.mapping&&Object.keys(profile.mapping).length?profile.mapping:auto.mapping;
+  const mapping={...auto.mapping,...(profile?.mapping||{})};
   if(Object.keys(mapping).length)this.avatar?.bindRig?.(mapping);
   const mapped=this.avatar?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
   const validation=this.avatar?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.avatar?.getRestPoseNormalization?.()||{normalized:true};
@@ -101,12 +101,15 @@ export class CharacterController{
   this.frame=requestAnimationFrame(tick);
  }
  onCharacterLoaded(){
+  const poseStatus=this.avatar?.getCharacterPoseStatus?.();
+  if(!poseStatus?.loaded)return {loaded:false,reason:"Character GLB is not loaded yet"};
   const x=this.bindCurrentCharacter();
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
   this.idleBusy=false;
   this.startIdleScheduler(7000);
+  return {loaded:true,...x};
  }
  update(dt){if(this.visible&&this.animation.active.length)this.animation.update(dt)}
  status(){const a=this.avatar?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.avatar?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots()}}
