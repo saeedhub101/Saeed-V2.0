@@ -340,6 +340,27 @@ function getCharacterPoseStatus(){
  if(hips&&head){const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);if(vertical>=.45){const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};const ld=direction(left),rd=direction(right);isTPose=Boolean(ld&&rd&&Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5&&Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65);detected=isTPose?"t-pose":"not-t-pose";}else detected="not-upright";}
  return {loaded:Boolean(model),requiredRig:{},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,skeletonCount:boneGroups.size,duplicateBoneGroups:[...boneGroups.entries()].filter(([,list])=>list.length>1).map(([name,list])=>({name,count:list.length})),tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
+function getBoneRotation(name){
+ const list=boneGroups.get(String(name||""))||[];
+ const b=list[0];
+ if(!b)return null;
+ return{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
+}
+function setBoneRotation(name,rotation={}){
+ const list=boneGroups.get(String(name||""))||[];
+ if(!list.length)return false;
+ const x=Number(rotation.x),y=Number(rotation.y),z=Number(rotation.z);
+ if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
+ for(const b of list)b.rotation.set(x,y,z);
+ render();
+ return true;
+}
+function snapshotBoneRotations(){
+ getSceneBones();
+ const out={};
+ for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
+ return out;
+}
 window.saeedAvatar={
  get3DStatus:()=>({
   overall:{state:model?"ready":"starting",detail:model?"3D character rendered":"Waiting for GLB"},
@@ -347,6 +368,7 @@ window.saeedAvatar={
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
+ getBoneRotation,setBoneRotation,snapshotBoneRotations,normalizeHumanoidRestPose,
  getCharacterProfileKey:()=>String(window.saeedAvatarCurrentName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),
