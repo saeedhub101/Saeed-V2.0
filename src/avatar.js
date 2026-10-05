@@ -138,11 +138,8 @@ function normalizeHumanoidRestPose(){
  if(before.horizontal&&before.spread&&before.relaxed){
   const leftFore=rig.get("leftForeArm")||findNamedBone("left","fore"),rightFore=rig.get("rightForeArm")||findNamedBone("right","fore");
     const neutralLeft=new THREE.Vector3(-.62,-.82,0),neutralRight=new THREE.Vector3(.62,-.82,0);
-    const neutralLeftFore=new THREE.Vector3(-.24,-.94,0),neutralRightFore=new THREE.Vector3(.24,-.94,0);
     aimBoneChild(left,neutralLeft);
     aimBoneChild(right,neutralRight);
-    if(leftFore)aimBoneChild(leftFore,neutralLeftFore);
-    if(rightFore)aimBoneChild(rightFore,neutralRightFore);
   model.updateWorldMatrix(true,true);
   const after=armState();
   const stillTPose=Boolean(after?.horizontal&&after?.spread&&after?.relaxed);
