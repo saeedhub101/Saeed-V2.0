@@ -251,6 +251,7 @@ function display(parsed){
  rig.clear();base.clear();
  collectMorphs();
  window.saeedCharacterController?.onCharacterLoaded?.();
+  window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
  fit();
  render();
 }
