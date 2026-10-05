@@ -9,9 +9,21 @@ import { CharacterProfileStore } from "./CharacterProfileStore.js";
 
 export class CharacterController{
  constructor(avatar){
-  this.avatar=avatar;this.animation=new AnimationController(avatar);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.behavior={idle:true,events:true,random:true,blinking:true,expressions:true,speechFace:true,walking:true,dancing:true,greeting:true};this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.avatar=avatar;this.animation=new AnimationController(avatar);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.behavior={idle:true,events:true,random:true,blinking:true,expressions:true,speechFace:true,walking:true,dancing:true,greeting:true};this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
+ }
+ readAnimationEnabled(){try{return localStorage.getItem("saeed.character.animations.enabled")!=="0"}catch{return true}}
+ writeAnimationEnabled(value){try{localStorage.setItem("saeed.character.animations.enabled",value?"1":"0")}catch{}}
+ setAnimationEnabled(value){
+  const enabled=value!==false;this.animationEnabled=enabled;this.writeAnimationEnabled(enabled);
+  if(!enabled){this.animationPaused=false;this.clearIdleTimer();this.stopAll();return enabled}
+  if(this.visible&&!this.animationPaused)this.startIdleScheduler(1200);return enabled;
+ }
+ setAnimationPaused(value){
+  const paused=Boolean(value);this.animationPaused=paused;
+  if(paused){this.clearIdleTimer();this.animation.stopAll();this.idleBusy=false;this.avatar?.wakeRender?.();return true}
+  if(this.animationEnabled&&this.visible)this.startIdleScheduler(1200);return this.animationPaused;
  }
  bindCurrentCharacter(){
   const bones=this.avatar?.getBoneMap?.()||this.avatar?.getBones?.()||{};
@@ -39,6 +51,7 @@ export class CharacterController{
   return{rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId};
  }
  play(id,options={}){
+  if(!this.animationEnabled||this.animationPaused)return false;
   if(!this.characterId)this.bindCurrentCharacter();
   const key=String(id||"idle");
   if(key==="idle"){
@@ -54,9 +67,9 @@ export class CharacterController{
  }
  stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
- finishMotion(){this.idleBusy=false;this.startIdleScheduler()}
- setPose(pose={}){const out=this.animation.setPose(pose);this.startFrameLoop();return out}
- setIdlePose(pose={}){const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
+ finishMotion(){this.idleBusy=false;if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler()}
+ setPose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setPose(pose);this.startFrameLoop();return out}
+ setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(!ok)return false;const names=this.avatar?.getAvailableBoneNames?.()||[];const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
  autoMap(){const names=this.avatar?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.avatar?.bindRig?.(auto.mapping);if(ok){const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
  saveRestPose(){
@@ -82,10 +95,11 @@ export class CharacterController{
  setVisible(value){
   const next=value!==false&&String(value)!=="hidden";this.visible=next;
   if(!next){this.clearIdleTimer();this.stopAll();return true}
-  this.startIdleScheduler(1800);return true;
+  if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(1800);return true;
  }
- touch(){this.lastInteraction=performance.now();this.clearIdleTimer();if(this.visible)this.startIdleScheduler(4500);return true}
+ touch(){this.lastInteraction=performance.now();this.clearIdleTimer();if(this.animationEnabled&&!this.animationPaused&&this.visible)this.startIdleScheduler(4500);return true}
  handleEvent(event){
+  if(!this.animationEnabled||this.animationPaused)return false;
   const type=typeof event==="string"?event:String(event?.type||"");
   if(!this.behavior.events)return false;
   if(type==="speech-start"||type==="thinking"){this.clearIdleTimer();this.idleBusy=true;if(type==="thinking")this.play("think",{duration:2.2,priority:35});else this.play("talkGesture",{duration:.9,priority:25});return true}
@@ -107,9 +121,9 @@ export class CharacterController{
   for(const x of weighted){roll-=x.weight;if(roll<=0)return x.id}
   return weighted[weighted.length-1].id;
  }
- runIdle(){if(!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
+ runIdle(){if(!this.animationEnabled||this.animationPaused||!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
  clearIdleTimer(){if(this.idleTimer){clearTimeout(this.idleTimer);this.idleTimer=null}}
- startIdleScheduler(delay){this.clearIdleTimer();if(!this.visible)return;this.idleTimer=setTimeout(()=>{this.idleTimer=null;this.runIdle()},Math.max(1000,Number(delay)||7000))}
+ startIdleScheduler(delay){this.clearIdleTimer();if(!this.animationEnabled||this.animationPaused||!this.visible)return;this.idleTimer=setTimeout(()=>{this.idleTimer=null;this.runIdle()},Math.max(1000,Number(delay)||7000))}
  startFrameLoop(){
   if(this.frame||!this.visible)return;
   const tick=()=>{
@@ -128,11 +142,11 @@ export class CharacterController{
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
   this.idleBusy=false;
-  this.startIdleScheduler(7000);
+  if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(7000);
   return {loaded:true,...x};
  }
- update(dt){if(this.visible&&this.animation.active.length)this.animation.update(dt)}
- status(){const a=this.avatar?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.avatar?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
+ update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt)}
+ status(){const a=this.avatar?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.avatar?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
   const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
@@ -152,7 +166,7 @@ function installCharacterController(){
  const controller=new CharacterController(avatar);
  window.saeedCharacterController=controller;
  controller.api={
-  play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
+  setAnimationEnabled:v=>controller.setAnimationEnabled(v),setAnimationPaused:v=>controller.setAnimationPaused(v),play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
