@@ -331,6 +331,16 @@ window.saeedAvatarGet3DSettings=()=>({...viewSettings});
 window.saeedAvatarSetRuntimeActive=()=>true;
 window.saeed?.onCharacter3DSettings?.(apply3DSettings);
 
+function setEditorRotation(x=0,y=0,z=0){
+ if(!model)return false;
+ model.rotation.set(Number(x)||0,Number(y)||0,Number(z)||0);
+ render();
+ return true;
+}
+function getEditorRotation(){
+ if(!model)return{x:0,y:0,z:0};
+ return{x:model.rotation.x,y:model.rotation.y,z:model.rotation.z};
+}
 function getCharacterPoseStatus(){
  const required=[];
  const bones={};
@@ -371,7 +381,7 @@ window.saeedAvatar={
  getBoneRotation,setBoneRotation,snapshotBoneRotations,normalizeHumanoidRestPose,
  getCharacterProfileKey:()=>String(window.saeedAvatarCurrentName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
- getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),
+ getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,wakeRender:render
