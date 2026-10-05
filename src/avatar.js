@@ -54,7 +54,7 @@ function getSceneBones(){
 }
 function getBoneMap(){return Object.fromEntries(rig)}
 function getAvailableBoneNames(){return getSceneBones().map(b=>b.name)}
-function bindRig(mapping={}){
+function bindRig(mapping={},savedRestPose=null){
  if(!model)return false;
  const groups=getSceneBoneGroups(),by={};
  for(const [name,list] of groups)by[String(name).toLowerCase()]=list[0];
@@ -63,7 +63,15 @@ function bindRig(mapping={}){
   const b=by[String(name||"").toLowerCase()];
   if(b)rig.set(slot,b);
  }
- lastRestPose=normalizeHumanoidRestPose();
+ if(savedRestPose?.bones){
+  for(const [name,r] of Object.entries(savedRestPose.bones)){
+   const list=boneGroups.get(String(name))||[];
+   const x=Number(r?.x),y=Number(r?.y),z=Number(r?.z);
+   if(!list.length||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;
+   for(const target of list)target.rotation.set(x,y,z);
+  }
+  lastRestPose=savedRestPose.normalization||{detected:"saved",normalized:true,corrected:false,stillTPose:false};
+ }else lastRestPose=normalizeHumanoidRestPose();
  for(const [slot,b] of rig){
   const list=boneGroups.get(String(b.name))||[b];
   for(const target of list)target.quaternion.copy(b.quaternion);
