@@ -86,26 +86,33 @@ function findNamedBone(sideName,part){
  return found;
 }
 function normalizeHumanoidRestPose(){
- const hips=rig.get("hips"),head=rig.get("head"),left=rig.get("leftUpperArm"),right=rig.get("rightUpperArm");
+ const hips=rig.get("hips"),head=rig.get("head");
+ const left=rig.get("leftUpperArm")||findNamedBone("left","upper");
+ const right=rig.get("rightUpperArm")||findNamedBone("right","upper");
  if(!hips||!head)return{detected:"unknown",normalized:false,reason:"Required hips/head bones could not be identified"};
  model.updateWorldMatrix(true,true);
  const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);
  if(vertical<.45)return{detected:"laydown",normalized:false,reason:"Character is not upright"};
  const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};
- const ld=direction(left),rd=direction(right);
- if(!ld||!rd)return{detected:"upright-unknown-arms",normalized:true};
- const horizontal=Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5,spread=Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65;
- if(horizontal&&spread){
-  const leftUpper=left||findNamedBone("left","upper"),rightUpper=right||findNamedBone("right","upper");
+ const armState=()=>{
+  const ld=direction(left),rd=direction(right);
+  if(!ld||!rd)return null;
+  return{ld,rd,horizontal:Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5,spread:Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65};
+ };
+ const before=armState();
+ if(!before)return{detected:"upright-unknown-arms",normalized:true,corrected:false,stillTPose:false};
+ if(before.horizontal&&before.spread){
   const leftFore=rig.get("leftForeArm")||findNamedBone("left","fore"),rightFore=rig.get("rightForeArm")||findNamedBone("right","fore");
-  aimBoneChild(leftUpper,new THREE.Vector3(-.55,-.84,0));
-  aimBoneChild(rightUpper,new THREE.Vector3(.55,-.84,0));
-  aimBoneChild(leftFore,new THREE.Vector3(-.25,-.97,0));
-  aimBoneChild(rightFore,new THREE.Vector3(.25,-.97,0));
+  aimBoneChild(left,new THREE.Vector3(-.55,-.84,0));
+  aimBoneChild(right,new THREE.Vector3(.55,-.84,0));
+  if(leftFore)aimBoneChild(leftFore,new THREE.Vector3(-.25,-.97,0));
+  if(rightFore)aimBoneChild(rightFore,new THREE.Vector3(.25,-.97,0));
   model.updateWorldMatrix(true,true);
-  return{detected:"t-pose",normalized:true,corrected:true};
+  const after=armState();
+  const stillTPose=Boolean(after?.horizontal&&after?.spread);
+  return{detected:"t-pose",normalized:!stillTPose,corrected:true,stillTPose};
  }
- return{detected:"upright",normalized:true,corrected:false};
+ return{detected:"upright",normalized:true,corrected:false,stillTPose:false};
 }
 function validateRig(mapping={}){
  const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
