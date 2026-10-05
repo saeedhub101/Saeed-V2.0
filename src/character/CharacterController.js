@@ -123,21 +123,41 @@ export class CharacterController{
  }
 }
 window.saeedCharacterController=null;
-window.addEventListener("load",()=>{
- if(!window.saeedAvatar)return;
- window.saeedCharacterController=new CharacterController(window.saeedAvatar);
- window.saeedCharacterController.bindCurrentCharacter();
- window.saeedCharacterController.onCharacterLoaded();
- window.saeedCharacterController.api={
-  play:(id,o)=>window.saeedCharacterController.play(id,o),stop:id=>window.saeedCharacterController.stop(id),stopAll:()=>window.saeedCharacterController.stopAll(),
-  setPose:p=>window.saeedCharacterController.setPose(p),setIdlePose:p=>window.saeedCharacterController.setIdlePose(p),resetPose:()=>window.saeedCharacterController.resetPose(),
-  remap:m=>window.saeedCharacterController.remap(m),autoMap:()=>window.saeedCharacterController.autoMap(),setLimit:(s,l)=>window.saeedCharacterController.setLimit(s,l),
-  semantic:(i,o)=>window.saeedCharacterController.semantic(i,o),defineMotion:d=>window.saeedCharacterController.defineMotion(d),deleteMotion:id=>window.saeedCharacterController.deleteMotion(id),
-  listMotions:()=>window.saeedCharacterController.listMotions(),status:()=>window.saeedCharacterController.status(),register:def=>window.saeedCharacterController.animation.register(def),
-  setMood:v=>window.saeedCharacterController.setMood(v),setBehavior:(v={})=>{window.saeedCharacterController.behavior={...window.saeedCharacterController.behavior,...v};if(v.idle===false)window.saeedCharacterController.clearIdleTimer();else window.saeedCharacterController.startIdleScheduler(1200);return {...window.saeedCharacterController.behavior}},getMood:()=>window.saeedCharacterController.getMood(),moodPalette:()=>window.saeedCharacterController.moodPalette(),
-  setVisible:v=>window.saeedCharacterController.setVisible(v),handleEvent:e=>window.saeedCharacterController.handleEvent(e),touch:()=>window.saeedCharacterController.touch()
+let characterControllerBootTimer=null;
+function installCharacterController(){
+ const avatar=window.saeedAvatar;
+ if(!avatar||typeof avatar.getCharacterPoseStatus!=="function")return false;
+ const pose=avatar.getCharacterPoseStatus();
+ if(!pose?.loaded)return false;
+ if(window.saeedCharacterController?.avatar===avatar){
+  window.saeedCharacterController.onCharacterLoaded();
+  return true;
+ }
+ const controller=new CharacterController(avatar);
+ window.saeedCharacterController=controller;
+ controller.onCharacterLoaded();
+ controller.api={
+  play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
+  setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
+  remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),setLimit:(s,l)=>controller.setLimit(s,l),
+  semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
+  listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
+  setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};if(v.idle===false)controller.clearIdleTimer();else controller.startIdleScheduler(1200);return {...controller.behavior}},getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),
+  setVisible:v=>controller.setVisible(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
  };
- window.saeedCharacterController.setVisible(!document.hidden);
-});
-window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterController?.onCharacterLoaded?.());
+ controller.setVisible(!document.hidden);
+ return true;
+}
+function scheduleCharacterControllerBoot(){
+ if(installCharacterController())return;
+ if(characterControllerBootTimer)return;
+ let attempts=0;
+ characterControllerBootTimer=setInterval(()=>{
+  attempts++;
+  if(installCharacterController()||attempts>=100){clearInterval(characterControllerBootTimer);characterControllerBootTimer=null}
+ },100);
+}
+scheduleCharacterControllerBoot();
+window.addEventListener("load",scheduleCharacterControllerBoot);
+window.addEventListener("saeed-character-loaded",scheduleCharacterControllerBoot);
 document.addEventListener("visibilitychange",()=>window.saeedCharacterController?.setVisible(!document.hidden));
