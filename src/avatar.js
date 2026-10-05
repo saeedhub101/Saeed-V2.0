@@ -36,14 +36,21 @@ let model=null,rig=new Map(),base=new Map(),morphs=new Map();
 let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false;
 let lastRestPose={detected:"unknown",normalized:false};
 
-function getBoneMap(){return Object.fromEntries(rig)}
-function getAvailableBoneNames(){
- const a=[];model?.traverse(o=>{if(o.isBone)a.push(o.name)});return a;
+function getSceneBones(){
+ const found=new Map();
+ model?.traverse(o=>{if(o?.isBone&&o.name)found.set(String(o.name),o)});
+ model?.traverse(o=>{
+  if(!o?.isSkinnedMesh||!o.skeleton?.bones)return;
+  for(const b of o.skeleton.bones)if(b?.name&&!found.has(String(b.name)))found.set(String(b.name),b);
+ });
+ return [...found.values()];
 }
+function getBoneMap(){return Object.fromEntries(rig)}
+function getAvailableBoneNames(){return getSceneBones().map(b=>b.name)}
 function bindRig(mapping={}){
  if(!model)return false;
  const by={};
- model.traverse(o=>{if(o.isBone)by[String(o.name).toLowerCase()]=o});
+ for(const b of getSceneBones())by[String(b.name).toLowerCase()]=b;
  rig.clear();base.clear();
  for(const [slot,name] of Object.entries(mapping)){
   const b=by[String(name||"").toLowerCase()];
@@ -137,17 +144,18 @@ function applyCharacterPose(pose={},retargeter=null){
  return true;
 }
 function applyRawBonePose(pose={}){
+ const by=new Map(getSceneBones().map(b=>[String(b.name),b]));
+ let changed=false;
  for(const [name,r] of Object.entries(pose)){
-  let b=null;
-  model?.traverse(o=>{if(!b&&o.isBone&&String(o.name)===String(name))b=o});
-  if(b){
-   b.rotation.x+=Number(r?.x)||0;
-   b.rotation.y+=Number(r?.y)||0;
-   b.rotation.z+=Number(r?.z)||0;
-  }
+  const b=by.get(String(name));
+  if(!b)continue;
+  b.rotation.x+=Number(r?.x)||0;
+  b.rotation.y+=Number(r?.y)||0;
+  b.rotation.z+=Number(r?.z)||0;
+  changed=true;
  }
- render();
- return true;
+ if(changed)render();
+ return changed;
 }
 function collectMorphs(){
  morphs=new Map();
