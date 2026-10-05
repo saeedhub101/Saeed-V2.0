@@ -4,6 +4,7 @@ const aliases={
  spine:["spine","spine1","spine2","spine03","torso","mixamorigspine"],
  chest:["chest","upperchest","spine2","spine03","mixamorigspine2"],
  neck:["neck","mixamorigneck"],head:["head","headbone","mixamorighead"],jaw:["jaw","jawbone"],
+ leftShoulder:["LeftShoulder","Shoulder.L","leftshoulder"],rightShoulder:["RightShoulder","Shoulder.R","rightshoulder"],
  leftUpperArm:["LeftUpperArm","LeftArm","LeftShoulder","UpperArm.L","upperarml","leftupperarm","leftarm","leftshoulder","mixamorigleftarm"],
  rightUpperArm:["RightUpperArm","RightArm","RightShoulder","UpperArm.R","upperarmr","rightupperarm","rightarm","rightshoulder","mixamorigrightarm"],
  leftForeArm:["LeftForeArm","LeftLowerArm","LeftElbow","LowerArm.L","lowerarml","leftforearm","leftlowerarm","leftelbow","mixamorigleftforearm"],
@@ -14,7 +15,8 @@ const aliases={
  leftShin:["leftshin","leftcalf","leftlowerleg","LowerLeg.L","lowerlegl","leftleg","mixamorigleftleg"],
  rightShin:["rightshin","rightcalf","rightlowerleg","LowerLeg.R","lowerlegr","rightleg","mixamorigrightleg"],
  leftFoot:["leftfoot","leftankle","Foot.L","footl","mixamorigleftfoot"],rightFoot:["rightfoot","rightankle","Foot.R","footr","mixamorigrightfoot"],
- leftEye:["lefteye","eyel"],rightEye:["righteye","eyer"]
+ leftEye:["lefteye","eyel"],rightEye:["righteye","eyer"],
+ ...Object.fromEntries(["left","right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(finger=>[1,2,3,4].map(segment=>{const prefix=side==="left"?"Left":"Right",sideSuffix=side==="left"?"L":"R";return[side+"Hand"+finger+segment,[prefix+"Hand"+finger+segment,prefix+finger+segment,finger+"."+sideSuffix+"."+segment]]}))))
 };
 const REQUIRED_RIG=[];
 const OPTIONAL_RIG=Object.keys(aliases);

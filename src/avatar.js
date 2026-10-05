@@ -32,7 +32,7 @@ const viewSettings={
  characterRotationY:0,canvasPadding:0
 };
 
-let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),morphs=new Map();
+let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
 let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false;
 let lastRestPose={detected:"unknown",normalized:false};
 
@@ -119,14 +119,19 @@ function normalizeHumanoidRestPose(){
  model.updateWorldMatrix(true,true);
  const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);
  if(vertical<.45)return{detected:"laydown",normalized:false,reason:"Character is not upright"};
+ const leftPosition=left?.getWorldPosition(new THREE.Vector3()),rightPosition=right?.getWorldPosition(new THREE.Vector3());
+ const side=leftPosition&&rightPosition?rightPosition.sub(leftPosition):new THREE.Vector3(1,0,0);
+ side.addScaledVector(up.clone().normalize(),-side.dot(up.clone().normalize())).normalize();
+ if(side.lengthSq()<.01)side.set(1,0,0);
+ const upAxis=up.normalize();
  const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};
  const armState=()=>{
   const ld=direction(left),rd=direction(right);
   if(!ld||!rd)return null;
-    const spread=Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65;
-    const horizontal=Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5;
-    const relaxed=Math.abs(ld.x)+Math.abs(rd.x)>1.2;
-    return{ld,rd,horizontal,spread,relaxed};
+  const spread=Math.abs(ld.dot(side))>.65&&Math.abs(rd.dot(side))>.65;
+  const horizontal=Math.abs(ld.dot(upAxis))<.5&&Math.abs(rd.dot(upAxis))<.5;
+  const relaxed=Math.abs(ld.dot(side))+Math.abs(rd.dot(side))>1.2;
+  return{ld,rd,horizontal,spread,relaxed};
  };
  const before=armState();
  if(!before)return{detected:"upright-unknown-arms",normalized:true,corrected:false,stillTPose:false};
@@ -140,7 +145,7 @@ function normalizeHumanoidRestPose(){
     if(rightFore)aimBoneChild(rightFore,neutralRightFore);
   model.updateWorldMatrix(true,true);
   const after=armState();
-    const stillTPose=Boolean(after?.horizontal&&after?.spread&&after?.relaxed);
+  const stillTPose=Boolean(after?.horizontal&&after?.spread&&after?.relaxed);
   return{detected:"t-pose",normalized:!stillTPose,corrected:true,stillTPose};
  }
  return{detected:"upright",normalized:true,corrected:false,stillTPose:false};
@@ -152,11 +157,8 @@ function validateRig(mapping={}){
  return{ok:mapped.length>0,missing,criticalMissing:[],optionalMissing:missing,mapped:mapped.length,required:[],optional};
 }
 function resetCharacterPose(){
- for(const [slot,b] of rig){
-  const p=base.get(slot);if(!p)continue;
-  const list=boneGroups.get(String(b.name))||[b];
-  for(const target of list)target.rotation.set(p.x,p.y,p.z);
- }
+ getSceneBones();
+ for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}
 }
 function applyCharacterPose(pose={},retargeter=null){
  for(const [slot,r] of Object.entries(pose)){
@@ -168,6 +170,7 @@ function applyCharacterPose(pose={},retargeter=null){
   const list=boneGroups.get(String(b.name))||[b];
   for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);
  }
+ for(const [boneName,transform] of Object.entries(pose))if(!rig.has(boneName))setBoneRotation(boneName,{rotation:transform});
  render();
  return true;
 }
@@ -352,7 +355,7 @@ function getEditorRotation(){
 function getCharacterPoseStatus(){
  const required=[];
  const bones={};
- for(const [slot,b] of rig){if(!b)continue;bones[slot]={name:b.name,rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}};}
+ for(const [name,list] of boneGroups){const b=list[0];if(!b)continue;bones[name]={name,parent:b.parent?.name||"",rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},position:{x:b.position.x,y:b.position.y,z:b.position.z},restPose:boneRest.get(name)||null};}
  const hips=rig.get("hips"),head=rig.get("head"),left=rig.get("leftUpperArm")||findNamedBone("left","upper"),right=rig.get("rightUpperArm")||findNamedBone("right","upper");
  let isTPose=false,detected="unknown";
  if(hips&&head){const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);if(vertical>=.45){const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};const ld=direction(left),rd=direction(right);isTPose=Boolean(ld&&rd&&Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5&&Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65);detected=isTPose?"t-pose":"not-t-pose";}else detected="not-upright";}
@@ -411,6 +414,13 @@ window.saeedAvatar={
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,wakeRender:render
 };
+window.saeed?.on3DQuery?.(requestId=>{
+ const status=window.saeedAvatar.get3DStatus();
+ const pose=getCharacterPoseStatus();
+ const boneDetail=pose.loaded?`${pose.controllableBoneCount} controllable bones; rest pose ${pose.restPose?.normalized===false?"needs adjustment":"available"}`:"No character GLB is loaded";
+ const report={...status,overall:{...status.overall,detail:status.overall.detail+" • "+boneDetail},components:{...status.components,characterRig:{state:pose.loaded?"ready":"waiting",detail:boneDetail},restPose:{state:pose.restPose?.normalized===false?"warn":"ready",detail:String(pose.restPose?.detected||"unknown")},tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")}},character:{loaded:pose.loaded,boneCount:pose.controllableBoneCount,skeletonCount:pose.skeletonCount,restPose:pose.restPose,tPose:pose.tPose}};
+ window.saeed.report3DStatus?.(requestId,report);
+});
 resize();
 
 async function ensureCharacterController(){

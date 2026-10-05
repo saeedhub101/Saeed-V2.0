@@ -10,6 +10,8 @@ export function registerCoreMotions(controller){
   r({id:"clap",duration:1,layer:"arms",update:({p})=>{const q=Math.sin(p*Math.PI);return{leftUpperArm:{y:.55,z:-.15*q},rightUpperArm:{y:-.55,z:.15*q},leftForeArm:{z:.8*q},rightForeArm:{z:-.8*q}}}});
   r({id:"dance",duration:4,layer:"body",update:({t})=>({spine:{z:Math.sin(t*7)*.08,x:Math.sin(t*3.5)*.04},head:{y:Math.sin(t*3.5)*.12},leftUpperArm:{y:.9+Math.sin(t*4)*.35,z:-.3+Math.sin(t*6)*.15},rightUpperArm:{y:-.9-Math.sin(t*4)*.35,z:.3-Math.sin(t*6)*.15},leftForeArm:{z:-1.1+Math.sin(t*5)*.25},rightForeArm:{z:1.1-Math.sin(t*5)*.25},leftThigh:{x:Math.sin(t*7)*.16},rightThigh:{x:-Math.sin(t*7)*.16}})});
   r({id:"talkGesture",duration:.9,layer:"arms",update:({t})=>({leftUpperArm:{z:Math.sin(t*7)*.08},rightUpperArm:{z:-Math.sin(t*7+.7)*.08},head:{y:Math.sin(t*3)*.05}})});
+  r(sequence("lookLeft",.55,"face",[{at:0,pose:{leftEye:{y:0},rightEye:{y:0}}},{at:.28,pose:{leftEye:{y:-.261799},rightEye:{y:.261799}}},{at:.72,pose:{leftEye:{y:-.261799},rightEye:{y:.261799}}},{at:1,pose:{leftEye:{y:0},rightEye:{y:0}}}]));
+  r(sequence("lookRight",.55,"face",[{at:0,pose:{leftEye:{y:0},rightEye:{y:0}}},{at:.28,pose:{leftEye:{y:.261799},rightEye:{y:-.261799}}},{at:.72,pose:{leftEye:{y:.261799},rightEye:{y:-.261799}}},{at:1,pose:{leftEye:{y:0},rightEye:{y:0}}}]));
   r(sequence("lookCloser",2.2,"body",[
     {at:0,pose:{}},{at:.35,pose:{spine:{x:.03},chest:{x:.025},head:{x:-.03}}},
     {at:.65,pose:{spine:{x:.08},chest:{x:.06},head:{x:-.08},leftUpperArm:{z:-.12},rightUpperArm:{z:.12}}},

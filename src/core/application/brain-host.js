@@ -1,4 +1,4 @@
-function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setAgent,setVoiceMuted,recordLearningStep}){
+function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setAgent,setVoiceMuted,recordLearningStep}){
  let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
  const confirm=async({name,args,permissionCategory})=>{
@@ -22,7 +22,7 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
  function evaluateLifecycle(force=false){
   clearTimeout(idleTimer);idleTimer=null;
   if(!agent)return false;
-  if(getMicMode?.()==="on"){lastActivity=Date.now();return false}
+    if(getMicMode?.()==="on"||isChatSurfaceOpen?.()){lastActivity=Date.now();return false}
   if(activeRequests>0){return false}
   if(!force&&Date.now()-lastActivity<IDLE_TIMEOUT_MS){scheduleIdleRelease();return false}
   void releaseBrain();
@@ -30,7 +30,7 @@ function createBrainHost({app,dialog,getMicMode,characterCommand,permissionPolic
  }
  function touchActivity(){lastActivity=Date.now();scheduleIdleRelease()}
  function beginRequest(){activeRequests++;touchActivity()}
- function endRequest(){activeRequests=Math.max(0,activeRequests-1);if(activeRequests===0&&getMicMode?.()!=="on")void releaseBrain();else touchActivity()}
+ function endRequest(){activeRequests=Math.max(0,activeRequests-1);if(activeRequests===0)void evaluateLifecycle();else touchActivity()}
  function notifyLifecycle(options={}){return evaluateLifecycle(Boolean(options?.force))}
  async function ensureBrain(){
   touchActivity();

@@ -38,7 +38,6 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  function speak(text){
   if(!text||voiceMuted)return;
   window.saeedShowMessage?.(text);
-  if(realtimeBrainMode==="api")return;
   if(["openai","groq","elevenlabs"].includes(ttsProvider))return speakApi(text);
   return speakLocal(text);
  }
@@ -46,6 +45,11 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
   constructor(){this.stream=null;this.ctx=null;this.source=null;this.processor=null;this.monitorGain=null;this.active=false;this.generation=0;this.localSamples=[];this.localTranscribing=false;this.localSpeechActive=false;this.localLastSpeechAt=0;this.playCtx=null;this.nextPlayTime=0;this.audioSources=new Set()}
   async start(mode="on",sendAudio=true){
    const generation=++this.generation;if(mode==="off"){this.stop();return}if(this.active)return;
+    if(!sendAudio&&realtimeBrainMode==="api"){
+     const started=await window.saeed.startRealtime?.();
+     if(!started)throw new Error("Realtime API mode could not start. Check the Realtime API key and provider settings.");
+     sendAudio=true;
+    }
    if(!navigator.mediaDevices?.getUserMedia)throw new Error("Microphone capture is unavailable.");
    report("INFO","MIC START","Starting 3D-window microphone service",{mode});let stream;
    try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}})}

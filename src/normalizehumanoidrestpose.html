@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set Normalize Humanoid Rest Pose</title>
+<link rel="stylesheet" href="normalizehumanoidrestpose.css">
+</head>
+<body>
+<header>
+ <div><span class="eyebrow">CHARACTER SETUP</span><h1>Normalize Humanoid Rest Pose</h1><p id="characterState">Connecting to the loaded character…</p></div>
+ <button id="close" class="iconButton" type="button" aria-label="Close">×</button>
+</header>
+<main>
+ <section class="toolbar">
+  <label class="search">Find a bone<input id="search" type="search" placeholder="e.g. LeftHandThumb1"></label>
+  <label class="boneSelect">Character bone<select id="bone" size="1"></select></label>
+  <button id="refresh" class="secondary" type="button">Refresh bones</button>
+ </section>
+ <section class="editor">
+  <div class="boneHeading"><div><span class="eyebrow">SELECTED BONE</span><h2 id="boneTitle">No bone selected</h2><p id="boneParent">Load a character to list its bones.</p></div><span id="boneCount" class="count">0 bones</span></div>
+  <div class="axisGroup"><h3>Rotation offset <small>degrees from the current rest pose</small></h3><div class="axisGrid">
+   <label>X <input id="rotX" type="number" step="1" value="0"></label><label>Y <input id="rotY" type="number" step="1" value="0"></label><label>Z <input id="rotZ" type="number" step="1" value="0"></label>
+  </div></div>
+  <div class="axisGroup"><h3>Position offset <small>local bone units from the current rest pose</small></h3><div class="axisGrid">
+   <label>X <input id="posX" type="number" step="0.01" value="0"></label><label>Y <input id="posY" type="number" step="0.01" value="0"></label><label>Z <input id="posZ" type="number" step="0.01" value="0"></label>
+  </div></div>
+  <div class="actions"><button id="resetBone" class="secondary" type="button">Reset selected bone</button><button id="applyBone" class="primary" type="button">Apply to character</button></div>
+ </section>
+ <footer><p id="state" role="status">Changes are relative to the saved pose until you save a new rest pose.</p><button id="save" class="save" type="button">Save as normalizehumanoidrestpose</button></footer>
+</main>
+<script src="normalizehumanoidrestpose.js"></script>
+</body>
+</html>

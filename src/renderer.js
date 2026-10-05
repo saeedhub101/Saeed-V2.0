@@ -11,6 +11,25 @@ function welcomeHtml(){return '<div class="welcome"><div class="suggestions"><bu
 function bindSuggestions(){document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>{$("input").value=b.dataset.prompt||"";send()})}
 function resetMessages(){messages.innerHTML=welcomeHtml();bindSuggestions()}
 function renderHistory(history=[]){messages.innerHTML="";if(!history.length){resetMessages();return}for(const m of history){if((m?.role==="user"||m?.role==="assistant")&&typeof m.content==="string")add(m.role,m.content)}}
+let chatSpeechAudio=null,chatSpeechContext=null,chatSpeechMuted=false;
+function stopChatSpeech(){try{window.speechSynthesis?.cancel?.()}catch{}try{chatSpeechAudio?.stop?.()}catch{}chatSpeechAudio=null;try{chatSpeechContext?.close?.()}catch{}chatSpeechContext=null}
+async function speakChatText(text){
+ const clean=String(text||"").trim();if(!clean)return;
+ const settings=await window.saeed.getSettings().catch(()=>({}));chatSpeechMuted=Boolean(settings?.voiceMuted);if(chatSpeechMuted)return;
+ stopChatSpeech();
+ const provider=settings?.ttsProvider||"local";
+ if(provider!=="local"&&settings?.apiServices?.tts!==false){
+  try{
+   const result=await window.saeed.ttsSpeak(clean);
+   if(result?.ok){
+	const bytes=Uint8Array.from(atob(result.base64),c=>c.charCodeAt(0));chatSpeechContext=new AudioContext();await chatSpeechContext.resume();const buffer=await chatSpeechContext.decodeAudioData(bytes.buffer.slice(0));chatSpeechAudio=chatSpeechContext.createBufferSource();chatSpeechAudio.buffer=buffer;chatSpeechAudio.connect(chatSpeechContext.destination);chatSpeechAudio.onended=stopChatSpeech;chatSpeechAudio.start();return;
+   }
+  }catch(error){window.saeed.reportDiagnostic?.("ERROR","CHAT TTS",error.message)}
+ }
+ if("speechSynthesis"in window){const utterance=new SpeechSynthesisUtterance(clean);utterance.lang=settings?.language==="ar"?"ar-SA":"en-US";window.speechSynthesis.speak(utterance)}
+}
+window.saeed.onVoiceSpeak?.(speakChatText);
+window.saeed.onVoiceMute?.(muted=>{chatSpeechMuted=Boolean(muted);if(chatSpeechMuted)stopChatSpeech()});
 async function refreshChatTabs(){
  const chats=await window.saeed.listChats();const current=await window.saeed.getCurrentChat();const host=$("chatTabs");if(!host)return;
  host.innerHTML="";const b=document.createElement("button");b.className="chatTab new";b.textContent="+ New Chat";b.onclick=async()=>{const r=await window.saeed.newChat();if(r){renderHistory([]);renderChatTabsFrom(r.chat);}};host.appendChild(b);

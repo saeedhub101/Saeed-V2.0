@@ -19,6 +19,11 @@
     "electron": "38.8.6"
   },
   "build": {
+    "files": [
+      "**/*",
+      "!artifacts/**",
+      "!dist/**"
+    ],
     "appId": "ai.saeed.desktop",
     "productName": "Saeed AI",
     "win": {

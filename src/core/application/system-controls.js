@@ -23,7 +23,7 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
    {label:"Chat Me",click:showChat},
    {label:"Hide Saeed",click:hideCharacter},
    {label:"Voice",submenu:[{label:"Mic ON",click:()=>setMicMode("on")},{label:"Mic OFF",click:()=>setMicMode("off")}]},
-   {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Size",submenu:characterSizeMenu()}]},
+    {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Set Normalize Humanoid Rest Pose",click:showRestPose},{label:"Size",submenu:characterSizeMenu()}]},
    {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
    {label:"Updates & Settings",submenu:[{label:"Update status",click:showUpdateStatus},{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},
    {label:"Quit",click:()=>app.quit()}
