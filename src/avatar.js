@@ -365,6 +365,23 @@ function setBoneRotation(name,rotation={}){
  render();
  return true;
 }
+function applyRestPoseSnapshot(snapshot={},normalization=null){
+ getSceneBones();
+ for(const [name,r] of Object.entries(snapshot||{})){
+  const list=boneGroups.get(String(name))||[];
+  const x=Number(r?.x),y=Number(r?.y),z=Number(r?.z);
+  if(!list.length||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;
+  for(const b of list)b.rotation.set(x,y,z);
+ }
+ for(const [slot,b] of rig){
+  const list=boneGroups.get(String(b.name))||[b];
+  for(const target of list)base.set(slot,{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}),target.quaternion.copy(b.quaternion);
+ }
+ if(normalization)lastRestPose={...normalization};
+ resetCharacterPose();
+ render();
+ return true;
+}
 function snapshotBoneRotations(){
  getSceneBones();
  const out={};
@@ -378,7 +395,7 @@ window.saeedAvatar={
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
- getBoneRotation,setBoneRotation,snapshotBoneRotations,normalizeHumanoidRestPose,
+ getBoneRotation,setBoneRotation,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,
  getCharacterProfileKey:()=>String(window.saeedAvatarCurrentName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
