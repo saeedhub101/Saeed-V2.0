@@ -56,6 +56,17 @@
 <label>Sleep after (minutes)<small>How long Saeed must remain inactive before sleep behavior can start.</small><input id="behaviorSleepAfterMin" type="number" min="1" max="240"></label>
 <label>Render wake duration (ms)<small>How long rendering stays awake for a character update. Lower values reduce work; higher values give longer visible motion.</small><input id="behaviorRenderWakeMs" type="number" min="80" max="5000" step="50"></label>
 </div><button id="saveCharacter" class="primary">Save Character</button><p id="characterState" class="hint"></p><section class="characterControllerPanel">
+<div class="sectionHead"><span class="eyebrow">REST POSE EDITOR</span><h2>Normal Pose</h2><p>Adjust the selected GLB bone on X/Y/Z, preview it live, then save the normalized rest-pose result.</p></div>
+<div class="formGrid">
+<label>Bone<select id="restPoseBone"><option value="">Loading bones…</option></select></label>
+<label>X rotation (deg)<input id="restPoseX" type="number" min="-180" max="180" step="1" value="0"></label>
+<label>Y rotation (deg)<input id="restPoseY" type="number" min="-180" max="180" step="1" value="0"></label>
+<label>Z rotation (deg)<input id="restPoseZ" type="number" min="-180" max="180" step="1" value="0"></label>
+</div>
+<div class="permissionActions"><button id="restPoseApply" class="primary">Apply Bone</button><button id="restPoseNormalize" class="secondary">Normalize</button><button id="restPoseReset" class="secondary">Reset Pose</button><button id="restPoseSave" class="primary">Save Normal Pose</button></div>
+<p id="restPoseState" class="hint"></p>
+</section>
+<section class="characterControllerPanel">
 <div class="sectionHead"><span class="eyebrow">CHARACTER CONTROLLER</span><h2>Pose, Motions & Rig</h2><p>Use logical joints and named motions. <b>Do not enter Blender bone names here.</b> Motions use Saeed logical names such as <code>rightUpperArm</code>. Any real GLB bone can be controlled; recognized humanoid joints improve motion quality, but no fixed six-bone rig is required.</p></div>
 <div class="formGrid">
 <label>Motion<select id="characterMotion"><option>idle</option><option>nod</option><option>shake</option><option>wave</option><option>think</option><option>jump</option><option>clap</option><option>dance</option><option>talkGesture</option></select></label>
