@@ -79,7 +79,7 @@ Unused resources must be destroyed.
 |---|---|---|
 | Character visible, Chat closed, mic OFF | Core, Tray, Character, TTS-ready runtime | Chat, Voice capture, VAD, STT, Realtime, idle Brain |
 | Character hidden, Chat closed, mic OFF | Core, Tray | Character, Renderer, Chat, Voice, VAD, STT, TTS, Realtime, Brain |
-| Chat open and active | Core, Tray, Chat, Brain while active | STT/VAD unless mic is ON; idle TTS |
+| Chat open and active | Core, Tray, Chat, Brain while active, TTS-ready while Character is visible and unmuted | STT/VAD unless mic is ON; TTS playback when muted or Character hidden |
 | Mic ON | Core, Tray, Voice capture, VAD, STT, Brain when required | none of the currently required voice resources |
 | Voice muted | resources required by current state | TTS pipeline |
 | Character hidden, Chat open | Core, Tray, Chat, Brain while active | Character, Renderer, Mic, VAD, STT, TTS unless independently required |
