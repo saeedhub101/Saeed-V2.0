@@ -26,7 +26,8 @@ must(voice.includes('ttsReady=false'),"TTS lifecycle state is missing");
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle timeout is not two minutes");
 must(workflow.includes("workflow_dispatch:"),"Windows build workflow is not manual-only");
 for(const namespace of ["system","character","voice","chat","tools"]){must(preload.includes(`\n ${namespace}:{`),`preload namespace missing: ${namespace}`)}
-const topLevelPreloadKeys=[...preload.matchAll(/^ ([A-Za-z_$][\\w$]*):/gm)].map(match=>match[1]);\nfor(const key of topLevelPreloadKeys){must(["isCiE2E","system","character","voice","chat","tools","learning","addons"].includes(key),`preload exposes unexpected flat API: ${key}`)}
+const topLevelPreloadKeys=[...preload.matchAll(/^ ([A-Za-z_$][\\w$]*):/gm)].map(match=>match[1]);
+for(const key of topLevelPreloadKeys){must(["isCiE2E","system","character","voice","chat","tools","learning","addons"].includes(key),`preload exposes unexpected flat API: ${key}`)}
 must(!voiceClient.includes("onVoiceMute(m=>{voiceMuted=Boolean(m);if(voiceMuted){stopSpeaking();mic?.stop"),"Voice mute must not stop microphone input");
 const characterArch=read("Character_Architecture.md");
 must(characterArch.includes("AutonomousBehaviorController"),"Character architecture does not document autonomous ownership");
