@@ -10,7 +10,7 @@ import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js"
 
 export class CharacterController{
  constructor(engine){
-  this.engine=engine;this.animation=new AnimationController(avatar);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.engine=engine;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -153,7 +153,7 @@ window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 function installCharacterController(){
  const engine=window.saeedCharacterRuntime?.engine;
  if(!engine||typeof engine.getCharacterPoseStatus!=="function")return false;
- if(window.saeedCharacterRuntime?.controller?.avatar===engine){
+ if(window.saeedCharacterRuntime?.controller?.engine===engine){
   const ready=engine.getCharacterPoseStatus?.();
   if(ready?.loaded&&!window.saeedCharacterRuntime?.controller.characterId)window.saeedCharacterRuntime?.controller.onCharacterLoaded?.();
   return true;
@@ -170,7 +170,7 @@ function installCharacterController(){
   setVisible:v=>controller.setVisible(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
  };
  controller.setVisible(!document.hidden);
- const ready=avatar.getCharacterPoseStatus?.();
+ const ready=engine.getCharacterPoseStatus?.();
  if(ready?.loaded)controller.onCharacterLoaded?.();
  return true;
 }
