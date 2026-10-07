@@ -113,7 +113,16 @@ export class CharacterController{
  finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
  setPose(pose={}){if(this.authoring)this.beginAuthoring();if(!this.animationEnabled||this.animationPaused)return false;if(pose?.__captureRest){const rest=this.saveRestPose();this.startFrameLoop();return rest}const bones=pose?.__bones;if(bones){for(const [name,transform] of Object.entries(bones)){if(transform?.rotation||transform?.position)this.engine?.setBoneTransform?.(name,transform);else this.engine?.setBoneRotation?.(name,transform)}this.startFrameLoop();return bones}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
  bindSlot(slot,name){this.beginAuthoring();const s=String(slot||"").trim(),n=String(name||"").trim();if(!s||!n)return false;const current=this.engine?.getCharacterRigAutoMap?.()||{};current[s]=n;const ok=this.engine?.bindRig?.(current);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:current,calibration:this.retargeter.status().calibration,restPose:{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}}});return true}
- setBoneRotation(name,rotation={}){const ok=this.engine?.setBoneRotation?.(name,rotation);if(ok)this.engine?.wakeRender?.();return ok}
+ setBoneRotation(name,rotation={}){
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok)return false;
+  const bone=String(name||"");
+  const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
+  if(!available.has(bone))return false;
+  const ok=this.engine?.setBoneRotation?.(bone,rotation);
+  if(ok)this.engine?.wakeRender?.();
+  return ok;
+}
  calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){this.beginAuthoring();const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
