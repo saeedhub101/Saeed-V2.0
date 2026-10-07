@@ -75,6 +75,8 @@ function bindRig(mapping={},savedRestPose=null){
   }
   lastRestPose=savedRestPose.normalization||{detected:"saved",normalized:true,corrected:false,stillTPose:false};
  }else lastRestPose=normalizeHumanoidRestPose();
+ // AUTHORITATIVE_REST_REBUILD_V2
+ captureAuthoritativeRestPose(lastRestPose);
  for(const [slot,b] of rig){
   const list=boneGroups.get(String(b.name))||[b];
   for(const target of list)target.quaternion.copy(b.quaternion);
