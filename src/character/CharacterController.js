@@ -89,6 +89,7 @@ export class CharacterController{
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
  deleteMotion(id){const ok=this.editor.remove(id);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  listMotions(){return this.editor.list()}
+ setBehavior(value={}){this.behavior={...this.behavior,...value};this.autonomous?.configure?.(this.behavior);if(this.behavior.idle===false)this.clearIdleTimer();else this.startIdleScheduler(this.behavior.frequencyMs);return {...this.behavior}}
  setMood(value){const valid=["cheerful","curious","thoughtful","mischievous","pleased","sleepy","puzzled","sad"],v=String(value||"cheerful").toLowerCase();this.mood=valid.includes(v)?v:"cheerful";this.autonomous?.onMoodChanged?.(this.mood);const faceMap={cheerful:"happy",curious:"surprised",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"};this.face?.expression?.(faceMap[this.mood]||"neutral",.65);return this.mood}
  getMood(){return this.mood}
  moodPalette(){const pools={sleepy:["yawn","stretch","nod"],thoughtful:["think","nod","lookCloser"],curious:["lookCloser","think","nod"],mischievous:["wave","crackFingers","lookCloser"],pleased:["nod","wave","stretch"],puzzled:["think","shake","lookCloser"],sad:["yawn","nod"],cheerful:["nod","wave","stretch","lookCloser"]};return pools[this.mood]||pools.cheerful}
