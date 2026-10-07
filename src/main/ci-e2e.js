@@ -12,6 +12,13 @@ function createCiE2E(deps={}){
  const trace=[];
  const active={name:null,startedAt:0,operation:null,operationStartedAt:0};
  const recordTrace=(event,detail={})=>{const item={at:new Date().toISOString(),elapsedMs:Date.now()-started,event,...detail};trace.push(item);if(trace.length>200)trace.shift();return item};
+ const persistReport=(reason="checkpoint")=>{
+  try{
+   const snapshot={...report,checkpoint:{reason,time:new Date().toISOString()},diagnostics:{...(report.diagnostics||{}),runnerVersion:3,timeoutPolicy:"abort-current-suite-on-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length}};
+   fs.mkdirSync(path.dirname(out),{recursive:true});
+   fs.writeFileSync(out,JSON.stringify(snapshot,null,2),"utf8");
+  }catch(e){console.error("CI E2E checkpoint write failed:",e)}
+ };
  const operation=async(name,fn,detail={})=>{
   const ctx=checkContext.getStore();
   const opStarted=Date.now();
@@ -68,7 +75,7 @@ function createCiE2E(deps={}){
   const timeout=new Promise(resolve=>{timer=setTimeout(()=>{
    ctx.timedOut=true;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
-   recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs});
+   recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs}); report.checks[name]={pass:false,required,status:"TIMEOUT",latencyMs:Date.now()-t,detail:{error:"Check exceeded "+effectiveTimeoutMs+" ms",diagnostic}}; report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic}; persistReport("check-timeout");
    resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; no subsequent check will start and this suite will stop.",diagnostic});
   },effectiveTimeoutMs)});
   try{
@@ -77,6 +84,7 @@ function createCiE2E(deps={}){
    const pass=v===true||v?.pass===true;
    const detail=typeof v==="object"&&v&&!Array.isArray(v)?v:undefined;
    report.checks[name]={pass,required,latencyMs:Date.now()-t,status:v?.status||undefined,detail};
+   persistReport("check-complete");
    recordTrace(pass?"check-pass":"check-fail",{check:name,status:v?.status||"FAILED",error:v?.error,diagnostic:v?.diagnostic});
    if(v?.status==="TIMEOUT"){
     report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic:v.diagnostic};
@@ -88,6 +96,7 @@ function createCiE2E(deps={}){
    if(e?.code==="E2E_CHECK_TIMEOUT")throw e;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
    report.checks[name]={pass:false,required,latencyMs:Date.now()-t,status:"ERROR",error:String(e?.stack||e),diagnostic};
+   persistReport("check-error");
    recordTrace("check-error",{check:name,error:String(e?.message||e)});
    return report.checks[name];
   }finally{
