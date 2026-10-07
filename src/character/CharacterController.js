@@ -6,10 +6,11 @@ import { FaceController } from "./FaceController.js";
 import { FingerController } from "./FingerController.js";
 import { MotionEditor } from "./MotionEditor.js";
 import { CharacterProfileStore } from "./CharacterProfileStore.js";
+import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js";
 
 export class CharacterController{
  constructor(avatar){
-  this.avatar=avatar;this.animation=new AnimationController(avatar);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.behavior={idle:true,events:true,random:true,blinking:true,expressions:true,speechFace:true,walking:true,dancing:true,greeting:true};this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.avatar=avatar;this.animation=new AnimationController(avatar);this.autonomous=new AutonomousBehaviorController(this);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -89,16 +90,18 @@ export class CharacterController{
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
  deleteMotion(id){const ok=this.editor.remove(id);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  listMotions(){return this.editor.list()}
- setMood(value){const valid=["cheerful","curious","thoughtful","mischievous","pleased","sleepy","puzzled","sad"],v=String(value||"cheerful").toLowerCase();this.mood=valid.includes(v)?v:"cheerful";return this.mood}
+ setMood(value){const valid=["cheerful","curious","thoughtful","mischievous","pleased","sleepy","puzzled","sad"],v=String(value||"cheerful").toLowerCase();this.mood=valid.includes(v)?v:"cheerful";this.autonomous?.onMoodChanged?.(this.mood);return this.mood}
  getMood(){return this.mood}
  moodPalette(){const pools={sleepy:["yawn","stretch","nod"],thoughtful:["think","nod","lookCloser"],curious:["lookCloser","think","nod"],mischievous:["wave","crackFingers","lookCloser"],pleased:["nod","wave","stretch"],puzzled:["think","shake","lookCloser"],sad:["yawn","nod"],cheerful:["nod","wave","stretch","lookCloser"]};return pools[this.mood]||pools.cheerful}
  setVisible(value){
+  this.autonomous?.setVisible?.(value);
   const next=value!==false&&String(value)!=="hidden";this.visible=next;
   if(!next){this.clearIdleTimer();this.stopAll();return true}
   if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(1800);return true;
  }
- touch(){this.lastInteraction=performance.now();this.clearIdleTimer();if(this.animationEnabled&&!this.animationPaused&&this.visible)this.startIdleScheduler(4500);return true}
+ touch(){this.autonomous?.touch?.();this.lastInteraction=performance.now();this.clearIdleTimer();if(this.animationEnabled&&!this.animationPaused&&this.visible)this.startIdleScheduler(4500);return true}
  handleEvent(event){
+  if(this.autonomous)return this.autonomous.handleEvent(event);
   if(!this.animationEnabled||this.animationPaused)return false;
   const type=typeof event==="string"?event:String(event?.type||"");
   if(!this.behavior.events)return false;
@@ -121,7 +124,7 @@ export class CharacterController{
   for(const x of weighted){roll-=x.weight;if(roll<=0)return x.id}
   return weighted[weighted.length-1].id;
  }
- runIdle(){if(!this.animationEnabled||this.animationPaused||!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
+ runIdle(){if(this.autonomous)return this.autonomous.evaluateNow();if(!this.animationEnabled||this.animationPaused||!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
  clearIdleTimer(){if(this.idleTimer){clearTimeout(this.idleTimer);this.idleTimer=null}}
  startIdleScheduler(delay){this.clearIdleTimer();if(!this.animationEnabled||this.animationPaused||!this.visible)return;this.idleTimer=setTimeout(()=>{this.idleTimer=null;this.runIdle()},Math.max(1000,Number(delay)||7000))}
  startFrameLoop(){
