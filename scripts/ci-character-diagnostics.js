@@ -68,6 +68,6 @@ async function run(){
   const {autoMapBones,requiredRigSlots}=await import(modules["AutoRigMapper.js"]),names=["Root","Body"],m=autoMapBones(names).mapping,r=requiredRigSlots();
   report("custom GLB fallback mapping",Boolean(Object.keys(m).length&&Object.values(m).every(Boolean)),JSON.stringify(m));report("no fixed required rig",r.length===0,r.join(","));
  }catch(e){report("rig runtime",false,e?.stack||e);}
- console.log(`[CHARACTER-DIAG] SUMMARY failures=${failures}`);console.log("[CHARACTER-DIAG] NON_GATING=true");
+ console.log(`[CHARACTER-DIAG] SUMMARY failures=${failures}`);if(failures>0){console.error("[CHARACTER-DIAG] GATING_FAILURE=true");process.exitCode=1;}else console.log("[CHARACTER-DIAG] GATING_FAILURE=false");
 }
 run().catch(e=>{report("diagnostics fatal",false,e?.stack||e);console.log("[CHARACTER-DIAG] NON_GATING=true");});
