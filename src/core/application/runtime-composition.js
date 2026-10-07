@@ -1,5 +1,5 @@
 function createRuntimeComposition(ctx){
- const {app,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,getState,setWindow,getAgent,setAgent}=ctx;
+ const {app,ipcMain,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,getState,setWindow,getAgent,setAgent}=ctx;
  const lazy={};const load=(key,modulePath)=>lazy[key]||(lazy[key]=require(modulePath));
  const getAddonService=()=>ctx.state.addonService||(ctx.state.addonService=require("../services/addon-service"));
  const getLearning=()=>ctx.state.learning||(ctx.state.learning=require("../../learning"));
@@ -30,7 +30,7 @@ function createRuntimeComposition(ctx){
  const characterStore=load("characterStore","../character/character-store").createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>getState().characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
  const {character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings}=characterStore;
  const {createCharacterHost}=load("characterHost","../character/character-host");
- let characterHost=createCharacterHost({app,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>getState().characterWin,getRestPoseEditorWindow:()=>getState().restPoseEditorWin,setCharacterWindow:v=>setWindow("characterWin",v),getAgent,characterStore,showChat:()=>ensureChatHost().showChat(),permissionPolicy,confirmPermission,contextMenu});
+ let characterHost=createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>getState().characterWin,getRestPoseEditorWindow:()=>getState().restPoseEditorWin,setCharacterWindow:v=>setWindow("characterWin",v),getAgent,characterStore,showChat:()=>ensureChatHost().showChat(),permissionPolicy,confirmPermission,contextMenu});
  const characterApi={...characterHost,showCharacter:async()=>{const result=await characterHost.showCharacter();if(result&&!getVoiceMuted())ensureVoiceHost().ensureTts();return result},hideCharacter:async()=>{try{if(ctx.state.voiceHost)void ctx.state.voiceHost.setMicMode("off")}catch{}try{ctx.state.voiceHost?.releaseTts?.("character hidden")}catch{}return characterHost.hideCharacter()},ensureTts:()=>ensureVoiceHost().ensureTts(),releaseTts:reason=>ensureVoiceHost().releaseTts(reason)};
  const ensureWindowManager=()=>ctx.state.windowManager||(ctx.state.windowManager=load("windowManager","../application/window-manager").createWindowManager({BrowserWindow,path,getWindow:name=>getState()[name],setWindow,iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","..","preload.js"),rootPath:path.join(__dirname,"..","..")}));
  const showPerformance=()=>ensureWindowManager().showPerformance(),showSettings=()=>ensureWindowManager().showSettings(),showLearning=()=>ensureWindowManager().showLearning(),showAddons=()=>ensureWindowManager().showAddons();
