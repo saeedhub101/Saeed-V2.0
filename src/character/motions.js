@@ -74,4 +74,6 @@ export function registerCoreMotions(controller){
     {at:.58,pose:{spine:{x:-.02},head:{x:-.02}}},{at:.78,pose:{head:{y:.08}}},{at:1,pose:{}}
   ]));
   r({id:"adhanOpening",duration:5.2,layer:"special",update:({p})=>{const q=Math.min(Math.min(1,p/.18),p<.82?1:Math.max(0,(1-p)/.18));return{spine:{x:-.035*q,z:Math.sin(p*Math.PI)*.018},chest:{x:-.025*q},head:{x:-.025*q,y:Math.sin(p*Math.PI)*.035},leftUpperArm:{y:.95*q,z:-.18*q},rightUpperArm:{y:-.95*q,z:.18*q},leftForeArm:{z:1.28*q,x:-.12*q},rightForeArm:{z:-1.28*q,x:-.12*q},jaw:{x:.08*q}}}});
+  const requirements={nod:["head"],shake:["head"],wave:["arms","forearms"],think:["head","arms","forearms"],jump:["arms","legs"],clap:["arms","forearms"],dance:["arms","legs","spine"],talkGesture:["head","arms"],lookLeft:["eyes"],lookRight:["eyes"],lookCloser:["head","spine"],sitKnee:["legs","spine"],standUp:["legs","spine"],stretch:["arms","spine"],yawn:["head","jaw"],crackBack:["spine"],crackFingers:["forearms"],turnBody:["spine","head"],walk:["arms","legs"],sleep:["head","spine"],wake:["head","spine"],adhanOpening:["arms","forearms","spine"]};
+  for(const [id,requiredCapabilities] of Object.entries(requirements)){const motion=controller.registry.get(id);if(motion)motion.requiredCapabilities=requiredCapabilities}
 }
