@@ -377,12 +377,12 @@ Hide Saeed:
 
 | Responsibility | Owner |
 |---|---|
-| Electron lifecycle | src/main/app-runtime.js |
+| Electron lifecycle | src/main/runtime.js |
 | Brain lifecycle | src/main/application/brain-host.js |
 | Brain routing | src/main/brain/brain.js |
 | Local execution | src/main/automation/local-executor.js |
 | Model/API execution | src/main/brain/model-executor.js |
-| Agent session | src/main/conversation/agent.js |
+| Agent session | src/main/conversation/conversation-agent.js |
 | Tool registry/permission/dispatch | src/tools/registry.js |
 | Character behavior | src/character/CharacterController.js |
 | Motion definitions | src/character/motions.js |
@@ -465,7 +465,7 @@ resources released when no longer needed
 
 ## 18. Authoritative Architecture Documents
 
-The project architecture is documented as separate authoritative contracts:
+The project architecture is documented as separate authoritative contracts. Planning documents are execution plans and never override these contracts:
 
 - Character_Architecture.md — Character behavior, autonomy, motion, rigging and Character/Engine boundary.
 - Lifecycle_Architecture.md — creation, destruction, ownership, startup, shutdown and resource lifetime.
@@ -477,3 +477,16 @@ The project architecture is documented as separate authoritative contracts:
 - Architecture_Index.md — documentation authority and change protocol.
 
 When this README conflicts with an authoritative document, the authoritative document wins. Architecture changes must be made at the owning document first.
+
+## 19. Execution Planning Documents
+
+The following documents define the implementation sequence, not the architecture itself:
+
+- ROADMAP.md — product and technical roadmap for Phases 1–4.
+- REPAIR_PLAN.md — ordered repair plan used before and during implementation.
+- PHASE_1_FOUNDATION.md — Foundation and architecture-conformance phase.
+- PHASE_2_RUNTIME.md — Runtime, Character, Engine, Voice and lifecycle phase.
+- PHASE_3_INTELLIGENCE.md — Brain, Conversation, Tools, Permissions and Add-ons phase.
+- PHASE_4_PRODUCT.md — Product completion, reliability, performance and release phase.
+
+These plans must conform to the authoritative architecture documents.
