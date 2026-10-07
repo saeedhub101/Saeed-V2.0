@@ -46,6 +46,28 @@ Required tests:
 - Character destruction stops autonomous scheduling
 - renderer cannot invent autonomous behavior
 
+## 3.1 Character Studio / Rig / Rest Pose / Animation acceptance
+
+The Character Studio is an independent character-authoring surface and is not part of Performance.
+
+The packaged-runtime acceptance suite must prove real behavior on the loaded GLB, not only the presence of controls or JSON definitions:
+
+1. Open Character Studio independently.
+2. Detect a real mapped logical bone and its actual GLB bone.
+3. Rotate that actual bone and verify the live transform changes.
+4. Save that changed transform as the authoritative Rest Pose.
+5. Change the same bone again.
+6. Reset the character and verify it returns to the newly saved Rest Pose.
+7. Restore the original Rest Pose after the test.
+8. Create an animation containing every mapped controllable logical bone.
+9. Play the animation and verify every corresponding actual GLB bone changes.
+10. Edit the animation keyframe values.
+11. Play the edited animation and verify the actual GLB bone transforms change again.
+12. Stop and delete the test animation.
+13. Verify no test motion remains registered.
+
+A motion definition existing in a registry is not sufficient evidence of animation functionality.
+
 ## 4. Conversation acceptance
 
 Verify:
