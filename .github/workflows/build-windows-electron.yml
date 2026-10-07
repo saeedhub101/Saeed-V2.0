@@ -35,6 +35,7 @@ jobs:
           node-version: 22.14.0
 
       - name: Validate version identity
+        if: always()
         id: version
         shell: pwsh
         run: |
@@ -59,15 +60,18 @@ jobs:
           Write-Host "Workflow build number: $env:GITHUB_RUN_NUMBER"
 
       - name: Validate repository structure
+        if: always()
         shell: pwsh
         run: |
           $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/conversation-agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/CharacterRig.js","src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js","src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js","src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js","src/character-studio.html","src/three/GLTFLoader.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
+        if: always()
         run: npm install --no-audit --no-fund
 
       - name: Initialize validation reports
+        if: always()
         id: init_validation_reports
         shell: pwsh
         run: |
@@ -76,6 +80,7 @@ jobs:
           Write-Host "Validation report directory initialized: ci-reports/"
 
       - name: Character component diagnostics
+        if: always()
         id: character_diagnostics
         continue-on-error: true
         shell: pwsh
@@ -90,6 +95,7 @@ jobs:
           if($code -ne 0){Write-Warning "Character diagnostics failed; continuing." ; exit 1}
           Write-Host "CHARACTER_DIAGNOSTICS=PASS"
       - name: Application RAM startup diagnostic
+        if: always()
         id: ram_diagnostic
         continue-on-error: true
         shell: powershell
@@ -108,6 +114,7 @@ jobs:
           Add-Content $report "PEAK_MB=$peakMB"
           Get-Content $report -Raw|Write-Host
       - name: Character Studio and runtime component contract
+        if: always()
         id: character_contract
         continue-on-error: true
         shell: pwsh
@@ -132,6 +139,7 @@ jobs:
           Write-Host "CHARACTER_STUDIO_COMPONENTS=PASS"
           Write-Host "CHARACTER_LIVE_EDITING_CONTRACT=PASS"
       - name: Static JavaScript validation
+        if: always()
         id: static_tests
         continue-on-error: true
         shell: pwsh
@@ -145,6 +153,7 @@ jobs:
           Get-Content $report -Raw|Write-Host
           if($code -ne 0){exit 1}
       - name: JavaScript syntax validation — all files
+        if: always()
         id: js_syntax
         continue-on-error: true
         shell: pwsh
@@ -161,6 +170,7 @@ jobs:
           if($errors.Count){exit 1}
 
       - name: HTML module syntax validation — all files
+        if: always()
         id: html_syntax
         continue-on-error: true
         shell: pwsh
@@ -176,6 +186,7 @@ jobs:
           if($errors.Count){exit 1}
 
       - name: Dependency integrity validation
+        if: always()
         id: dependency_validation
         continue-on-error: true
         shell: pwsh
@@ -195,6 +206,7 @@ jobs:
           if($errors.Count){exit 1}
 
       - name: Print complete validation reports and gate
+        if: always()
         id: validation_gate
         continue-on-error: true
         shell: pwsh
@@ -210,6 +222,7 @@ jobs:
           Write-Host "ALL_VALIDATIONS=PASS"
       - name: Upload validation reports
         if: always()
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: Saeed-AI-validation-reports-${{ github.run_number }}
@@ -217,6 +230,7 @@ jobs:
           path: ci-reports/*
 
       - name: Record validation gate without stopping remaining tests
+        if: always()
         id: validation_final_gate
         continue-on-error: true
         if: always()
@@ -231,6 +245,7 @@ jobs:
           Write-Host "VALIDATION_GATE=PASS"
 
       - name: Prepare native Windows icon
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -264,6 +279,7 @@ jobs:
 
       - name: Pre-build application smoke test
         if: always()
+        if: always()
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -295,6 +311,7 @@ jobs:
 
       - name: Prepare embedded Whisper runtime
         if: always()
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -321,9 +338,11 @@ jobs:
 
       - name: Build Windows installer
         if: always()
+        if: always()
         run: npm run dist
 
       - name: Verify packaged runtime assets
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -337,6 +356,7 @@ jobs:
           Write-Host "PACKAGED_CORE_HAS_EMBEDDED_WHISPER=PASS"
 
       - name: Packaged EXE E2E Suite 1 — Startup, Performance and Character Motion
+        if: always()
         id: e2e_suite_1
         if: always()
         continue-on-error: true
@@ -366,6 +386,7 @@ jobs:
           Get-Content $report -Raw|Write-Host
 
       - name: Packaged EXE E2E Suite 2 — Chat, Brain and Voice
+        if: always()
         id: e2e_suite_2
         if: always()
         continue-on-error: true
@@ -395,6 +416,7 @@ jobs:
           Get-Content $report -Raw|Write-Host
 
       - name: Packaged EXE E2E Suite 3 — Character Studio, Windows, Tray and GLB
+        if: always()
         id: e2e_suite_3
         if: always()
         continue-on-error: true
@@ -425,6 +447,7 @@ jobs:
 
       - name: Upload packaged E2E suite reports
         if: always()
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: Saeed-AI-packaged-e2e-${{ github.run_number }}
@@ -437,6 +460,7 @@ jobs:
             ${{ runner.temp }}/saeed-e2e-suite-*.stderr.log
 
       - name: Final packaged E2E result gate — all suites
+        if: always()
         if: always()
         shell: powershell
         run: |
@@ -456,6 +480,7 @@ jobs:
           Write-Host "PACKAGED_EXE_E2E_ALL_SUITES=PASS"
       - name: Generate Windows updater metadata
         if: always()
+        if: always()
         shell: pwsh
         run: |
           $v=(Get-Content VERSION -Raw).Trim()+".0"
@@ -467,6 +492,7 @@ jobs:
           Write-Host "UPDATE_METADATA_CHECK=PASS"
 
       - name: Build optional add-on bundles
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -503,6 +529,7 @@ jobs:
 
       - name: Verify add-on bundles
         if: always()
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -515,6 +542,7 @@ jobs:
           Write-Host "ADDON_BUNDLES=PASS"
 
       - name: Verify release output
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -535,6 +563,7 @@ jobs:
           Write-Host "SHA256: $sha"
 
       - name: Upload verified build
+        if: always()
         if: always()
         uses: actions/upload-artifact@v6
         with:
@@ -614,6 +643,7 @@ jobs:
           node-version: 22.14.0
 
       - name: Validate version identity
+        if: always()
         id: version
         shell: pwsh
         run: |
@@ -638,15 +668,18 @@ jobs:
           Write-Host "Workflow build number: $env:GITHUB_RUN_NUMBER"
 
       - name: Validate repository structure
+        if: always()
         shell: pwsh
         run: |
           $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/conversation-agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/CharacterRig.js","src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js","src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js","src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js","src/character-studio.html","src/three/GLTFLoader.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
+        if: always()
         run: npm install --no-audit --no-fund
 
       - name: Initialize validation reports
+        if: always()
         id: init_validation_reports
         shell: pwsh
         run: |
@@ -655,6 +688,7 @@ jobs:
           Write-Host "Validation report directory initialized: ci-reports/"
 
       - name: Character component diagnostics
+        if: always()
         id: character_diagnostics
         continue-on-error: true
         shell: pwsh
@@ -669,6 +703,7 @@ jobs:
           if($code -ne 0){Write-Warning "Character diagnostics failed; continuing." ; exit 1}
           Write-Host "CHARACTER_DIAGNOSTICS=PASS"
       - name: Application RAM startup diagnostic
+        if: always()
         id: ram_diagnostic
         continue-on-error: true
         shell: powershell
@@ -687,6 +722,7 @@ jobs:
           Add-Content $report "PEAK_MB=$peakMB"
           Get-Content $report -Raw|Write-Host
       - name: Character Studio and runtime component contract
+        if: always()
         id: character_contract
         continue-on-error: true
         shell: pwsh
@@ -711,6 +747,7 @@ jobs:
           Write-Host "CHARACTER_STUDIO_COMPONENTS=PASS"
           Write-Host "CHARACTER_LIVE_EDITING_CONTRACT=PASS"
       - name: Static JavaScript validation
+        if: always()
         id: static_tests
         continue-on-error: true
         shell: pwsh
@@ -724,6 +761,7 @@ jobs:
           Get-Content $report -Raw|Write-Host
           if($code -ne 0){exit 1}
       - name: JavaScript syntax validation — all files
+        if: always()
         id: js_syntax
         continue-on-error: true
         shell: pwsh
@@ -740,6 +778,7 @@ jobs:
           if($errors.Count){exit 1}
 
       - name: HTML module syntax validation — all files
+        if: always()
         id: html_syntax
         continue-on-error: true
         shell: pwsh
@@ -755,6 +794,7 @@ jobs:
           if($errors.Count){exit 1}
 
       - name: Dependency integrity validation
+        if: always()
         id: dependency_validation
         continue-on-error: true
         shell: pwsh
@@ -774,6 +814,7 @@ jobs:
           if($errors.Count){exit 1}
 
       - name: Print complete validation reports and gate
+        if: always()
         id: validation_gate
         continue-on-error: true
         shell: pwsh
@@ -789,6 +830,7 @@ jobs:
           Write-Host "ALL_VALIDATIONS=PASS"
       - name: Upload validation reports
         if: always()
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: Saeed-AI-validation-reports-${{ github.run_number }}
@@ -796,6 +838,7 @@ jobs:
           path: ci-reports/*
 
       - name: Record validation gate without stopping remaining tests
+        if: always()
         id: validation_final_gate
         continue-on-error: true
         if: always()
@@ -810,6 +853,7 @@ jobs:
           Write-Host "VALIDATION_GATE=PASS"
 
       - name: Prepare native Windows icon
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -843,6 +887,7 @@ jobs:
 
       - name: Pre-build application smoke test
         if: always()
+        if: always()
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
@@ -874,6 +919,7 @@ jobs:
 
       - name: Prepare embedded Whisper runtime
         if: always()
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -900,9 +946,11 @@ jobs:
 
       - name: Build Windows installer
         if: always()
+        if: always()
         run: npm run dist
 
       - name: Verify packaged runtime assets
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -916,6 +964,7 @@ jobs:
           Write-Host "PACKAGED_CORE_HAS_EMBEDDED_WHISPER=PASS"
 
       - name: Packaged EXE E2E Suite 1 — Startup, Performance and Character Motion
+        if: always()
         if: always()
         id: e2e_suite_1
         continue-on-error: true
@@ -947,6 +996,7 @@ jobs:
 
       - name: Packaged EXE E2E Suite 2 — Chat, Brain and Voice
         if: always()
+        if: always()
         id: e2e_suite_2
         continue-on-error: true
         shell: powershell
@@ -971,6 +1021,7 @@ jobs:
           Get-Content $report -Raw|Write-Host
 
       - name: Packaged EXE E2E Suite 3 — Character Studio, Windows, Tray and GLB
+        if: always()
         if: always()
         id: e2e_suite_3
         continue-on-error: true
@@ -1002,6 +1053,7 @@ jobs:
 
       - name: Upload packaged E2E suite reports
         if: always()
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: Saeed-AI-packaged-e2e-${{ github.run_number }}
@@ -1014,6 +1066,7 @@ jobs:
             ${{ runner.temp }}/saeed-e2e-suite-*.stderr.log
 
       - name: Final packaged E2E result gate — all suites
+        if: always()
         if: always()
         shell: powershell
         run: |
@@ -1033,6 +1086,7 @@ jobs:
           Write-Host "PACKAGED_EXE_E2E_ALL_SUITES=PASS"
       - name: Generate Windows updater metadata
         if: always()
+        if: always()
         shell: pwsh
         run: |
           $v=(Get-Content VERSION -Raw).Trim()+".0"
@@ -1044,6 +1098,7 @@ jobs:
           Write-Host "UPDATE_METADATA_CHECK=PASS"
 
       - name: Build optional add-on bundles
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -1080,6 +1135,7 @@ jobs:
 
       - name: Verify add-on bundles
         if: always()
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -1092,6 +1148,7 @@ jobs:
           Write-Host "ADDON_BUNDLES=PASS"
 
       - name: Verify release output
+        if: always()
         if: always()
         shell: pwsh
         run: |
@@ -1112,6 +1169,7 @@ jobs:
           Write-Host "SHA256: $sha"
 
       - name: Upload verified build
+        if: always()
         if: always()
         uses: actions/upload-artifact@v6
         with:
