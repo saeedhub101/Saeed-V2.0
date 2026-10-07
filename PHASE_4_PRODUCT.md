@@ -1,60 +1,100 @@
-# Saeed V2.0 — Phase 4: Product Completion
+# Saeed V2.0 — Phase 4: Product & Release
 
 **Status:** Planned  
-**Purpose:** Turn the verified architecture into a reliable packaged product.
+**Type:** Product-development phase
 
-## Objectives
+## Goal
 
-- Finish user-facing controls.
-- Harden failure recovery.
-- Measure performance.
-- Complete acceptance and release verification.
+Turn the completed runtime and intelligence layers into a polished, reliable Windows product.
 
-## Work
+## 1. User experience
 
-### Product
-- Character window controls.
-- Chat experience.
-- Mic/mute controls.
-- Character Motion/Animation Control surface.
-- Character Preparation/Rigging workflow.
-- Settings/provider management.
-- Add-on management.
-- Diagnostics and lifecycle visibility.
+Complete:
+- Character controls;
+- Chat;
+- Voice controls;
+- bubble/presentation;
+- Motion/Animation Control;
+- Character Preparation/Rigging;
+- settings;
+- provider management;
+- add-on management;
+- learning and memory controls;
+- diagnostics.
 
-### Reliability
-- Fault injection for invalid GLB, provider timeout, STT/TTS failure, plugin crash, tool denial/failure, cancellation and shutdown during work.
-- Verify no stale resource can mutate destroyed state.
-- Verify recovery without losing conversation state.
+## 2. Product workflows
 
-### Performance
+A new user must be able to:
+1. launch Saeed;
+2. see the Character;
+3. configure voice/providers;
+4. talk through microphone or Chat;
+5. receive spoken and visual responses;
+6. interact with the Character;
+7. prepare or replace a Character;
+8. enable capabilities;
+9. manage permissions;
+10. inspect health/diagnostics.
+
+## 3. Reliability
+
+Test and recover from:
+- invalid GLB;
+- provider timeout;
+- provider unavailable;
+- STT failure;
+- TTS failure;
+- realtime failure;
+- tool denial;
+- tool execution failure;
+- plugin crash;
+- cancellation;
+- shutdown during active work;
+- stale callbacks.
+
+Conversation state must survive recoverable feature failures.
+
+## 4. Performance
+
 Measure:
-- startup time
-- idle CPU/GPU
-- Character memory
-- tray-only memory
-- post-hide memory recovery
-- render activity
-- child processes
-- provider connections
-- plugin resources
+- startup;
+- tray-only memory;
+- Character idle memory;
+- CPU/GPU;
+- render activity;
+- post-hide resource recovery;
+- provider connections;
+- child processes;
+- add-on resources.
 
-Target budgets come from Lifecycle_Architecture.md and must be measured rather than assumed.
+Use the budgets defined by Lifecycle_Architecture.md. Measurements, not assumptions, determine release readiness.
 
-### Release
-- Architecture gate
-- Static gate
-- Unit gate
-- Integration gate
-- Packaged-runtime gate
-- End-to-end gate
-- Security gate
-- Performance gate
+## 5. Packaging and updates
+
+Complete:
+- Windows installer;
+- first-run behavior;
+- packaged asset validation;
+- update flow;
+- safe shutdown;
+- single-instance behavior;
+- release metadata.
+
+Automatic CI builds remain disabled unless deliberately enabled later.
+
+## 6. Release gates
+
+Release requires:
+- architecture verification;
+- static verification;
+- unit tests;
+- integration tests;
+- packaged-runtime tests;
+- E2E tests;
+- security checks;
+- performance checks;
+- fault-injection checks.
 
 ## Exit criteria
 
-The packaged application passes Testing_and_Acceptance_Architecture.md, including lifecycle simulation, fault injection, security checks, conversation continuity and shutdown verification.
-
-## Final product rule
-
-Do not call Saeed complete because the UI works. Saeed is complete only when the architecture, lifecycle, security, behavior and packaged runtime have all been proven.
+Saeed V2.0 is complete only when the packaged product passes the acceptance contract and the core user journeys work repeatedly, not merely once in development.
