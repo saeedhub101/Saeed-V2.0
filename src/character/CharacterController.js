@@ -10,7 +10,7 @@ import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js"
 
 export class CharacterController{
  constructor(avatar){
-  this.avatar=avatar;this.animation=new AnimationController(avatar);this.autonomous=new AutonomousBehaviorController(this);this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.avatar=avatar;this.animation=new AnimationController(avatar);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.avatar?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -127,16 +127,7 @@ export class CharacterController{
  runIdle(){if(this.autonomous)return this.autonomous.evaluateNow();if(!this.animationEnabled||this.animationPaused||!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
  clearIdleTimer(){this.autonomous?.clearTimer?.();this.idleTimer=null}
  startIdleScheduler(delay){this.autonomous?.schedule?.(delay);}
- startFrameLoop(){
-  if(this.frame||!this.visible)return;
-  const tick=()=>{
-   this.frame=null;
-   if(!this.visible)return;
-   if(this.animation.active.length){this.animation.update(1/60);this.avatar?.wakeRender?.(120);this.frame=requestAnimationFrame(tick)}
-   else if(this.idleBusy)this.finishMotion();
-  };
-  this.frame=requestAnimationFrame(tick);
- }
+ startFrameLoop(){this.lastTickAt=0;this.avatar?.wakeRender?.();return true}
  onCharacterLoaded(){
   const poseStatus=this.avatar?.getCharacterPoseStatus?.();
   if(!poseStatus?.loaded)return {loaded:false,reason:"Character GLB is not loaded yet"};
@@ -149,7 +140,7 @@ export class CharacterController{
   return {loaded:true,...x};
  }
  update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt)}
- destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.avatar=null;return true}
+ destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.avatar?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.avatar=null;return true}
  status(){const a=this.avatar?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.avatar?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
