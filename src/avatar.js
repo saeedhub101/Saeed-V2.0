@@ -33,7 +33,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null;
 let lastRestPose={detected:"unknown",normalized:false};
 
 function getSceneBoneGroups(){
@@ -261,11 +261,17 @@ function fit(){
 function render(){
  if(renderQueued||document.hidden)return;
  renderQueued=true;
- requestAnimationFrame(()=>{
+ animationFrame=requestAnimationFrame((now)=>{
+  animationFrame=null;
   renderQueued=false;
+  let keepAnimating=false;
+  if(animationTick){try{keepAnimating=animationTick(now)||false}catch(error){animationTick=null;window.saeed?.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
   renderer.render(scene,camera);
+  if(keepAnimating)render();
  });
 }
+function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;return true}
+
 function resize(){
  const r=canvas.getBoundingClientRect();
  const w=Math.max(1,r.width),h=Math.max(1,r.height);
@@ -396,7 +402,7 @@ function snapshotBoneRotations(){
  for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
  return out;
 }
-function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
+function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
  get3DStatus:()=>({
@@ -411,7 +417,7 @@ window.saeedCharacterRuntime.engine={
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
- lookCharacterAt:lookAt,wakeRender:render,destroy:destroyEngine
+ lookCharacterAt:lookAt,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
 window.saeed?.on3DQuery?.(requestId=>{
  const status=window.saeedCharacterRuntime.engine.get3DStatus();
