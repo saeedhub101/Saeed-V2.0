@@ -519,7 +519,9 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
-            dist/ci-e2e-report.json
+            dist/ci-e2e-suite-1.json
+            dist/ci-e2e-suite-2.json
+            dist/ci-e2e-suite-3.json
             animation-health-report.json
             dist/icons/*
             dist/addons/*.zip
