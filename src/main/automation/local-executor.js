@@ -7,6 +7,7 @@ class LocalExecutor{
  cleanTarget(s){return String(s||"").trim().replace(/[.?!؟،]+$/,"").replace(/^(my|the|this)\s+/i,"").trim()}
  async tryExecute(text){
   const t=String(text||"").trim(),l=t.toLowerCase();if(!t)return{handled:false};
+  const say=t.match(/^(?:say|repeat|قل|كرر)\s+(?:exactly\s*[:：]?\s*)?(.+)$/i);if(say)return{handled:true,answer:String(say[1]).trim()};
   if(/(?:what(?:'s| is)\s+)?(?:the\s+)?(?:time|current time)|what time is it|كم الساعة|الساعة كم|الوقت الآن/i.test(l))return{handled:true,answer:"The local time is "+new Date().toLocaleTimeString()+" on "+new Date().toLocaleDateString()+"."};
   if(/(?:today'?s date|what date is it|what day is it|تاريخ اليوم|ما هو تاريخ اليوم)/i.test(l))return{handled:true,answer:"Today is "+new Date().toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"})+"."};
   if(/^(who are you|what can you do|من انت|ماذا تستطيع)/i.test(l))return{handled:true,answer:"I am Saeed, your local Windows computer agent. Offline I can work with applications, websites, folders, system information, windows, processes, disks, network, screenshots, tasks and memory."};
