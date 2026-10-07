@@ -1,4 +1,4 @@
-const {LocalExecutor}=require("../../local-executor");
+const {LocalExecutor}=require("../automation/local-executor");
 const {ModelExecutor}=require("./model-executor");
 const learning=()=>require("../../learning");
 
