@@ -315,6 +315,7 @@ function display(parsed){
   try{root.remove(previous)}catch{}
   dispose(previous);
  }
+ traceGlb("display-success",{generation:loadGeneration,boneCount:boneGroups.size});
  window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
 }
 function getSceneBoneGroupsForModel(target){
