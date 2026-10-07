@@ -11,5 +11,5 @@ export class CharacterRetargeter{
  resetAll(){for(const slot of this.rest.keys())this.reset(slot);}
  setCalibration(slot,rotation={}){if(!this.bones[slot])return false;this.calibration.set(slot,{x:Number(rotation.x)||0,y:Number(rotation.y)||0,z:Number(rotation.z)||0});return true;}
  clearCalibration(slot){return this.calibration.delete(String(slot));}
- status(){return{enabled:this.enabled,...this.profile,boneCount:this.rest.size,calibration:Object.fromEntries(this.calibration),bones:Object.fromEntries(Object.entries(this.bones).map(([k,v])=>[k,v?.name||""])),normalizedSpace:"canonical-humanoid-v1"}}
+ status(){return{enabled:this.enabled,...this.profile,boneCount:this.rest.size,calibration:Object.fromEntries(this.calibration),bones:Object.fromEntries(Object.entries(this.bones).map(([k,v])=>[k,v?.name||""])),normalizedSpace:"canonical-humanoid-v2"}}
 }
