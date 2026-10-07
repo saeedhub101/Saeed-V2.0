@@ -315,7 +315,6 @@ function display(parsed){
   rig=new Map();base=new Map();boneGroups=nextGroups;boneRest=nextRest;morphs=new Map();
   collectMorphs();
   fit();
-  window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.();
   render();
  }catch(error){
   traceGlb("display-error",{error:error?.stack||error?.message||String(error)});
@@ -327,9 +326,11 @@ function display(parsed){
   try{root.remove(previous)}catch{}
   dispose(previous);
  }
- traceGlb("display-success",{generation:loadGeneration,boneCount:boneGroups.size});
+ traceGlb("display-success",{generation:loadGeneration,boneCount:boneGroups.size,meshCount:countSceneMeshes(next),skinnedMeshCount:countSceneSkinnedMeshes(next)});
  window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
 }
+function countSceneMeshes(target){let n=0;target?.traverse?.(o=>{if(o?.isMesh||o?.isSkinnedMesh)n++});return n;}
+function countSceneSkinnedMeshes(target){let n=0;target?.traverse?.(o=>{if(o?.isSkinnedMesh)n++});return n;}
 function getSceneBoneGroupsForModel(target){
  const groups=new Map();
  const add=b=>{if(!b?.name)return;const key=String(b.name),list=groups.get(key)||[];if(!list.includes(b))list.push(b);groups.set(key,list)};
@@ -465,7 +466,7 @@ window.saeedCharacterRuntime.engine={
   components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":(loadError?"error":"waiting"),detail:loadError||undefined}},
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,renderCount,lastRenderAt,canvasWidth:canvas.width,canvasHeight:canvas.height,clientWidth:canvas.clientWidth,clientHeight:canvas.clientHeight,hidden:document.hidden}
  }),
- getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
+ getBoneMap,getBones:getBoneMap,getAvailableBoneNames,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
