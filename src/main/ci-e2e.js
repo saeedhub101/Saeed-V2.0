@@ -62,9 +62,13 @@ function createCiE2E(deps={}){
   active.name=name;active.startedAt=t;active.operation=null;active.operationStartedAt=t;
   recordTrace("check-start",{check:name,timeoutMs:effectiveTimeoutMs});
   let timer;
-  let timedOut=false;
   const work=checkContext.run(ctx,()=>Promise.resolve().then(fn));
-  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{timedOut=true;ctx.timedOut=true;recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0});resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; test execution was not cancelled so remaining checks can continue.",diagnostic:{check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)}})},effectiveTimeoutMs)});
+  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{
+   ctx.timedOut=true;
+   const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
+   recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs});
+   resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; the timed-out check was aborted and this suite will stop.",diagnostic});
+  },effectiveTimeoutMs)});
   try{
    const v=await Promise.race([work,timeout]);
    clearTimeout(timer);
@@ -72,12 +76,14 @@ function createCiE2E(deps={}){
    const detail=typeof v==="object"&&v&&!Array.isArray(v)?v:undefined;
    report.checks[name]={pass,required,latencyMs:Date.now()-t,status:v?.status||undefined,detail};
    recordTrace(pass?"check-pass":"check-fail",{check:name,status:v?.status||"FAILED",error:v?.error,diagnostic:v?.diagnostic});
-   if(timedOut){
-    work.then(late=>recordTrace("check-late-complete",{check:name,status:late?.status||((late===true||late?.pass===true)?"PASS":"FAIL"),elapsedMs:Date.now()-t}),err=>recordTrace("check-late-error",{check:name,error:String(err?.stack||err)})).catch(()=>{});
+   if(v?.status==="TIMEOUT"){
+    report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic:v.diagnostic};
+    throw Object.assign(new Error("E2E check timeout: "+name),{code:"E2E_CHECK_TIMEOUT",check:name,diagnostic:v.diagnostic});
    }
    return report.checks[name];
   }catch(e){
    clearTimeout(timer);
+   if(e?.code==="E2E_CHECK_TIMEOUT")throw e;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
    report.checks[name]={pass:false,required,latencyMs:Date.now()-t,status:"ERROR",error:String(e?.stack||e),diagnostic};
    recordTrace("check-error",{check:name,error:String(e?.message||e)});
@@ -110,7 +116,7 @@ function createCiE2E(deps={}){
 
    await check("performance.rig-auto-map",async()=>{const w=getPerformanceWindow?.();if(!visible(w))return false;const r=await execJs(w,'(async()=>{document.querySelector("[data-tab=rig]")?.click();await new Promise(r=>setTimeout(r,250));const result=await window.saeed.character.characterController({action:"autoMap"});const s=await window.saeed.character.getCharacterController();const mapped=Object.keys(s?.autoRig||{});return {pass:Boolean(result?.ok&&mapped.length),mapped,boneCount:s?.controllableBoneCount||s?.boneCount||0,tPose:s?.tPose}})()',true);return r});
 
-   await check("performance.all-registered-compatible-motions",async()=>{const w=getPerformanceWindow?.();if(!visible(w))return false;const r=await execJs(w,'(async()=>{const api=window.saeed;const before=await api.character.getCharacterController();const mapped=new Set(Object.keys(before?.autoRig||{}));const motions=before?.motions||[];const results=[];for(const id of motions){if(id==="idle")continue;await api.characterController({action:"play",motion:id,options:{duration:.6,speed:1,intensity:1,loop:false}});await new Promise(r=>setTimeout(r,120));const during=await api.character.getCharacterController();const active=Boolean(during?.active?.some(x=>x.id===id));const changed=[...mapped].some(slot=>{const bone=before.autoRig?.[slot];const a=before.actualBones?.[bone]?.rotation,b=during.actualBones?.[during.autoRig?.[slot]||bone]?.rotation;return Boolean(a&&b&&(Math.abs((a.x||0)-(b.x||0))>.008||Math.abs((a.y||0)-(b.y||0))>.008||Math.abs((a.z||0)-(b.z||0))>.008))});results.push({id,active,changed});await api.characterController({action:"stopAll"});await new Promise(r=>setTimeout(r,60));}const failed=results.filter(x=>x.active&&!x.changed);return {pass:Boolean(mapped.size)&&failed.length===0,mapped:[...mapped],motions:motions.length,results,failed}})()',true);return r});
+   await check("performance.all-registered-compatible-motions",async()=>{const w=getPerformanceWindow?.();if(!visible(w))return {pass:false,error:"Performance window is not visible"};const r=await execJs(w,'(async()=>{const api=window.saeed;const before=await api.character.getCharacterController();const mapped=new Set(Object.keys(before?.autoRig||{}));const motions=Array.isArray(before?.motions)?before.motions.filter(id=>id!=="idle"):[];const results=[];const deadline=Date.now()+90000;for(const id of motions){if(Date.now()>=deadline)return {pass:false,status:"TIME_LIMIT",error:"Compatible-motion validation exceeded 90 seconds",motions:motions.length,completed:results.length,results,failed:results.filter(x=>x.active&&!x.changed)};const started=Date.now();let active=false,changed=false;try{const played=await api.characterController({action:"play",motion:id,options:{duration:.6,speed:1,intensity:1,loop:false}});if(!played?.ok){results.push({id,active:false,changed:false,error:"play rejected",played});continue}await new Promise(r=>setTimeout(r,120));const during=await api.character.getCharacterController();active=Boolean(during?.active?.some(x=>x.id===id));changed=[...mapped].some(slot=>{const bone=before.autoRig?.[slot];const a=before.actualBones?.[bone]?.rotation,b=during.actualBones?.[during.autoRig?.[slot]||bone]?.rotation;return Boolean(a&&b&&(Math.abs((b.x||0)-(a.x||0))>.008||Math.abs((b.y||0)-(a.y||0))>.008||Math.abs((b.z||0)-(a.z||0))>.008))});results.push({id,active,changed,elapsedMs:Date.now()-started})}catch(e){results.push({id,active,changed,error:String(e?.stack||e),elapsedMs:Date.now()-started})}finally{try{await api.characterController({action:"stopAll"})}catch{}await new Promise(r=>setTimeout(r,60))}}const failed=results.filter(x=>x.active&&!x.changed);return {pass:Boolean(mapped.size)&&results.length===motions.length&&failed.length===0,mapped:[...mapped],motions:motions.length,completed:results.length,results,failed}})()',true);return r});
 
    await check("performance.close",async()=>{const w=getPerformanceWindow?.();if(w&&!w.isDestroyed())w.close();await wait(300);return !visible(getPerformanceWindow?.())});
    await check("chat.open",async()=>{await getChatHost().showChat();await wait(800);return visible(chatWindow())});
@@ -256,9 +262,9 @@ function createCiE2E(deps={}){
    await check("idle-final",async()=>{await wait(1000);return {pass:Boolean(getCharacterWindow?.())}});
    report.finishedAt=new Date().toISOString();
    report.durationMs=Date.now()-started;
-   report.diagnostics={runnerVersion:2,timeoutPolicy:"diagnostic-and-continue",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length};
+   report.diagnostics={runnerVersion:2,timeoutPolicy:"abort-current-suite-on-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length};
    report.pass=Object.values(report.checks).filter(x=>x.required!==false).every(x=>x.pass);
-  }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString()}
+  }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString();if(e?.code==="E2E_CHECK_TIMEOUT")report.abortReason=report.abortReason||{type:"CHECK_TIMEOUT",check:e.check,diagnostic:e.diagnostic}}
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
   return report;
  }
