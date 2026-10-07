@@ -17,7 +17,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
   }
   return true;
  };
- const IDLE_TIMEOUT_MS=0;
+ const IDLE_TIMEOUT_MS=2*60*1000;
  function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent||IDLE_TIMEOUT_MS<=0)return;if(getMicMode?.()==="on")return;idleTimer=setTimeout(()=>{void evaluateLifecycle()},IDLE_TIMEOUT_MS)}
  function evaluateLifecycle(force=false){
   clearTimeout(idleTimer);idleTimer=null;
