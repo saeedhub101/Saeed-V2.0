@@ -405,6 +405,7 @@ function setBoneRotation(name,rotation={}){
  render();
  return true;
 }
+function setBoneTransform(name,transform={}){const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const rest=boneRest.get(String(name||""));if(!rest)return false;const rr=transform?.rotation||transform||{},pp=transform?.position||{};const rx=Number(rr.x),ry=Number(rr.y),rz=Number(rr.z),px=Number(pp.x),py=Number(pp.y),pz=Number(pp.z);if(!Number.isFinite(rx)||!Number.isFinite(ry)||!Number.isFinite(rz))return false;for(const b of list){b.rotation.set(rest.rotation.x+rx,rest.rotation.y+ry,rest.rotation.z+rz);if(Number.isFinite(px))b.position.x=rest.position.x+px;if(Number.isFinite(py))b.position.y=rest.position.y+py;if(Number.isFinite(pz))b.position.z=rest.position.z+pz}render();return true}
 function setRestRelativeBoneRotation(name,delta={}){const list=boneGroups.get(String(name||""))||[];const rest=boneRest.get(String(name||""));if(!list.length||!rest)return false;const x=rest.rotation.x+(Number(delta.x)||0),y=rest.rotation.y+(Number(delta.y)||0),z=rest.rotation.z+(Number(delta.z)||0);for(const b of list)b.rotation.set(x,y,z);render();return true}
 function createVirtualControlBone(name,parentName,position={x:0,y:0,z:0}){const parent=boneGroups.get(String(parentName||""))?.[0];if(!parent||!name||boneGroups.has(String(name)))return false;const b=new THREE.Bone();b.name=String(name);b.position.set(Number(position.x)||0,Number(position.y)||0,Number(position.z)||0);parent.add(b);boneGroups.set(b.name,[b]);captureAuthoritativeRestPose(lastRestPose);render();return true}
 function applyRestPoseSnapshot(snapshot={},normalization=null){
@@ -440,7 +441,7 @@ window.saeedCharacterRuntime.engine={
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
- getBoneRotation,setBoneRotation,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
+ getBoneRotation,setBoneRotation,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
