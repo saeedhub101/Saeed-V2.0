@@ -164,13 +164,13 @@ It maintains:
 The active conversation is stored in:
 
 ```text
-userData/conversations.json
+conversation storage
 ```
 
 The legacy/current history compatibility file is:
 
 ```text
-userData/conversation.json
+conversation storage
 ```
 
 Each conversation contains:
@@ -855,7 +855,7 @@ Agent.recordConversationExchange(user, assistant)
         ↓
 Agent.history
         ↓
-conversations.json
+conversation storage
 ```
 
 The current repository already implements this for the API Realtime path.
@@ -2570,11 +2570,11 @@ The Chat renderer should operate against the common conversation contract.
 The current architecture maps approximately as follows:
 
 ```text
-src/character.html
+character presentation layer
   └── microphone button
   └── bubble
 
-src/voice/client.js
+voice client layer
   └── microphone capture
   └── PCM conversion
   └── local STT flow
@@ -2583,48 +2583,48 @@ src/voice/client.js
   └── Realtime playback
   └── interruption
 
-src/core/voice/voice-host.js
+voice host layer
   └── microphone lifecycle
   └── Voice runtime ownership
   └── local Whisper runtime
 
-src/core/voice/voice-runtime.js
+voice runtime layer
   └── native Realtime orchestration
 
-src/realtime.js
+realtime provider adapter layer
   └── OpenAI Realtime adapter
   └── Gemini Live adapter
 
-src/core/ipc/voice-ipc.js
+voice IPC boundary
   └── voice IPC boundary
   └── STT/TTS API calls
   └── Realtime transport IPC
 
-src/agent.js
+conversation/Agent layer
   └── conversation state
   └── history
   └── run()
   └── runVoice()
   └── recordConversationExchange()
 
-src/core/brain/brain.js
+Brain layer
   └── common Brain routing
 
-src/core/brain/model-executor.js
+LLM execution layer
   └── LLM/API execution
 
-src/core/ipc/chat-ipc.js
+Chat IPC boundary
   └── Chat → Agent
 
-src/core/ipc/history-ipc.js
+conversation management boundary
   └── conversation management
 
-src/renderer.js
+Chat presentation layer
   └── Chat UI
   └── Chat history rendering
   └── Chat answer speech request
 
-src/preload.js
+application bridge
   └── renderer/main-process bridge
 ```
 
@@ -2637,7 +2637,7 @@ The following current mechanism is explicitly part of the architecture:
 ### Chat
 
 ```text
-renderer.js
+Chat presentation layer
   → window.saeed.chat()
   → IPC chat
   → Agent.run()
@@ -2648,7 +2648,7 @@ renderer.js
 ### Standard Voice
 
 ```text
-voice/client.js
+voice client layer
   → STT
   → window.saeed.voiceChat()
   → IPC voice:chat
