@@ -1983,7 +1983,7 @@ Do not create a second animation controller.
 
 ### Rule 5
 
-Do not move behavior decisions into avatar.js.
+Do not move behavior decisions into src/character/CharacterEngine.js.
 
 ### Rule 6
 
