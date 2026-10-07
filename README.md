@@ -16,7 +16,7 @@ This README is the **architecture contract** and contains the red lines that mus
 8. Tools are on-demand. No permanent tool worker for a one-shot task.
 9. Add-ons are optional and lazy. Installed does not mean loaded.
 10. Exactly one authoritative Tool Registry/permission/dispatch path.
-11. Exactly one CharacterController owns behavior, motion intent, idle selection, mood and animation playback.
+11. Exactly one CharacterController is the character command boundary. It owns exactly one AutonomousBehaviorController for autonomous decisions; AnimationController remains the playback layer.
 12. CharacterEngine only renders. It does not decide behavior.
 13. Idle is intermittent and event-driven. No permanent idle animation loop.
 14. Recent idle motions are suppressed so Saeed does not mechanically repeat the same movement.
@@ -67,11 +67,16 @@ Character side:
 ```text
 CharacterController
  ├─ state / mood
- ├─ idle scheduler
- ├─ recent-motion suppression
- ├─ event reactions
- ├─ semantic intents
- └─ animation playback
+ ├─ semantic commands
+ ├─ motion safety / coordination
+ └─ AutonomousBehaviorController
+      ├─ idle selection
+      ├─ recent-motion suppression
+      ├─ energy / cooldowns
+      ├─ sleep / wake
+      └─ event arbitration
+          ↓
+    AnimationController
           ↓
     CharacterEngine
           ↓
