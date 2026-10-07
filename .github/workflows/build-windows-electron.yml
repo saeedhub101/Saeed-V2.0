@@ -101,7 +101,7 @@ jobs:
           $peakMB=0;$samples=0;$deadline=(Get-Date).AddSeconds(30)
           function Get-DescendantIds([int]$rootPid){$all=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue);$ids=New-Object System.Collections.Generic.List[int];$queue=New-Object System.Collections.Generic.Queue[int];$queue.Enqueue($rootPid);while($queue.Count -gt 0){$processId=$queue.Dequeue();if($ids.Contains($processId)){continue};$ids.Add($processId);foreach($child in $all|Where-Object{$_.ParentProcessId -eq $processId}){$queue.Enqueue([int]$child.ProcessId)}};return $ids}
           while(!$proc.HasExited -and (Get-Date) -lt $deadline){$sum=0;foreach($processId in (Get-DescendantIds $proc.Id)){try{$p=Get-Process -Id $processId -ErrorAction Stop;$sum+=[int64]$p.WorkingSet64}catch{}};$mb=[math]::Round($sum/1MB,1);if($mb -gt $peakMB){$peakMB=$mb};$samples++;Start-Sleep -Milliseconds 500}
-          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;Add-Content $report "STATUS=TIMEOUT"}else{Add-Content $report "STATUS=PASS"}
+          if(!$proc.HasExited){Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue;Add-Content $report "STATUS=FAIL";Add-Content $report "ERROR=TIMEOUT";$proc.WaitForExit(5000)}else{$exitCode=$proc.ExitCode;if($exitCode -ne 0){Add-Content $report "STATUS=FAIL";Add-Content $report "ERROR=EXIT_CODE_$exitCode"}else{Add-Content $report "STATUS=PASS"}}
           Add-Content $report "SAMPLES=$samples"
           Add-Content $report "PEAK_MB=$peakMB"
           Get-Content $report -Raw|Write-Host
@@ -149,9 +149,9 @@ jobs:
         run: |
           $report="ci-reports/04-js-syntax.txt"
           $errors=[System.Collections.Generic.List[string]]::new()
-          $files=@(Get-ChildItem "src" -Recurse -Filter "*.js" -File)
+          $files=@(Get-ChildItem "src","scripts" -Recurse -Filter "*.js" -File)
           "=== JAVASCRIPT SYNTAX VALIDATION ==="|Set-Content $report
-          "Files checked: $($files.Count)"|Add-Content $report
+          "Files checked (src + scripts): $($files.Count)"|Add-Content $report
           foreach($file in $files){node --check $file.FullName 2>&1|Tee-Object -FilePath $report -Append;if($LASTEXITCODE -ne 0){$errors.Add($file.FullName);Add-Content $report "SYNTAX_ERROR=$($file.FullName)"}}
           Add-Content $report "ERROR_COUNT=$($errors.Count)"
           Add-Content $report "STATUS=$(if($errors.Count){'FAIL'}else{'PASS'})"
