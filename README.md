@@ -21,7 +21,7 @@ This README is the **architecture contract** and contains the red lines that mus
 13. Idle is intermittent and event-driven. No permanent idle animation loop.
 14. Recent idle motions are suppressed so Saeed does not mechanically repeat the same movement.
 15. Animation update/render activity exists only while a visual change is occurring.
-16. Hide pauses character activity; it does not destroy Saeed.
+16. Hide destroys the Character runtime; Show creates a fresh Character runtime. Persistent Character profile/state survives.
 17. Mic OFF releases microphone resources. If Chat is open, Brain remains.
 18. Closing Chat releases Brain only when Mic is also OFF.
 19. Mute is different from Mic OFF: listening/Brain/tools remain available, audible TTS is disabled, and text can still appear.
@@ -347,8 +347,9 @@ Chat window:
 
 Hide Saeed:
 - hide the window
-- stop character activity
-- keep runtime available for fast restore
+- destroy the Character runtime and rendering resources
+- preserve persistent Character profile/state
+- recreate a fresh Character runtime on Show
 
 ## 12. Resource lifetime
 
@@ -455,3 +456,19 @@ resources released when no longer needed
 ```
 
 **Saeed must feel active and intelligent without behaving like a collection of permanently running services.**
+
+
+## 18. Authoritative Architecture Documents
+
+The project architecture is documented as separate authoritative contracts:
+
+- Character_Architecture.md — Character behavior, autonomy, motion, rigging and Character/Engine boundary.
+- Lifecycle_Architecture.md — creation, destruction, ownership, startup, shutdown and resource lifetime.
+- Voice_Conversation_Architecture.md — Chat, Mic, STT, TTS, Realtime and shared conversation.
+- Core_Architecture.md — Brain, local-first routing, tools, permissions and capabilities.
+- Engine_Architecture.md — 3D engine, rendering, GLB loading and technical resource lifetime.
+- Security_Architecture.md — trust boundaries, credentials, permissions, plugins and Emergency Stop.
+- Testing_and_Acceptance_Architecture.md — architecture gates, runtime verification and release acceptance.
+- Architecture_Index.md — documentation authority and change protocol.
+
+When this README conflicts with an authoritative document, the authoritative document wins. Architecture changes must be made at the owning document first.
