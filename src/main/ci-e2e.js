@@ -11,7 +11,7 @@ function createCiE2E(deps={}){
  const active={name:null,startedAt:0,operation:null,operationStartedAt:0};
  const recordTrace=(event,detail={})=>{const item={at:new Date().toISOString(),elapsedMs:Date.now()-started,event,...detail};trace.push(item);if(trace.length>200)trace.shift();return item};
  const operation=async(name,fn,detail={})=>{active.operation=String(name);active.operationStartedAt=Date.now();recordTrace("operation-start",{check:active.name,operation:active.operation,...detail});try{return await fn()}finally{recordTrace("operation-end",{check:active.name,operation:active.operation,elapsedMs:Date.now()-active.operationStartedAt});active.operation=null;}};
- const execJs=async(w,script,opts)=>operation("webContents.executeJavaScript",()=>execJs(w,script,opts),{scriptPreview:String(script).replace(/\s+/g," ").slice(0,240)});
+ const execJs=async(w,script,opts)=>operation("webContents.executeJavaScript",()=>w.webContents.executeJavaScript(script,opts),{scriptPreview:String(script).replace(/\s+/g," ").slice(0,240)});
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
   const t=Date.now();active.name=name;active.startedAt=t;active.operation=null;active.operationStartedAt=t;recordTrace("check-start",{check:name,timeoutMs});
