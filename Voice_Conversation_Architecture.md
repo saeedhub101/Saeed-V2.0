@@ -199,7 +199,7 @@ The current Chat path is:
 ```text
 Chat renderer
    ↓
-window.saeed.chat(text, image)
+window.saeed.chat.chat(text, image)
    ↓
 IPC "chat"
    ↓
@@ -253,7 +253,7 @@ STT
    ↓
 transcribed text
    ↓
-window.saeed.voiceChat(text)
+window.saeed.voice.voiceChat(text)
    ↓
 IPC "voice:chat"
    ↓
@@ -2638,7 +2638,7 @@ The following current mechanism is explicitly part of the architecture:
 
 ```text
 Chat presentation layer
-  → window.saeed.chat()
+  → window.saeed.chat.chat()
   → IPC chat
   → Agent.run()
   → Brain.run()
@@ -2650,7 +2650,7 @@ Chat presentation layer
 ```text
 voice client layer
   → STT
-  → window.saeed.voiceChat()
+  → window.saeed.voice.voiceChat()
   → IPC voice:chat
   → Agent.runVoice()
   → Brain.run()
