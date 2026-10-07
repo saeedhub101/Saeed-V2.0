@@ -123,6 +123,18 @@ export class CharacterController{
   if(ok)this.engine?.wakeRender?.();
   return ok;
 }
+resetBoneToRest(name){
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok)return null;
+  const bone=String(name||"");
+  const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
+  if(!available.has(bone))return null;
+  const ok=this.engine?.resetBoneToRest?.(bone);
+  if(!ok)return null;
+  this.animation.pose?.delete?.(bone);
+  this.engine?.wakeRender?.();
+  return this.engine?.getBoneRotation?.(bone)||this.engine?.getRestBoneRotation?.(bone)||null;
+}
  calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){this.beginAuthoring();const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
@@ -244,7 +256,7 @@ function installCharacterController(){
  window.saeedCharacterRuntime.controller=controller;
  controller.api={
   setAnimationEnabled:v=>controller.setAnimationEnabled(v),setAnimationPaused:v=>controller.setAnimationPaused(v),beginAuthoring:()=>controller.beginAuthoring(),endAuthoring:()=>controller.endAuthoring(),play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
-  setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
+  setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),resetBoneToRest:n=>controller.resetBoneToRest(n),
   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),setMotionEnabled:(id,v)=>controller.setMotionEnabled(id,v),
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
   listMotions:()=>controller.listMotions(),status:()=>{const ready=engine.getCharacterPoseStatus?.();const mapped=engine.getBoneMap?.()||{};if(ready?.loaded&&!Object.keys(mapped).length)controller.onCharacterLoaded?.();return controller.status()},register:def=>controller.animation.register(def),
