@@ -445,7 +445,7 @@ jobs:
         id: e2e_suite_1
         continue-on-error: true
         shell: powershell
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           SAEED_CI_E2E_SUITE: "1"
         run: |
@@ -464,7 +464,8 @@ jobs:
               $deadline = (Get-Date).AddSeconds(420)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                $proc.WaitForExit(10000)
                 $result = [ordered]@{ suite = 1; pass = $false; status = "TIMEOUT"; error = "E2E Suite 1 timed out"; time = (Get-Date).ToUniversalTime() }
                 $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
               } else {
@@ -493,7 +494,7 @@ jobs:
         id: e2e_suite_2
         continue-on-error: true
         shell: powershell
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           SAEED_CI_E2E_SUITE: "2"
         run: |
@@ -512,7 +513,8 @@ jobs:
               $deadline = (Get-Date).AddSeconds(420)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                $proc.WaitForExit(10000)
                 $result = [ordered]@{ suite = 2; pass = $false; status = "TIMEOUT"; error = "E2E Suite 2 timed out"; time = (Get-Date).ToUniversalTime() }
                 $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
               } else {
@@ -541,7 +543,7 @@ jobs:
         id: e2e_suite_3
         continue-on-error: true
         shell: powershell
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           SAEED_CI_E2E_SUITE: "3"
         run: |
@@ -560,7 +562,8 @@ jobs:
               $deadline = (Get-Date).AddSeconds(420)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                $proc.WaitForExit(10000)
                 $result = [ordered]@{ suite = 3; pass = $false; status = "TIMEOUT"; error = "E2E Suite 3 timed out"; time = (Get-Date).ToUniversalTime() }
                 $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
               } else {
@@ -589,7 +592,7 @@ jobs:
         id: glb_character_test
         continue-on-error: true
         shell: powershell
-        timeout-minutes: 10
+        timeout-minutes: 12
         env:
           SAEED_CI_E2E_SUITE: "4"
           SAEED_CI_E2E_REPORT: "dist\\ci-e2e-glb-character-test.json"
@@ -609,7 +612,8 @@ jobs:
               $deadline = (Get-Date).AddSeconds(540)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                $proc.WaitForExit(10000)
                 $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "TIMEOUT"; error = "GLB Character Test timed out"; time = (Get-Date).ToUniversalTime() }
                 $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
               } else {
@@ -634,7 +638,7 @@ jobs:
         id: e2e_suite_5
         continue-on-error: true
         shell: powershell
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           SAEED_CI_E2E_SUITE: "5"
           SAEED_CI_E2E_REPORT: "dist\\ci-e2e-suite-5.json"
@@ -654,7 +658,8 @@ jobs:
               $deadline = (Get-Date).AddSeconds(420)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                $proc.WaitForExit(10000)
                 $result = [ordered]@{ suite = 5; pass = $false; status = "TIMEOUT"; error = "E2E Suite 5 timed out"; time = (Get-Date).ToUniversalTime() }
                 $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
               } else {
@@ -681,7 +686,7 @@ jobs:
         id: e2e_suite_6
         continue-on-error: true
         shell: powershell
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           SAEED_CI_E2E_SUITE: "6"
           SAEED_CI_E2E_REPORT: "dist\\ci-e2e-suite-6.json"
@@ -701,7 +706,8 @@ jobs:
               $deadline = (Get-Date).AddSeconds(420)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
-                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                & taskkill.exe /PID $proc.Id /T /F | Out-Null
+                $proc.WaitForExit(10000)
                 $result = [ordered]@{ suite = 6; pass = $false; status = "TIMEOUT"; error = "E2E Suite 6 timed out"; time = (Get-Date).ToUniversalTime() }
                 $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
               } else {
