@@ -354,9 +354,9 @@ jobs:
         env:
           SAEED_CI_E2E_SUITE: "1"
         run: |
+          $report = Join-Path $PWD "dist\ci-e2e-suite-1.json"
           try {
             $ErrorActionPreference = "Stop"
-            $report = Join-Path $PWD "dist\ci-e2e-suite-1.json"
             $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-1.stdout.log"
             $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-1.stderr.log"
             Remove-Item $report -Force -ErrorAction SilentlyContinue
@@ -402,9 +402,9 @@ jobs:
         env:
           SAEED_CI_E2E_SUITE: "2"
         run: |
+          $report = Join-Path $PWD "dist\ci-e2e-suite-2.json"
           try {
             $ErrorActionPreference = "Stop"
-            $report = Join-Path $PWD "dist\ci-e2e-suite-2.json"
             $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-2.stdout.log"
             $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-2.stderr.log"
             Remove-Item $report -Force -ErrorAction SilentlyContinue
@@ -450,9 +450,9 @@ jobs:
         env:
           SAEED_CI_E2E_SUITE: "3"
         run: |
+          $report = Join-Path $PWD "dist\ci-e2e-suite-3.json"
           try {
             $ErrorActionPreference = "Stop"
-            $report = Join-Path $PWD "dist\ci-e2e-suite-3.json"
             $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-3.stdout.log"
             $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-3.stderr.log"
             Remove-Item $report -Force -ErrorAction SilentlyContinue
