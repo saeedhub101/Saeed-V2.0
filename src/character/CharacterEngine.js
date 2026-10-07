@@ -143,7 +143,7 @@ function normalizeHumanoidRestPose(){
   model.updateWorldMatrix(true,true);
   const after=armState();
   const stillTPose=Boolean(after?.horizontal&&after?.spread&&after?.relaxed);
-  return{detected:"t-pose",normalized:!stillTPose,corrected:true,stillTPose};
+  const result={detected:"t-pose",normalized:!stillTPose,corrected:true,stillTPose};if(!stillTPose)captureAuthoritativeRestPose(result);return result;
  }
  return{detected:"upright",normalized:true,corrected:false,stillTPose:false};
 }
@@ -156,10 +156,8 @@ function validateRig(mapping={}){
  const capabilities={body:Boolean(rig.get("hips")),arms:Boolean(rig.get("leftUpperArm")&&rig.get("rightUpperArm")),legs:Boolean(rig.get("leftThigh")&&rig.get("rightThigh")),neck:Boolean(rig.get("neck")),eyes:Boolean(rig.get("leftEye")&&rig.get("rightEye")),blink:Boolean(rig.get("leftEye")&&rig.get("rightEye")),face:Boolean(rig.get("jaw")),fingers:Boolean(rig.get("leftHand")&&rig.get("rightHand"))};
  return{ok:mapped.length>0,missing,criticalMissing,optionalMissing:missing,mapped:mapped.length,required,optional,capabilities};
 }
-function resetCharacterPose(){
- getSceneBones();
- for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}
-}
+function resetCharacterPose(){getSceneBones();for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}render();}
+function captureAuthoritativeRestPose(normalization=lastRestPose){getSceneBones();boneRest=new Map();for(const [name,list] of boneGroups){const b=list[0];if(b)boneRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},position:{x:b.position.x,y:b.position.y,z:b.position.z}})}lastRestPose={...(normalization||{}),saved:true};for(const [slot,b] of rig){const p=boneRest.get(String(b.name));if(p)base.set(slot,{x:p.rotation.x,y:p.rotation.y,z:p.rotation.z})}return snapshotBoneRotations();}
 function applyCharacterPose(pose={},retargeter=null){
  for(const [slot,r] of Object.entries(pose)){
   const b=rig.get(slot);if(!b)continue;
@@ -407,6 +405,7 @@ function setBoneRotation(name,rotation={}){
  render();
  return true;
 }
+function createVirtualControlBone(name,parentName,position={x:0,y:0,z:0}){const parent=boneGroups.get(String(parentName||""))?.[0];if(!parent||!name||boneGroups.has(String(name)))return false;const b=new THREE.Bone();b.name=String(name);b.position.set(Number(position.x)||0,Number(position.y)||0,Number(position.z)||0);parent.add(b);boneGroups.set(b.name,[b]);captureAuthoritativeRestPose(lastRestPose);render();return true}
 function applyRestPoseSnapshot(snapshot={},normalization=null){
  getSceneBones();
  for(const [name,r] of Object.entries(snapshot||{})){
@@ -420,6 +419,7 @@ function applyRestPoseSnapshot(snapshot={},normalization=null){
   for(const target of list)base.set(slot,{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}),target.quaternion.copy(b.quaternion);
  }
  if(normalization)lastRestPose={...normalization};
+ captureAuthoritativeRestPose(lastRestPose);
  resetCharacterPose();
  render();
  return true;
@@ -439,7 +439,7 @@ window.saeedCharacterRuntime.engine={
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
- getBoneRotation,setBoneRotation,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,
+ getBoneRotation,setBoneRotation,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
