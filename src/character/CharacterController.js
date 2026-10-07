@@ -79,9 +79,11 @@ export class CharacterController{
  saveRestPose(){
   if(!this.characterId)this.bindCurrentCharacter();
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
+  this.engine?.captureAuthoritativeRestPose?.(normalization);
   const bones=this.engine?.snapshotBoneRotations?.()||{};
-    const restPose={normalization,bones};
-    if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
+  const authoritativeNormalization=this.engine?.getRestPoseNormalization?.()||normalization;
+  const restPose={normalization:authoritativeNormalization,bones};
+  if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
  }
  normalizeRestPose(){const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized)this.engine?.captureAuthoritativeRestPose?.(normalization);return normalization;}
