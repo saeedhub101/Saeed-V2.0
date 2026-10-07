@@ -1,6 +1,6 @@
 name: Saeed AI — Windows Build
 
-# Build automatically when application code changes, while retaining manual dispatch.
+# Windows builds are manual-only via workflow_dispatch.
 on:
   workflow_dispatch:
     inputs:
@@ -361,18 +361,26 @@ jobs:
           Remove-Item $report -Force -ErrorAction SilentlyContinue
           $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe -PathType Leaf)) {
-            @{suite="1";pass=$false;status="BLOCKED";error="Packaged EXE missing";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Write-Host "E2E Suite 1: BLOCKED — EXE missing; continuing."
-            return
+            $result = [ordered]@{ suite = 1; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
+            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+          } else {
+            $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=1" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $deadline = (Get-Date).AddSeconds(420)
+            while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+            if (!$proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              $result = [ordered]@{ suite = 1; pass = $false; status = "TIMEOUT"; error = "E2E Suite 1 timed out"; time = (Get-Date).ToUniversalTime() }
+              $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+            } else {
+              if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
+              if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
+              if (!(Test-Path $report)) {
+                $result = [ordered]@{ suite = 1; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
+                $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+              }
+            }
           }
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=1" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $deadline=(Get-Date).AddSeconds(420)
-          while(!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; @{suite="1";pass=$false;status="TIMEOUT";error="E2E Suite 1 timed out";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8; return }
-          if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
-          if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
-          if(!(Test-Path $report)){ @{suite="1";pass=$false;status="ERROR";error="E2E process exited without producing a report";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8 }
-          Get-Content $report -Raw|Write-Host
+          Get-Content $report -Raw | Write-Host
 
       - name: Packaged EXE E2E Suite 2 — Chat, Brain and Voice
         if: always()
@@ -390,18 +398,26 @@ jobs:
           Remove-Item $report -Force -ErrorAction SilentlyContinue
           $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe -PathType Leaf)) {
-            @{suite="2";pass=$false;status="BLOCKED";error="Packaged EXE missing";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Write-Host "E2E Suite 2: BLOCKED — EXE missing; continuing."
-            return
+            $result = [ordered]@{ suite = 2; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
+            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+          } else {
+            $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=2" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $deadline = (Get-Date).AddSeconds(420)
+            while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+            if (!$proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              $result = [ordered]@{ suite = 2; pass = $false; status = "TIMEOUT"; error = "E2E Suite 2 timed out"; time = (Get-Date).ToUniversalTime() }
+              $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+            } else {
+              if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
+              if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
+              if (!(Test-Path $report)) {
+                $result = [ordered]@{ suite = 2; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
+                $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+              }
+            }
           }
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=2" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $deadline=(Get-Date).AddSeconds(420)
-          while(!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; @{suite="2";pass=$false;status="TIMEOUT";error="E2E Suite 2 timed out";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8; return }
-          if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
-          if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
-          if(!(Test-Path $report)){ @{suite="2";pass=$false;status="ERROR";error="E2E process exited without producing a report";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8 }
-          Get-Content $report -Raw|Write-Host
+          Get-Content $report -Raw | Write-Host
 
       - name: Packaged EXE E2E Suite 3 — Character Studio, Windows, Tray and GLB
         if: always()
@@ -419,18 +435,26 @@ jobs:
           Remove-Item $report -Force -ErrorAction SilentlyContinue
           $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe -PathType Leaf)) {
-            @{suite="3";pass=$false;status="BLOCKED";error="Packaged EXE missing";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Write-Host "E2E Suite 3: BLOCKED — EXE missing; continuing."
-            return
+            $result = [ordered]@{ suite = 3; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
+            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+          } else {
+            $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=3" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $deadline = (Get-Date).AddSeconds(420)
+            while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+            if (!$proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+              $result = [ordered]@{ suite = 3; pass = $false; status = "TIMEOUT"; error = "E2E Suite 3 timed out"; time = (Get-Date).ToUniversalTime() }
+              $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+            } else {
+              if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
+              if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
+              if (!(Test-Path $report)) {
+                $result = [ordered]@{ suite = 3; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
+                $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
+              }
+            }
           }
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=3" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $deadline=(Get-Date).AddSeconds(420)
-          while(!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; @{suite="3";pass=$false;status="TIMEOUT";error="E2E Suite 3 timed out";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8; return }
-          if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
-          if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
-          if(!(Test-Path $report)){ @{suite="3";pass=$false;status="ERROR";error="E2E process exited without producing a report";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8 }
-          Get-Content $report -Raw|Write-Host
+          Get-Content $report -Raw | Write-Host
 
       - name: Upload packaged E2E suite reports
         if: always()
@@ -611,9 +635,4 @@ jobs:
               --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}." \
               --target "${{ github.sha }}"
           fi
-          $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
-           if (!(Test-Path $exe -PathType Leaf)) {
-             @{suite="3";pass=$false;status="BLOCKED";error="Packaged EXE missing";time=(Get-Date).ToUniversalTime()} | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-             Write-Host "E2E Suite 3: BLOCKED — EXE missing; continuing."
-             return
            }
