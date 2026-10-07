@@ -86,7 +86,7 @@ export class CharacterController{
   if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
  }
- normalizeRestPose(){const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized)this.engine?.captureAuthoritativeRestPose?.(normalization);return normalization;}
+ normalizeRestPose(){const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized){this.engine?.captureAuthoritativeRestPose?.(normalization);if(!this.characterId)this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{restPose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}},normalizehumanoidrestpose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}}});}return normalization;}
  resetPose(){this.engine?.resetCharacterPose?.();this.animation.pose.clear();this.engine?.wakeRender?.(250);return true}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
