@@ -533,6 +533,12 @@ jobs:
             $r=Get-Content $p -Raw|ConvertFrom-Json
             Write-Host "================ $p ================"
             Get-Content $p -Raw|Write-Host
+            $checkValues=@($r.checks.PSObject.Properties.Value)
+            if($checkValues.Count -eq 0){$failed+="$p (no checks recorded)"; continue}
+            $missingCheckPass=@($checkValues|Where-Object{$_ -isnot [psobject] -or $_.pass -is $null})
+            if($missingCheckPass.Count){$failed+="$p (check result missing pass field)"; continue}
+            if(-not $r.diagnostics){$failed+="$p (diagnostics section missing)"; continue}
+            if(-not $r.diagnostics.trace){$failed+="$p (operation trace missing)"; continue}
             if(-not $r.pass){$failed+=$p}
           }
           if($missing.Count){throw "Missing packaged E2E reports: $($missing -join ", ")" }
