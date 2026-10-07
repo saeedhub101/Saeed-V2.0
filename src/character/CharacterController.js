@@ -154,17 +154,17 @@ export class CharacterController{
   const motion=map[key]||"idle";return{intent:key,motion,played:motion==="idle"?false:this.play(motion,options)};
  }
 }
-window.saeedCharacterController=null;
+window.saeedCharacterRuntime=null;
 function installCharacterController(){
- const avatar=window.saeedAvatar;
+ const avatar=window.saeedCharacterRuntime?.engine;
  if(!avatar||typeof avatar.getCharacterPoseStatus!=="function")return false;
- if(window.saeedCharacterController?.avatar===avatar){
+ if(window.saeedCharacterRuntime?.controller?.avatar===avatar){
   const ready=avatar.getCharacterPoseStatus?.();
-  if(ready?.loaded&&!window.saeedCharacterController.characterId)window.saeedCharacterController.onCharacterLoaded?.();
+  if(ready?.loaded&&!window.saeedCharacterRuntime?.controller.characterId)window.saeedCharacterRuntime?.controller.onCharacterLoaded?.();
   return true;
  }
  const controller=new CharacterController(avatar);
- window.saeedCharacterController=controller;
+ window.saeedCharacterRuntime={controller};
  controller.api={
   setAnimationEnabled:v=>controller.setAnimationEnabled(v),setAnimationPaused:v=>controller.setAnimationPaused(v),play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
@@ -182,5 +182,5 @@ function installCharacterController(){
 installCharacterController();
 window.addEventListener("saeed-avatar-ready",installCharacterController);
 window.addEventListener("DOMContentLoaded",()=>installCharacterController());
-window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterController?.onCharacterLoaded?.());
-document.addEventListener("visibilitychange",()=>window.saeedCharacterController?.setVisible(!document.hidden));
+window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
+document.addEventListener("visibilitychange",()=>window.saeedCharacterRuntime?.controller?.setVisible(!document.hidden));
