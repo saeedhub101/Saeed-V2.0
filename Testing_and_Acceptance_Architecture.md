@@ -73,25 +73,27 @@ Mandatory simulation:
 
 1. Start application.
 2. Confirm single Core/Tray.
-3. Show Character.
-4. Let Character idle.
-5. Open Chat and send a message.
-6. Close Chat.
-7. Turn Mic ON.
-8. Speak and receive response.
-9. Mute TTS.
-10. Continue with text/bubble output.
-11. Turn Mic OFF.
-12. Hide Character.
-13. Confirm Character runtime is destroyed.
-14. Wait for Brain idle timeout.
-15. Confirm Brain/resources are destroyed.
-16. Show Character again.
-17. Confirm a fresh Character runtime is created.
-18. Open Chat.
-19. Confirm conversation persistence.
-20. Quit through the authoritative application control.
-21. Confirm complete shutdown.
+3. Confirm Character is visible and TTS runtime is READY/IDLE.
+4. Confirm MIC/STT/Realtime/Brain are not created merely by startup.
+5. Let Character idle.
+6. Open Chat and send a message.
+7. Close Chat.
+8. Turn Mic ON.
+9. Speak and receive response.
+10. Mute TTS and confirm TTS stops/is destroyed.
+11. Continue with text/bubble output.
+12. Unmute while Character remains visible and confirm TTS is recreated READY/IDLE.
+13. Turn Mic OFF.
+14. Hide Character.
+15. Confirm Character runtime and Character-owned TTS are destroyed.
+16. Wait for Brain idle timeout.
+17. Confirm Brain/resources are destroyed.
+18. Show Character again.
+19. Confirm a fresh Character runtime and TTS READY/IDLE are created.
+20. Open Chat.
+21. Confirm conversation persistence.
+22. Quit through the authoritative application control.
+23. Confirm complete shutdown.
 
 ## 8. Fault injection
 
