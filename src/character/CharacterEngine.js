@@ -33,7 +33,9 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null;\nconst glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];\nfunction traceGlb(stage,detail={}){glbTrace.push({at:new Date().toISOString(),stage,...detail});if(glbTrace.length>100)glbTrace.splice(0,glbTrace.length-100);}
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null;
+const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
+function traceGlb(stage,detail={}){glbTrace.push({at:new Date().toISOString(),stage,...detail});if(glbTrace.length>100)glbTrace.splice(0,glbTrace.length-100);}
 let lastRestPose={detected:"unknown",normalized:false};
 
 function getSceneBoneGroups(){
