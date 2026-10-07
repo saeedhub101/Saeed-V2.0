@@ -564,7 +564,6 @@ jobs:
 
       - name: Upload verified build
         if: always()
-        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
@@ -1208,3 +1207,60 @@ jobs:
               --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}." \
               --target "${{ github.sha }}"
           fi
+
+      - name: FINAL COMPLETE BUILD RESULT — report all failures after all stages
+        if: always()
+        shell: pwsh
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          $ErrorActionPreference = "Continue"
+          $failures = [System.Collections.Generic.List[string]]::new()
+          Write-Host "============================================================"
+          Write-Host "FINAL COMPLETE BUILD RESULT"
+          Write-Host "All eligible stages have completed. No earlier failure is allowed to stop this final report."
+          Write-Host "JOB_STATUS=$env:JOB_STATUS"
+          Write-Host "============================================================"
+
+          if ($env:JOB_STATUS -eq "failure") {
+            $failures.Add("One or more workflow stages failed.")
+          }
+
+          if (Test-Path "ci-reports") {
+            $reports = @(Get-ChildItem "ci-reports" -File | Sort-Object Name)
+            foreach ($r in $reports) {
+              $raw = Get-Content $r.FullName -Raw
+              if ($raw -match "STATUS=FAIL") {
+                $failures.Add("Validation report failed: $($r.Name)")
+              }
+            }
+            Write-Host "Validation reports: $($reports.Count)"
+          } else {
+            $failures.Add("ci-reports directory was not created.")
+          }
+
+          foreach ($p in @("dist\ci-e2e-suite-1.json","dist\ci-e2e-suite-2.json","dist\ci-e2e-suite-3.json")) {
+            if (!(Test-Path $p)) {
+              $failures.Add("Missing E2E report: $p")
+              continue
+            }
+            try {
+              $r = Get-Content $p -Raw | ConvertFrom-Json
+              if (-not $r.pass) { $failures.Add("E2E suite failed: $p") }
+            } catch {
+              $failures.Add("Invalid E2E report: $p")
+            }
+          }
+
+          Write-Host "============================================================"
+          Write-Host "FINAL FAILURE SUMMARY"
+          if ($failures.Count -eq 0) {
+            Write-Host "ALL_STAGES_COMPLETED=PASS"
+            Write-Host "FINAL_BUILD_RESULT=PASS"
+          } else {
+            foreach ($f in $failures) { Write-Host "FAIL: $f" }
+            Write-Host "FAILURE_COUNT=$($failures.Count)"
+            Write-Host "ALL_STAGES_COMPLETED=YES"
+            Write-Host "FINAL_BUILD_RESULT=FAIL"
+            exit 1
+          }
