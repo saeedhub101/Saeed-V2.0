@@ -56,3 +56,21 @@ Verification, regression, runtime tests and release gates belong to Testing_and_
 > One responsibility, one owner, one source of truth, one lifecycle.
 
 Saeed V2.0 is one runtime with strict boundaries between Character, Core, Conversation, Engine and optional capabilities.
+
+
+## 6. Execution planning
+
+The following are non-authoritative implementation plans:
+
+- ROADMAP.md
+- REPAIR_PLAN.md
+- PHASE_1_FOUNDATION.md
+- PHASE_2_RUNTIME.md
+- PHASE_3_INTELLIGENCE.md
+- PHASE_4_PRODUCT.md
+
+Planning documents may sequence work and identify missing implementation, but they may not weaken or override an authoritative architecture contract.
+
+## 7. Pre-Build Rule
+
+No packaged build is considered meaningful until the active phase's static and architecture checks are addressed. Runtime acceptance remains required according to Testing_and_Acceptance_Architecture.md.
