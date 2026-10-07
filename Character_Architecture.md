@@ -5567,3 +5567,159 @@ This principle must guide all future implementation decisions.
 
 If a future feature requires the LLM to micromanage the character's body, that feature must be redesigned so that the LLM emits semantic intent and the Saeed Character Runtime decides the physical behavior.
 
+
+
+---
+
+# 81. Character Engine Contract
+
+The Character Architecture defines behavior. The Engine is the technical execution layer beneath that behavior.
+
+The following Engine rules are mandatory for every current or future 3D implementation.
+
+## 81.1 Engine is subordinate to Character behavior
+
+The Engine may provide:
+
+- scene management
+- GLB loading
+- skeleton access
+- pose application
+- rendering
+- GPU resource management
+- asset diagnostics
+
+The Engine may not decide:
+
+- mood
+- autonomous behavior
+- attention policy
+- sleep policy
+- motion priority
+- whether Saeed should react
+- which semantic motion is appropriate
+
+The Character Runtime decides first. The Engine executes the resulting presentation state.
+
+## 81.2 Asset replacement is transactional
+
+A candidate GLB is never allowed to replace the current character before validation.
+
+Required sequence:
+
+    Current Character
+          |
+          +---- remains valid ----+
+          |                       |
+          v                       v
+    Load candidate           Keep current
+          |
+       Validate
+          |
+      Build temporary rig
+          |
+     Map capabilities
+          |
+       Verify
+          |
+       COMMIT
+          |
+    Replace current
+          |
+    Dispose old resources
+
+Any failure before COMMIT leaves the existing Character untouched.
+
+## 81.3 Engine capabilities
+
+The Engine must expose capabilities to the Character Runtime rather than forcing the Runtime to assume that every GLB supports every feature.
+
+Examples:
+
+- face
+- eyes
+- gaze
+- neck
+- fingers
+- hand articulation
+- individual facial movement
+- full-body locomotion
+
+Missing optional capabilities must trigger a documented fallback rather than a crash.
+
+## 81.4 No model-specific behavior leakage
+
+The Character Runtime must reason in logical capabilities and logical joints.
+
+The following must never become part of semantic events:
+
+- GLB-specific bone names
+- model-specific hierarchy assumptions
+- renderer object references
+- raw GPU resources
+- renderer-specific coordinates
+
+Only the retargeting/rig layer may translate logical Character requirements into the current physical skeleton.
+
+## 81.5 Engine resource lifetime
+
+When Character runtime is destroyed:
+
+- active rendering stops
+- animation work stops
+- autonomous visual scheduling stops
+- scene resources are released
+- temporary asset resources are released
+- GPU resources are released
+- engine subscriptions are removed
+- stale engine callbacks become invalid
+
+The Engine must not keep the Character alive after its lifecycle owner destroys it.
+
+## 81.6 Demand-driven rendering
+
+The Character may be logically idle without continuously rendering.
+
+Rendering may resume for:
+
+- a motion
+- a pose transition
+- user interaction
+- asset loading
+- visual feedback
+- another active visual change
+
+When no visual work exists, rendering should stop.
+
+## 81.7 Engine failure is not Character failure
+
+If the Engine cannot display a requested motion, the Character Runtime must remain logically valid.
+
+The system should:
+
+1. reject or degrade the physical presentation
+2. report the capability/engine failure
+3. preserve state, mood, history and conversation
+4. select a safe fallback when available
+5. never create a duplicate CharacterController
+
+## 81.8 Engine acceptance rules
+
+A Character Engine implementation is not accepted unless it proves:
+
+1. valid GLB loads
+2. invalid GLB is rejected safely
+3. failed replacement preserves the previous character
+4. logical joints retarget correctly
+5. optional capabilities degrade safely
+6. Character destruction releases rendering resources
+7. idle rendering stops
+8. renderer cannot initiate autonomous behavior
+9. engine callbacks cannot resurrect destroyed Character runtime
+10. replacing the body preserves Character state and behavioral ownership
+
+## 81.9 Final Character/Engine law
+
+> The Character decides what should happen.  
+> The Engine determines how that decision is technically displayed.  
+> The current GLB is a replaceable body, not the source of Character intelligence.
