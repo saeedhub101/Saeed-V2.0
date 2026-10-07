@@ -37,7 +37,22 @@ jobs:
         shell: pwsh
         run: |
           $releaseVersion = ((Get-Content "VERSION" -Raw) -replace '[\uFEFF\u200B]', '').Trim()
-          if ($releaseVersion -notmatch '^\d+\.\d+
+          if ($releaseVersion -notmatch '^\d+\.\d+$') { throw "VERSION must be MAJOR.MINOR, found: $releaseVersion" }
+          $pkg = Get-Content "package.json" -Raw | ConvertFrom-Json
+          if ($pkg.version -ne "$releaseVersion.0") { throw "package.json version $($pkg.version) does not match VERSION $releaseVersion (expected $releaseVersion.0)" }
+          if ($pkg.build.buildVersion -ne $pkg.version) { throw "Electron buildVersion must equal package.json version" }
+          $officialTag = "v$releaseVersion"
+          "official_tag=$officialTag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $testTagPattern = '^v' + [regex]::Escape($pkg.version) + '-test(\.\d+)*$'
+            if ($env:GITHUB_REF_NAME -eq $officialTag) {
+              Write-Host "Official release tag validated: $env:GITHUB_REF_NAME"
+            } elseif ($env:GITHUB_REF_NAME -match $testTagPattern) {
+              Write-Host "Test build tag validated: $env:GITHUB_REF_NAME (will not publish to the stable release)"
+            } else {
+              throw "Release tag $env:GITHUB_REF_NAME must be $officialTag or match v$($pkg.version)-test.<build>"
+            }
+          }
 
       - name: Validate repository structure
         if: always()
