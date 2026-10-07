@@ -1,4 +1,4 @@
-const path=require("path"),{Computer}=require("../computer");
+const path=require("path"),{Computer}=require("../main/automation/computer");
 const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks")];
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy,recordHook,characterController}={}){
