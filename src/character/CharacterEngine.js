@@ -427,7 +427,7 @@ window.saeed?.on3DQuery?.(requestId=>{
  const pose=getCharacterPoseStatus();
  const boneDetail=pose.loaded?`${pose.controllableBoneCount} controllable bones; rest pose ${pose.restPose?.normalized===false?"needs adjustment":"available"}`:"No character GLB is loaded";
  const report={...status,overall:{...status.overall,detail:status.overall.detail+" • "+boneDetail},components:{...status.components,characterRig:{state:pose.loaded?"ready":"waiting",detail:boneDetail},restPose:{state:pose.restPose?.normalized===false?"warn":"ready",detail:String(pose.restPose?.detected||"unknown")},tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")}},character:{loaded:pose.loaded,boneCount:pose.controllableBoneCount,skeletonCount:pose.skeletonCount,restPose:pose.restPose,tPose:pose.tPose}};
- window.saeed.report3DStatus?.(requestId,report);
+ window.saeed.character.report3DStatus?.(requestId,report);
 });
 resize();
 
