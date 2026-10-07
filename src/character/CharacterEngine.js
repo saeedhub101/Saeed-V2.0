@@ -293,6 +293,17 @@ function display(parsed){
  model=parsed.scene;
  root.add(model);
  rig.clear();base.clear();
+ boneGroups.clear();
+ boneRest.clear();
+ getSceneBoneGroups();
+ for(const [name,list] of boneGroups){
+  const b=list[0];
+  if(!b)continue;
+  boneRest.set(name,{
+   rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},
+   position:{x:b.position.x,y:b.position.y,z:b.position.z}
+  });
+ }
  collectMorphs();
  // The GLB scene is authoritative before controller binding.
   window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
