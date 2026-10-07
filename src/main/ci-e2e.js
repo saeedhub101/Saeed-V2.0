@@ -24,6 +24,20 @@ function createCiE2E(deps={}){
   }
  };
  const execJs=async(w,script,opts)=>operation("webContents.executeJavaScript",()=>w.webContents.executeJavaScript(script,opts),{scriptPreview:String(script).replace(/\s+/g," ").slice(0,240)});
+ const suite1Timeouts={
+  "startup.character-visible":30000,
+  "startup.tray":30000,
+  "startup.mic-off":30000,
+  "startup.brain-off":30000,
+  "performance.open-character-controller":60000,
+  "performance.all-tabs-functional":45000,
+  "performance.control-real-bone":45000,
+  "performance.procedural-motion-real-bone":60000,
+  "performance.create-edit-delete-motion":60000,
+  "performance.rig-auto-map":60000,
+  "performance.all-registered-compatible-motions":120000,
+  "performance.close":30000
+ };
  const suite2Timeouts={
   "chat.open":30000,
   "chat.local-time":30000,
@@ -42,7 +56,7 @@ function createCiE2E(deps={}){
  };
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
-  const effectiveTimeoutMs=suite2Timeouts[name]||timeoutMs;
+  const effectiveTimeoutMs=suite1Timeouts[name]||suite2Timeouts[name]||timeoutMs;
   const t=Date.now();
   const ctx={name,startedAt:t,operation:null,operationStartedAt:t,timedOut:false};
   active.name=name;active.startedAt=t;active.operation=null;active.operationStartedAt=t;
