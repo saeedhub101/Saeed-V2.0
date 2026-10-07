@@ -48,7 +48,10 @@ async function run(){
  try{
   const avatar=fs.readFileSync(path.join(root,"src/character/CharacterEngine.js"),"utf8"),controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
   report("T-pose correction",avatar.includes('detected:"t-pose"')&&avatar.includes("stillTPose"));
-  report("correction before first render",avatar.indexOf("onCharacterLoaded?.()")<avatar.indexOf("render();",avatar.indexOf("function display")));
+  const displayStart=avatar.indexOf("function display(");
+  const normalizationCall=avatar.indexOf("const normalization=normalizeHumanoidRestPose()",displayStart);
+  const firstDisplayRender=avatar.indexOf("render();",displayStart);
+  report("correction before first render",displayStart>=0&&normalizationCall>displayStart&&firstDisplayRender>normalizationCall);
   report("no GLB animation dependency",!avatar.includes("gltf.animations")&&!avatar.includes("AnimationMixer"));
   report("idle after character load",controller.includes("onCharacterLoaded()")&&controller.includes("setIdlePose(this.animation.idlePose||{})"));
   report("zero character padding",avatar.includes("canvasPadding:0"));
