@@ -5,13 +5,7 @@ const read=p=>fs.readFileSync(path.join(root,p),"utf8");
 const exists=p=>fs.existsSync(path.join(root,p));
 const must=(ok,msg)=>{if(!ok)failures.push(msg)};
 
-const canonical=[
- "src/main","src/renderer","src/character","src/tools","src/addons","src/learning",
- "src/main/runtime.js","src/preload.js","src/character/CharacterEngine.js",
- "src/character/CharacterController.js","src/main/character/character-host.js",
- "src/main/brain/brain.js","src/main/conversation/conversation-agent.js",
- "src/main/voice/voice-host.js","src/tools/registry.js"
-];
+const canonical=["src/main","src/renderer","src/character","src/tools","src/addons","src/learning","src/main/runtime.js","src/preload.js","src/character/CharacterEngine.js","src/character/CharacterController.js","src/main/character/character-host.js","src/main/brain/brain.js","src/main/conversation/conversation-agent.js","src/main/voice/voice-host.js","src/tools/registry.js"];
 for(const p of canonical)must(exists(p),"Missing canonical foundation path: "+p);
 
 must(!exists("src/avatar.js"),"Legacy src/avatar.js still exists");
@@ -22,22 +16,24 @@ must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows b
 must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
 
 const preload=read("src/preload.js");
-for(const ns of ["system","character","voice","chat","tools"])must(new RegExp("\\n "+ns+":\\{").test(preload),"Missing preload namespace: "+ns);
+for(const ns of ["system","character","voice","chat","tools"])must(preload.includes("\n "+ns+":{"),"Missing preload namespace: "+ns);
 
 const rendererFiles=[];
 function walk(dir){
- if(!exists(dir))return;
- for(const name of fs.readdirSync(path.join(root,dir))){
+ const base=path.join(root,dir);
+ if(!fs.existsSync(base))return;
+ for(const name of fs.readdirSync(base)){
   const rel=path.join(dir,name),full=path.join(root,rel),stat=fs.statSync(full);
   if(stat.isDirectory())walk(rel);
-  else if(/\\.js$/i.test(name))rendererFiles.push(rel);
+  else if(/\.js$/i.test(name))rendererFiles.push(rel);
  }
 }
 walk("src/renderer");
 for(const p of ["src/renderer.js","src/status.js","src/settings.js","src/performance.js","src/3d-status.js","src/learning/window.js","src/addons/window.js","src/voice/voice-client.js"])if(exists(p))rendererFiles.push(p);
 for(const p of [...new Set(rendererFiles)]){
  const s=read(p);
- must(!/require\\(["']electron["']\\)|from\\s+["']electron["']|ipcRenderer/.test(s),"Privileged Electron API detected in renderer file: "+p);
+ const privileged=s.includes('require("electron")')||s.includes("require('electron')")||s.includes('from "electron"')||s.includes("from 'electron'")||s.includes("ipcRenderer");
+ must(!privileged,"Privileged Electron API detected in renderer file: "+p);
 }
 must(!preload.includes("window.saeedAvatar"),"Legacy avatar API exposed by preload");
 must(read("src/character/CharacterController.js").includes("AutonomousBehaviorController"),"Character autonomy ownership missing");
