@@ -2,9 +2,6 @@ name: Saeed AI — Windows Build
 
 # Build automatically when application code changes, while retaining manual dispatch.
 on:
-  push:
-    paths-ignore:
-      - "**/*.md"
   workflow_dispatch:
     inputs:
       publish_release:
