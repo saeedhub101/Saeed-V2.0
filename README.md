@@ -60,7 +60,7 @@ If a proposed change breaks a red line, redesign it before coding.
            Windows       Files        Add-ons
 ```
 
-The Brain is a coordinator, not a permanent background service.
+The Brain is a coordinator, not a permanent background service. TTS is different: while the Character is visible and unmuted, its runtime remains ready so Saeed can speak immediately when needed.
 
 Character side:
 
