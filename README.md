@@ -377,21 +377,21 @@ Hide Saeed:
 
 | Responsibility | Owner |
 |---|---|
-| Electron lifecycle | src/core/app-runtime.js |
-| Brain lifecycle | src/core/application/brain-host.js |
-| Brain routing | src/core/brain/brain.js |
-| Local execution | src/local-executor.js |
-| Model/API execution | src/core/brain/model-executor.js |
-| Agent session | src/agent.js |
+| Electron lifecycle | src/main/app-runtime.js |
+| Brain lifecycle | src/main/application/brain-host.js |
+| Brain routing | src/main/brain/brain.js |
+| Local execution | src/main/automation/local-executor.js |
+| Model/API execution | src/main/brain/model-executor.js |
+| Agent session | src/main/conversation/agent.js |
 | Tool registry/permission/dispatch | src/tools/registry.js |
 | Character behavior | src/character/CharacterController.js |
 | Motion definitions | src/character/motions.js |
 | 3D rendering | src/character/CharacterEngine.js |
-| Character window | src/core/character/character-host.js |
-| Voice lifecycle | src/core/voice/voice-host.js + existing voice runtime |
-| Voice renderer client | src/voice/client.js |
-| Chat lifecycle | src/core/application/chat-host.js |
-| Chat IPC | src/core/ipc/chat-ipc.js |
+| Character window | src/main/character/character-host.js |
+| Voice lifecycle | src/main/voice/voice-host.js + existing voice runtime |
+| Voice renderer client | src/renderer/voice/voice-client.js |
+| Chat lifecycle | src/main/application/chat-host.js |
+| Chat IPC | src/main/ipc/chat-ipc.js |
 | Add-on lifecycle | existing add-on service/runtime |
 
 One responsibility has one owner. If two modules independently decide the same thing, the architecture is broken.
