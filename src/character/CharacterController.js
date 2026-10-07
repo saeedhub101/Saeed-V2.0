@@ -140,7 +140,7 @@ export class CharacterController{
   if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(7000);
   return {loaded:true,...x};
  }
- update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt)}
+ update(dt){this.autonomous?.update?.(dt);if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt)}
  destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
  status(){const a=this.engine?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
  semantic(intent,options={}){
