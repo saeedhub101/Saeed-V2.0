@@ -100,6 +100,16 @@ function aimBoneChild(bone,desiredWorld){
  bone.quaternion.copy(parentQ.invert().multiply(desiredWorldQ));
  return true;
 }
+function findBoneByAliases(aliases=[]){
+ const list=aliases.map(x=>String(x).toLowerCase().replace(/[^a-z0-9]/g,""));
+ let found=null;
+ model?.traverse(o=>{
+  if(found||!o?.isBone)return;
+  const n=String(o.name||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+  if(list.some(x=>n===x||n.includes(x)))found=o;
+ });
+ return found;
+}
 function findNamedBone(sideName,part){
  const aliases={
   left:{upper:["leftupperarm","leftarm","leftshoulder","mixamorigleftarm"],fore:["leftforearm","leftlowerarm","leftelbow","mixamorigleftforearm"]},
@@ -115,7 +125,8 @@ function findNamedBone(sideName,part){
  return found;
 }
 function normalizeHumanoidRestPose(){
- const hips=rig.get("hips"),head=rig.get("head");
+ const hips=rig.get("hips")||findBoneByAliases(["hips","hip","pelvis","mixamorighips"]);
+ const head=rig.get("head")||findBoneByAliases(["head","mixamorighead"]);
  const left=rig.get("leftUpperArm")||findNamedBone("left","upper");
  const right=rig.get("rightUpperArm")||findNamedBone("right","upper");
  if(!hips||!head)return{detected:"custom",normalized:true,corrected:false,stillTPose:false,reason:"No humanoid hips/head pair; preserving the GLB rest pose"};
@@ -314,6 +325,8 @@ function display(parsed){
   model=next;
   rig=new Map();base=new Map();boneGroups=nextGroups;boneRest=nextRest;morphs=new Map();
   collectMorphs();
+  const normalization=normalizeHumanoidRestPose();
+  traceGlb("rest-pose-normalized-before-render",{generation:loadGeneration,...normalization});
   fit();
   render();
  }catch(error){
