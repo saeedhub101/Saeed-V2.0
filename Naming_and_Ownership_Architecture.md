@@ -74,3 +74,47 @@ The runtime follows the useful proven Merlin pattern:
 - the LLM says what should happen; the character runtime decides how and when it moves
 
 Merlin remains a reference project only. Its source is not modified and its implementation is not imported wholesale.
+
+
+## Canonical Source Tree
+
+```text
+src/
+├── main/                    # Electron main-process application
+│   ├── application/         # application lifecycle and window coordination
+│   ├── automation/          # local Windows automation
+│   ├── brain/               # reasoning and model execution
+│   ├── character/           # main-process character window/store integration
+│   ├── conversation/        # shared conversation agent/history
+│   ├── ipc/                 # main ↔ renderer IPC registration
+│   ├── services/            # reusable application services
+│   ├── voice/               # main-process voice lifecycle
+│   └── runtime.js           # main-process composition/runtime entry
+│
+├── character/               # character domain + 3D runtime
+├── renderer/                # renderer-only UI adapters
+│   ├── character.html
+│   └── voice/voice-client.js
+│
+├── tools/                   # ONE authoritative tool system
+│   ├── registry.js
+│   └── domain tools...
+│
+├── addons/                  # optional extension providers
+└── learning/                # learned skills UI/runtime
+```
+
+### Boundary rule
+
+A new programmer should be able to answer "where does this belong?" from the folder alone:
+
+- Electron lifecycle/window/IPC → `main/`
+- 3D character behavior/rig/motion → `character/`
+- renderer presentation/input → `renderer/`
+- executable agent capabilities → `tools/`
+- optional third-party extensions → `addons/`
+- learned workflows → `learning/`
+
+There is intentionally **no `core/` directory**. "Core" is a conceptual term in documentation, not a source-code dumping ground.
+
+There is intentionally **no `agent-tools/` directory**. Agent tools are tools and belong to the single `tools/` system.
