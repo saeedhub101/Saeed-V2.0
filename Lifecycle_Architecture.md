@@ -1067,3 +1067,107 @@ Runtime resources do not.
 The final authoritative rule is:
 
 > If it is not used, destroy it. Do not hide it.
+
+---
+# 34. Exact Runtime Startup Contract
+
+Normal startup is mandatory in this order:
+1. Acquire the single-instance lock.
+2. Start the single authoritative Core/Tray owner.
+3. Load persistent settings and Character configuration.
+4. Create the Character runtime because the default product state is Saeed visible.
+5. Start the 3D Engine resources required to display the Character.
+6. Character starts with MIC OFF.
+7. Do not create STT, microphone capture, VAD, TTS, Realtime or Brain merely because Character exists.
+8. Character-local behavior starts only after Character initialization completes.
+
+Initial runtime = Core/Tray + Character + Engine + MIC OFF.
+
+# 35. Exact Feature Demand Contract
+
+Every feature follows: user action or valid system trigger -> Core requests feature -> dependencies are created -> feature operates -> feature closes/stops -> dependencies with no remaining owner are destroyed.
+
+## 35.1 Chat
+Chat Me creates Chat and requests the shared Conversation/Brain capability. Brain Router is created only when required. Opening Chat does not create microphone, STT, TTS or Realtime merely because the window opened.
+Closing Chat destroys Chat. Conversation history remains persistent. Brain remains alive only while another active owner requires it or until its documented idle timeout.
+
+## 35.2 Standard Voice
+MIC ON creates microphone capture, VAD and STT when transcription is required. Brain is created when a transcript becomes a conversational request. TTS is created only when spoken output is required and voice output is unmuted.
+MIC OFF destroys microphone capture, VAD and STT and invalidates pending voice-input callbacks. Brain remains if Chat or another active conversational owner requires it.
+
+## 35.3 Mute
+Mute controls output only. TTS is stopped/destroyed and new spoken playback is blocked. Text, bubble, Chat, Brain and microphone input may continue if their own state requires them. Unmute allows TTS to be recreated on demand.
+
+## 35.4 Realtime
+Realtime is an alternative voice transport/session mode. When active, Realtime owns the active voice audio route. Standard STT is not created for that route. Standard TTS is not created when the selected Realtime provider supplies native audio output. Provider events are translated into the common Saeed conversation contract.
+Realtime therefore uses Mic -> Realtime -> streaming conversation/audio instead of Mic -> STT -> Brain/LLM -> TTS.
+Stopping Realtime closes its connection and releases its resources. Standard voice resources become eligible to be recreated when standard mode is selected. If a provider lacks native audio output, standard TTS may be used only as an explicit documented fallback.
+
+## 35.5 Character Hide
+Hide Saeed stops Character behavior and autonomous scheduling, destroys the Character window and Engine/renderer, releases GLB/scene/GPU resources, stops Character-local voice resources, turns off microphone capture, destroys VAD/STT, stops/destroys TTS, stops/destroys Realtime, and releases Character-owned Brain dependencies.
+Chat is independent of Character. If Chat remains open, Core/Tray + Chat + Brain may remain alive. If Chat is also closed and no other conversational owner exists, Brain becomes idle and is destroyed after its documented timeout.
+Hide Saeed is never Quit application.
+
+# 36. Exact Resource Dependency Model
+Core/Tray creates and destroys feature runtimes. Character owns Character Engine and Character-local behavior. Chat consumes shared Conversation and Brain when required. Standard Voice consumes Mic, VAD, STT, shared Conversation/Brain and optional TTS. Realtime consumes its own transport/session and shared Conversation. TTS exists only when spoken output is required.
+A resource may have multiple consumers, but it has one lifecycle owner. Chat and Voice may both require Brain; neither directly owns Brain destruction.
+
+# 37. Runtime State Examples
+Fresh launch: Core/Tray + Character + Engine + MIC OFF.
+Chat Me: add Chat + Brain; STT remains OFF, TTS remains OFF unless requested, Realtime remains OFF.
+Chat + Mic ON + Unmuted: add Mic + VAD + STT and TTS on demand.
+Chat + Mic ON + Muted: same, except TTS is OFF/destroyed.
+Realtime active: add Realtime; standard STT is OFF and standard TTS is OFF when Realtime supplies audio.
+Hide Saeed while Chat remains open: Core/Tray + Chat + Brain. Character, Engine, Mic, VAD, STT, TTS and Realtime are destroyed unless explicitly owned elsewhere.
+Hide Saeed and close Chat: Core/Tray; Brain becomes idle and is destroyed according to its timeout.
+
+# 38. Character Preparation and Rigging Lifecycle
+A new Character follows: New GLB -> Asset Inspection -> Skeleton Detection -> Rig Mapping or Rig Creation -> Joint Placement -> Rest Pose Correction -> Retargeting Validation -> Motion Generation -> Motion Validation -> Character Profile Save -> Available Character.
+Motion generation must not be the first step. The rest pose is the reference state for generated and retargeted motion.
+
+# 39. Rigging Is Optional for Visual Use
+Rig preparation is not mandatory for displaying a Character. If a GLB has no usable skeleton, the user may open the Character Preparation panel, perform guided mapping/rig creation where supported, or skip the process. Skipping rigging leaves the Character intact and available as a static/non-animated Character.
+
+# 40. Guided Rig Mapping and Bone Creation
+The Character Preparation panel must support, where technically possible: automatic skeleton detection; automatic logical-joint mapping; manual mapping; manual joint placement; creation of missing rig structure where the asset format and Engine permit it; rest-pose correction; validation; confidence/suspicion indicators; and saving/reopening the mapping configuration.
+The user may accept incomplete mapping. Incomplete mapping produces a capability-limited Character, not a failed Character.
+
+# 41. Rest Pose Is Authoritative
+Before generating or validating motion: establish the physical skeleton; map logical joints; correct joint placement; establish the intended rest pose; validate orientation, scale and axes; only then generate or retarget motion.
+Motion generated against an incorrect rest pose is invalid until corrected and revalidated. Changing the rest pose may require regeneration or revalidation of affected motions.
+
+# 42. Capability-Based Animation
+Animation generation and playback are capability-aware. Missing optional bones never invalidate the whole Character.
+Examples: no eyes -> body motion works but blink is disabled or falls back; no fingers -> finger motions are disabled or use a hand/arm fallback; no facial rig -> facial motions are disabled or use available body/voice reactions; no neck -> head-specific motion is disabled or uses an available fallback.
+
+# 43. Animation Capability Matrix
+Each Character exposes capabilities such as Body, Arms, Legs, Neck, Eyes, Blink, Face and Fingers. Each capability has availability, motion eligibility and fallback information.
+
+# 44. Animation Control / Motion Editor
+Saeed must provide a dedicated Character Motion/Animation Control surface. It must allow listing motions, previewing, play/pause/stop, adjusting supported playback parameters, enabling/disabling individual motions, inspecting required capabilities, previewing transitions, identifying invalid/suspicious mappings, and saving motion configuration.
+Disabling a motion does not delete its source. Disabled motions are unavailable to autonomous and semantic motion selection until re-enabled.
+
+# 45. In-Program Pose and Rig Correction
+The Character Preparation/Motion Editor must provide an authoring mode for correcting physical problems. Where supported, the user can select logical and physical joints, inspect position/orientation, adjust transforms, correct rest-pose alignment, preview, save and revalidate affected motions.
+This is an authoring path, not a normal runtime behavior path.
+
+# 46. Motion Generation Contract
+Correct order: GLB -> Rig -> Rest Pose -> Capabilities -> Motion Generation.
+Forbidden order: GLB -> Motion Generation -> discover/fix rig afterward.
+Generated motion must be validated against the current rig mapping, current rest pose, available capabilities, safety constraints and transition compatibility.
+
+# 47. Motion Availability States
+Every motion has one of: enabled; disabled by user/configuration; unavailable because a capability is missing; invalid pending correction. These states must not be conflated.
+
+# 48. Editor vs Runtime Boundary
+The editor is an authoring tool. It may modify rig mapping, rest pose, motion definitions, motion enablement and capability configuration. It must not become a second CharacterController, MotionPolicy, scheduler or Brain. Normal runtime remains under the single authoritative Character Runtime.
+
+# 49. Character Preparation Acceptance
+Fully rigged Character: skeleton detected or created, logical joints mapped, rest pose corrected, capabilities identified, motion generation/retargeting succeeds, motions validate and profile saves.
+Static Character: if the user skips rigging, the GLB remains intact, animation is unavailable, no fake skeleton is assumed, and the user can return later to Character Preparation.
+Partial Character: supported motions work, unsupported motions are disabled, Character remains valid and no global failure is produced.
+
+# 50. Character Editor Atomic Commit
+Opening the Character Editor must not modify the active Character until the user explicitly commits changes.
+Preferred flow: Current Character -> Edit Candidate -> Validate -> Preview -> Commit -> Character Runtime reloads or retargets.
+If validation fails, the current Character remains unchanged.
