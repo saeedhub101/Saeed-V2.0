@@ -7,27 +7,53 @@ function createCiE2E(deps={}){
  const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist",suiteArg==="all"?"ci-e2e-report.json":`ci-e2e-suite-${suiteArg}.json`);
  const started=Date.now();
  const suiteFor=name=>{if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2")return n.startsWith("chat.")||n.startsWith("brain.")||n.startsWith("voice.")||n.startsWith("mute.")||n.startsWith("mic-");if(suiteArg==="3")return (n.startsWith("windows.")||n.startsWith("character.")||n.startsWith("hide-")||n.startsWith("show-")||n.startsWith("tray.")||n.startsWith("glb.")||n.startsWith("idle-final"))&&!n.startsWith("character.studio-")&&n!=="character.normalize-humanoid-rest-pose-window";if(suiteArg==="4")return n.startsWith("glbtest.");if(suiteArg==="5")return n.startsWith("character.studio-");if(suiteArg==="6")return n==="character.normalize-humanoid-rest-pose-window";return true};
+ const {AsyncLocalStorage}=require("async_hooks");
+ const checkContext=new AsyncLocalStorage();
  const trace=[];
  const active={name:null,startedAt:0,operation:null,operationStartedAt:0};
  const recordTrace=(event,detail={})=>{const item={at:new Date().toISOString(),elapsedMs:Date.now()-started,event,...detail};trace.push(item);if(trace.length>200)trace.shift();return item};
- const operation=async(name,fn,detail={})=>{active.operation=String(name);active.operationStartedAt=Date.now();recordTrace("operation-start",{check:active.name,operation:active.operation,...detail});try{return await fn()}finally{recordTrace("operation-end",{check:active.name,operation:active.operation,elapsedMs:Date.now()-active.operationStartedAt});active.operation=null;}};
+ const operation=async(name,fn,detail={})=>{
+  const ctx=checkContext.getStore();
+  const opStarted=Date.now();
+  if(ctx){ctx.operation=String(name);ctx.operationStartedAt=opStarted}
+  recordTrace("operation-start",{check:ctx?.name||active.name||null,operation:String(name),...detail});
+  try{return await fn()}
+  finally{
+   recordTrace("operation-end",{check:ctx?.name||active.name||null,operation:String(name),elapsedMs:Date.now()-opStarted});
+   if(ctx){ctx.operation=null}
+  }
+ };
  const execJs=async(w,script,opts)=>operation("webContents.executeJavaScript",()=>w.webContents.executeJavaScript(script,opts),{scriptPreview:String(script).replace(/\s+/g," ").slice(0,240)});
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
-  const t=Date.now();active.name=name;active.startedAt=t;active.operation=null;active.operationStartedAt=t;recordTrace("check-start",{check:name,timeoutMs});
+  const t=Date.now();
+  const ctx={name,startedAt:t,operation:null,operationStartedAt:t,timedOut:false};
+  active.name=name;active.startedAt=t;active.operation=null;active.operationStartedAt=t;
+  recordTrace("check-start",{check:name,timeoutMs});
   let timer;
+  let timedOut=false;
+  const work=checkContext.run(ctx,()=>Promise.resolve().then(fn));
+  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{timedOut=true;ctx.timedOut=true;recordTrace("check-timeout",{check:name,timeoutMs,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0});resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+timeoutMs+" ms; test execution was not cancelled so remaining checks can continue.",diagnostic:{check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)}})},timeoutMs)});
   try{
-   const v=await Promise.race([Promise.resolve().then(fn),new Promise(resolve=>{timer=setTimeout(()=>resolve({pass:false,status:"TIMEOUT",error:"Check timed out after "+timeoutMs+" ms",diagnostic:{check:name,lastOperation:active.operation,lastOperationElapsedMs:active.operation?Date.now()-active.operationStartedAt:0,trace:trace.slice(-20)}}),timeoutMs)})]);
+   const v=await Promise.race([work,timeout]);
    clearTimeout(timer);
    const pass=v===true||v?.pass===true;
    const detail=typeof v==="object"&&v&&!Array.isArray(v)?v:undefined;
    report.checks[name]={pass,required,latencyMs:Date.now()-t,status:v?.status||undefined,detail};
    recordTrace(pass?"check-pass":"check-fail",{check:name,status:v?.status||"FAILED",error:v?.error,diagnostic:v?.diagnostic});
+   if(timedOut){
+    work.then(late=>recordTrace("check-late-complete",{check:name,status:late?.status||((late===true||late?.pass===true)?"PASS":"FAIL"),elapsedMs:Date.now()-t}),err=>recordTrace("check-late-error",{check:name,error:String(err?.stack||err)})).catch(()=>{});
+   }
    return report.checks[name];
   }catch(e){
-   clearTimeout(timer);const diagnostic={check:name,lastOperation:active.operation,lastOperationElapsedMs:active.operation?Date.now()-active.operationStartedAt:0,trace:trace.slice(-20)};
-   report.checks[name]={pass:false,required,latencyMs:Date.now()-t,status:"ERROR",error:String(e?.stack||e),diagnostic};recordTrace("check-error",{check:name,error:String(e?.message||e)});return report.checks[name];
-  }finally{active.name=null;active.operation=null;}
+   clearTimeout(timer);
+   const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
+   report.checks[name]={pass:false,required,latencyMs:Date.now()-t,status:"ERROR",error:String(e?.stack||e),diagnostic};
+   recordTrace("check-error",{check:name,error:String(e?.message||e)});
+   return report.checks[name];
+  }finally{
+   if(active.name===name){active.name=null;active.operation=null}
+  }
  };
  const wait=ms=>new Promise(r=>setTimeout(r,ms));
  const chatWindow=()=>getChatHost?.().getChatWindow?.()||null;
