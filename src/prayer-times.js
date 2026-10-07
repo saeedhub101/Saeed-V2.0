@@ -61,11 +61,11 @@ async function buildEvents(city,country){
 }
 async function trigger(e){
   if(!active)return;
-  window.saeedCharacterRuntime?.controller?.setIntent?.("doing");
+  window.saeedCharacterRuntime?.controller?.handleEvent?.({type:"tool"});
   window.saeedCharacterRuntime?.controller?.play?.("adhanOpening",{duration:5200,layer:"special",priority:60,intensity:1});
   window.saeedShowMessageBubble?.("حان وقت صلاة "+e.ar,false);
   window.saeedPrayerSpeak?.("الله أكبر... الله أكبر...");
-  setTimeout(()=>{if(active){window.saeedCharacterRuntime?.controller?.stop?.("adhanOpening");window.saeedCharacterRuntime?.controller?.setIntent?.("idle")}},5600);
+  setTimeout(()=>{if(active){window.saeedCharacterRuntime?.controller?.stop?.("adhanOpening");window.saeedCharacterRuntime?.controller?.handleEvent?.({type:"speech-end"})}},5600);
 }
 async function schedule(nextCity=city,nextCountry=country){
   city=String(nextCity||"Amman");country=String(nextCountry||"Jordan");
