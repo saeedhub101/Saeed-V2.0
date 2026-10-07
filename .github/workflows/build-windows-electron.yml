@@ -1,7 +1,6 @@
 name: Saeed AI — Windows Build
 
-# Build automatically whenever application code changes.
-# Markdown-only changes do not trigger a Windows build.
+# Build automatically when application code changes, while retaining manual dispatch.
 on:
   push:
     paths-ignore:
@@ -1115,7 +1114,6 @@ jobs:
       - name: Upload verified build
         if: always()
         uses: actions/upload-artifact@v6
-        if: always()
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
           if-no-files-found: warn
