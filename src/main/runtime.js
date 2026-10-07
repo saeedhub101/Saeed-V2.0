@@ -18,8 +18,8 @@ function ciWriteStartupReport(kind,error){
   fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.isReady()?app.getAppPath():null,resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
  }catch(writeError){console.error("CI startup report write failed:",writeError)}
 }
-process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e)});
-process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e)});
+process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e);ciWriteE2EStartup("uncaughtException",{error:String(e?.stack||e)})});
+process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e);ciWriteE2EStartup("unhandledRejection",{error:String(e?.stack||e)})});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");\nciWriteE2EStartup("process-start");
 // Startup contract: only Electron + the character surface are eager.
 // Brain, voice runtime, chat, capture, updater and secondary feature modules are lazy.
@@ -86,7 +86,7 @@ async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
 app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");ciWriteE2EStartup("app-ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
- try{ciWriteE2EStartup("create-window-start");await createWindow();ciWriteE2EStartup("create-window-complete");if(characterWin&&!getVoiceMuted()&&!ciSmoke&&!process.argv.includes("--ci-e2e"))ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
+ try{ciWriteE2EStartup("create-window-start");await createWindow();ciWriteE2EStartup("create-window-complete");if(characterWin&&!getVoiceMuted()&&!ciSmoke&&!process.argv.includes("--ci-e2e"))ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);ciWriteE2EStartup("startup-failed",{error:String(e?.stack||e)});app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.includes("--ci-e2e")||process.argv.some(x=>x.startsWith("--size-"))){ciWriteE2EStartup("launch-args");handleLaunchArgs(process.argv.slice(1));}
 
