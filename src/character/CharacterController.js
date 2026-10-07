@@ -27,21 +27,31 @@ export class CharacterController{
   if(this.animationEnabled&&this.visible)this.startIdleScheduler(1200);return this.animationPaused;
  }
  bindCurrentCharacter(){
-  const bones=this.engine?.getBoneMap?.()||this.engine?.getBones?.()||{};
-  const names=this.engine?.getAvailableBoneNames?.()||[];
-  if(!names.length){
-   const fallback=Object.values(bones).map(b=>b?.name).filter(Boolean);
-   if(fallback.length)names.push(...fallback);
-  }
+  const sceneGroups=this.engine?.getSceneBoneGroups?.()||new Map();
+  const sceneNames=[...sceneGroups.keys()].filter(Boolean);
+  const apiNames=this.engine?.getAvailableBoneNames?.()||[];
+  const names=[...new Set([...sceneNames,...apiNames].map(String).filter(Boolean))];
+  const existing=this.engine?.getBoneMap?.()||{};
   if(!names.length)return{rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
-  const auto=autoMapBones(names),profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed"),profile=this.profiles.load(profileId);
+  const auto=autoMapBones(names);
+  const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const profile=this.profiles.load(profileId);
   const available=new Set(names.map(n=>String(n).toLowerCase()));
   const mapping={...auto.mapping};
   for(const [slot,name] of Object.entries(profile?.mapping||{}))if(name&&available.has(String(name).toLowerCase()))mapping[slot]=name;
-  if(Object.keys(mapping).length)this.engine?.bindRig?.(mapping);
-    const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
-    if(savedRestPose?.bones)this.engine?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
-  const mapped=this.engine?.getBoneMap?.()||bones;this.retargeter.bind(mapped,profile?.calibration||{});this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
+  let bound=false;
+  if(Object.keys(mapping).length)bound=Boolean(this.engine?.bindRig?.(mapping));
+  let mapped=this.engine?.getBoneMap?.()||{};
+  if(!Object.keys(mapped).length&&Object.keys(auto.mapping).length){
+   bound=Boolean(this.engine?.bindRig?.(auto.mapping));
+   mapped=this.engine?.getBoneMap?.()||{};
+  }
+  const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
+  if(savedRestPose?.bones)this.engine?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
+  this.retargeter.bind(mapped,profile?.calibration||{});
+  this.fingers.bind(names);
+  this.animation.bindRig(mapped,this.retargeter);
+  this.characterId=profileId;
   const validation=this.engine?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.engine?.getRestPoseNormalization?.()||{normalized:true};
   if(validation.criticalMissing?.length||rest.normalized===false){
    const parts=[];if(validation.criticalMissing?.length)parts.push("Required rig missing: "+validation.criticalMissing.join(", "));if(rest.normalized===false)parts.push("Rest pose: "+String(rest.detected||"not normalized"));
@@ -49,7 +59,7 @@ export class CharacterController{
   }
   if(profile){if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
   else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}} ,idlePose:this.animation.idlePose});
-  return{rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId};
+  return{rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId,bound,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
  }
  play(id,options={}){
   if(!this.animationEnabled||this.animationPaused)return false;
@@ -135,21 +145,26 @@ export class CharacterController{
  onCharacterLoaded(){
   const poseStatus=this.engine?.getCharacterPoseStatus?.();
   if(!poseStatus?.loaded)return {loaded:false,reason:"Character GLB is not loaded yet"};
-  const names=this.engine?.getAvailableBoneNames?.()||[];
-  if(!names.length)return {loaded:false,reason:"Character GLB is loaded but no bones are exposed yet"};
+  const sceneNames=this.engine?.getAvailableBoneNames?.()||[];
+  if(!sceneNames.length)return {loaded:false,reason:"Character GLB is loaded but no bones are exposed yet"};
   const x=this.bindCurrentCharacter();
-  if(!x?.rig?.bones || Object.keys(x.rig.bones).length===0){
+  const mappedCount=Number(x?.mappedBoneCount||Object.keys(x?.rig?.bones||{}).length);
+  if(mappedCount===0){
    const auto=this.autoMap();
-   if(!auto?.ok)return {loaded:false,reason:"Character GLB bones are present but no controllable mapping was produced",boneCount:names.length,auto};
+   if(!auto?.ok)return {loaded:false,reason:"Character GLB bones are present but no controllable mapping was produced",boneCount:sceneNames.length,auto};
    x.rig=this.animation.rig.snapshot();x.autoMapping=auto;
   }
+  const finalMap=this.engine?.getBoneMap?.()||{};
+  if(!Object.keys(finalMap).length)return{loaded:false,reason:"Character rig binding did not produce a controllable rig",boneCount:sceneNames.length};
+  this.retargeter.bind(finalMap,this.retargeter.status().calibration);
+  this.animation.bindRig(finalMap,this.retargeter);
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
   this.autonomous?.start?.();
   this.idleBusy=false;
   if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(7000);
-  return {loaded:true,...x};
+  return {loaded:true,...x,mappedBoneCount:Object.keys(finalMap).length};
  }
  update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt);this.autonomous?.update?.(dt)}
  destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
