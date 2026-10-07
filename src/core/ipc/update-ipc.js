@@ -1,2 +1,0 @@
-function registerUpdateIpc({ipcMain,getUpdateManager,showUpdateStatus}){const manager=()=>getUpdateManager();ipcMain.handle("update:check",()=>manager().check());ipcMain.handle("update:download",()=>manager().download());ipcMain.handle("update:install",()=>manager().install());ipcMain.handle("update:show-status",()=>showUpdateStatus?.()||false);ipcMain.handle("update:toast-close",()=>true);ipcMain.handle("update:snapshot",()=>manager().snapshot());ipcMain.handle("update:state",()=>manager().getState())}
-module.exports={registerUpdateIpc};
