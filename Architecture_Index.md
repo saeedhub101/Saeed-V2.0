@@ -60,7 +60,7 @@ Saeed V2.0 is one runtime with strict boundaries between Character, Core, Conver
 
 ## 6. Execution planning
 
-The following are non-authoritative implementation plans:
+The following are non-authoritative execution plans. ROADMAP.md and PHASE_1–4 describe product development; REPAIR_PLAN.md is limited to the current Phase 1 repair/conformance work:
 
 - ROADMAP.md
 - REPAIR_PLAN.md
