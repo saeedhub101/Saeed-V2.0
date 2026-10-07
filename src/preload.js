@@ -1,59 +1,30 @@
 const {contextBridge,ipcRenderer}=require("electron");
-contextBridge.exposeInMainWorld("saeed",{isCiE2E:process.argv.includes("--ci-e2e"),
- chat:(text,image=null)=>ipcRenderer.invoke("chat",{text,image}),
- voiceChat:text=>ipcRenderer.invoke("voice:chat",String(text||"")),
- capture:()=>ipcRenderer.invoke("capture"),
- checkForUpdates:()=>ipcRenderer.invoke("update:check"),
- installUpdate:()=>ipcRenderer.invoke("update:install"),
- downloadUpdate:()=>ipcRenderer.invoke("update:download"),
- showUpdateStatus:()=>ipcRenderer.invoke("update:show-status"),
- closeUpdateToast:()=>ipcRenderer.invoke("update:toast-close"),
- getUpdateSnapshot:()=>ipcRenderer.invoke("update:snapshot"),
- getHistory:()=>ipcRenderer.invoke("history:get"), clearHistory:()=>ipcRenderer.invoke("history:clear"),
- listChats:()=>ipcRenderer.invoke("chat:list"),getCurrentChat:()=>ipcRenderer.invoke("chat:current"),getGlobalMemory:()=>ipcRenderer.invoke("chat:memory"),newChat:()=>ipcRenderer.invoke("chat:new"),selectChat:id=>ipcRenderer.invoke("chat:select",id),deleteChat:id=>ipcRenderer.invoke("chat:delete",id),onChatSwitched:f=>ipcRenderer.on("chat:switched",(_,chat,history)=>f(chat,history)),
- getSettings:()=>ipcRenderer.invoke("settings:get"),
- setSettings:s=>ipcRenderer.invoke("settings:set",s),clearAllApis:()=>ipcRenderer.invoke("api:clear-all"),
- reportDiagnostic:(level,stage,message,meta)=>ipcRenderer.invoke("diagnostic:report",level,stage,message,meta),reportMicLevel:level=>ipcRenderer.send("mic:level",Number(level)||0),onMicLevel:f=>ipcRenderer.on("mic:level",(_,level)=>f(level)),
- getDiagnosticSnapshot:()=>ipcRenderer.invoke("diagnostic:snapshot"),testApiConnection:service=>ipcRenderer.invoke("api-status:test",service),testAllApiConnections:()=>ipcRenderer.invoke("api-status:test-all"),getCpuMetrics:()=>ipcRenderer.invoke("cpu:metrics"),getResourceSnapshot:()=>ipcRenderer.invoke("resource:snapshot"),onCpuMetrics:f=>ipcRenderer.on("cpu:metrics",(_,e)=>f(e)),
- 
- showStatus:()=>ipcRenderer.invoke("status:show"), showPerformance:()=>ipcRenderer.invoke("performance:show"),showRestPoseEditor:()=>ipcRenderer.invoke("rest-pose:show"), showSettings:()=>ipcRenderer.invoke("settings:show"), showAddons:()=>ipcRenderer.invoke("addons:show"), showLearning:()=>ipcRenderer.invoke("learning:show"), learning:{list:()=>ipcRenderer.invoke("learning:list"),get:id=>ipcRenderer.invoke("learning:get",id),save:skill=>ipcRenderer.invoke("learning:save",skill),remove:id=>ipcRenderer.invoke("learning:remove",id),enable:(id,enabled)=>ipcRenderer.invoke("learning:enable",id,Boolean(enabled)),run:id=>ipcRenderer.invoke("learning:run",id),export:id=>ipcRenderer.invoke("learning:export",id),import:data=>ipcRenderer.invoke("learning:import",data),recordStart:(name,phrases)=>ipcRenderer.invoke("learning:record-start",name,phrases),recordStop:()=>ipcRenderer.invoke("learning:record-stop") }, addons:{catalog:()=>ipcRenderer.invoke("addons:catalog"),enable:(id,enabled)=>ipcRenderer.invoke("addons:enable",id,Boolean(enabled)),install:(id,onProgress)=>{const f=(_,addonId,state)=>{if(String(addonId)===String(id))onProgress?.(state)};ipcRenderer.on("addons:progress",f);return ipcRenderer.invoke("addons:install",id).finally(()=>ipcRenderer.removeListener("addons:progress",f))},uninstall:id=>ipcRenderer.invoke("addons:uninstall",id)},
- onAddonsRefresh:f=>ipcRenderer.on("addons:refresh",()=>f()),show3DStatus:()=>ipcRenderer.invoke("3d-status:show"),get3DStatus:()=>ipcRenderer.invoke("3d:query"),report3DStatus:(requestId,status)=>ipcRenderer.send("3d:status-report",requestId,status),on3DQuery:f=>ipcRenderer.on("3d:query",(_,id)=>f(id)),on3DStatus:f=>ipcRenderer.on("3d:status",(_,status)=>f(status)),
- onStatusSnapshot:f=>ipcRenderer.on("diagnostic:snapshot",(_,e)=>f(e)),
- onDiagnostic:f=>ipcRenderer.on("diagnostic:event",(_,e)=>f(e)),
- onDiagnosticState:f=>ipcRenderer.on("diagnostic:state",(_,e)=>f(e)),
- chooseCharacter:()=>ipcRenderer.invoke("character:choose"),getCharacter3DSettings:()=>ipcRenderer.invoke("character:3d:get"),setCharacter3DSettings:patch=>ipcRenderer.invoke("character:3d:set",patch),getCharacterController:()=>ipcRenderer.invoke("character:controller:get"),characterController:command=>ipcRenderer.invoke("character:controller:command",command),onCharacter3DSettings:f=>ipcRenderer.on("character:3d-settings",(_,s)=>f(s)),
- onCharacterSelected:f=>ipcRenderer.on("character:selected",(_,e,g)=>f(e,g)),onCharacterCommand:f=>ipcRenderer.on("character:command",(_,id,command)=>f(id,command)),characterCommandResult:(id,result)=>ipcRenderer.send("character:command-result",id,result),onCharacterVisibility:f=>ipcRenderer.on("character:visibility",(_,state)=>f(state)),onCharacterBehavior:f=>ipcRenderer.on("character:behavior",(_,e)=>f(e)),characterActivity:()=>ipcRenderer.send("character:activity"),
- moveWindowBy:(dx,dy)=>ipcRenderer.send("window:move-by",dx,dy),moveChatBy:(dx,dy)=>ipcRenderer.send("chat:move-by",dx,dy),
- showChat:()=>ipcRenderer.send("window:show-chat"),
- closeChat:()=>ipcRenderer.send("window:close-chat"),
- setChatMousePassthrough:ignore=>ipcRenderer.send("chat:mouse-passthrough",Boolean(ignore)),
- minimizeChat:()=>ipcRenderer.invoke("chat:minimize"),
- onEvent:f=>ipcRenderer.on("agent:event",(_,e)=>f(e)),
- onConfirmation:f=>ipcRenderer.on("agent:confirm",(_,e)=>f(e)),
- respondConfirmation:(id,approved)=>ipcRenderer.invoke("agent:confirm-response",id,approved),
- onScreenCapture:f=>ipcRenderer.on("screen:capture",(_,e)=>f(e)),
- onShowChat:f=>ipcRenderer.on("chat:show",()=>f()),
- onShowPerformance:f=>ipcRenderer.on("performance:show",()=>f()),
- startRealtime:o=>ipcRenderer.invoke("realtime:start",o||{}),
- ttsSpeak:text=>ipcRenderer.invoke("tts:speak",String(text||"")),speakText:text=>ipcRenderer.invoke("voice:speak",String(text||"")),sttTranscribe:base64=>ipcRenderer.invoke("stt:transcribe",String(base64||"")),
- stopRealtime:()=>ipcRenderer.invoke("realtime:stop"),
- setMicMode:mode=>ipcRenderer.invoke("mic:mode",mode),
- setVoiceMuted:muted=>ipcRenderer.invoke("voice:mute",Boolean(muted)),
- onVoiceMute:f=>ipcRenderer.on("voice:mute",(_,muted)=>f(muted)),onVoiceTts:f=>ipcRenderer.on("voice:tts",(_,state,reason)=>f(state,reason)),
- onVoiceSpeak:f=>ipcRenderer.on("voice:speak",(_,text)=>f(text)),
- onVoiceStop:f=>ipcRenderer.on("voice:stop",()=>f()),
- onMicMode:f=>ipcRenderer.on("mic:mode",(_,mode)=>f(mode)),
- sendRealtimeAudio:b=>ipcRenderer.invoke("realtime:audio",b),
- cancelRealtime:()=>ipcRenderer.invoke("realtime:cancel"),
- transcribeLocalWav:b=>ipcRenderer.invoke("local-stt:transcribe",b),onLocalSttState:f=>ipcRenderer.on("local-stt:state",(_,state,message)=>f(state,message)),
- onRealtimeState:f=>ipcRenderer.on("realtime:state",(_,state,message)=>f(state,message)),
- onRealtimeAudio:f=>ipcRenderer.on("realtime:audio",(_,b)=>f(b)),
- onRealtimeAssistantDelta:f=>ipcRenderer.on("realtime:assistant-delta",(_,t)=>f(t)),
- onRealtimeAssistantFinal:f=>ipcRenderer.on("realtime:assistant-final",(_,t)=>f(t)),
- onRealtimeUserFinal:f=>ipcRenderer.on("realtime:user-final",(_,t)=>f(t)),
- onRealtimeError:f=>ipcRenderer.on("realtime:error",(_,e)=>f(e)),
- onUpdateState:f=>ipcRenderer.on("update:state",(_,state,message)=>f(state,message)),
- onUpdateAvailable:f=>ipcRenderer.on("update:available",(_,info)=>f(info)),
- onUpdateProgress:f=>ipcRenderer.on("update:progress",(_,info)=>f(info)),
- onUpdateDownloaded:f=>ipcRenderer.on("update:downloaded",(_,info)=>f(info)),onUpdateToast:f=>ipcRenderer.on("update-toast",(_,state,message)=>f(state,message)),onUpdateCheckUi:f=>ipcRenderer.on("update:check-ui",()=>f())
+const on=(channel,handler)=>ipcRenderer.on(channel,(_, ...args)=>handler(...args));
+const send=(channel,...args)=>ipcRenderer.send(channel,...args);
+const invoke=(channel,...args)=>ipcRenderer.invoke(channel,...args);
+contextBridge.exposeInMainWorld("saeed",{
+ isCiE2E:process.argv.includes("--ci-e2e"),
+ system:{
+  capture:()=>invoke("capture"),checkForUpdates:()=>invoke("update:check"),installUpdate:()=>invoke("update:install"),downloadUpdate:()=>invoke("update:download"),showUpdateStatus:()=>invoke("update:show-status"),closeUpdateToast:()=>invoke("update:toast-close"),getUpdateSnapshot:()=>invoke("update:snapshot"),
+  getSettings:()=>invoke("settings:get"),setSettings:s=>invoke("settings:set",s),clearAllApis:()=>invoke("api:clear-all"),reportDiagnostic:(level,stage,message,meta)=>invoke("diagnostic:report",level,stage,message,meta),getDiagnosticSnapshot:()=>invoke("diagnostic:snapshot"),testApiConnection:service=>invoke("api-status:test",service),testAllApiConnections:()=>invoke("api-status:test-all"),getCpuMetrics:()=>invoke("cpu:metrics"),getResourceSnapshot:()=>invoke("resource:snapshot"),onCpuMetrics:f=>on("cpu:metrics",f),
+  showStatus:()=>invoke("status:show"),showPerformance:()=>invoke("performance:show"),showSettings:()=>invoke("settings:show"),showAddons:()=>invoke("addons:show"),showLearning:()=>invoke("learning:show"),onAddonsRefresh:f=>on("addons:refresh",f),onStatusSnapshot:f=>on("diagnostic:snapshot",f),onDiagnostic:f=>on("diagnostic:event",f),onDiagnosticState:f=>on("diagnostic:state",f),onScreenCapture:f=>on("screen:capture",f),onShowPerformance:f=>on("performance:show",f),
+  onUpdateState:f=>on("update:state",f),onUpdateAvailable:f=>on("update:available",f),onUpdateProgress:f=>on("update:progress",f),onUpdateDownloaded:f=>on("update:downloaded",f),onUpdateToast:f=>on("update-toast",f),onUpdateCheckUi:f=>on("update:check-ui",f)
+ },
+ character:{
+  chooseCharacter:()=>invoke("character:choose"),getCharacter3DSettings:()=>invoke("character:3d:get"),setCharacter3DSettings:patch=>invoke("character:3d:set",patch),getCharacterController:()=>invoke("character:controller:get"),characterController:command=>invoke("character:controller:command",command),
+  onCharacter3DSettings:f=>on("character:3d-settings",f),onCharacterSelected:f=>on("character:selected",f),onCharacterCommand:f=>on("character:command",f),characterCommandResult:(id,result)=>send("character:command-result",id,result),onCharacterVisibility:f=>on("character:visibility",f),onCharacterBehavior:f=>on("character:behavior",f),characterActivity:()=>send("character:activity"),moveWindowBy:(dx,dy)=>send("window:move-by",dx,dy),
+  show3DStatus:()=>invoke("3d-status:show"),get3DStatus:()=>invoke("3d:query"),report3DStatus:(requestId,status)=>send("3d:status-report",requestId,status),on3DQuery:f=>on("3d:query",f),on3DStatus:f=>on("3d:status",f),showRestPoseEditor:()=>invoke("rest-pose:show")
+ },
+ voice:{
+  voiceChat:text=>invoke("voice:chat",String(text||"")),reportMicLevel:level=>send("mic:level",Number(level)||0),onMicLevel:f=>on("mic:level",f),startRealtime:o=>invoke("realtime:start",o||{}),stopRealtime:()=>invoke("realtime:stop"),sendRealtimeAudio:b=>invoke("realtime:audio",b),cancelRealtime:()=>invoke("realtime:cancel"),
+  ttsSpeak:text=>invoke("tts:speak",String(text||"")),speakText:text=>invoke("voice:speak",String(text||"")),sttTranscribe:base64=>invoke("stt:transcribe",String(base64||"")),transcribeLocalWav:b=>invoke("local-stt:transcribe",b),setMicMode:mode=>invoke("mic:mode",mode),setVoiceMuted:muted=>invoke("voice:mute",Boolean(muted)),
+  onVoiceMute:f=>on("voice:mute",f),onVoiceTts:f=>on("voice:tts",f),onVoiceSpeak:f=>on("voice:speak",f),onVoiceStop:f=>on("voice:stop",f),onMicMode:f=>on("mic:mode",f),onLocalSttState:f=>on("local-stt:state",f),onRealtimeState:f=>on("realtime:state",f),onRealtimeAudio:f=>on("realtime:audio",f),onRealtimeAssistantDelta:f=>on("realtime:assistant-delta",f),onRealtimeAssistantFinal:f=>on("realtime:assistant-final",f),onRealtimeUserFinal:f=>on("realtime:user-final",f),onRealtimeError:f=>on("realtime:error",f)
+ },
+ chat:{
+  chat:(text,image=null)=>invoke("chat",{text,image}),getHistory:()=>invoke("history:get"),clearHistory:()=>invoke("history:clear"),listChats:()=>invoke("chat:list"),getCurrentChat:()=>invoke("chat:current"),getGlobalMemory:()=>invoke("chat:memory"),newChat:()=>invoke("chat:new"),selectChat:id=>invoke("chat:select",id),deleteChat:id=>invoke("chat:delete",id),onChatSwitched:f=>on("chat:switched",f),
+  moveChatBy:(dx,dy)=>send("chat:move-by",dx,dy),showChat:()=>send("window:show-chat"),closeChat:()=>send("window:close-chat"),setChatMousePassthrough:ignore=>send("chat:mouse-passthrough",Boolean(ignore)),minimizeChat:()=>invoke("chat:minimize"),onEvent:f=>on("agent:event",f),onShowChat:f=>on("chat:show",f)
+ },
+ tools:{onConfirmation:f=>on("agent:confirm",f),respondConfirmation:(id,approved)=>invoke("agent:confirm-response",id,approved)},
+ learning:{list:()=>invoke("learning:list"),get:id=>invoke("learning:get",id),save:skill=>invoke("learning:save",skill),remove:id=>invoke("learning:remove",id),enable:(id,enabled)=>invoke("learning:enable",id,Boolean(enabled)),run:id=>invoke("learning:run",id),export:id=>invoke("learning:export",id),import:data=>invoke("learning:import",data),recordStart:(name,phrases)=>invoke("learning:record-start",name,phrases),recordStop:()=>invoke("learning:record-stop")},
+ addons:{catalog:()=>invoke("addons:catalog"),enable:(id,enabled)=>invoke("addons:enable",id,Boolean(enabled)),install:(id,onProgress)=>{const handler=(_,addonId,state)=>{if(String(addonId)===String(id))onProgress?.(state)};ipcRenderer.on("addons:progress",handler);return invoke("addons:install",id).finally(()=>ipcRenderer.removeListener("addons:progress",handler))},uninstall:id=>invoke("addons:uninstall",id)}
 });
