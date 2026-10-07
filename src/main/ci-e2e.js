@@ -67,7 +67,7 @@ function createCiE2E(deps={}){
    ctx.timedOut=true;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
    recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs});
-   resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; the timed-out check was aborted and this suite will stop.",diagnostic});
+   resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; no subsequent check will start and this suite will stop.",diagnostic});
   },effectiveTimeoutMs)});
   try{
    const v=await Promise.race([work,timeout]);
