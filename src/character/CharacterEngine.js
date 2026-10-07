@@ -1,5 +1,6 @@
 import * as THREE from "../../node_modules/three/build/three.module.js";
 import {GLTFLoader} from "../three/GLTFLoader.js";
+import "./CharacterController.js";
 
 const canvas=document.getElementById("avatar");
 const scene=new THREE.Scene();
@@ -465,6 +466,8 @@ window.saeedCharacterRuntime.engine={
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
+window.dispatchEvent(new CustomEvent("saeed-character-engine-ready"));
+
 window.saeed.character.on3DQuery?.(requestId=>{
  const status=window.saeedCharacterRuntime.engine.get3DStatus();
  const pose=getCharacterPoseStatus();
