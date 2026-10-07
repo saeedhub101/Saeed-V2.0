@@ -2999,3 +2999,70 @@ All of these are simply different interfaces to the same Saeed:
 The final rule is:
 
 > **Saeed must never feel like Voice Saeed and Chat Saeed are two different assistants. There is one Saeed, one active conversation, one Agent, and one authoritative conversational history.**
+
+---
+# 114. Runtime Mode Contract
+
+The application has two mutually exclusive active voice routes for a given conversation session:
+
+1. Standard Voice: MIC -> STT -> Brain/LLM -> TTS.
+2. Realtime Voice: MIC -> Realtime session -> streaming conversation/audio.
+
+When Realtime Voice is active, standard STT and standard TTS are suppressed for that same active voice route whenever the Realtime provider supplies native input transcription and audio output.
+
+Chat remains independent. Opening Chat creates Chat and requests the shared Brain Router only when conversational work requires it. Opening Chat alone does not turn on the microphone or create STT/TTS/Realtime.
+
+MIC default state at application startup is OFF.
+
+# 115. Voice Lifecycle Truth Table
+
+| Mode | Mic | STT | Brain Router | TTS | Realtime |
+|---|---|---|---|---|---|
+| Startup | OFF | OFF | OFF unless another feature requires it | OFF | OFF |
+| Chat only | OFF | OFF | ON while required | OFF unless speech output requested | OFF |
+| Standard Voice + unmuted | ON | ON | ON while required | ON on demand | OFF |
+| Standard Voice + muted | ON | ON | ON while required | OFF | OFF |
+| Realtime | ON through Realtime | OFF | shared conversation routing only as required by the selected mode | OFF when Realtime supplies audio | ON |
+| MIC OFF | OFF | OFF | remains only if another owner requires it | independent | OFF unless another explicit owner exists |
+
+# 116. Voice Ownership Rules
+
+Chat, Standard Voice and Realtime are interfaces to one conversational system. They do not own separate histories or separate Agents.
+Brain Router is an on-demand dependency. It exists while Chat, Voice or another valid conversational operation requires reasoning.
+STT is owned by the Standard Voice route. TTS is owned by audible output demand. Realtime owns its own transport and native audio path.
+Voice code cannot create or control Character bones. Character code cannot directly operate STT/TTS provider internals.
+
+# 117. Hide Saeed Interaction
+
+Hide Saeed destroys Character and all voice resources that are owned by Character presence, including microphone capture, VAD, STT, TTS and Realtime.
+If Chat remains open, Chat and the shared Brain Router may remain active. The conversation remains intact.
+If Chat is closed and no other conversational owner exists, Brain Router becomes idle and is destroyed according to Lifecycle_Architecture.md.
+
+# 118. Realtime Exclusivity
+
+For one active voice route, the system must not run:
+- standard STT and Realtime transcription simultaneously;
+- standard TTS and native Realtime audio simultaneously;
+- two competing authoritative audio outputs.
+
+Provider-specific exceptions must be explicit adapters, not accidental parallel execution.
+
+# 119. Voice-to-Character Contract
+
+Voice produces semantic events such as listening, speaking, interrupted and speech-ended.
+Character Runtime decides the physical response. Voice must never decide the exact animation, bone, rig transform or motion sequence.
+
+# 120. Required Voice Lifecycle Tests
+
+1. Startup verifies MIC OFF and no STT/VAD capture.
+2. Chat opens without creating microphone resources.
+3. MIC ON creates the standard input chain.
+4. Mute destroys/stops TTS but does not destroy Chat or Brain.
+5. Realtime suppresses standard STT/TTS for the active route.
+6. Realtime shutdown releases its transport and allows standard mode to be recreated.
+7. MIC OFF releases microphone, VAD and STT.
+8. Hide Saeed releases Character-owned voice resources.
+9. Chat remaining open after Hide preserves the Brain Router when required.
+10. Closing Chat with no other conversational owner causes Brain idle/destruction.
+11. Voice and Chat continue the same conversation.
+12. No voice path bypasses Tool Registry or Permission Manager.
