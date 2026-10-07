@@ -263,7 +263,7 @@ function fit(){
  camera.updateProjectionMatrix();
 }
 function render(){
- if(renderQueued||document.hidden)return;
+ if(renderQueued)return;
  renderQueued=true;
  animationFrame=requestAnimationFrame((now)=>{
   animationFrame=null;
@@ -286,6 +286,7 @@ function resize(){
  render();
 }
 new ResizeObserver(resize).observe(canvas);
+window.addEventListener("visibilitychange",()=>{if(!document.hidden){resize();render()}});
 
 function display(parsed){
  traceGlb("display-start",{hasScene:Boolean(parsed?.scene),sceneName:parsed?.scene?.name||"",generation:loadGeneration});
