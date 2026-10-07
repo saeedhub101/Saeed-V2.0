@@ -68,7 +68,7 @@ export class CharacterController{
  }
  stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
- finishMotion(){this.idleBusy=false;if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler()}
+ finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
  setPose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setPose(pose);this.startFrameLoop();return out}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(!ok)return false;const names=this.avatar?.getAvailableBoneNames?.()||[];const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
@@ -94,10 +94,10 @@ export class CharacterController{
  getMood(){return this.mood}
  moodPalette(){const pools={sleepy:["yawn","stretch","nod"],thoughtful:["think","nod","lookCloser"],curious:["lookCloser","think","nod"],mischievous:["wave","crackFingers","lookCloser"],pleased:["nod","wave","stretch"],puzzled:["think","shake","lookCloser"],sad:["yawn","nod"],cheerful:["nod","wave","stretch","lookCloser"]};return pools[this.mood]||pools.cheerful}
  setVisible(value){
-  this.autonomous?.setVisible?.(value);
   const next=value!==false&&String(value)!=="hidden";this.visible=next;
-  if(!next){this.clearIdleTimer();this.stopAll();return true}
-  if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(1800);return true;
+  this.autonomous?.setVisible?.(next);
+  if(!next){this.stopAll();return true}
+  return true;
  }
  touch(){this.autonomous?.touch?.();this.lastInteraction=performance.now();this.clearIdleTimer();if(this.animationEnabled&&!this.animationPaused&&this.visible)this.startIdleScheduler(4500);return true}
  handleEvent(event){
@@ -125,8 +125,8 @@ export class CharacterController{
   return weighted[weighted.length-1].id;
  }
  runIdle(){if(this.autonomous)return this.autonomous.evaluateNow();if(!this.animationEnabled||this.animationPaused||!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
- clearIdleTimer(){if(this.idleTimer){clearTimeout(this.idleTimer);this.idleTimer=null}}
- startIdleScheduler(delay){this.clearIdleTimer();if(!this.animationEnabled||this.animationPaused||!this.visible)return;this.idleTimer=setTimeout(()=>{this.idleTimer=null;this.runIdle()},Math.max(1000,Number(delay)||7000))}
+ clearIdleTimer(){this.autonomous?.clearTimer?.();this.idleTimer=null}
+ startIdleScheduler(delay){this.autonomous?.schedule?.(delay);}
  startFrameLoop(){
   if(this.frame||!this.visible)return;
   const tick=()=>{
