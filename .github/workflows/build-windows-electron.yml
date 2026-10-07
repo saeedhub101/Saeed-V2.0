@@ -222,6 +222,7 @@ jobs:
 
       - name: Print complete validation reports and gate
         id: validation_gate
+        continue-on-error: true
         shell: pwsh
         run: |
           $reports=@(Get-ChildItem "ci-reports" -File|Sort-Object Name)
@@ -231,8 +232,28 @@ jobs:
           Write-Host "================ SUMMARY ================"
           Write-Host "Reports: $($reports.Count)"
           Write-Host "Failed: $($failed.Count)"
-          if($failed.Count){$failed|ForEach-Object{Write-Host "FAIL: $_"};throw "Validation failed after all independent checks completed. Full reports are preserved in ci-reports."}
+          if($failed.Count){$failed|ForEach-Object{Write-Host "FAIL: $_"};Write-Host "ALL_VALIDATIONS=FAIL";exit 1}
           Write-Host "ALL_VALIDATIONS=PASS"
+      - name: Upload validation reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Saeed-AI-validation-reports-\${{ github.run_number }}
+          if-no-files-found: warn
+          path: ci-reports/*
+
+      - name: Stop before build when validation reports contain errors
+        id: validation_final_gate
+        shell: pwsh
+        run: |
+          $reports=@(Get-ChildItem "ci-reports" -File|Sort-Object Name)
+          $failed=@($reports|Where-Object{(Get-Content $_.FullName -Raw)-match "STATUS=FAIL"})
+          Write-Host "Validation reports uploaded before final gate."
+          Write-Host "Reports generated: $($reports.Count)"
+          Write-Host "Reports with failures: $($failed.Count)"
+          if($failed.Count){$failed|ForEach-Object{Write-Host "FAIL: $($_.Name)"};throw "Validation gate failed. The complete validation artifact has already been uploaded."}
+          Write-Host "VALIDATION_GATE=PASS"
+
       - name: Prepare native Windows icon
         shell: pwsh
         run: |
