@@ -131,8 +131,8 @@ export class AutonomousBehaviorController{
   if(type==="speech-end"){this.intent="idle";this.character.face?.expression?.(this.mood==="sad"?"sad":"neutral",.5);this.schedule(3500);return true}
   if(type==="thinking"){this.intent="thinking";this.character.play("think",{duration:2.2,priority:35});return true}
   if(type==="user-input"){this.intent="reacting";this.character.play("think",{duration:1.8,priority:35});return true}
-  if(type==="tool"){this.intent="doing";this.character.face?.expression?.("curious",.65);this.character.play("think",{duration:1.4,priority:30});return true}
-  if(type==="tool_result"){this.intent="reacting";this.character.face?.expression?.("pleased",.65);this.character.play("nod",{duration:.65,priority:40});return true}
+  if(type==="tool"){this.intent="doing";this.character.face?.expression?.("confused",.65);this.character.play("think",{duration:1.4,priority:30});return true}
+  if(type==="tool_result"){this.intent="reacting";this.character.face?.expression?.("happy",.65);this.character.play("nod",{duration:.65,priority:40});return true}
   if(type==="tool_error"){this.intent="reacting";this.character.face?.expression?.("sad",.55);this.character.play("shake",{duration:.7,priority:40});return true}
   if(type==="double-click"||type==="right-click"){this.character.play("wave",{duration:1.2,priority:45});return true}
   if(type==="zoom"){this.character.play("lookCloser",{duration:2.2,priority:35});return true}
