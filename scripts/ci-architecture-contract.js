@@ -7,6 +7,8 @@ const controller=read("src/character/CharacterController.js");
 const client=read("src/character/client.js");
 const engine=read("src/character/CharacterEngine.js");
 const voice=read("src/main/voice/voice-host.js");
+const preload=read("src/preload.js");
+const voiceClient=read("src/renderer/voice/voice-client.js");
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(fs.existsSync(path.join(root,"src/character/AutonomousBehaviorController.js")),"AutonomousBehaviorController.js is missing");
 must(fs.existsSync(path.join(root,"src/character/CharacterEngine.js")),"CharacterEngine.js is missing");
@@ -23,6 +25,9 @@ must(voice.includes("ensureTts"),"Voice host has no TTS lifecycle owner");
 must(voice.includes('ttsReady=false'),"TTS lifecycle state is missing");
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle timeout is not two minutes");
 must(workflow.includes("workflow_dispatch:"),"Windows build workflow is not manual-only");
+for(const namespace of ["system","character","voice","chat","tools"]){must(preload.includes(`\n ${namespace}:{`),`preload namespace missing: ${namespace}`)}
+must(!/contextBridge\.exposeInMainWorld\("saeed",\{[\s\S]*?\n\s+[a-zA-Z_$][\w$]*\s*:/.test(preload.replace(/\n\s+(system|character|voice|chat|tools|learning|addons)\s*:/g,"\n")), "preload exposes unexpected flat API");
+must(!voiceClient.includes("onVoiceMute(m=>{voiceMuted=Boolean(m);if(voiceMuted){stopSpeaking();mic?.stop"),"Voice mute must not stop microphone input");
 const characterArch=read("Character_Architecture.md");
 must(characterArch.includes("AutonomousBehaviorController"),"Character architecture does not document autonomous ownership");
 if(failures.length){console.error("Architecture contract FAILED");for(const f of failures)console.error(" - "+f);process.exit(1)}
