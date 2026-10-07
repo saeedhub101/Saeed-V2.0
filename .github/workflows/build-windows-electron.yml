@@ -65,13 +65,28 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Character component diagnostics
+      - name: Initialize validation reports
+        id: init_validation_reports
         shell: pwsh
         run: |
-          node scripts/ci-character-diagnostics.js
-          if ($LASTEXITCODE -ne 0) { throw "Character component diagnostics failed." }
-          Write-Host "CHARACTER_DIAGNOSTICS=PASS"
+          New-Item -ItemType Directory -Force -Path "ci-reports" | Out-Null
+          Remove-Item "ci-reports\*" -Force -ErrorAction SilentlyContinue
+          Write-Host "Validation report directory initialized: ci-reports/"
 
+      - name: Character component diagnostics
+        id: character_diagnostics
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $report="ci-reports/01-character-diagnostics.txt"
+          "=== CHARACTER COMPONENT DIAGNOSTICS ===" | Set-Content $report
+          node scripts/ci-character-diagnostics.js 2>&1 | Tee-Object -FilePath $report -Append
+          $code=$LASTEXITCODE
+          Add-Content $report "EXIT_CODE=$code"
+          Add-Content $report "STATUS=$(if($code -eq 0){'PASS'}else{'FAIL'})"
+          Get-Content $report -Raw | Write-Host
+          if($code -ne 0){Write-Warning "Character diagnostics failed; continuing." ; exit 1}
+          Write-Host "CHARACTER_DIAGNOSTICS=PASS"
       - name: Application RAM startup diagnostic (non-gating)
         continue-on-error: true
         shell: powershell
@@ -119,66 +134,105 @@ jobs:
           Write-Host "RAM_DIAGNOSTIC_NON_GATING=true"
 
       - name: Character Studio and runtime component contract
+        id: character_contract
+        continue-on-error: true
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
-          $required = @(
-            "src/character/CharacterEngine.js","src/character/CharacterController.js","src/character/CharacterRig.js",
-            "src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js",
-            "src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js",
-            "src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js",
-            "src/character-studio.html","src/three/GLTFLoader.js"
-          )
-          foreach($p in $required){if(!(Test-Path $p -PathType Leaf)){throw "Character component missing: $p"}}
-          $engine=Get-Content "src/character/CharacterEngine.js" -Raw
-          $controller=Get-Content "src/character/CharacterController.js" -Raw
-          $studio=Get-Content "src/character-studio.html" -Raw
-          $client=Get-Content "src/character/client.js" -Raw
-          foreach($contract in @(
-            @($engine,"setBoneRotation"),@($engine,"bindRig"),@($engine,"captureAuthoritativeRestPose"),
-            @($controller,"setBehavior"),@($controller,"setMotionEnabled"),@($controller,"bindSlot"),
-            @($client,"bindSlot"),@($client,"setBoneRotation"),@($studio,"GLTFLoader"),@($studio,"setBoneRotation"),@($studio,"bindSlot")
-          )){if(!$contract[0].Contains($contract[1])){throw "Character component contract missing: $($contract[1])"}}
-          if($studio -notmatch 'import \* as THREE from "./node_modules/three/build/three.module.js"'){throw "Character Studio Three.js import missing"}
-          if($studio -notmatch 'from "./three/GLTFLoader.js"'){throw "Character Studio GLTFLoader import missing"}
-          if($studio -notmatch 'onCharacterSelected'){throw "Character Studio is not connected to selected-character IPC event"}
+          $report="ci-reports/02-character-contract.txt"
+          $errors=[System.Collections.Generic.List[string]]::new()
+          $required=@("src/character/CharacterEngine.js","src/character/CharacterController.js","src/character/CharacterRig.js","src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js","src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js","src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js","src/character-studio.html","src/three/GLTFLoader.js")
+          foreach($p in $required){if(!(Test-Path $p -PathType Leaf)){$errors.Add("Missing component: $p")}}
+          $engine=if(Test-Path "src/character/CharacterEngine.js"){Get-Content "src/character/CharacterEngine.js" -Raw}else{""}
+          $controller=if(Test-Path "src/character/CharacterController.js"){Get-Content "src/character/CharacterController.js" -Raw}else{""}
+          $studio=if(Test-Path "src/character-studio.html"){Get-Content "src/character-studio.html" -Raw}else{""}
+          $client=if(Test-Path "src/character/client.js"){Get-Content "src/character/client.js" -Raw}else{""}
+          foreach($c in @(@($engine,"setBoneRotation"),@($engine,"bindRig"),@($engine,"captureAuthoritativeRestPose"),@($controller,"setBehavior"),@($controller,"setMotionEnabled"),@($controller,"bindSlot"),@($client,"bindSlot"),@($client,"setBoneRotation"),@($studio,"GLTFLoader"),@($studio,"setBoneRotation"),@($studio,"bindSlot"))){if(!$c[0].Contains($c[1])){$errors.Add("Missing contract: $($c[1])")}}
+          if($studio -notmatch 'import \* as THREE from "./node_modules/three/build/three.module.js"'){$errors.Add("Studio Three.js import missing")}
+          if($studio -notmatch 'from "./three/GLTFLoader.js"'){$errors.Add("Studio GLTFLoader import missing")}
+          if($studio -notmatch 'onCharacterSelected'){$errors.Add("Studio selected-character event missing")}
+          @("=== CHARACTER STUDIO / RUNTIME CONTRACT ===","Checked: $($required.Count)","Errors: $($errors.Count)")|Set-Content $report
+          if($errors.Count){$errors|Add-Content $report}else{"NO_CONTRACT_ERRORS"|Add-Content $report}
+          Add-Content $report "STATUS=$(if($errors.Count){'FAIL'}else{'PASS'})"
+          Get-Content $report -Raw|Write-Host
+          if($errors.Count){exit 1}
           Write-Host "CHARACTER_STUDIO_COMPONENTS=PASS"
           Write-Host "CHARACTER_LIVE_EDITING_CONTRACT=PASS"
-
       - name: Static JavaScript validation
-        run: npm test
-
-      - name: Comprehensive source validation
+        id: static_tests
+        continue-on-error: true
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
-          $js = @(Get-ChildItem "src" -Recurse -Filter "*.js" -File)
-          if ($js.Count -eq 0) { throw "No JavaScript source files found." }
-          foreach($file in $js) {
-            node --check $file.FullName
-            if($LASTEXITCODE -ne 0){ throw "JavaScript syntax validation failed: $($file.FullName)" }
-          }
-          $html = @(Get-ChildItem "src" -Recurse -Filter "*.html" -File)
-          $css = @(Get-ChildItem "src" -Recurse -Filter "*.css" -File)
-          foreach($file in $html) {
-            $raw = Get-Content $file.FullName -Raw
-            $matches = [regex]::Matches($raw,'<script[^>]*type="module"[^>]*>([\\s\\S]*?)</script>')
-            $index = 0
-            foreach($match in $matches) {
-              $script = Join-Path $env:RUNNER_TEMP ("html-script-" + $index + ".mjs")
-              Set-Content $script $match.Groups[1].Value -Encoding UTF8
-              node --check $script
-              if($LASTEXITCODE -ne 0){ throw "Inline module syntax validation failed: $($file.FullName) block $index" }
-              $index++
-            }
-          }
-          Write-Host "Validated JS files: $($js.Count)"
-          Write-Host "Validated HTML module scripts: $($html.Count)"
-          Write-Host "CSS files present: $($css.Count)"
-          $pkg=Get-Content "package.json" -Raw|ConvertFrom-Json
-          foreach($dep in @($pkg.dependencies.PSObject.Properties.Name+$pkg.devDependencies.PSObject.Properties.Name)){if(-not(Test-Path "node_modules\\$dep")){throw "Installed dependency missing: $dep"}}
-          npm ls --depth=0
+          $report="ci-reports/03-npm-test.txt"
+          "=== NPM TEST ==="|Set-Content $report
+          npm test 2>&1|Tee-Object -FilePath $report -Append
+          $code=$LASTEXITCODE
+          Add-Content $report "EXIT_CODE=$code"
+          Add-Content $report "STATUS=$(if($code -eq 0){'PASS'}else{'FAIL'})"
+          Get-Content $report -Raw|Write-Host
+          if($code -ne 0){exit 1}
+      - name: JavaScript syntax validation — all files
+        id: js_syntax
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $report="ci-reports/04-js-syntax.txt"
+          $errors=[System.Collections.Generic.List[string]]::new()
+          $files=@(Get-ChildItem "src" -Recurse -Filter "*.js" -File)
+          "=== JAVASCRIPT SYNTAX VALIDATION ==="|Set-Content $report
+          "Files checked: $($files.Count)"|Add-Content $report
+          foreach($file in $files){node --check $file.FullName 2>&1|Tee-Object -FilePath $report -Append;if($LASTEXITCODE -ne 0){$errors.Add($file.FullName);Add-Content $report "SYNTAX_ERROR=$($file.FullName)"}}
+          Add-Content $report "ERROR_COUNT=$($errors.Count)"
+          Add-Content $report "STATUS=$(if($errors.Count){'FAIL'}else{'PASS'})"
+          Get-Content $report -Raw|Write-Host
+          if($errors.Count){exit 1}
 
+      - name: HTML module syntax validation — all files
+        id: html_syntax
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $report="ci-reports/05-html-syntax.txt"
+          $errors=[System.Collections.Generic.List[string]]::new()
+          $html=@(Get-ChildItem "src" -Recurse -Filter "*.html" -File)
+          "=== HTML MODULE SYNTAX VALIDATION ==="|Set-Content $report
+          foreach($file in $html){$raw=Get-Content $file.FullName -Raw;$matches=[regex]::Matches($raw,'<script[^>]*type="module"[^>]*>([\s\S]*?)</script>');$i=0;foreach($m in $matches){$tmp=Join-Path $env:RUNNER_TEMP ("html-script-"+[guid]::NewGuid().ToString("N")+".mjs");Set-Content $tmp $m.Groups[1].Value -Encoding UTF8;node --check $tmp 2>&1|Tee-Object -FilePath $report -Append;if($LASTEXITCODE -ne 0){$errors.Add("$($file.FullName) block $i")};Remove-Item $tmp -Force -ErrorAction SilentlyContinue;$i++};Add-Content $report "HTML=$($file.FullName) MODULE_BLOCKS=$i"}
+          Add-Content $report "ERROR_COUNT=$($errors.Count)"
+          Add-Content $report "STATUS=$(if($errors.Count){'FAIL'}else{'PASS'})"
+          Get-Content $report -Raw|Write-Host
+          if($errors.Count){exit 1}
+
+      - name: Dependency integrity validation
+        id: dependency_validation
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $report="ci-reports/06-dependencies.txt"
+          $errors=[System.Collections.Generic.List[string]]::new()
+          "=== DEPENDENCY INTEGRITY ==="|Set-Content $report
+          $pkg=Get-Content "package.json" -Raw|ConvertFrom-Json
+          $deps=@($pkg.dependencies.PSObject.Properties.Name+$pkg.devDependencies.PSObject.Properties.Name)
+          foreach($dep in $deps){if(!(Test-Path "node_modules\$dep")){$errors.Add("Missing installed dependency: $dep")}else{Add-Content $report "OK $dep"}}
+          npm ls --depth=0 2>&1|Tee-Object -FilePath $report -Append
+          if($LASTEXITCODE -ne 0){$errors.Add("npm ls reported dependency problems")}
+          Add-Content $report "ERROR_COUNT=$($errors.Count)"
+          if($errors.Count){$errors|Add-Content $report}
+          Add-Content $report "STATUS=$(if($errors.Count){'FAIL'}else{'PASS'})"
+          Get-Content $report -Raw|Write-Host
+          if($errors.Count){exit 1}
+
+      - name: Print complete validation reports and gate
+        id: validation_gate
+        shell: pwsh
+        run: |
+          $reports=@(Get-ChildItem "ci-reports" -File|Sort-Object Name)
+          $failed=@()
+          Write-Host "================ COMPLETE VALIDATION REPORTS ================"
+          foreach($r in $reports){Write-Host "---------------- $($r.Name) ----------------";Get-Content $r.FullName -Raw|Write-Host;if((Get-Content $r.FullName -Raw)-match "STATUS=FAIL"){$failed+=$r.Name}}
+          Write-Host "================ SUMMARY ================"
+          Write-Host "Reports: $($reports.Count)"
+          Write-Host "Failed: $($failed.Count)"
+          if($failed.Count){$failed|ForEach-Object{Write-Host "FAIL: $_"};throw "Validation failed after all independent checks completed. Full reports are preserved in ci-reports."}
+          Write-Host "ALL_VALIDATIONS=PASS"
       - name: Prepare native Windows icon
         shell: pwsh
         run: |
@@ -406,6 +460,7 @@ jobs:
             animation-health-report.json
             dist/icons/*
             dist/addons/*.zip
+            ci-reports/*
 
 
       - name: Final packaged E2E result gate
