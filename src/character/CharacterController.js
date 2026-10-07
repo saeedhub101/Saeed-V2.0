@@ -192,7 +192,7 @@ function installCharacterController(){
   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),setMotionEnabled:(id,v)=>controller.setMotionEnabled(id,v),
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
-  listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
+  listMotions:()=>controller.listMotions(),status:()=>{const ready=engine.getCharacterPoseStatus?.();const mapped=engine.getBoneMap?.()||{};if(ready?.loaded&&!Object.keys(mapped).length)controller.onCharacterLoaded?.();return controller.status()},register:def=>controller.animation.register(def),
   setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};controller.autonomous?.configure?.(controller.behavior);if(v.idle===false)controller.clearIdleTimer();else controller.startIdleScheduler(controller.behavior.frequencyMs);return {...controller.behavior}},setBoneRotation:(n,r)=>controller.setBoneRotation(n,r),bindSlot:(s,n)=>controller.bindSlot(s,n),calibrateJoint:(s,r)=>controller.calibrateJoint(s,r),getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),
   setVisible:v=>controller.setVisible(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
  };
