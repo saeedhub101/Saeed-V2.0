@@ -1,50 +1,112 @@
-# Saeed V2.0 — Phase 2: Runtime
+# Saeed V2.0 — Phase 2: Character & Realtime Experience
 
 **Status:** Planned  
-**Purpose:** Make Character, Engine, lifecycle and voice behavior correct in the real application.
+**Type:** Product-development phase
 
-## Objectives
+## Goal
 
-- Prove Character creation/destruction.
-- Prove demand-driven rendering.
-- Prove TTS/Mic/Realtime lifecycle.
-- Prove autonomous Character behavior independent of Brain.
-- Prove GLB safety and capability-based animation.
+Turn the foundation into a convincing living 3D character with reliable realtime voice interaction.
 
-## Work
+## 1. Character runtime
 
-### Character
-- CharacterController is the only behavior boundary.
-- AutonomousBehaviorController owns autonomous decisions.
-- AnimationController owns playback.
-- CharacterEngine owns technical 3D resources.
-- User interaction has higher priority than autonomous behavior.
-- Recent motion suppression is active.
-- Idle is intermittent and lightweight.
+Build and integrate:
+- CharacterEngine;
+- CharacterController;
+- CharacterRig;
+- CharacterRetargeter;
+- AnimationController;
+- MotionRegistry;
+- MotionSafety;
+- FaceController;
+- finger/eye/blink/neck capabilities;
+- character profile storage.
 
-### Engine
-- Atomic asset replacement.
-- Rest pose validation.
-- Logical joint mapping.
-- Capability matrix.
-- Complete GPU/resource disposal.
-- No renderer-created behavior.
+## 2. Character preparation
 
-### Voice
-- Character visible + unmuted => TTS READY/IDLE.
-- Mute => TTS stopped/destroyed, text remains available.
-- Unmute => TTS recreated.
-- Mic OFF => capture/VAD/STT destroyed.
-- Realtime suppresses standard STT/TTS when it provides native equivalents.
-- Voice and Chat share one conversation.
+Complete the asset pipeline:
 
-### Lifecycle
-- Show=create, Hide=destroy.
-- Brain idle timeout = 2 minutes.
-- Stale callbacks invalidated.
-- Shutdown is idempotent.
-- Single instance is enforced.
+`GLB → inspect → skeleton detect → map/rig → rest pose → retarget → validate → profile → runtime`
+
+Required behavior:
+- optional capabilities degrade gracefully;
+- invalid candidate assets never replace a working Character;
+- edits are previewed before commit;
+- runtime reload is atomic.
+
+## 3. Motion system
+
+Build:
+- semantic motion intents;
+- motion generator;
+- priority;
+- cooldown;
+- recent-motion suppression;
+- major/micro motion layers;
+- animation enable/disable;
+- runtime Motion/Animation Control.
+
+The Brain may request semantic behavior. It never selects raw bones or owns physical animation.
+
+## 4. Autonomous Character
+
+Build:
+- idle behavior;
+- micro behavior;
+- attention;
+- mood;
+- energy;
+- sleep/wake;
+- autonomous movement;
+- interaction priority;
+- anti-annoyance policy.
+
+Autonomy must work without an LLM.
+
+## 5. Voice
+
+Build and verify:
+- TTS providers;
+- TTS ready/idle lifecycle;
+- local speech;
+- API speech;
+- microphone capture;
+- STT;
+- realtime audio;
+- interruption/barge-in;
+- speaking animation;
+- audio resource disposal.
+
+Rules:
+- Character visible + unmuted → TTS READY/IDLE;
+- Mute is output-only;
+- Mic OFF does not require output mute;
+- Realtime takes ownership of its native audio path when active.
+
+## 6. Conversation experience
+
+Chat and Voice remain two channels of the same conversation.
+
+A voice answer:
+- enters the same conversation history;
+- appears above Saeed;
+- may be spoken;
+- is available when Chat is opened.
+
+A Chat answer:
+- may be spoken by TTS;
+- may trigger semantic character behavior;
+- never creates a second Brain.
 
 ## Exit criteria
 
-The packaged application passes the mandatory lifecycle simulation, Character acceptance tests, voice lifecycle tests and invalid-asset recovery tests.
+A packaged build can repeatedly:
+1. show/hide Character;
+2. load and replace a valid GLB safely;
+3. reject an invalid GLB without losing the current Character;
+4. run autonomous behavior;
+5. speak through TTS;
+6. turn Mic on/off;
+7. use STT;
+8. use Realtime where configured;
+9. interrupt speech;
+10. preserve conversation continuity.
