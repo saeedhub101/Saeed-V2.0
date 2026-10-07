@@ -101,9 +101,19 @@ export class AutonomousBehaviorController{
   this.intent="idle";
   this.lastMotionAt=performance.now();
   const played=this.character.play(id,{priority:10});
+  if(played&&Math.random()<0.45)this.lookAround();
   this.armSleepTimer();
   this.schedule(DEFAULT_IDLE_DELAY);
   return Boolean(played);
+ }
+ lookAround(){
+  if(!this.character||this.sleeping)return false;
+  const x=(Math.random()*2-1)*1.35;
+  const y=1.35+Math.random()*.45;
+  const z=.9+Math.random()*.7;
+  const ok=Boolean(this.character.face?.lookAt?.(x,y,z));
+  if(ok)this.intent="attending";
+  return ok;
  }
  onUserInteraction(event={}){this.touch();return this.handleEvent(event)}
  onStateChanged(state){if(state?.intent)this.intent=String(state.intent);if(state?.visible!==undefined)this.setVisible(state.visible)}
