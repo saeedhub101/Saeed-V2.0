@@ -568,7 +568,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $reports=@("dist\ci-e2e-suite-1.json","dist\ci-e2e-suite-2.json","dist\ci-e2e-suite-3.json")
+          $reports=@("dist\ci-e2e-suite-1.json","dist\ci-e2e-suite-2.json","dist\ci-e2e-suite-3.json","dist\ci-e2e-glb-character-test.json")
           $missing=@()
           $failed=@()
           foreach($p in $reports){
@@ -675,6 +675,7 @@ jobs:
             dist/ci-e2e-suite-1.json
             dist/ci-e2e-suite-2.json
             dist/ci-e2e-suite-3.json
+            dist/ci-e2e-glb-character-test.json
             animation-health-report.json
             dist/icons/*
             dist/addons/*.zip
