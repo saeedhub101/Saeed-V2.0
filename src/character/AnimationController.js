@@ -8,7 +8,7 @@ export class AnimationController {
  bindRig(bones={},retargeter=null){this.rig.bind(bones,retargeter);return this.rig.snapshot();}
  register(def){return this.registry.register(def);}
  play(id,options={}){
-  const m=this.registry.get(id);if(!m)return false;
+  const m=this.registry.get(id);if(!m)return false;const required=m.requiredCapabilities||[];if(required.some(cap=>!this.rig.capabilities?.[cap]))return false;
   const layer=options.layer||m.layer||"body",priority=Number(options.priority??this.layers.get(layer)??0);
   const item={m,elapsed:0,duration:Math.max(0,Number(options.duration??m.duration)||0),speed:Math.max(.05,Number(options.speed)||1),intensity:Number(options.intensity??1),layer,loop:Boolean(options.loop??m.loop),blend:Math.max(0,Number(options.blend??m.blend??.15)),priority};
   this.active=this.active.filter(x=>x.layer!==layer||x.priority>priority);
