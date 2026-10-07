@@ -220,15 +220,62 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          $report="ci-reports/05-html-syntax.txt"
-          $errors=[System.Collections.Generic.List[string]]::new()
-          $html=@(Get-ChildItem "src" -Recurse -Filter "*.html" -File)
-          "=== HTML MODULE SYNTAX VALIDATION ==="|Set-Content $report
-          foreach($file in $html){$raw=Get-Content $file.FullName -Raw;$matches=[regex]::Matches($raw,'<script[^>]*type="module"[^>]*>([\s\S]*?)</script>');$i=0;foreach($m in $matches){$tmp=Join-Path $env:RUNNER_TEMP ("html-script-"+[guid]::NewGuid().ToString("N")+".mjs");Set-Content $tmp $m.Groups[1].Value -Encoding UTF8;node --check $tmp 2>&1|Tee-Object -FilePath $report -Append;if($LASTEXITCODE -ne 0){$errors.Add("$($file.FullName) block $i")};Remove-Item $tmp -Force -ErrorAction SilentlyContinue;$i++};Add-Content $report "HTML=$($file.FullName) MODULE_BLOCKS=$i"}
-          Add-Content $report "ERROR_COUNT=$($errors.Count)"
-          Add-Content $report "STATUS=$(if($errors.Count){'FAIL'}else{'PASS'})"
-          Get-Content $report -Raw|Write-Host
-          if($errors.Count){exit 1}
+          $report = "ci-reports/05-html-syntax.txt"
+          $errors = [System.Collections.Generic.List[string]]::new()
+          $htmlFiles = @(Get-ChildItem -Path "src" -Recurse -Filter "*.html" -File -ErrorAction SilentlyContinue)
+
+          "=== HTML MODULE SYNTAX VALIDATION ===" | Set-Content -Path $report -Encoding UTF8
+          Add-Content -Path $report -Value "HTML_FILE_COUNT=$($htmlFiles.Count)"
+
+          if ($htmlFiles.Count -eq 0) {
+            $errors.Add("No HTML files found under src")
+          }
+
+          foreach ($file in $htmlFiles) {
+            $raw = Get-Content -Path $file.FullName -Raw
+            $pattern = '<script\b(?=[^>]*\btype\s*=\s*["'']module["''])[^>]*>([\s\S]*?)</script\s*>'
+            $moduleBlocks = [regex]::Matches($raw, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+            $blockIndex = 0
+
+            foreach ($blockMatch in $moduleBlocks) {
+              $tempFile = Join-Path $env:RUNNER_TEMP ("html-script-" + [guid]::NewGuid().ToString("N") + ".mjs")
+              try {
+                Set-Content -Path $tempFile -Value $blockMatch.Groups[1].Value -Encoding UTF8
+                node --check $tempFile 2>&1 | Tee-Object -FilePath $report -Append
+                $nodeExitCode = $LASTEXITCODE
+                Add-Content -Path $report -Value "FILE=$($file.FullName) BLOCK=$blockIndex NODE_EXIT_CODE=$nodeExitCode"
+
+                if ($nodeExitCode -ne 0) {
+                  $errors.Add("$($file.FullName) module block $blockIndex failed node --check")
+                }
+              }
+              finally {
+                if (Test-Path -LiteralPath $tempFile) {
+                  Remove-Item -LiteralPath $tempFile -Force -ErrorAction SilentlyContinue
+                }
+              }
+              $blockIndex++
+            }
+
+            Add-Content -Path $report -Value "HTML=$($file.FullName) MODULE_BLOCKS=$blockIndex"
+          }
+
+          Add-Content -Path $report -Value "ERROR_COUNT=$($errors.Count)"
+
+          if ($errors.Count -gt 0) {
+            $errors | Add-Content -Path $report
+            $status = "FAIL"
+          }
+          else {
+            $status = "PASS"
+          }
+
+          Add-Content -Path $report -Value "STATUS=$status"
+          Get-Content -Path $report -Raw | Write-Host
+
+          if ($errors.Count -gt 0) {
+            exit 1
+          }
 
       - name: Dependency integrity validation
         if: always()
