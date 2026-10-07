@@ -396,6 +396,7 @@ function snapshotBoneRotations(){
  for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
  return out;
 }
+function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
  get3DStatus:()=>({
@@ -410,7 +411,7 @@ window.saeedCharacterRuntime.engine={
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
- lookCharacterAt:lookAt,wakeRender:render
+ lookCharacterAt:lookAt,wakeRender:render,destroy:destroyEngine
 };
 window.saeed?.on3DQuery?.(requestId=>{
  const status=window.saeedCharacterRuntime.engine.get3DStatus();
