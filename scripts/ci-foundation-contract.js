@@ -16,7 +16,7 @@ must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows b
 must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
 const suiteNames=[1,2,3,4];
 for(const n of suiteNames){
- const marker=`- name: Packaged EXE E2E Suite ${n} `;
+ const marker=n===4?"- name: GLB Character Test":"- name: Packaged EXE E2E Suite ${n} ";
  const start=workflow.indexOf(marker);
  const end=start<0?-1:workflow.indexOf("\n      - name:",start+marker.length);
  const block=start<0?"":workflow.slice(start,end<0?workflow.length:end);
@@ -24,7 +24,7 @@ for(const n of suiteNames){
  must(block.includes("if: always()"),`E2E Suite ${n} is not forced to run`);
  must(block.includes("continue-on-error: true"),`E2E Suite ${n} can stop the workflow`);
  must(block.includes(`--ci-e2e-suite=${n}`),`E2E Suite ${n} does not launch its own suite`);
- must(block.includes(`ci-e2e-suite-${n}.json`),`E2E Suite ${n} has no dedicated report`);
+ must(block.includes(n===4?"ci-e2e-glb-character-test.json":`ci-e2e-suite-${n}.json`),`E2E Suite ${n} has no dedicated report`);
  must(block.includes("catch {"),`E2E Suite ${n} has no isolated PowerShell error boundary`);
 }
 
