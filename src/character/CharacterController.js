@@ -154,7 +154,7 @@ export class CharacterController{
   const motion=map[key]||"idle";return{intent:key,motion,played:motion==="idle"?false:this.play(motion,options)};
  }
 }
-window.saeedCharacterRuntime=null;
+window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 function installCharacterController(){
  const avatar=window.saeedCharacterRuntime?.engine;
  if(!avatar||typeof avatar.getCharacterPoseStatus!=="function")return false;
@@ -164,7 +164,7 @@ function installCharacterController(){
   return true;
  }
  const controller=new CharacterController(avatar);
- window.saeedCharacterRuntime={controller};
+ window.saeedCharacterRuntime.controller=controller;
  controller.api={
   setAnimationEnabled:v=>controller.setAnimationEnabled(v),setAnimationPaused:v=>controller.setAnimationPaused(v),play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
