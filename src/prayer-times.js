@@ -75,9 +75,9 @@ async function schedule(nextCity=city,nextCountry=country){
     if(!next)return;
     const delay=Math.max(1000,Math.min(next.at-Date.now(),2147483647));
     timer=setTimeout(async()=>{timer=0;await trigger(next);await schedule(city,country)},delay);
-    window.saeed?.reportDiagnostic?.("INFO","PRAYER TIMES","Next prayer scheduled",{prayer:next.key,at:new Date(next.at).toISOString(),city,country,cached:true});
+    window.saeed.system.reportDiagnostic?.("INFO","PRAYER TIMES","Next prayer scheduled",{prayer:next.key,at:new Date(next.at).toISOString(),city,country,cached:true});
   }catch(e){
-    window.saeed?.reportDiagnostic?.("ERROR","PRAYER TIMES",e.message);
+    window.saeed.system.reportDiagnostic?.("ERROR","PRAYER TIMES",e.message);
     timer=setTimeout(()=>schedule(city,country),6*60*60*1000);
   }
 }
