@@ -86,6 +86,7 @@ export class CharacterController{
  normalizeRestPose(){const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized)this.engine?.captureAuthoritativeRestPose?.(normalization);return normalization;}
  resetPose(){this.engine?.resetCharacterPose?.();this.animation.pose.clear();this.engine?.wakeRender?.(250);return true}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
+ setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
  deleteMotion(id){const ok=this.editor.remove(id);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  listMotions(){return this.editor.list()}
@@ -164,7 +165,7 @@ function installCharacterController(){
  controller.api={
   setAnimationEnabled:v=>controller.setAnimationEnabled(v),setAnimationPaused:v=>controller.setAnimationPaused(v),play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
-  remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),
+  remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),setMotionEnabled:(id,v)=>controller.setMotionEnabled(id,v),
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
   listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
   setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};controller.autonomous?.configure?.(controller.behavior);if(v.idle===false)controller.clearIdleTimer();else controller.startIdleScheduler(controller.behavior.frequencyMs);return {...controller.behavior}},setBoneRotation:(n,r)=>controller.setBoneRotation(n,r),calibrateJoint:(s,r)=>controller.calibrateJoint(s,r),getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),
