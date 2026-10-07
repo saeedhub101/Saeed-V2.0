@@ -307,7 +307,7 @@ async function load(data,generation){
   }
  }
 }
-window.saeedAvatarLoadData=async(data,generation)=>{
+window.saeedCharacterRuntime.load=async(data,generation)=>{
  const g=Number(generation)||++loadGeneration;
  loadGeneration=Math.max(loadGeneration,g);
  if(activeLoad){pendingLoad={data,generation:g};return}
@@ -316,7 +316,7 @@ window.saeedAvatarLoadData=async(data,generation)=>{
 if(window.__saeedPendingCharacterData){
  const p=window.__saeedPendingCharacterData;
  window.__saeedPendingCharacterData=null;
- void window.saeedAvatarLoadData(p.data,p.generation);
+ void window.saeedCharacterRuntime.load(p.data,p.generation);
 }
 
 function apply3DSettings(settings={}){
@@ -334,9 +334,9 @@ function apply3DSettings(settings={}){
  render();
  return {...viewSettings};
 }
-window.saeedAvatarApply3DSettings=apply3DSettings;
-window.saeedAvatarGet3DSettings=()=>({...viewSettings});
-window.saeedAvatarSetRuntimeActive=()=>true;
+window.saeedCharacterRuntime.engineApply3DSettings=apply3DSettings;
+window.saeedCharacterRuntime.engineGet3DSettings=()=>({...viewSettings});
+window.saeedCharacterRuntime.engineSetRuntimeActive=()=>true;
 window.saeed?.onCharacter3DSettings?.(apply3DSettings);
 
 function setEditorRotation(x=0,y=0,z=0){
@@ -396,7 +396,8 @@ function snapshotBoneRotations(){
  for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
  return out;
 }
-window.saeedAvatar={
+window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
+window.saeedCharacterRuntime.engine={
  get3DStatus:()=>({
   overall:{state:model?"ready":"starting",detail:model?"3D character rendered":"Waiting for GLB"},
   components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":"waiting"}},
@@ -404,7 +405,7 @@ window.saeedAvatar={
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,
- getCharacterProfileKey:()=>String(window.saeedAvatarCurrentName||"Saeed").trim(),
+ getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.engineCurrentName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
@@ -412,7 +413,7 @@ window.saeedAvatar={
  lookCharacterAt:lookAt,wakeRender:render
 };
 window.saeed?.on3DQuery?.(requestId=>{
- const status=window.saeedAvatar.get3DStatus();
+ const status=window.saeedCharacterRuntime.engine.get3DStatus();
  const pose=getCharacterPoseStatus();
  const boneDetail=pose.loaded?`${pose.controllableBoneCount} controllable bones; rest pose ${pose.restPose?.normalized===false?"needs adjustment":"available"}`:"No character GLB is loaded";
  const report={...status,overall:{...status.overall,detail:status.overall.detail+" • "+boneDetail},components:{...status.components,characterRig:{state:pose.loaded?"ready":"waiting",detail:boneDetail},restPose:{state:pose.restPose?.normalized===false?"warn":"ready",detail:String(pose.restPose?.detected||"unknown")},tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")}},character:{loaded:pose.loaded,boneCount:pose.controllableBoneCount,skeletonCount:pose.skeletonCount,restPose:pose.restPose,tPose:pose.tPose}};
@@ -420,38 +421,5 @@ window.saeed?.on3DQuery?.(requestId=>{
 });
 resize();
 
-async function ensureCharacterController(){
- try{
-  const mod=await import("./character/CharacterController.js");
-  const Existing=window.saeedCharacterController;
-  if(Existing?.avatar===window.saeedAvatar){
-   const ready=window.saeedAvatar.getCharacterPoseStatus?.();
-   if(ready?.loaded&&!Existing.characterId)Existing.onCharacterLoaded?.();
-   return Existing;
-  }
-  const controller=new mod.CharacterController(window.saeedAvatar);
-  window.saeedCharacterController=controller;
-  controller.api={
-   play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
-   setPose:p=>controller.setPose(p),setIdlePose:p=>controller.setIdlePose(p),resetPose:()=>controller.resetPose(),
-   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),setLimit:(s,l)=>controller.setLimit(s,l),
-   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
-   listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
-   setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};return {...controller.behavior}},
-   getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),setVisible:v=>controller.setVisible(v),
-   handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
-  };
-  controller.setVisible(!document.hidden);
-  const ready=window.saeedAvatar.getCharacterPoseStatus?.();
-  if(ready?.loaded)controller.onCharacterLoaded?.();
-  window.dispatchEvent(new CustomEvent("saeed-character-controller-ready"));
-  return controller;
- }catch(error){
-  window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=error?.stack||String(error));
-  window.saeed?.reportDiagnostic?.("ERROR","CHARACTER CONTROLLER LOAD",error?.stack||String(error));
-  return null;
- }
-}
-void ensureCharacterController();
-window.saeedEnsureCharacterController=ensureCharacterController;
-window.dispatchEvent(new CustomEvent("saeed-avatar-ready"));
+
+
