@@ -145,7 +145,14 @@ export class CharacterController{
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
   const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized){this.engine?.captureAuthoritativeRestPose?.(normalization);if(!this.characterId)this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{restPose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}},normalizehumanoidrestpose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}}});}return normalization;}
- resetPose(){this.engine?.resetCharacterPose?.();this.animation.pose.clear();this.engine?.wakeRender?.(250);return true}
+ resetPose(){
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok)return false;
+  this.engine?.resetCharacterPose?.();
+  this.animation.pose.clear();
+  this.engine?.wakeRender?.(250);
+  return true;
+}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
