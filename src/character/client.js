@@ -27,6 +27,8 @@ async function executeCharacterCommand(command={}){
   if(x.action==="deleteMotion"){const ok=c.deleteMotion(String(x.id||""));return{ok,status:c.status()}}
   if(x.action==="setMotionEnabled"){const ok=c.setMotionEnabled?.(String(x.id||""),x.enabled!==false);return{ok,status:c.status()}}
   if(x.action==="listMotions")return{ok:true,motions:c.listMotions(),status:c.status()};
+  if(x.action==="beginAuthoring"){const ok=c.beginAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
+  if(x.action==="endAuthoring"){const ok=c.endAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
   if(x.action==="status")return{ok:true,status:c.status()};
   if(x.action==="semantic")return c.semantic(x.intent,x.options||{});
   if(x.action==="face")return{ok:true,result:c.face?.expression?.(x.expression,x.intensity)};
