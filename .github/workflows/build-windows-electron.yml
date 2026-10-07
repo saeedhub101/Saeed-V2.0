@@ -489,6 +489,50 @@ jobs:
             $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
             Get-Content $report -Raw | Write-Host
           }
+      - name: GLB Character Test — independent load pipeline diagnostics
+        if: always()
+        id: glb_character_test
+        continue-on-error: true
+        shell: powershell
+        timeout-minutes: 10
+        env:
+          SAEED_CI_E2E_SUITE: "4"
+        run: |
+          $report = Join-Path $PWD "dist\\ci-e2e-glb-character-test.json"
+          try {
+            $ErrorActionPreference = "Stop"
+            $stdout = Join-Path $env:RUNNER_TEMP "saeed-glb-character-test.stdout.log"
+            $stderr = Join-Path $env:RUNNER_TEMP "saeed-glb-character-test.stderr.log"
+            Remove-Item $report -Force -ErrorAction SilentlyContinue
+            $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
+            if (!(Test-Path $exe -PathType Leaf)) {
+              $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
+              $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
+            } else {
+              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=4 --ci-e2e-report=$report" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+              $deadline = (Get-Date).AddSeconds(540)
+              while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+              if (!$proc.HasExited) {
+                Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "TIMEOUT"; error = "GLB Character Test timed out"; time = (Get-Date).ToUniversalTime() }
+                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
+              } else {
+                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
+                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
+                if (!(Test-Path $report)) {
+                  $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "ERROR"; error = "GLB Character Test exited without producing a report"; time = (Get-Date).ToUniversalTime() }
+                  $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
+                }
+              }
+            }
+            Get-Content $report -Raw | Write-Host
+          } catch {
+            $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "ERROR"; error = $_.Exception.Message; time = (Get-Date).ToUniversalTime() }
+            $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
+            Write-Warning "GLB Character Test encountered an unexpected error; continuing."
+          }
+          if (Test-Path $report) { Get-Content $report -Raw | Write-Host }
+
       - name: Upload packaged E2E suite reports
         if: always()
         uses: actions/upload-artifact@v6
@@ -499,8 +543,25 @@ jobs:
             dist/ci-e2e-suite-1.json
             dist/ci-e2e-suite-2.json
             dist/ci-e2e-suite-3.json
+            dist/ci-e2e-glb-character-test.json
             ${{ runner.temp }}/saeed-e2e-suite-*.stdout.log
             ${{ runner.temp }}/saeed-e2e-suite-*.stderr.log
+            ${{ runner.temp }}/saeed-glb-character-test.stdout.log
+            ${{ runner.temp }}/saeed-glb-character-test.stderr.log
+
+      - name: Final GLB Character Test gate
+        if: always()
+        continue-on-error: true
+        shell: powershell
+        run: |
+          if (!(Test-Path "dist\\ci-e2e-glb-character-test.json")) {
+            Write-Host "GLB_CHARACTER_TEST=FAIL — report missing"
+            exit 1
+          }
+          $r=Get-Content "dist\\ci-e2e-glb-character-test.json" -Raw | ConvertFrom-Json
+          Get-Content "dist\\ci-e2e-glb-character-test.json" -Raw | Write-Host
+          if (-not $r.pass) { Write-Host "GLB_CHARACTER_TEST=FAIL"; exit 1 }
+          Write-Host "GLB_CHARACTER_TEST=PASS"
 
       - name: Final packaged E2E result gate — all suites
         if: always()
@@ -641,7 +702,7 @@ jobs:
               if ($raw -match "STATUS=FAIL") { $failures.Add("Validation report failed: $($r.Name)") }
             }
           } else { $failures.Add("ci-reports directory was not created.") }
-          foreach ($p in @("dist\\ci-e2e-suite-1.json","dist\\ci-e2e-suite-2.json","dist\\ci-e2e-suite-3.json")) {
+          foreach ($p in @("dist\\ci-e2e-suite-1.json","dist\\ci-e2e-suite-2.json","dist\\ci-e2e-suite-3.json","dist\\ci-e2e-glb-character-test.json")) {
             if (!(Test-Path $p)) { $failures.Add("Missing E2E report: $p"); continue }
             try { $r = Get-Content $p -Raw | ConvertFrom-Json; if (-not $r.pass) { $failures.Add("E2E suite failed: $p") } }
             catch { $failures.Add("Invalid E2E report: $p") }
