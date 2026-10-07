@@ -1,90 +1,63 @@
-# Saeed V2.0 — Repair Plan
+# Saeed V2.0 — Current Repair Plan
 
-**Status:** Active implementation plan  
-**Authority:** Non-authoritative planning document
+**Status:** Active during Phase 1 only  
+**Scope:** Repair and conformance work that is necessary to establish the foundation.
 
-## Objective
+This document is **not** the Saeed product roadmap. The complete product roadmap is in ROADMAP.md.
 
-Repair the existing implementation without creating parallel systems. Every repair must extend or remove existing ownership rather than hide complexity in another large runtime file.
+## Repair principle
 
-## Repair rules
+Repair only what is blocking coherent development, violates an architectural contract, creates duplicate ownership, creates a security/lifecycle problem, or would force a rewrite later.
 
-1. Inspect the current owner before creating a module.
-2. One responsibility has one owner.
-3. Rename ambiguous files before adding more behavior.
-4. Remove dead compatibility paths instead of preserving duplicates.
-5. Keep renderer code presentation-focused.
-6. Keep Electron privileges behind preload/IPC.
-7. Keep Brain semantic.
-8. Keep Character physical behavior inside Character Runtime.
-9. Keep tools behind one Registry and Permission boundary.
-10. Add a regression test for every repeatable architectural bug.
+Do not turn cleanup into an independent multi-phase project.
 
-## Ordered repair backlog
+## Active backlog
 
 ### R1 — Repository and naming
-- Resolve every duplicate/ambiguous directory.
-- Resolve agent.js vs conversation-agent.js.
-- Remove stale documentation paths.
-- Verify imports after every rename.
-- Establish canonical naming conventions.
+- remove legacy duplicate paths;
+- establish canonical module names;
+- update imports and documentation;
+- remove dead compatibility code.
 
-### R2 — Preload and IPC
-- Replace broad flat renderer APIs with namespaced APIs.
-- Keep privileged operations in main-process owners.
-- Ensure every IPC channel has one owner.
-- Remove direct renderer access to privileged internals.
-- Add IPC contract tests.
+### R2 — Preload / IPC
+- namespaced renderer API;
+- minimal privileged surface;
+- one owner per IPC channel;
+- renderer cannot reach privileged main internals directly.
 
-### R3 — Application lifecycle
-- Verify one Core/Tray lifecycle owner.
-- Verify Character Show=create and Hide=destroy.
-- Verify Brain 2-minute idle lifecycle.
-- Verify stale-event invalidation.
-- Verify single-instance behavior.
-- Verify idempotent shutdown.
+### R3 — Lifecycle
+- one Core/Tray owner;
+- Character create/destroy boundary;
+- Brain idle release;
+- TTS lifecycle tied to visible/unmuted Character;
+- Mic lifecycle independent from output mute;
+- stale-event invalidation;
+- idempotent shutdown.
 
-### R4 — Character runtime
-- Verify one CharacterController.
-- Verify one AutonomousBehaviorController.
-- Keep AnimationController as playback layer.
-- Verify autonomous behavior can run without Brain/LLM.
-- Verify user interaction wins over autonomy.
-- Verify recent-motion suppression.
-- Verify demand-driven rendering.
+### R4 — Character ownership
+- one CharacterController;
+- one CharacterEngine;
+- one AutonomousBehaviorController;
+- AnimationController remains playback-only;
+- no renderer-owned autonomous policy;
+- no Brain-to-bone path.
 
-### R5 — Engine and assets
-- Verify CharacterEngine owns technical 3D resources only.
-- Verify atomic GLB replacement.
-- Verify logical-joint retargeting.
-- Verify optional capability degradation.
-- Verify complete disposal.
+### R5 — Tools and security
+- one Tool Registry;
+- permission before side effects;
+- no LLM authorization;
+- plugin bypass prevention;
+- explicit network boundaries.
 
-### R6 — Voice and conversation
-- Verify TTS READY/IDLE while visible and unmuted.
-- Verify mute is output-only.
-- Verify Mic OFF destroys capture/VAD/STT.
-- Verify Realtime exclusivity.
-- Verify one Agent/history/Brain.
-- Verify Chat↔Voice continuity.
+### R6 — Verification
+- architecture contract;
+- static path/name audit;
+- preload contract;
+- lifecycle contract;
+- regression checks for every fixed repeatable bug.
 
-### R7 — Brain, tools and security
-- Verify local-first routing.
-- Verify reassessment after failed local routes.
-- Verify one Tool Registry.
-- Verify permission before side effects.
-- Verify cancellation and verification.
-- Verify LLM is never authorization.
-- Verify plugin isolation.
+## Completion rule
 
-### R8 — Runtime proof
-- Run all static contracts.
-- Run unit/integration tests.
-- Build manually.
-- Install packaged application.
-- Run lifecycle and fault-injection acceptance.
-- Measure memory/render/resource behavior.
+The repair backlog ends when Phase 1 exits. New defects discovered later are repaired inside the phase that exposes them; they do not create new repair phases.
 
-## Definition of repaired
-
-A repair is complete only when code, documentation, and verification agree. Compilation alone is never sufficient.
+Compilation alone does not prove a repair.
