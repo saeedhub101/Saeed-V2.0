@@ -46,7 +46,7 @@ async function run(){
   report("controller returns to idle",a.status().state==="idle"&&!a.status().active.length);
  }catch(e){report("animation runtime",false,e?.stack||e);}
  try{
-  const avatar=fs.readFileSync(path.join(root,"src/avatar.js"),"utf8"),controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
+  const avatar=fs.readFileSync(path.join(root,"src/character/CharacterEngine.js"),"utf8"),controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
   report("T-pose correction",avatar.includes('detected:"t-pose"')&&avatar.includes("stillTPose"));
   report("correction before first render",avatar.indexOf("onCharacterLoaded?.()")<avatar.indexOf("render();",avatar.indexOf("function display")));
   report("no GLB animation dependency",!avatar.includes("gltf.animations")&&!avatar.includes("AnimationMixer"));
