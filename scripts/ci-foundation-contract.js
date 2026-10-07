@@ -54,6 +54,10 @@ must(read("src/character/CharacterController.js").includes("AutonomousBehaviorCo
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle lifecycle contract missing");
 must(read("src/main/character/character-host.js").includes("characterLoadGeneration"),"Character stale-load generation guard missing");
 must(read("src/character/CharacterEngine.js").includes("boneRest.set"),"CharacterEngine does not capture GLB rest pose");
+must(exists("assets/Saeed_AI-3D.glb"),"Authoritative Saeed GLB is missing");
+must(read("src/main/character/character-host.js").includes('path.join(__dirname,"..","..","..","assets","Saeed_AI-3D.glb")'),"Character startup does not reference authoritative bundled GLB");
+must(!read("src/main/character/character-host.js").includes("const saved=readPersistedCharacter()"),"Character startup must not replace authoritative bundled GLB with persisted/automatic GLB");
+
 
 if(failures.length){
  console.error("Foundation contract FAILED");
