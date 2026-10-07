@@ -62,7 +62,7 @@ These resources exist only while required:
 - microphone capture
 - VAD
 - STT
-- TTS
+- TTS runtime (ready for output while Character is visible)
 - Realtime connection
 - Control Center
 - plugins
@@ -77,7 +77,7 @@ Unused resources must be destroyed.
 
 | State | Must remain running | Must be destroyed |
 |---|---|---|
-| Character visible, Chat closed, mic OFF | Core, Tray, Character | Chat, Voice capture, VAD, STT, TTS, Realtime, idle Brain |
+| Character visible, Chat closed, mic OFF | Core, Tray, Character, TTS-ready runtime | Chat, Voice capture, VAD, STT, Realtime, idle Brain |
 | Character hidden, Chat closed, mic OFF | Core, Tray | Character, Renderer, Chat, Voice, VAD, STT, TTS, Realtime, Brain |
 | Chat open and active | Core, Tray, Chat, Brain while active | STT/VAD unless mic is ON; idle TTS |
 | Mic ON | Core, Tray, Voice capture, VAD, STT, Brain when required | none of the currently required voice resources |
@@ -275,18 +275,19 @@ Mute must not:
 
 ## 10. TTS Lifecycle
 
-TTS is created on demand for spoken output.
+TTS is a Character-presence dependency. Because Saeed is visible at normal startup, the TTS runtime is created and ready even when MIC is OFF and there is no current speech output.
+
+TTS does not play audio merely because it exists. It remains idle and ready for speech output.
 
 TTS must be destroyed:
 
 - when muted
-- after the configured idle timeout
-- when no active voice output requires it
+- when Character is hidden/destroyed
 - when its owning lifecycle is destroyed
 
-Default TTS idle timeout:
+When unmuted while Character remains visible, TTS is recreated and becomes ready for output.
 
-**30 seconds.**
+The previous 30-second TTS idle timeout no longer applies to the Character-visible state. TTS readiness follows Character presence.
 
 ---
 
@@ -470,10 +471,11 @@ Startup must not eagerly create:
 
 - Brain without a reason
 - STT while mic is OFF
-- TTS without speech output
 - Realtime when inactive
 - Chat when closed
 - hidden Character resources
+
+Because the default product state has Saeed visible, startup MUST create the TTS runtime and leave it ready/idle for speech output. TTS creation at startup is a Character-presence dependency, not an instruction to speak.
 
 ---
 
@@ -667,7 +669,7 @@ Default inherited values:
 | Resource | Idle policy |
 |---|---|
 | Brain | 2 minutes |
-| TTS | 30 seconds |
+| TTS | follows Character visibility; destroy on mute/hide; recreate when unmuted while Character remains visible |
 | STT/VAD | immediately when mic OFF |
 | Character | immediately when hidden |
 | Chat | immediately when closed |
@@ -763,21 +765,25 @@ Destroying Chat, Brain, Character, Voice, or TTS does not delete persistent conv
 LLM, STT, TTS, and Realtime are independent provider slots.
 
 ### Invariant 11
-Destroyed resources cannot act through stale callbacks.
+When Character is visible, TTS exists as a ready/idle runtime unless the user has explicitly muted output.
+
 
 ### Invariant 12
-Idle Character has no permanent render loop.
+Destroyed resources cannot act through stale callbacks.
 
 ### Invariant 13
-A second launch cannot create a second application runtime.
+Idle Character has no permanent render loop.
 
 ### Invariant 14
-Optional feature failure cannot unnecessarily terminate the application.
+A second launch cannot create a second application runtime.
 
 ### Invariant 15
+Optional feature failure cannot unnecessarily terminate the application.
+
+### Invariant 17
 Destroyed resources cannot self-resurrect.
 
-### Invariant 16
+### Invariant 18
 Persistent state survives runtime destruction and restart.
 
 ---
