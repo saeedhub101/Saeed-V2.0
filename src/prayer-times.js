@@ -8,7 +8,7 @@ let timer=0,active=true,city="Amman",country="Jordan";
 
 function cacheKey(city,country,year,month){return `${KEY}:${city}:${country}:${year}-${String(month).padStart(2,"0")}`}
 function parseTime(value){
-  const m=String(value||"").match(/(\\d{1,2}):(\\d{2})/);
+  const m=String(value||"").match(/(\d{1,2}):(\d{2})/);
   return m?{hour:Number(m[1]),minute:Number(m[2])}:null;
 }
 function readCache(city,country,year,month){
