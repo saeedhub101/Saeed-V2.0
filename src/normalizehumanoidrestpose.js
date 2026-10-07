@@ -36,7 +36,7 @@ async function apply(value){
 $("bone").addEventListener("change",()=>setSelected($("bone").value));
 $("search").addEventListener("input",()=>fillBones($("search").value));
 $("refresh").addEventListener("click",refresh);
-$("close").addEventListener("click",()=>window.close());
+$("close").addEventListener("click",async()=>{try{await command({action:"endAuthoring"})}catch{}window.close()});
 $("applyBone").addEventListener("click",()=>apply(readDraft()));
 $("resetBone").addEventListener("click",async()=>{const rotation=baseRotations[selected]||{x:0,y:0,z:0};writeDraft(rotation);await apply(rotation)});
 $("save").addEventListener("click",async()=>{
@@ -50,4 +50,4 @@ $("save").addEventListener("click",async()=>{
  finally{$("save").disabled=false}
 });
 for(const id of ["rotX","rotY","rotZ"]){$(id).addEventListener("change",()=>void apply(readDraft()));$(id).addEventListener("keydown",event=>{if(event.key==="Enter")void apply(readDraft())})}
-refresh();
+void command({action:"beginAuthoring"});refresh();
