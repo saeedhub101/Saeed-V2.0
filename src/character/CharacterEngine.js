@@ -34,7 +34,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
 function traceGlb(stage,detail={}){glbTrace.push({at:new Date().toISOString(),stage,...detail});if(glbTrace.length>100)glbTrace.splice(0,glbTrace.length-100);}
 let lastRestPose={detected:"unknown",normalized:false};
@@ -236,10 +236,11 @@ function dispose(o){
  });
 }
 function fit(){
- if(!model)return;
+ if(!model)return false;
  model.updateWorldMatrix(true,true);
  const raw=new THREE.Box3().setFromObject(model,true);
  const rawSize=raw.getSize(new THREE.Vector3());
+ if(!Number.isFinite(rawSize.x)||!Number.isFinite(rawSize.y)||!Number.isFinite(rawSize.z)||rawSize.lengthSq()<1e-10){traceGlb("fit-invalid-bounds",{size:{x:rawSize.x,y:rawSize.y,z:rawSize.z}});return false;}
  const scale=3.75/Math.max(rawSize.y,.001)*Math.max(.001,Number(viewSettings.characterScale)||1);
  model.scale.setScalar(scale);
  model.position.set(Number(viewSettings.characterPositionX)||0,Number(viewSettings.characterPositionY)||0,Number(viewSettings.characterPositionZ)||0);
@@ -255,12 +256,13 @@ function fit(){
  const verticalDistance=size.y*.5/Math.tan(vf);
  const horizontalDistance=size.x*.5/Math.tan(hf*.5);
  const dist=Math.max(verticalDistance,horizontalDistance);
-
+ if(!Number.isFinite(dist)||dist<=0){traceGlb("fit-invalid-camera",{dist});return false;}
  camera.position.set(center.x,center.y,center.z+Math.max(.01,dist));
  camera.near=Math.max(.001,Math.min(.1,size.length()/1000));
  camera.far=Math.max(50,size.length()*20);
  camera.lookAt(center);
  camera.updateProjectionMatrix();
+ return true;
 }
 function render(){
  if(renderQueued)return;
@@ -270,23 +272,29 @@ function render(){
   renderQueued=false;
   let keepAnimating=false;
   if(animationTick){try{keepAnimating=animationTick(now)||false}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
-  renderer.render(scene,camera);
+  try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now()}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError)}
   if(keepAnimating)render();
  });
+}
+function renderImmediate(){
+ if(renderQueued&&animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;renderQueued=false}
+ try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now();return true}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-immediate-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError);return false}
 }
 function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;return true}
 
 function resize(){
  const r=canvas.getBoundingClientRect();
- const w=Math.max(1,r.width),h=Math.max(1,r.height);
+ const w=Math.max(1,Math.round(r.width||canvas.clientWidth||430)),h=Math.max(1,Math.round(r.height||canvas.clientHeight||520));
  renderer.setSize(w,h,false);
  camera.aspect=w/h;
  camera.updateProjectionMatrix();
- fit();
- render();
+ const fitted=fit();
+ traceGlb("resize",{width:w,height:h,fitted,hidden:document.hidden});
+ renderImmediate();render();
 }
 new ResizeObserver(resize).observe(canvas);
-window.addEventListener("visibilitychange",()=>{if(!document.hidden){resize();render()}});
+window.addEventListener("visibilitychange",()=>{traceGlb("visibility-change",{hidden:document.hidden});if(!document.hidden){resize();window.saeedCharacterRuntime?.engine?.wakeRender?.()}});
+window.addEventListener("pageshow",()=>{resize();window.saeedCharacterRuntime?.engine?.wakeRender?.()});
 
 function display(parsed){
  traceGlb("display-start",{hasScene:Boolean(parsed?.scene),sceneName:parsed?.scene?.name||"",generation:loadGeneration});
@@ -455,7 +463,7 @@ window.saeedCharacterRuntime.engine={
  get3DStatus:()=>({
   overall:{state:model?"ready":(loadError?"error":"starting"),detail:model?"3D character rendered":(loadError?"GLB load failed: "+loadError:"Waiting for GLB")},
   components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":(loadError?"error":"waiting"),detail:loadError||undefined}},
-  metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}
+  metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,renderCount,lastRenderAt,canvasWidth:canvas.width,canvasHeight:canvas.height,clientWidth:canvas.clientWidth,clientHeight:canvas.clientHeight,hidden:document.hidden}
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
