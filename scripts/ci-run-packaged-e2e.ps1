@@ -9,7 +9,7 @@ $stdout = Join-Path $env:RUNNER_TEMP ("saeed-e2e-suite-$Suite.stdout.log")
 $stderr = Join-Path $env:RUNNER_TEMP ("saeed-e2e-suite-$Suite.stderr.log")
 $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
 
-function Write-Result([hashtable]$Result) {
+function Write-Result([object]$Result) {
   $Result | ConvertTo-Json -Depth 20 | Set-Content $report -Encoding UTF8
   Get-Content $report -Raw | Write-Host
 }
@@ -30,6 +30,9 @@ try {
     exit 0
   }
 
+  $env:SAEED_CI_E2E_SUITE = $Suite
+  $env:SAEED_CI_E2E_REPORT = $report
+  $env:SAEED_CI_E2E_REPORT_STARTUP = "$report.startup.json"
   $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=$Suite" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
   $startupReport = "$report.startup.json"
   $startupDeadline = (Get-Date).AddSeconds(90)
@@ -61,6 +64,8 @@ try {
       status = "STARTUP_TIMEOUT"
       error = "E2E process did not reach ci-e2e-start within 90 seconds"
       startupReport = $startupReport
+      stdoutLog = $stdout
+      stderrLog = $stderr
       time = (Get-Date).ToUniversalTime()
     })
   } else {
@@ -79,6 +84,9 @@ try {
         pass = $false
         status = "TIMEOUT"
         error = "E2E Suite $Suite timed out"
+        stdoutLog = $stdout
+        stderrLog = $stderr
+        startupReport = $startupReport
         time = (Get-Date).ToUniversalTime()
       })
     } else {
@@ -92,6 +100,9 @@ try {
           pass = $false
           status = "ERROR"
           error = "E2E process exited without producing a report"
+          stdoutLog = $stdout
+          stderrLog = $stderr
+          startupReport = $startupReport
           exitCode = $proc.ExitCode
           time = (Get-Date).ToUniversalTime()
         })
@@ -107,6 +118,9 @@ try {
     pass = $false
     status = "ERROR"
     error = $_.Exception.Message
+    stdoutLog = $stdout
+    stderrLog = $stderr
+    startupReport = $startupReport
     time = (Get-Date).ToUniversalTime()
   })
 }
