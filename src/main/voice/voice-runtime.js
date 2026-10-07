@@ -29,9 +29,9 @@ function startRealtime(options={}){
     realtime?.requestResponse();
    }
    else if(provider==="gemini"&&event.serverContent?.modelTurn?.parts){for(const part of event.serverContent.modelTurn.parts){if(part.inlineData?.data)voiceBroadcast("realtime:audio",part.inlineData.data);if(part.text)voiceBroadcast("realtime:assistant-delta",part.text)}}else if(provider==="gemini"&&event.serverContent?.inputTranscription?.text){realtimeUserText=String(event.serverContent.inputTranscription.text||"").trim();voiceBroadcast("realtime:user-final",realtimeUserText)}else if(provider==="gemini"&&event.serverContent?.outputTranscription?.text){const answer=String(event.serverContent.outputTranscription.text||"").trim();if(answer)voiceBroadcast("realtime:assistant-final",answer)}else if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
-   else if(event.type==="response.output_audio_transcript.delta"&&event.delta)voiceBroadcast("realtime:assistant-delta",event.delta);
-   else if(event.type==="response.output_audio_transcript.done"&&event.transcript){
-    const answer=String(event.transcript||"").trim();
+   else if(event.type==="response.output_audio_transcript.delta"&&event.delta){voiceBroadcast("agent:event",{type:"speech-start",source:"realtime"});voiceBroadcast("realtime:assistant-delta",event.delta);}
+   else if(event.type==="response.output_audio_transcript.done"&&event.transcript){voiceBroadcast("agent:event",{type:"speech-end",source:"realtime"});
+       const answer=String(event.transcript||"").trim();
     voiceBroadcast("realtime:assistant-final",answer);
     if(realtimeBrainMode==="api" && realtimeUserText && answer){
      getAgent()?.recordConversationExchange?.(realtimeUserText,answer);
