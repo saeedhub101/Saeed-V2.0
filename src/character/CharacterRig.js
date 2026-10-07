@@ -12,18 +12,13 @@ export class CharacterRig {
       legs:b("leftThigh")&&b("rightThigh"),
       feet:b("leftFoot")&&b("rightFoot"),
       eyes:b("leftEye")&&b("rightEye"),
-      jaw:b("jaw"),
-      generic:b("generic")
+      jaw:b("jaw"),blink:Boolean(b("leftEye")&&b("rightEye")),face:Boolean(b("jaw")||b("leftEye")||b("rightEye")),fingers:Boolean(Object.keys(this.bones).some(k=>/thumb|index|middle|ring|pinky/i.test(k))),generic:b("generic")
     };
     return this.capabilities;
   }
   has(slot) { return Boolean(this.bones[slot]); }
-  resolveSlot(slot) {
-    const key=String(slot||"");
-    if(this.bones[key])return key;
-    if(this.bones.generic)return "generic";
-    return Object.keys(this.bones)[0]||null;
-  }
+  resolveSlot(slot) { const key=String(slot||""); return this.bones[key]?key:null; }
+  canApply(slot) { return Boolean(this.resolveSlot(slot)); }
   remapPose(pose={}) {
     const out={};
     for(const [slot,rotation] of Object.entries(pose||{})){
@@ -34,5 +29,5 @@ export class CharacterRig {
     }
     return out;
   }
-  snapshot() { return { bones:{...this.bones}, capabilities:{...this.capabilities}, retargeting:this.retargeter?.status?.()||null }; }
+  snapshot() { return { bones:{...this.bones}, capabilities:{...this.capabilities}, unavailable:Object.keys(this.bones).filter(k=>!this.bones[k]), retargeting:this.retargeter?.status?.()||null }; }
 }
