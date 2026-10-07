@@ -9,8 +9,8 @@ import { CharacterProfileStore } from "./CharacterProfileStore.js";
 import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js";
 
 export class CharacterController{
- constructor(avatar){
-  this.avatar=avatar;this.animation=new AnimationController(avatar);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.avatar?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+ constructor(engine){
+  this.engine=engine;this.animation=new AnimationController(avatar);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.face=new FaceController(avatar);this.fingers=new FingerController(avatar);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -23,32 +23,32 @@ export class CharacterController{
  }
  setAnimationPaused(value){
   const paused=Boolean(value);this.animationPaused=paused;
-  if(paused){this.clearIdleTimer();this.animation.stopAll();this.idleBusy=false;this.avatar?.wakeRender?.();return true}
+  if(paused){this.clearIdleTimer();this.animation.stopAll();this.idleBusy=false;this.engine?.wakeRender?.();return true}
   if(this.animationEnabled&&this.visible)this.startIdleScheduler(1200);return this.animationPaused;
  }
  bindCurrentCharacter(){
-  const bones=this.avatar?.getBoneMap?.()||this.avatar?.getBones?.()||{};
-  const names=this.avatar?.getAvailableBoneNames?.()||[];
+  const bones=this.engine?.getBoneMap?.()||this.engine?.getBones?.()||{};
+  const names=this.engine?.getAvailableBoneNames?.()||[];
   if(!names.length){
    const fallback=Object.values(bones).map(b=>b?.name).filter(Boolean);
    if(fallback.length)names.push(...fallback);
   }
   if(!names.length)return{rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
-  const auto=autoMapBones(names),profileId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed"),profile=this.profiles.load(profileId);
+  const auto=autoMapBones(names),profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed"),profile=this.profiles.load(profileId);
   const available=new Set(names.map(n=>String(n).toLowerCase()));
   const mapping={...auto.mapping};
   for(const [slot,name] of Object.entries(profile?.mapping||{}))if(name&&available.has(String(name).toLowerCase()))mapping[slot]=name;
-  if(Object.keys(mapping).length)this.avatar?.bindRig?.(mapping);
+  if(Object.keys(mapping).length)this.engine?.bindRig?.(mapping);
     const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
-    if(savedRestPose?.bones)this.avatar?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
-  const mapped=this.avatar?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
-  const validation=this.avatar?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.avatar?.getRestPoseNormalization?.()||{normalized:true};
+    if(savedRestPose?.bones)this.engine?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
+  const mapped=this.engine?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
+  const validation=this.engine?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.engine?.getRestPoseNormalization?.()||{normalized:true};
   if(validation.criticalMissing?.length||rest.normalized===false){
    const parts=[];if(validation.criticalMissing?.length)parts.push("Required rig missing: "+validation.criticalMissing.join(", "));if(rest.normalized===false)parts.push("Rest pose: "+String(rest.detected||"not normalized"));
    window.saeed?.reportDiagnostic?.("ERROR","RIG VALIDATION",parts.join(" • ")||"Rig validation failed",{missing:validation.missing||[],criticalMissing:validation.criticalMissing||[],rest});
   }
   if(profile){if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
-  else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:{normalization:this.avatar?.getRestPoseNormalization?.()||null,bones:this.avatar?.snapshotBoneRotations?.()||{}} ,idlePose:this.animation.idlePose});
+  else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}} ,idlePose:this.animation.idlePose});
   return{rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId};
  }
  play(id,options={}){
@@ -71,21 +71,21 @@ export class CharacterController{
  finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
  setPose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setPose(pose);this.startFrameLoop();return out}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
- remap(mapping={}){const ok=this.avatar?.bindRig?.(mapping);if(!ok)return false;const names=this.avatar?.getAvailableBoneNames?.()||[];const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
- autoMap(){const names=this.avatar?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.avatar?.bindRig?.(auto.mapping);if(ok){const mapped=this.avatar?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.avatar?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
+ remap(mapping={}){const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
+ autoMap(){const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.engine?.bindRig?.(auto.mapping);if(ok){const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
  saveRestPose(){
   if(!this.characterId)this.bindCurrentCharacter();
-  const normalization=this.avatar?.getRestPoseNormalization?.()||null;
-  const bones=this.avatar?.snapshotBoneRotations?.()||{};
+  const normalization=this.engine?.getRestPoseNormalization?.()||null;
+  const bones=this.engine?.snapshotBoneRotations?.()||{};
     const restPose={normalization,bones};
     if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
  }
  normalizeRestPose(){
-  const normalization=this.avatar?.normalizeHumanoidRestPose?.()||null;
+  const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;
   return normalization;
  }
- resetPose(){this.avatar?.resetCharacterPose?.();this.animation.pose.clear();this.avatar?.wakeRender?.(250);return true}
+ resetPose(){this.engine?.resetCharacterPose?.();this.animation.pose.clear();this.engine?.wakeRender?.(250);return true}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
  deleteMotion(id){const ok=this.editor.remove(id);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
@@ -127,9 +127,9 @@ export class CharacterController{
  runIdle(){if(this.autonomous)return this.autonomous.evaluateNow();if(!this.animationEnabled||this.animationPaused||!this.behavior.idle||!this.visible||this.idleBusy||this.animation.active.length)return;const id=this.chooseIdle();if(!id)return;this.recentIdle=[...this.recentIdle.filter(x=>x!==id),id].slice(-4);this.idleBusy=true;this.play(id,{priority:10})}
  clearIdleTimer(){this.autonomous?.clearTimer?.();this.idleTimer=null}
  startIdleScheduler(delay){this.autonomous?.schedule?.(delay);}
- startFrameLoop(){this.lastTickAt=0;this.avatar?.wakeRender?.();return true}
+ startFrameLoop(){this.lastTickAt=0;this.engine?.wakeRender?.();return true}
  onCharacterLoaded(){
-  const poseStatus=this.avatar?.getCharacterPoseStatus?.();
+  const poseStatus=this.engine?.getCharacterPoseStatus?.();
   if(!poseStatus?.loaded)return {loaded:false,reason:"Character GLB is not loaded yet"};
   const x=this.bindCurrentCharacter();
   this.animation.stopAll();
@@ -140,8 +140,8 @@ export class CharacterController{
   return {loaded:true,...x};
  }
  update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt)}
- destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.avatar?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.avatar=null;return true}
- status(){const a=this.avatar?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.avatar?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
+ destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
+ status(){const a=this.engine?.getCharacterPoseStatus?.()||{};return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.(),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
   const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
@@ -151,14 +151,14 @@ export class CharacterController{
 }
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 function installCharacterController(){
- const avatar=window.saeedCharacterRuntime?.engine;
- if(!avatar||typeof avatar.getCharacterPoseStatus!=="function")return false;
- if(window.saeedCharacterRuntime?.controller?.avatar===avatar){
-  const ready=avatar.getCharacterPoseStatus?.();
+ const engine=window.saeedCharacterRuntime?.engine;
+ if(!engine||typeof engine.getCharacterPoseStatus!=="function")return false;
+ if(window.saeedCharacterRuntime?.controller?.avatar===engine){
+  const ready=engine.getCharacterPoseStatus?.();
   if(ready?.loaded&&!window.saeedCharacterRuntime?.controller.characterId)window.saeedCharacterRuntime?.controller.onCharacterLoaded?.();
   return true;
  }
- const controller=new CharacterController(avatar);
+ const controller=new CharacterController(engine);
  window.saeedCharacterRuntime.controller=controller;
  controller.api={
   setAnimationEnabled:v=>controller.setAnimationEnabled(v),setAnimationPaused:v=>controller.setAnimationPaused(v),play:(id,o)=>controller.play(id,o),stop:id=>controller.stop(id),stopAll:()=>controller.stopAll(),
