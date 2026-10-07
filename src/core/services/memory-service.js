@@ -30,10 +30,12 @@ function search(userDataPath,query="",limit=50){
  if(!q)return items.slice().sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,max).map(x=>({...x,score:0}));
  return items.map(x=>({...x,score:score(x.text,q)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,max);
 }
+function addFact(userDataPath,text){return add(userDataPath,text,{type:"fact"})}
+function listFacts(userDataPath){return search(userDataPath,"",500).map(x=>({id:x.id,text:x.text,metadata:x.metadata,createdAt:x.createdAt}))}
 function forget(userDataPath,query){
  const q=String(query||"").trim().toLowerCase();if(!q)return{ok:false,removed:0};
  const items=read(userDataPath),kept=[],removed=[];
  for(const item of items){const hit=String(item.id).toLowerCase()===q||String(item.text).toLowerCase().includes(q);(hit?removed:kept).push(item)}
  write(userDataPath,kept);return{ok:true,removed:removed.length,ids:removed.map(x=>x.id)};
 }
-module.exports={add,search,forget,filePath};
+module.exports={add,search,forget,filePath,addFact,listFacts};
