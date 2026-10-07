@@ -1,62 +1,74 @@
 # Saeed V2.0 — Phase 1: Foundation
 
-**Status:** Planned  
-**Purpose:** Establish a clean, understandable and testable foundation before feature completion.
+**Status:** Active  
+**Type:** Product-development phase  
+**Repair scope:** Only the subset of existing defects that prevents a coherent foundation.
 
-## Objectives
+## Goal
 
-- Make repository structure unambiguous.
-- Establish one canonical name/path for every subsystem.
-- Align documentation with actual code.
-- Establish the preload/IPC boundary.
-- Establish machine-checkable architecture contracts.
-- Remove duplicate or obsolete ownership paths.
+Create the clean technical foundation on which Phases 2–4 can be developed quickly without accumulating duplicate systems.
 
-## Work
+## Product work
 
-### 1. Repository structure
-- Canonical src/main, src/renderer, src/character, src/tools, src/addons, src/learning.
-- No old src/core, src/agent-tools, src/voice, src/avatar.js compatibility tree.
-- Canonical conversation agent path: src/main/conversation/conversation-agent.js.
-- Canonical application runtime path: src/main/runtime.js.
+### Repository and naming
+- canonical `src/main`, `src/renderer`, `src/character`, `src/tools`, `src/addons`, `src/learning`;
+- one canonical file for each responsibility;
+- no legacy duplicate trees;
+- predictable names for runtime, conversation, voice and character modules.
 
-### 2. IPC
-Create a narrow, namespaced preload surface:
+### Application boundary
+- one Core/application lifecycle owner;
+- one Character lifecycle owner;
+- one Brain owner;
+- one conversation owner;
+- one Tool Registry;
+- one voice lifecycle owner.
 
-- window.saeed.system
-- window.saeed.character
-- window.saeed.voice
-- window.saeed.chat
-- window.saeed.tools
+### Preload / IPC
+Renderer access is grouped under:
+- `window.saeed.system`
+- `window.saeed.character`
+- `window.saeed.voice`
+- `window.saeed.chat`
+- `window.saeed.tools`
 
-Add further namespaces only when a real responsibility requires them.
+Additional namespaces such as learning/addons exist only because they represent real independent capability domains.
 
-### 3. Ownership
-Prove:
-- one lifecycle owner
-- one Brain
-- one Tool Registry
-- one CharacterController
-- one CharacterEngine
-- one voice lifecycle owner
-- one conversation history
+### Lifecycle foundation
+Establish the contracts required by later phases:
+- Character Show → create;
+- Character Hide → destroy;
+- visible + unmuted Character → TTS ready/idle;
+- Mic OFF → capture/STT resources released;
+- Brain released after idle timeout;
+- stale callbacks cannot mutate destroyed resources;
+- shutdown is idempotent.
 
-### 4. Verification
-Add static checks for:
-- stale paths
-- duplicate owners
-- forbidden renderer privilege
-- direct Brain-to-bone paths
-- Tool Registry bypasses
-- permanent render loops
-- automatic workflow triggers
+## Current repair work
+
+1. remove obsolete paths and duplicate ownership;
+2. migrate renderer code to the namespaced preload;
+3. verify IPC ownership;
+4. remove privileged renderer paths;
+5. correct lifecycle violations already visible in code;
+6. strengthen architecture/static contracts;
+7. add regression checks for repeatable defects.
+
+## Verification
+
+- JavaScript syntax checks;
+- architecture contract;
+- naming/path audit;
+- preload namespace audit;
+- IPC ownership audit;
+- renderer privilege audit;
+- no Brain → bone access;
+- no Tool Registry bypass;
+- no permanent render loop;
+- manual Windows build remains disabled until Phase 1 exit.
 
 ## Exit criteria
 
-- No stale architecture paths remain.
-- Imports resolve to canonical modules.
-- Preload API is namespaced and minimal.
-- Architecture contract script passes.
-- Static tests pass.
-- No automatic Windows build is enabled.
-- Manual build can be dispatched only after Phase 1 exit criteria are met.
+Phase 1 is complete when the foundation is coherent and the application can enter Phase 2 without requiring a second architectural cleanup pass.
+
+A successful Phase 1 does **not** mean Saeed V2.0 is finished.
