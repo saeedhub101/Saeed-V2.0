@@ -17,7 +17,7 @@ This README is the **architecture contract** and contains the red lines that mus
 9. Add-ons are optional and lazy. Installed does not mean loaded.
 10. Exactly one authoritative Tool Registry/permission/dispatch path.
 11. Exactly one CharacterController owns behavior, motion intent, idle selection, mood and animation playback.
-12. AvatarRenderer only renders. It does not decide behavior.
+12. CharacterEngine only renders. It does not decide behavior.
 13. Idle is intermittent and event-driven. No permanent idle animation loop.
 14. Recent idle motions are suppressed so Saeed does not mechanically repeat the same movement.
 15. Animation update/render activity exists only while a visual change is occurring.
@@ -73,7 +73,7 @@ CharacterController
  ├─ semantic intents
  └─ animation playback
           ↓
-    AvatarRenderer
+    CharacterEngine
           ↓
      Three.js / GLB
 ```
@@ -165,7 +165,7 @@ Mute ON
  ├─ STT: unchanged
  ├─ Brain: unchanged
  ├─ Tools: unchanged
- └─ audible TTS: OFF
+ └─ audible TTS: READY/IDLE
        ↓
     response text remains visible
 ```
@@ -317,7 +317,7 @@ CharacterController owns:
 - animation playback
 - visibility
 
-AvatarRenderer owns:
+CharacterEngine owns:
 
 - Three.js scene
 - camera
@@ -328,7 +328,7 @@ AvatarRenderer owns:
 - render scheduling
 - disposal
 
-AvatarRenderer must not own Brain routing, tool selection, idle decisions, API decisions, permissions, or user intent.
+CharacterEngine must not own Brain routing, tool selection, idle decisions, API decisions, permissions, or user intent.
 
 ## 11. Windows
 
