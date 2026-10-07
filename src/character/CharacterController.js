@@ -26,6 +26,28 @@ export class CharacterController{
   if(paused){this.clearIdleTimer();this.animation.stopAll();this.idleBusy=false;this.engine?.wakeRender?.();return true}
   if(this.animationEnabled&&this.visible)this.startIdleScheduler(1200);return this.animationPaused;
  }
+ ensureRigBound({authoring=false}={}){
+  const pose=this.engine?.getCharacterPoseStatus?.()||{};
+  if(!pose.loaded)return{ok:false,error:"Character GLB is not loaded"};
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  if(!names.length)return{ok:false,error:"Character skeleton has no bones"};
+  const available=new Set(names.map(String));
+  const current=this.engine?.getBoneMap?.()||{};
+  const valid=Object.values(current).length>0&&Object.values(current).every(b=>available.has(String(b?.name||b)));
+  if(!valid){
+   const result=this.onCharacterLoaded?.();
+   const mapped=this.engine?.getBoneMap?.()||{};
+   const finalValid=Object.values(mapped).length>0&&Object.values(mapped).every(b=>available.has(String(b?.name||b)));
+   if(!finalValid)return{ok:false,error:result?.reason||"Character rig could not be bound to the current skeleton",result};
+  }
+  if(authoring){
+   this.animation.stopAll();
+   this.clearIdleTimer();
+   this.idleBusy=false;
+   this.engine?.wakeRender?.();
+  }
+  return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount:Object.keys(this.engine?.getBoneMap?.()||{}).length};
+ }
  bindCurrentCharacter(){
   const sceneGroups=this.engine?.getSceneBoneGroups?.()||new Map();
   const sceneNames=[...sceneGroups.keys()].filter(Boolean);
@@ -87,6 +109,8 @@ export class CharacterController{
  remap(mapping={}){const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
  autoMap(){const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.engine?.bindRig?.(auto.mapping);if(ok){const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
  saveRestPose(){
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok)return null;
   if(!this.characterId)this.bindCurrentCharacter();
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
   this.engine?.captureAuthoritativeRestPose?.(normalization);
@@ -96,7 +120,10 @@ export class CharacterController{
   if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
  }
- normalizeRestPose(){const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized){this.engine?.captureAuthoritativeRestPose?.(normalization);if(!this.characterId)this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{restPose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}},normalizehumanoidrestpose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}}});}return normalization;}
+ normalizeRestPose(){
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok)return null;
+  const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized){this.engine?.captureAuthoritativeRestPose?.(normalization);if(!this.characterId)this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{restPose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}},normalizehumanoidrestpose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}}});}return normalization;}
  resetPose(){this.engine?.resetCharacterPose?.();this.animation.pose.clear();this.engine?.wakeRender?.(250);return true}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
@@ -168,7 +195,7 @@ export class CharacterController{
  }
  update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt);this.autonomous?.update?.(dt)}
  destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
- status(){let a=this.engine?.getCharacterPoseStatus?.()||{};let mapped=this.engine?.getBoneMap?.()||{};if(a.loaded&&!Object.keys(mapped).length){try{this.onCharacterLoaded()}catch(error){this.engine?.reportDiagnostic?.("ERROR","CHARACTER CONTROLLER BIND",error?.message||String(error))}a=this.engine?.getCharacterPoseStatus?.()||a;mapped=this.engine?.getBoneMap?.()||mapped}return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.()||Object.fromEntries(Object.entries(mapped).map(([slot,bone])=>[slot,bone?.name||bone])),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior,autonomous:this.autonomous?.getStatus?.()},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
+ status(){let a=this.engine?.getCharacterPoseStatus?.()||{};let mapped=this.engine?.getBoneMap?.()||{};if(a.loaded){try{const ready=this.ensureRigBound();if(ready.ok)mapped=this.engine?.getBoneMap?.()||mapped}catch(error){this.engine?.reportDiagnostic?.("ERROR","CHARACTER CONTROLLER BIND",error?.message||String(error))}a=this.engine?.getCharacterPoseStatus?.()||a;mapped=this.engine?.getBoneMap?.()||mapped}return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.()||Object.fromEntries(Object.entries(mapped).map(([slot,bone])=>[slot,bone?.name||bone])),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior,autonomous:this.autonomous?.getStatus?.()},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
   const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
