@@ -1055,7 +1055,7 @@ The current startup contract is:
 MIC OFF
 STT OFF
 Realtime OFF
-TTS idle
+TTS ready/idle
 ```
 
 ---
@@ -3054,7 +3054,7 @@ Character Runtime decides the physical response. Voice must never decide the exa
 
 # 120. Required Voice Lifecycle Tests
 
-1. Startup verifies MIC OFF and no STT/VAD capture.
+1. Startup verifies Character visible, TTS READY/IDLE, MIC OFF and no STT/VAD capture.
 2. Chat opens without creating microphone resources.
 3. MIC ON creates the standard input chain.
 4. Mute destroys/stops TTS but does not destroy Chat or Brain.
