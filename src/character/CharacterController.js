@@ -169,9 +169,13 @@ export class CharacterController{
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){
   this.beginAuthoring();
-  const ok=this.engine?.bindRig?.(mapping);
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
+  const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
+  const ok=this.engine?.bindRig?.(mapping,savedRestPose);
   if(!ok)return false;
-  const names=this.engine?.getAvailableBoneNames?.()||[],mapped=this.engine?.getBoneMap?.()||{};
+  const mapped=this.engine?.getBoneMap?.()||{};
   this.retargeter.bind(mapped,this.retargeter.status().calibration);
   this.fingers.bind(names);
   this.animation.bindRig(mapped,this.retargeter);
@@ -190,16 +194,17 @@ export class CharacterController{
   this.beginAuthoring();
   const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);
   if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};
-  const ok=this.engine?.bindRig?.(auto.mapping);
+  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
+  const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
+  const ok=this.engine?.bindRig?.(auto.mapping,savedRestPose);
   if(ok){
    const mapped=this.engine?.getBoneMap?.()||{};
    this.retargeter.bind(mapped,this.retargeter.status().calibration);
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
-   this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
    if(this.characterId){
-    const existing=this.profiles.load(this.characterId)||{};
-    const restPose=existing.normalizehumanoidrestpose||existing.restPose||{
+    const restPose=savedRestPose||{
      normalization:this.engine?.getRestPoseNormalization?.()||null,
      bones:this.engine?.snapshotBoneRotations?.()||{}
     };
