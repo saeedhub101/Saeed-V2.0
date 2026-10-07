@@ -59,7 +59,7 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/client.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/conversation-agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/client.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
