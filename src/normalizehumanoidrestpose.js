@@ -38,7 +38,7 @@ $("search").addEventListener("input",()=>fillBones($("search").value));
 $("refresh").addEventListener("click",refresh);
 $("close").addEventListener("click",async()=>{try{await command({action:"endAuthoring"})}catch{}window.close()});
 $("applyBone").addEventListener("click",()=>apply(readDraft()));
-$("resetBone").addEventListener("click",async()=>{const rotation=baseRotations[selected]||{x:0,y:0,z:0};writeDraft(rotation);await apply(rotation)});
+$("resetBone").addEventListener("click",async()=>{if(!selected)return;const result=await command({action:"resetBoneToRest",bone:selected});if(result?.ok){const rotation=result.rotation||{x:0,y:0,z:0};writeDraft(rotation);draft[selected]=rotation;status("Reset "+selected+" to the authoritative Rest Pose.","success")}else status("Could not reset "+selected+" to the authoritative Rest Pose.","error")});
 $("save").addEventListener("click",async()=>{
  $("save").disabled=true;status("Saving the complete pose to this character profile…");
  try{
