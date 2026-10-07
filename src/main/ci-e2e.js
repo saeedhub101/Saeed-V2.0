@@ -1,11 +1,14 @@
 const fs=require("fs"),path=require("path");
 
 function createCiE2E(deps={}){
- const {app,getCharacterWindow,getChatHost,getAgent,getTray,getBrainActive,ensureBrain,releaseBrainIfIdle,setMicMode,setVoiceMuted,getVoiceMuted,characterHost,getVoiceHost,getPerformanceWindow,showPerformance:depsShowPerformance}=deps;
- const report={startedAt:new Date().toISOString(),checks:{},phases:{}};
- const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist","ci-e2e-report.json");
+ const {app,getCharacterWindow,getChatHost,getAgent,getTray,getBrainActive,ensureBrain,releaseBrainIfIdle,setMicMode,setVoiceMuted,getVoiceMuted,characterHost,getVoiceHost,getPerformanceWindow,showPerformance:depsShowPerformance,getSettingsWindow,getAddonsWindow,getLearningWindow,getStatusWindow,getRestPoseEditorWindow,showSettings:depsShowSettings,showAddons:depsShowAddons,showLearning:depsShowLearning,showStatus:depsShowStatus,showRestPoseEditor:depsShowRestPoseEditor}=deps;
+ const report={startedAt:new Date().toISOString(),checks:{},phases:{},suite:null};
+ const suiteArg=String(process.env.SAEED_CI_E2E_SUITE||"all");
+ const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist",suiteArg==="all"?"ci-e2e-report.json":`ci-e2e-suite-${suiteArg}.json`);
  const started=Date.now();
+ const suiteFor=name=>{if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2")return n.startsWith("chat.")||n.startsWith("brain.")||n.startsWith("voice.")||n.startsWith("mute.")||n.startsWith("mic-");if(suiteArg==="3")return n.startsWith("windows.")||n.startsWith("character.")||n.startsWith("hide-")||n.startsWith("show-")||n.startsWith("tray.")||n.startsWith("glb.")||n.startsWith("idle-final");return true};
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
+  if(!suiteFor(name))return {pass:true,required,skipped:true};
   const t=Date.now();
   try{const v=await Promise.race([Promise.resolve().then(fn),new Promise(resolve=>setTimeout(()=>resolve({pass:false,error:"Check timed out after "+timeoutMs+" ms"}),timeoutMs))]);const pass=v===true||v?.pass===true;report.checks[name]={pass,required,latencyMs:Date.now()-t,detail:typeof v==="object"&&v&&!Array.isArray(v)?v:undefined};return report.checks[name]}
   catch(e){report.checks[name]={pass:false,required,latencyMs:Date.now()-t,error:String(e?.stack||e)};return report.checks[name]}
@@ -14,6 +17,7 @@ function createCiE2E(deps={}){
  const chatWindow=()=>getChatHost?.().getChatWindow?.()||null;
  const visible=w=>Boolean(w&&!w.isDestroyed()&&w.isVisible());
  async function run(){
+  report.suite=suiteArg;
   try{
    report.phases.startup={};
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
@@ -138,6 +142,15 @@ function createCiE2E(deps={}){
     return {pass:!active,chatClosed:!chatWindow(),micMode:String(getVoiceHost?.()?.getCurrentMicMode?.()||"off"),brainActive:active};
    });
 
+   await check("windows.settings",async()=>{if(typeof depsShowSettings!=="function")return false;await depsShowSettings();await wait(500);const w=getSettingsWindow?.();if(!visible(w))return {pass:false,error:"Settings window did not open"};const ok=await w.webContents.executeJavaScript('Boolean(document.querySelector("h1")&&document.querySelector(".sidebar")&&document.querySelector("[data-tab=general]"))',true);w.close();return {pass:ok}});
+   await check("windows.addons",async()=>{if(typeof depsShowAddons!=="function")return false;await depsShowAddons();await wait(500);const w=getAddonsWindow?.();if(!visible(w))return {pass:false,error:"Add-ons window did not open"};const ok=await w.webContents.executeJavaScript('Boolean(document.querySelector("#refresh")&&document.querySelector("#search")&&document.querySelector("#list"))',true);w.close();return {pass:ok}});
+   await check("windows.learning",async()=>{if(typeof depsShowLearning!=="function")return false;await depsShowLearning();await wait(500);const w=getLearningWindow?.();if(!visible(w))return {pass:false,error:"Learning window did not open"};const ok=await w.webContents.executeJavaScript('Boolean(document.querySelector("#refresh")&&document.querySelector("#import")&&document.querySelector("#export")&&document.querySelector("#record")&&document.querySelector("#save")&&document.querySelector("#list"))',true);w.close();return {pass:ok}});
+   await check("windows.status",async()=>{if(typeof depsShowStatus!=="function")return false;await depsShowStatus();await wait(500);const w=getStatusWindow?.();if(!visible(w))return {pass:false,error:"Status window did not open"};const ok=await w.webContents.executeJavaScript('Boolean(document.body&&document.body.innerText&&document.body.innerText.trim().length>20)',true);w.close();return {pass:ok}});
+   await check("character.studio-open-and-controls",async()=>{if(typeof depsShowRestPoseEditor!=="function")return false;await depsShowRestPoseEditor();await wait(700);const w=getRestPoseEditorWindow?.();if(!visible(w))return {pass:false,error:"Character Studio did not open"};const r=await w.webContents.executeJavaScript('(()=>({boneList:Boolean(document.querySelector("#boneList")),apply:Boolean(document.querySelector("#apply")),bind:Boolean(document.querySelector("#bind")),auto:Boolean(document.querySelector("#auto")),capture:Boolean(document.querySelector("#capture")),normalize:Boolean(document.querySelector("#normalize")),resetRest:Boolean(document.querySelector("#resetRest")),viewer:Boolean(document.querySelector("#studio3d"))}))()',true);return {pass:Object.values(r).every(Boolean),controls:r}});
+   await check("character.studio-rest-pose-operation",async()=>{const w=getRestPoseEditorWindow?.();if(!visible(w))return false;const r=await w.webContents.executeJavaScript('(async()=>{const before=await window.saeed.character.characterController({action:"status"});const a=await window.saeed.character.characterController({action:"normalizeRestPose"});const b=await window.saeed.character.characterController({action:"resetPose"});const after=await window.saeed.character.characterController({action:"status"});return {pass:Boolean(a&&b&&after),before,normalize:a,reset:b,after}})()',true);return r});
+   await check("glb.replace-character-file",async()=>{const w=getCharacterWindow?.();if(!visible(w)||typeof characterHost?.replaceCharacterForCi!=="function")return {pass:false,error:"CI GLB replacement API unavailable"};const source=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");const alt=path.join(app.getPath("temp"),"Saeed-CI-Replacement.glb");try{fs.copyFileSync(source,alt);const result=await characterHost.replaceCharacterForCi(alt);await wait(1200);const after=await w.webContents.executeJavaScript('(()=>({bootstrap:window.saeed3DBootstrap,engine:window.saeedCharacterRuntime?.engine?.get3DStatus?.()}))()',true);return {pass:Boolean(result?.ok&&!after.bootstrap?.error),result,after}}finally{try{fs.unlinkSync(alt)}catch{}}});
+   await check("glb.current-character-loaded",async()=>{const w=getCharacterWindow?.();if(!visible(w))return false;const r=await w.webContents.executeJavaScript('(()=>({bootstrap:window.saeed3DBootstrap,moduleLoaded:window.saeed3DBootstrap?.moduleLoaded!==false,engine:window.saeedCharacterRuntime?.engine?.get3DStatus?.()}))()',true);return {pass:Boolean(r.moduleLoaded&&!r.bootstrap?.error),detail:r}});
+   await check("tray.single-owner-and-menu",async()=>{const t=getTray?.();if(!t)return false;const menu=t.getContextMenu?.();const labels=menu?.items?.map?.(x=>x.label)||[];return {pass:Boolean(t&&labels.length>=5),labels}});
    await check("hide-saeed-keeps-tray",async()=>{
     characterHost.hideCharacter();await wait(500);
     return {pass:!visible(getCharacterWindow?.())&&Boolean(getTray?.()),characterVisible:visible(getCharacterWindow?.()),tray:Boolean(getTray?.())};
