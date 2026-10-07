@@ -33,7 +33,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null;\nconst glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];\nfunction traceGlb(stage,detail={}){glbTrace.push({at:new Date().toISOString(),stage,...detail});if(glbTrace.length>100)glbTrace.splice(0,glbTrace.length-100);}
 let lastRestPose={detected:"unknown",normalized:false};
 
 function getSceneBoneGroups(){
@@ -451,7 +451,7 @@ window.saeedCharacterRuntime.engine={
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
- getLoadError:()=>loadError,
+ getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
