@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 let bones=[],selected="",draft={},baseRotations={};
 const axes=["X","Y","Z"];
 function status(text,kind=""){const el=$("state");el.textContent=text;el.className=kind}
-function command(payload){return window.saeed.characterController(payload)}
+function command(payload){return window.saeed.character.characterController(payload)}
 function radians(value){return Number(value||0)*Math.PI/180}
 function readDraft(){return{x:radians($("rotX").value),y:radians($("rotY").value),z:radians($("rotZ").value)}}
 function writeDraft(rotation={}){for(const axis of axes){const key=axis.toLowerCase();$("rot"+axis).value=Number((Number(rotation[key])||0)*180/Math.PI).toFixed(1)}}
