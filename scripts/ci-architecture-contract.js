@@ -5,7 +5,7 @@ const failures=[];
 function must(condition,message){if(!condition)failures.push(message)}
 const controller=read("src/character/CharacterController.js");
 const client=read("src/character/client.js");
-const avatar=read("src/avatar.js");
+const engine=read("src/character/CharacterEngine.js");
 const voice=read("src/core/voice/voice-host.js");
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(fs.existsSync(path.join(root,"src/character/AutonomousBehaviorController.js")),"AutonomousBehaviorController.js is missing");
@@ -13,10 +13,10 @@ must(controller.includes("AutonomousBehaviorController"),"CharacterController do
 for(const legacy of ["window.saeedAvatar","window.saeedCharacterController","window.saeedAvatarLoadData","window.saeedCharacterBehavior","window.saeedAnimationController","window.__saeedPendingCharacterData"]){
  must(!controller.includes(legacy),`legacy character global remains in CharacterController: ${legacy}`);
  must(!client.includes(legacy),`legacy character global remains in character client: ${legacy}`);
- must(!avatar.includes(legacy),`legacy character global remains in avatar engine: ${legacy}`);
+ must(!engine.includes(legacy),`legacy character global remains in CharacterEngine: ${legacy}`);
 }
 must(client.includes("window.saeedCharacterRuntime"),"character client is not using the canonical runtime");
-must(avatar.includes("window.saeedCharacterRuntime.engine"),"3D engine is not owned by canonical runtime");
+must(engine.includes("window.saeedCharacterRuntime.engine"),"3D engine is not owned by canonical runtime");
 must(voice.includes("ensureTts"),"Voice host has no TTS lifecycle owner");
 must(voice.includes('ttsReady=false'),"TTS lifecycle state is missing");
 must(read("src/core/application/brain-host.js").includes("2*60*1000"),"Brain idle timeout is not two minutes");
