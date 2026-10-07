@@ -1,8 +1,11 @@
 name: Saeed AI — Windows Build
 
-# Automatic builds are intentionally disabled during development.
-# Builds run only when manually requested from GitHub Actions.
+# Build automatically whenever application code changes.
+# Markdown-only changes do not trigger a Windows build.
 on:
+  push:
+    paths-ignore:
+      - "**/*.md"
   workflow_dispatch:
     inputs:
       publish_release:
@@ -535,7 +538,6 @@ jobs:
       - name: Upload verified build
         if: always()
         uses: actions/upload-artifact@v6
-        if: always()
         with:
           name: Saeed-AI-windows-build-${{ github.run_number }}
           if-no-files-found: warn
@@ -948,7 +950,6 @@ jobs:
         if: always()
         id: e2e_suite_2
         continue-on-error: true
-        if: always()
         shell: powershell
         timeout-minutes: 8
         env:
@@ -974,7 +975,6 @@ jobs:
         if: always()
         id: e2e_suite_3
         continue-on-error: true
-        if: always()
         shell: powershell
         timeout-minutes: 8
         env:
@@ -1135,7 +1135,6 @@ jobs:
 
 
       - name: Publish official release
-        if: always()
         if: (github.ref == format('refs/tags/{0}', steps.version.outputs.official_tag)) || inputs.publish_release == true
         shell: bash
         env:
