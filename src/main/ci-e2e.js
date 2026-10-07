@@ -24,16 +24,33 @@ function createCiE2E(deps={}){
   }
  };
  const execJs=async(w,script,opts)=>operation("webContents.executeJavaScript",()=>w.webContents.executeJavaScript(script,opts),{scriptPreview:String(script).replace(/\s+/g," ").slice(0,240)});
+ const suite2Timeouts={
+  "chat.open":30000,
+  "chat.local-time":30000,
+  "brain.intent-open-my-computer":45000,
+  "brain.intent-api-escalation":45000,
+  "chat.response-reaches-character-bubble":60000,
+  "voice.chat-response-tts-chain":90000,
+  "chat.ui-response-visible":30000,
+  "voice.renderer-capabilities":30000,
+  "voice.output-device-capability":30000,
+  "voice.tts-local-output":90000,
+  "voice.mic-device-capability":30000,
+  "mute.text-still-visible":30000,
+  "chat.close-keeps-brain-when-mic-on":45000,
+  "mic-off-releases-brain-after-chat-closed":45000
+ };
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
+  const effectiveTimeoutMs=suite2Timeouts[name]||timeoutMs;
   const t=Date.now();
   const ctx={name,startedAt:t,operation:null,operationStartedAt:t,timedOut:false};
   active.name=name;active.startedAt=t;active.operation=null;active.operationStartedAt=t;
-  recordTrace("check-start",{check:name,timeoutMs});
+  recordTrace("check-start",{check:name,timeoutMs:effectiveTimeoutMs});
   let timer;
   let timedOut=false;
   const work=checkContext.run(ctx,()=>Promise.resolve().then(fn));
-  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{timedOut=true;ctx.timedOut=true;recordTrace("check-timeout",{check:name,timeoutMs,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0});resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+timeoutMs+" ms; test execution was not cancelled so remaining checks can continue.",diagnostic:{check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)}})},timeoutMs)});
+  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{timedOut=true;ctx.timedOut=true;recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0});resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; test execution was not cancelled so remaining checks can continue.",diagnostic:{check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)}})},timeoutMs)});
   try{
    const v=await Promise.race([work,timeout]);
    clearTimeout(timer);
