@@ -302,6 +302,7 @@ function display(parsed){
   rig=new Map();base=new Map();boneGroups=nextGroups;boneRest=nextRest;morphs=new Map();
   collectMorphs();
   fit();
+  window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.();
   render();
  }catch(error){
   try{root.remove(next)}catch{}
@@ -313,7 +314,6 @@ function display(parsed){
   dispose(previous);
  }
  window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
- queueMicrotask(()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
 }
 function getSceneBoneGroupsForModel(target){
  const groups=new Map();
