@@ -135,7 +135,14 @@ export class CharacterController{
  onCharacterLoaded(){
   const poseStatus=this.engine?.getCharacterPoseStatus?.();
   if(!poseStatus?.loaded)return {loaded:false,reason:"Character GLB is not loaded yet"};
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  if(!names.length)return {loaded:false,reason:"Character GLB is loaded but no bones are exposed yet"};
   const x=this.bindCurrentCharacter();
+  if(!x?.rig?.bones || Object.keys(x.rig.bones).length===0){
+   const auto=this.autoMap();
+   if(!auto?.ok)return {loaded:false,reason:"Character GLB bones are present but no controllable mapping was produced",boneCount:names.length,auto};
+   x.rig=this.animation.rig.snapshot();x.autoMapping=auto;
+  }
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
