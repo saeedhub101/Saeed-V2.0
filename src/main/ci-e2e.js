@@ -6,7 +6,7 @@ function createCiE2E(deps={}){
  const suiteArg=String(process.env.SAEED_CI_E2E_SUITE||"all");
  const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist",suiteArg==="all"?"ci-e2e-report.json":`ci-e2e-suite-${suiteArg}.json`);
  const started=Date.now();
- const suiteFor=name=>{if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2")return n.startsWith("chat.")||n.startsWith("brain.")||n.startsWith("voice.")||n.startsWith("mute.")||n.startsWith("mic-");if(suiteArg==="3")return n.startsWith("windows.")||n.startsWith("character.")||n.startsWith("hide-")||n.startsWith("show-")||n.startsWith("tray.")||n.startsWith("glb.")||n.startsWith("idle-final");if(suiteArg==="4")return n.startsWith("glbtest.");return true};
+ const suiteFor=name=>{if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2")return n.startsWith("chat.")||n.startsWith("brain.")||n.startsWith("voice.")||n.startsWith("mute.")||n.startsWith("mic-");if(suiteArg==="3")return (n.startsWith("windows.")||n.startsWith("character.")||n.startsWith("hide-")||n.startsWith("show-")||n.startsWith("tray.")||n.startsWith("glb.")||n.startsWith("idle-final"))&&!n.startsWith("character.studio-")&&n!=="character.normalize-humanoid-rest-pose-window";if(suiteArg==="4")return n.startsWith("glbtest.");if(suiteArg==="5")return n.startsWith("character.studio-");if(suiteArg==="6")return n==="character.normalize-humanoid-rest-pose-window";return true};
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
   const t=Date.now();
