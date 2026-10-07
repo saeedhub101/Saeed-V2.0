@@ -60,12 +60,60 @@ jobs:
         if: always()
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/conversation-agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/CharacterRig.js","src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js","src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js","src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js","src/character-studio.html","src/normalizehumanoidrestpose.html","src/normalizehumanoidrestpose.js","src/normalizehumanoidrestpose.css","src/three/GLTFLoader.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
-          foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
+          $requiredFiles = @(
+            "package.json"
+            "VERSION"
+            "src/main.js"
+            "src/preload.js"
+            "src/renderer.js"
+            "src/character/CharacterEngine.js"
+            "src/renderer/character.html"
+            "src/main/conversation/conversation-agent.js"
+            "src/realtime.js"
+            "src/main/automation/local-executor.js"
+            "src/tools/registry.js"
+            "src/main/brain/brain.js"
+            "src/main/brain/model-executor.js"
+            "src/main/ci-e2e.js"
+            "src/main/runtime.js"
+            "src/main/application/brain-host.js"
+            "src/main/voice/voice-host.js"
+            "src/renderer/voice/voice-client.js"
+            "src/character/CharacterController.js"
+            "src/character/CharacterRig.js"
+            "src/character/CharacterRetargeter.js"
+            "src/character/AnimationController.js"
+            "src/character/AutonomousBehaviorController.js"
+            "src/character/MotionRegistry.js"
+            "src/character/MotionEditor.js"
+            "src/character/FaceController.js"
+            "src/character/FingerController.js"
+            "src/character/AutoRigMapper.js"
+            "src/character/client.js"
+            "src/character-studio.html"
+            "src/normalizehumanoidrestpose.html"
+            "src/normalizehumanoidrestpose.js"
+            "src/normalizehumanoidrestpose.css"
+            "src/three/GLTFLoader.js"
+            "src/main/character/character-host.js"
+            "src/index.html"
+            "src/performance.html"
+            "src/performance.js"
+            "src/performance.css"
+          )
+          $missingFiles = [System.Collections.Generic.List[string]]::new()
+          foreach ($path in $requiredFiles) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { $missingFiles.Add($path) }
+          }
+          Write-Host "REQUIRED_FILE_COUNT=$($requiredFiles.Count)"
+          Write-Host "MISSING_FILE_COUNT=$($missingFiles.Count)"
+          foreach ($path in $missingFiles) { Write-Host "MISSING=$path" }
+          if ($missingFiles.Count -gt 0) { throw "Required project files are missing." }
+          Write-Host "STATUS=PASS"
 
       - name: Install dependencies
         if: always()
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Initialize validation reports
         if: always()
