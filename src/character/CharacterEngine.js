@@ -33,7 +33,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null;
 let lastRestPose={detected:"unknown",normalized:false};
 
 function getSceneBoneGroups(){
@@ -324,12 +324,17 @@ function getSceneBoneGroupsForModel(target){
 }
 
 async function load(data,generation){
- activeLoad=true;
+ activeLoad=true;loadError=null;
  try{
   const bytes=data instanceof ArrayBuffer?data:data instanceof Uint8Array?data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength):data?.buffer;
   if(!bytes)throw new Error("Selected GLB data is invalid");
   const parsed=await loader.parseAsync(bytes,"");
   if(generation===loadGeneration)display(parsed);
+ }catch(error){
+  loadError=String(error?.stack||error?.message||error);
+  window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError,window.saeed3DBootstrap.rejection=loadError);
+  window.saeed?.reportDiagnostic?.("ERROR","GLB LOAD",loadError);
+  throw error;
  }finally{
   activeLoad=false;
   if(pendingLoad){
@@ -436,8 +441,8 @@ function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;anim
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
  get3DStatus:()=>({
-  overall:{state:model?"ready":"starting",detail:model?"3D character rendered":"Waiting for GLB"},
-  components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":"waiting"}},
+  overall:{state:model?"ready":(loadError?"error":"starting"),detail:model?"3D character rendered":(loadError?"GLB load failed: "+loadError:"Waiting for GLB")},
+  components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":(loadError?"error":"waiting"),detail:loadError||undefined}},
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures}
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
@@ -446,6 +451,7 @@ window.saeedCharacterRuntime.engine={
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
+ getLoadError:()=>loadError,
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
@@ -461,4 +467,4 @@ resize();
 
 
 
-try{if(window.saeed3DBootstrap){window.saeed3DBootstrap.moduleLoaded=true;window.saeed3DBootstrap.error=null;}}catch{}
+try{if(window.saeed3DBootstrap){window.saeed3DBootstrap.moduleLoaded=true;window.saeed3DBootstrap.error=null;window.saeed3DBootstrap.rejection=null;}}catch{}
