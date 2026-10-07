@@ -6,11 +6,11 @@ function must(condition,message){if(!condition)failures.push(message)}
 const controller=read("src/character/CharacterController.js");
 const client=read("src/character/client.js");
 const engine=read("src/character/CharacterEngine.js");
-const voice=read("src/core/voice/voice-host.js");
+const voice=read("src/main/voice/voice-host.js");
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(fs.existsSync(path.join(root,"src/character/AutonomousBehaviorController.js")),"AutonomousBehaviorController.js is missing");
 must(fs.existsSync(path.join(root,"src/character/CharacterEngine.js")),"CharacterEngine.js is missing");
-must(!fs.existsSync(path.join(root,"src/avatar.js")),"legacy src/avatar.js still exists");
+must(!fs.existsSync(path.join(root,"src/character/CharacterEngine.js")),"legacy src/character/CharacterEngine.js still exists");
 must(controller.includes("AutonomousBehaviorController"),"CharacterController does not own AutonomousBehaviorController");
 for(const legacy of ["window.saeedAvatar","window.saeedCharacterController","window.saeedAvatarLoadData","window.saeedCharacterBehavior","window.saeedAnimationController","window.__saeedPendingCharacterData"]){
  must(!controller.includes(legacy),`legacy character global remains in CharacterController: ${legacy}`);
@@ -21,7 +21,7 @@ must(client.includes("window.saeedCharacterRuntime"),"character client is not us
 must(engine.includes("window.saeedCharacterRuntime.engine"),"3D engine is not owned by canonical runtime");
 must(voice.includes("ensureTts"),"Voice host has no TTS lifecycle owner");
 must(voice.includes('ttsReady=false'),"TTS lifecycle state is missing");
-must(read("src/core/application/brain-host.js").includes("2*60*1000"),"Brain idle timeout is not two minutes");
+must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle timeout is not two minutes");
 must(workflow.includes("workflow_dispatch:"),"Windows build workflow is not manual-only");
 const characterArch=read("Character_Architecture.md");
 must(characterArch.includes("AutonomousBehaviorController"),"Character architecture does not document autonomous ownership");
