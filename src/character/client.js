@@ -25,6 +25,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="autoMap"){const result=c.autoMap?.()||{ok:false,error:"Automatic rig mapping unavailable"};return{...result,status:c.status()}}
   if(x.action==="defineMotion"){const motion=c.defineMotion(x.motion||{});return{ok:true,motion,status:c.status()}}
   if(x.action==="deleteMotion"){const ok=c.deleteMotion(String(x.id||""));return{ok,status:c.status()}}
+  if(x.action==="setMotionEnabled"){const ok=c.setMotionEnabled?.(String(x.id||""),x.enabled!==false);return{ok,status:c.status()}}
   if(x.action==="listMotions")return{ok:true,motions:c.listMotions(),status:c.status()};
   if(x.action==="status")return{ok:true,status:c.status()};
   if(x.action==="semantic")return c.semantic(x.intent,x.options||{});
