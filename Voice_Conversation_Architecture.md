@@ -3010,7 +3010,7 @@ The application has two mutually exclusive active voice routes for a given conve
 
 When Realtime Voice is active, standard STT and standard TTS are suppressed for that same active voice route whenever the Realtime provider supplies native input transcription and audio output.
 
-Chat remains independent. Opening Chat creates Chat and requests the shared Brain Router only when conversational work requires it. Opening Chat alone does not turn on the microphone or create STT/Realtime; TTS is already available when Character is visible.
+Chat remains independent. Opening Chat creates Chat and requests the shared Brain Router only when conversational work requires it. Opening Chat alone does not turn on the microphone or create STT/Realtime. When Character is visible and unmuted, TTS is already READY/IDLE and can be used for speech output.
 
 MIC default state at application startup is OFF.
 
@@ -3019,7 +3019,7 @@ MIC default state at application startup is OFF.
 | Mode | Mic | STT | Brain Router | TTS | Realtime |
 |---|---|---|---|---|---|
 | Startup | OFF | OFF | OFF unless another feature requires it | READY/IDLE while Character is visible and unmuted | OFF |
-| Chat only | OFF | OFF | ON while required | OFF unless speech output requested | OFF |
+| Chat only | OFF | OFF | ON while required | READY/IDLE while Character is visible and unmuted; no playback unless requested | OFF |
 | Standard Voice + unmuted | ON | ON | ON while required | ON on demand | OFF |
 | Standard Voice + muted | ON | ON | ON while required | OFF | OFF |
 | Realtime | ON through Realtime | OFF | shared conversation routing only as required by the selected mode | OFF when Realtime supplies audio | ON |
