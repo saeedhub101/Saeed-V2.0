@@ -555,7 +555,6 @@ jobs:
 
 
       - name: Publish official release
-        if: always()
         if: (github.ref == format('refs/tags/{0}', steps.version.outputs.official_tag)) || inputs.publish_release == true
         shell: bash
         env:
