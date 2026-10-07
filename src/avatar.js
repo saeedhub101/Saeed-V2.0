@@ -148,10 +148,13 @@ function normalizeHumanoidRestPose(){
  return{detected:"upright",normalized:true,corrected:false,stillTPose:false};
 }
 function validateRig(mapping={}){
- const optional=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh","spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
+ const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
+ const optional=["spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
  const mapped=Object.keys(mapping).filter(k=>rig.get(k));
+ const criticalMissing=required.filter(k=>!mapping[k]&&!rig.get(k));
  const missing=optional.filter(k=>!mapping[k]&&!rig.get(k));
- return{ok:mapped.length>0,missing,criticalMissing:[],optionalMissing:missing,mapped:mapped.length,required:[],optional};
+ const capabilities={body:Boolean(rig.get("hips")),arms:Boolean(rig.get("leftUpperArm")&&rig.get("rightUpperArm")),legs:Boolean(rig.get("leftThigh")&&rig.get("rightThigh")),neck:Boolean(rig.get("neck")),eyes:Boolean(rig.get("leftEye")&&rig.get("rightEye")),blink:Boolean(rig.get("leftEye")&&rig.get("rightEye")),face:Boolean(rig.get("jaw")),fingers:Boolean(rig.get("leftHand")&&rig.get("rightHand"))};
+ return{ok:mapped.length>0,missing,criticalMissing,optionalMissing:missing,mapped:mapped.length,required,optional,capabilities};
 }
 function resetCharacterPose(){
  getSceneBones();
