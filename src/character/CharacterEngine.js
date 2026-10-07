@@ -285,6 +285,7 @@ function resize(){
 new ResizeObserver(resize).observe(canvas);
 
 function display(parsed){
+ traceGlb("display-start",{hasScene:Boolean(parsed?.scene),sceneName:parsed?.scene?.name||"",generation:loadGeneration});
  if(!parsed?.scene)throw new Error("Selected GLB contains no scene");
  const previous=model;
  const previousRig=rig,previousBase=base,previousGroups=boneGroups,previousRest=boneRest,previousMorphs=morphs;
@@ -305,6 +306,7 @@ function display(parsed){
   window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.();
   render();
  }catch(error){
+  traceGlb("display-error",{error:error?.stack||error?.message||String(error)});
   try{root.remove(next)}catch{}
   model=previous;rig=previousRig;base=previousBase;boneGroups=previousGroups;boneRest=previousRest;morphs=previousMorphs;
   throw error;
@@ -325,12 +327,17 @@ function getSceneBoneGroupsForModel(target){
 
 async function load(data,generation){
  activeLoad=true;loadError=null;
+ traceGlb("load-start",{generation,dataType:data?.constructor?.name||typeof data,byteLength:data?.byteLength??data?.length??null});
  try{
   const bytes=data instanceof ArrayBuffer?data:data instanceof Uint8Array?data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength):data?.buffer;
   if(!bytes)throw new Error("Selected GLB data is invalid");
+  traceGlb("bytes-ready",{generation,byteLength:bytes.byteLength});
+  traceGlb("parse-start",{generation,byteLength:bytes.byteLength});
   const parsed=await loader.parseAsync(bytes,"");
-  if(generation===loadGeneration)display(parsed);
+  traceGlb("parse-success",{generation,hasScene:Boolean(parsed?.scene),sceneName:parsed?.scene?.name||""});
+  if(generation===loadGeneration){traceGlb("generation-accepted",{generation});display(parsed)}else traceGlb("generation-rejected",{generation,currentGeneration:loadGeneration});
  }catch(error){
+  traceGlb("load-error",{generation,error:error?.stack||error?.message||String(error)});
   loadError=String(error?.stack||error?.message||error);
   window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError,window.saeed3DBootstrap.rejection=loadError);
   window.saeed?.reportDiagnostic?.("ERROR","GLB LOAD",loadError);
