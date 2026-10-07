@@ -138,16 +138,22 @@ export class CharacterController{
    return true;
   }
   setBoneRotation(name,rotation={}){
-  const ready=this.ensureRigBound({authoring:true});
-  if(!ready.ok)return false;
-  const bone=String(name||"");
-  const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
-  if(!available.has(bone))return false;
-  const ok=this.engine?.setBoneRotation?.(bone,rotation);
-  if(ok)this.engine?.wakeRender?.();
-  return ok;
-}
-resetBoneToRest(name){
+   const ready=this.ensureRigBound({authoring:true});
+   if(!ready.ok)return false;
+   const bone=String(name||"");
+   const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
+   if(!available.has(bone))return false;
+   const x=Number(rotation?.x),y=Number(rotation?.y),z=Number(rotation?.z);
+   if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
+   const ok=this.engine?.setBoneRotation?.(bone,{x,y,z});
+   if(!ok)return false;
+   const applied=this.engine?.getBoneRotation?.(bone),epsilon=1e-8;
+   if(!applied||Math.abs(applied.x-x)>epsilon||Math.abs(applied.y-y)>epsilon||Math.abs(applied.z-z)>epsilon)return false;
+   this.animation.pose?.delete?.(bone);
+   this.engine?.wakeRender?.();
+   return true;
+  }
+  resetBoneToRest(name){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
   const bone=String(name||"");
