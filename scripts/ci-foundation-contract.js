@@ -16,7 +16,7 @@ must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows b
 must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
 const suiteNames=[1,2,3,4];
 for(const n of suiteNames){
- const marker=n===4?"- name: GLB Character Test":"- name: Packaged EXE E2E Suite ${n} ";
+ const marker=n===4?"- name: GLB Character Test":`- name: Packaged EXE E2E Suite ${n} `;
  const start=workflow.indexOf(marker);
  const end=start<0?-1:workflow.indexOf("\n      - name:",start+marker.length);
  const block=start<0?"":workflow.slice(start,end<0?workflow.length:end);
