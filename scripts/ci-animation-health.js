@@ -18,7 +18,7 @@ const required=[
 "src/character/MotionRegistry.js","src/character/MotionSequence.js","src/character/MotionSafety.js",
 "src/character/PoseController.js","src/character/CharacterRig.js","src/character/CharacterRetargeter.js",
 "src/character/CanonicalSkeleton.js","src/character/AutoRigMapper.js","src/character/motions.js",
-"src/avatar.js"
+"src/character/CharacterEngine.js"
 ];
 for(const p of required)check("required module: "+p,exists(p),"file missing");
 
@@ -30,7 +30,7 @@ if(exists("src/character/MotionRegistry.js"))registry=read("src/character/Motion
 if(exists("src/character/motions.js"))motions=read("src/character/motions.js");
 if(exists("src/character/MotionSequence.js"))sequence=read("src/character/MotionSequence.js");
 if(exists("src/character/AnimationController.js"))animation=read("src/character/AnimationController.js");
-if(exists("src/avatar.js"))avatar=read("src/avatar.js");
+if(exists("src/character/CharacterEngine.js"))avatar=read("src/character/CharacterEngine.js");
 
 check("renderer exposes animation controller",client.includes("window.saeedAnimationController"));
 check("render wake API",client.includes("getRenderWakeMs")||avatar.includes("wakeRender"));
