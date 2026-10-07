@@ -20,7 +20,8 @@ function ciWriteStartupReport(kind,error){
 }
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e);ciWriteE2EStartup("uncaughtException",{error:String(e?.stack||e)})});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e);ciWriteE2EStartup("unhandledRejection",{error:String(e?.stack||e)})});
-if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");\nciWriteE2EStartup("process-start");
+if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
+ciWriteE2EStartup("process-start");
 // Startup contract: only Electron + the character surface are eager.
 // Brain, voice runtime, chat, capture, updater and secondary feature modules are lazy.
 const lazy={};
