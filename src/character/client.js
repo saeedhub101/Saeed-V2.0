@@ -46,10 +46,10 @@ async function executeCharacterCommand(command={}){
   return{ok:false,error:"Unknown character controller action"};
  }catch(error){return{ok:false,error:error?.message||String(error)}}
 }
-window.saeed?.onCharacterCommand?.(async(id,command)=>{
+window.saeed.character.onCharacterCommand?.(async(id,command)=>{
  const result=await executeCharacterCommand(command);
  window.saeed.character.characterCommandResult?.(id,result);
 });
 if(character){character.addEventListener("mousedown",e=>{if(e.button!==0||e.target.closest("button,input,a,select,textarea"))return;dragging=true;lastX=e.screenX;lastY=e.screenY;controller()?.touch?.();e.preventDefault()});window.addEventListener("mousemove",e=>{if(!dragging)return;const dx=e.screenX-lastX,dy=e.screenY-lastY;lastX=e.screenX;lastY=e.screenY;window.saeed.character.moveWindowBy(dx,dy)});window.addEventListener("mouseup",()=>{dragging=false;controller()?.touch?.()});character.addEventListener("contextmenu",()=>controller()?.handleEvent?.({type:"right-click"}));character.addEventListener("wheel",()=>controller()?.handleEvent?.({type:"zoom"}),{passive:true})}
 if(button&&icon&&label&&window.saeed){const render=mode=>{const on=String(mode||"off")==="on";button.classList.toggle("on",on);button.classList.toggle("off",!on);button.setAttribute("aria-pressed",String(on));button.title=on?"Turn microphone OFF":"Turn microphone ON";icon.textContent=on?"Ⅱ":"▶";label.textContent=on?"MIC ON":"MIC OFF"};button.addEventListener("click",async e=>{e.preventDefault();e.stopPropagation();const on=button.classList.contains("on");button.disabled=true;try{await window.saeed.voice.setMicMode(on?"off":"on")}catch(error){window.saeed.system.reportDiagnostic?.("ERROR","MIC BUTTON",error?.message||String(error))}finally{button.disabled=false}});window.saeed.voice.onMicMode?.(render)}
-window.saeed?.onCharacterBehavior?.(e=>controller()?.handleEvent?.(e));window.saeed?.onCharacterVisibility?.(s=>controller()?.setVisible?.(s!=="hidden"));window.addEventListener("load",()=>controller()?.setVisible?.(!document.hidden));window.addEventListener("beforeunload",()=>{try{controller()?.destroy?.()}catch{}try{runtime()?.engine?.destroy?.()}catch{}})})();
+window.saeed.character.onCharacterBehavior?.(e=>controller()?.handleEvent?.(e));window.saeed.character.onCharacterVisibility?.(s=>controller()?.setVisible?.(s!=="hidden"));window.addEventListener("load",()=>controller()?.setVisible?.(!document.hidden));window.addEventListener("beforeunload",()=>{try{controller()?.destroy?.()}catch{}try{runtime()?.engine?.destroy?.()}catch{}})})();
