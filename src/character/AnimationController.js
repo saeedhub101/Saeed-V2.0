@@ -21,7 +21,7 @@ export class AnimationController {
  stopAll(){this.active=[];this.state="idle";this.pose.clear();this.avatar?.resetCharacterPose?.();this.avatar?.wakeRender?.();return true;}
  update(dt=.0166666667){
   const delta=Math.max(0,Math.min(.25,Number(dt)||0));this.pose.clear();if(Object.keys(this.idlePose).length)this.pose.setMany(this.idlePose);
-  if(!this.active.length){const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(this.rig.remapPose(safe),this.rig.retargeter);return safe;}
+  if(!this.active.length){const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);return safe;}
   const next=[],samples=[];
   for(const a of this.active){
    a.elapsed+=delta*a.speed;if(a.duration&&a.elapsed>=a.duration&&!a.loop)continue;
@@ -39,10 +39,10 @@ export class AnimationController {
    let x=0,y=0,z=0,w=0;for(const s of selected){const v=s.pose[slot],ww=s.weight;x+=(Number(v.x)||0)*ww;y+=(Number(v.y)||0)*ww;z+=(Number(v.z)||0)*ww;w+=ww;}
    if(w)this.pose.set(slot,{x:x/w,y:y/w,z:z/w});
   }
-  if(!this.active.length)this.state="idle";const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(this.rig.remapPose(safe),this.rig.retargeter);return safe;
+  if(!this.active.length)this.state="idle";const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);return safe;
  }
- setIdlePose(pose={}){this.idlePose=JSON.parse(JSON.stringify(pose||{}));this.pose.setMany(this.idlePose);this.avatar?.applyCharacterPose?.(this.rig.remapPose(this.safety.clampPose(this.pose.snapshot())),this.rig.retargeter);this.avatar?.wakeRender?.();return this.idlePose;}
- setPose(pose={}){this.pose.setMany(pose);const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(this.rig.remapPose(safe),this.rig.retargeter);this.avatar?.wakeRender?.();return safe;}
+ setIdlePose(pose={}){this.idlePose=JSON.parse(JSON.stringify(pose||{}));this.pose.setMany(this.idlePose);this.avatar?.applyCharacterPose?.(this.safety.clampPose(this.pose.snapshot()),this.rig.retargeter);this.avatar?.wakeRender?.();return this.idlePose;}
+ setPose(pose={}){this.pose.setMany(pose);const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);this.avatar?.wakeRender?.();return safe;}
  setLimit(slot,limit){return this.safety.setLimit(slot,limit);}
  status(){return{state:this.state,motions:this.registry.definitions(),capabilities:this.rig.capabilities,active:this.active.map(x=>({id:x.m.id,layer:x.layer,priority:x.priority,blend:x.blend,elapsed:x.elapsed,duration:x.duration})),pose:this.pose.snapshot(),idlePose:this.idlePose,retargeting:this.rig.retargeter?.status?.()||null,limits:this.safety.status(),layers:Object.fromEntries(this.layers)}}
 }
