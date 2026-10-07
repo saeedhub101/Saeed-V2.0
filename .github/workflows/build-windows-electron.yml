@@ -59,18 +59,18 @@ jobs:
       - name: Validate repository structure
         shell: pwsh
         run: |
-          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/conversation-agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/client.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
+          $required = @("package.json","VERSION","src/main.js","src/preload.js","src/renderer.js","src/character/CharacterEngine.js","src/renderer/character.html","src/main/conversation/conversation-agent.js","src/realtime.js","src/main/automation/local-executor.js","src/tools/registry.js","src/main/brain/brain.js","src/main/brain/model-executor.js","src/main/ci-e2e.js","src/main/runtime.js","src/main/application/brain-host.js","src/main/voice/voice-host.js","src/renderer/voice/voice-client.js","src/character/CharacterController.js","src/character/CharacterRig.js","src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js","src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js","src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js","src/character-studio.html","src/three/GLTFLoader.js","src/main/character/character-host.js","src/index.html","src/performance.html","src/performance.js","src/performance.css")
           foreach ($path in $required) { if (-not (Test-Path $path -PathType Leaf)) { throw "Required project file is missing: $path" } }
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Character animation idle emotion and rig diagnostics (non-gating)
-        continue-on-error: true
+      - name: Character component diagnostics
         shell: pwsh
         run: |
           node scripts/ci-character-diagnostics.js
-          Write-Host "CHARACTER_DIAGNOSTICS_NON_GATING=true"
+          if ($LASTEXITCODE -ne 0) { throw "Character component diagnostics failed." }
+          Write-Host "CHARACTER_DIAGNOSTICS=PASS"
 
       - name: Application RAM startup diagnostic (non-gating)
         continue-on-error: true
@@ -117,6 +117,33 @@ jobs:
           Write-Host "RAM_DIAGNOSTIC_SAMPLES=$samples"
           Write-Host "RAM_DIAGNOSTIC_PEAK_MB=$peakMB"
           Write-Host "RAM_DIAGNOSTIC_NON_GATING=true"
+
+      - name: Character Studio and runtime component contract
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $required = @(
+            "src/character/CharacterEngine.js","src/character/CharacterController.js","src/character/CharacterRig.js",
+            "src/character/CharacterRetargeter.js","src/character/AnimationController.js","src/character/AutonomousBehaviorController.js",
+            "src/character/MotionRegistry.js","src/character/MotionEditor.js","src/character/FaceController.js",
+            "src/character/FingerController.js","src/character/AutoRigMapper.js","src/character/client.js",
+            "src/character-studio.html","src/three/GLTFLoader.js"
+          )
+          foreach($p in $required){if(!(Test-Path $p -PathType Leaf)){throw "Character component missing: $p"}}
+          $engine=Get-Content "src/character/CharacterEngine.js" -Raw
+          $controller=Get-Content "src/character/CharacterController.js" -Raw
+          $studio=Get-Content "src/character-studio.html" -Raw
+          $client=Get-Content "src/character/client.js" -Raw
+          foreach($contract in @(
+            @($engine,"setBoneRotation"),@($engine,"bindRig"),@($engine,"captureAuthoritativeRestPose"),
+            @($controller,"setBehavior"),@($controller,"setMotionEnabled"),@($controller,"bindSlot"),
+            @($client,"bindSlot"),@($client,"setBoneRotation"),@($studio,"GLTFLoader"),@($studio,"setBoneRotation"),@($studio,"bindSlot")
+          )){if(!$contract[0].Contains($contract[1])){throw "Character component contract missing: $($contract[1])"}}
+          if($studio -notmatch 'import \\* as THREE from "./node_modules/three/build/three.module.js"'){throw "Character Studio Three.js import missing"}
+          if($studio -notmatch 'from "./three/GLTFLoader.js"'){throw "Character Studio GLTFLoader import missing"}
+          if($studio -notmatch 'onCharacterSelected'){throw "Character Studio is not connected to selected-character IPC event"}
+          Write-Host "CHARACTER_STUDIO_COMPONENTS=PASS"
+          Write-Host "CHARACTER_LIVE_EDITING_CONTRACT=PASS"
 
       - name: Static JavaScript validation
         run: npm test
