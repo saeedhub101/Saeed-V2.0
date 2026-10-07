@@ -1,0 +1,27 @@
+const fs=require("fs"),path=require("path"),crypto=require("crypto");
+function root(userData){return path.join(userData,"addons","memory-stack")}
+function ensure(userData){for(const d of ["knowledge","vectors","conversations"])fs.mkdirSync(path.join(root(userData),d),{recursive:true});return root(userData)}
+function tokenize(text){return String(text||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s]/gu," ").split(/\s+/).filter(Boolean)}
+function embed(text,dimensions=256){const v=new Array(dimensions).fill(0);for(const t of tokenize(text)){const h=crypto.createHash("sha256").update(t).digest();v[h.readUInt32BE(0)%dimensions]+=1;v[h.readUInt32BE(4)%dimensions]-=.5}const n=Math.sqrt(v.reduce((a,x)=>a+x*x,0))||1;return v.map(x=>x/n)}
+function cosine(a,b){let dot=0,na=0,nb=0;for(let i=0;i<Math.max(a.length,b.length);i++){const x=Number(a[i]||0),y=Number(b[i]||0);dot+=x*y;na+=x*x;nb+=y*y}return na&&nb?dot/Math.sqrt(na*nb):0}
+function vectorFile(u){return path.join(root(u),"vectors","index.json")}function readVectors(u){ensure(u);try{return JSON.parse(fs.readFileSync(vectorFile(u),"utf8"))}catch{return{schemaVersion:1,items:[]}}}
+function writeVectors(u,d){ensure(u);const f=vectorFile(u),tmp=f+".tmp";fs.writeFileSync(tmp,JSON.stringify(d,null,2),"utf8");fs.renameSync(tmp,f)}
+function add(u,text,meta={}){const value=String(text||"").trim();if(!value)throw new Error("Memory text is empty");const d=readVectors(u),id=crypto.createHash("sha256").update(value+JSON.stringify(meta)).digest("hex").slice(0,24);d.items=d.items.filter(x=>x.id!==id);d.items.push({id,text:value,metadata:meta,embedding:embed(value),createdAt:new Date().toISOString()});writeVectors(u,d);return d.items.at(-1)}
+function search(u,q,limit=5){const d=readVectors(u),v=embed(q);return d.items.map(x=>({...x,score:cosine(v,x.embedding)})).sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Number(limit)||5))}
+function rememberConversation(u,id,role,text){ensure(u);const f=path.join(root(u),"conversations",String(id).replace(/[^a-z0-9._-]/gi,"_")+".jsonl");fs.appendFileSync(f,JSON.stringify({role,text,at:new Date().toISOString()})+"\n","utf8");return true}
+function addKnowledge(u,text,metadata={}){const value=String(text||"");const f=path.join(root(u),"knowledge",crypto.createHash("sha256").update(value).digest("hex").slice(0,24)+".json");fs.writeFileSync(f,JSON.stringify({text:value,metadata,updatedAt:new Date().toISOString()},null,2),"utf8");return add(u,value,{...metadata,type:"knowledge"})}
+function rag(u,q,limit=5){return search(u,q,limit).filter(x=>x.score>0)}
+function factsFile(u){return path.join(root(u),"knowledge","facts.json")}function readFacts(u){ensure(u);try{const d=JSON.parse(fs.readFileSync(factsFile(u),"utf8"));return Array.isArray(d?.facts)?d.facts:[]}catch{return[]}}
+function writeFacts(u,facts){ensure(u);const f=factsFile(u),tmp=f+".tmp";fs.writeFileSync(tmp,JSON.stringify({schemaVersion:1,facts},null,2),"utf8");fs.renameSync(tmp,f)}
+function migrateLegacyFacts(u,legacyFile){const facts=readFacts(u);if(facts.length)return facts;try{if(!legacyFile||!fs.existsSync(legacyFile))return facts;const legacy=JSON.parse(fs.readFileSync(legacyFile,"utf8"));const incoming=Array.isArray(legacy?.facts)?legacy.facts:[];if(!incoming.length)return facts;const migrated=incoming.map(x=>({key:String(x.key||x.text||"").toLowerCase().replace(/\s+/g," ").slice(0,180),text:String(x.text||"").trim(),createdAt:x.createdAt||new Date().toISOString(),updatedAt:x.updatedAt||new Date().toISOString()})).filter(x=>x.text);writeFacts(u,migrated);return migrated}catch{return facts}}
+function addFact(u,text){const value=String(text||"").trim();if(!value)return null;const facts=readFacts(u),key=value.toLowerCase().replace(/\s+/g," ").slice(0,180),now=new Date().toISOString(),existing=facts.find(x=>x.key===key);if(existing){existing.text=value;existing.updatedAt=now}else facts.push({key,text:value,createdAt:now,updatedAt:now});writeFacts(u,facts.slice(-100));return facts.find(x=>x.key===key)}
+function listFacts(u){return readFacts(u)}
+function forget(u,q){
+ const query=String(q||"").trim().toLowerCase();
+ if(!query)return{removed:0};
+ const d=readVectors(u),before=d.items.length;
+ d.items=d.items.filter(x=>!(String(x.id)===query||String(x.text||"").toLowerCase().includes(query)));
+ if(d.items.length!==before)writeVectors(u,d);
+ return{removed:before-d.items.length};
+}
+module.exports={root,ensure,embed,cosine,add,search,rememberConversation,addKnowledge,rag,forget,factsFile,readFacts,writeFacts,migrateLegacyFacts,addFact,listFacts};
