@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld("saeed",{isCiE2E:process.argv.includes("--ci-e2e
  onDiagnostic:f=>ipcRenderer.on("diagnostic:event",(_,e)=>f(e)),
  onDiagnosticState:f=>ipcRenderer.on("diagnostic:state",(_,e)=>f(e)),
  chooseCharacter:()=>ipcRenderer.invoke("character:choose"),getCharacter3DSettings:()=>ipcRenderer.invoke("character:3d:get"),setCharacter3DSettings:patch=>ipcRenderer.invoke("character:3d:set",patch),getCharacterController:()=>ipcRenderer.invoke("character:controller:get"),characterController:command=>ipcRenderer.invoke("character:controller:command",command),onCharacter3DSettings:f=>ipcRenderer.on("character:3d-settings",(_,s)=>f(s)),
- onCharacterSelected:f=>ipcRenderer.on("character:selected",(_,e,g)=>f(e,g)),onCharacterVisibility:f=>ipcRenderer.on("character:visibility",(_,state)=>f(state)),onCharacterBehavior:f=>ipcRenderer.on("character:behavior",(_,e)=>f(e)),characterActivity:()=>ipcRenderer.send("character:activity"),
+ onCharacterSelected:f=>ipcRenderer.on("character:selected",(_,e,g)=>f(e,g)),onCharacterCommand:f=>ipcRenderer.on("character:command",(_,id,command)=>f(id,command)),characterCommandResult:(id,result)=>ipcRenderer.send("character:command-result",id,result),onCharacterVisibility:f=>ipcRenderer.on("character:visibility",(_,state)=>f(state)),onCharacterBehavior:f=>ipcRenderer.on("character:behavior",(_,e)=>f(e)),characterActivity:()=>ipcRenderer.send("character:activity"),
  moveWindowBy:(dx,dy)=>ipcRenderer.send("window:move-by",dx,dy),moveChatBy:(dx,dy)=>ipcRenderer.send("chat:move-by",dx,dy),
  showChat:()=>ipcRenderer.send("window:show-chat"),
  closeChat:()=>ipcRenderer.send("window:close-chat"),
