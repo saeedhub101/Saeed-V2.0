@@ -67,7 +67,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  }
  mic=new RealtimeMic();
  let rmsSettingsTimer=null;
- async function refreshRmsSettings(){try{const s=await window.saeed.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(s?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.09));realtimeBrainMode=["saeed","api","auto"].includes(s?.realtimeBrainMode)?s.realtimeBrainMode:"auto";ttsProvider=["openai","groq","elevenlabs"].includes(s?.ttsProvider)?s.ttsProvider:"local";sttProvider=["openai","groq","elevenlabs"].includes(s?.sttProvider)?s.sttProvider:"whisper"}catch{}}
+ async function refreshRmsSettings(){try{const s=await window.saeed.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(s?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.09));realtimeBrainMode=["saeed","api","auto"].includes(s?.realtimeBrainMode)?s.realtimeBrainMode:"auto";ttsProvider=["openai","groq","elevenlabs"].includes(s?.ttsProvider)?s.ttsProvider:"local";voiceMuted=Boolean(s?.voiceMuted);sttProvider=["openai","groq","elevenlabs"].includes(s?.sttProvider)?s.sttProvider:"whisper"}catch{}}
  window.saeed.onCharacterBehavior?.(e=>{if(e?.type==="idle-thought"&&e.text)speak(e.text)});
  window.saeed.onVoiceSpeak?.(text=>{if(text)speak(String(text));});
  window.saeed.onVoiceMute(m=>{voiceMuted=Boolean(m);if(voiceMuted){stopSpeaking();mic?.stop?.();if(rmsSettingsTimer){clearInterval(rmsSettingsTimer);rmsSettingsTimer=null}micEnabled=false;report("INFO","VOICE STOP","All renderer voice services stopped because Saeed is muted")}});
