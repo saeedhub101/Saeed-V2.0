@@ -1,7 +1,7 @@
 const fs=require("fs"),path=require("path");
 
 function createCiE2E(deps={}){
- const {app,getCharacterWindow,getChatHost,getAgent,getTray,getBrainActive,ensureBrain,releaseBrainIfIdle,setMicMode,setVoiceMuted,getVoiceMuted,characterHost,getVoiceHost,getPerformanceWindow,showPerformance:depsShowPerformance,getSettingsWindow,getAddonsWindow,getLearningWindow,getStatusWindow,getRestPoseEditorWindow,getNormalizeHumanoidRestPoseWindow,showSettings:depsShowSettings,showAddons:depsShowAddons,showLearning:depsShowLearning,showStatus:depsShowStatus,showRestPoseEditor:depsShowRestPoseEditor}=deps;
+ const {app,getCharacterWindow,getChatHost,getAgent,getTray,getBrainActive,ensureBrain,releaseBrainIfIdle,setMicMode,setVoiceMuted,getVoiceMuted,characterHost,getVoiceHost,getPerformanceWindow,showPerformance:depsShowPerformance,getSettingsWindow,getAddonsWindow,getLearningWindow,getStatusWindow,getRestPoseEditorWindow,getNormalizeHumanoidRestPoseWindow,showNormalizeHumanoidRestPose:depsShowNormalizeHumanoidRestPose,showSettings:depsShowSettings,showAddons:depsShowAddons,showLearning:depsShowLearning,showStatus:depsShowStatus,showRestPoseEditor:depsShowRestPoseEditor}=deps;
  const report={startedAt:new Date().toISOString(),checks:{},phases:{},suite:null};
  const suiteArg=String(process.env.SAEED_CI_E2E_SUITE||"all");
  const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist",suiteArg==="all"?"ci-e2e-report.json":`ci-e2e-suite-${suiteArg}.json`);
