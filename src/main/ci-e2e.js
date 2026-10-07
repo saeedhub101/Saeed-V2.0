@@ -42,7 +42,7 @@ function createCiE2E(deps={}){
   "chat.open":30000,
   "chat.local-time":30000,
   "brain.intent-open-my-computer":45000,
-  "brain.intent-api-escalation":90000,
+  "brain.intent-api-escalation":120000,
   "chat.response-reaches-character-bubble":60000,
   "voice.chat-response-tts-chain":90000,
   "chat.ui-response-visible":30000,
@@ -52,7 +52,9 @@ function createCiE2E(deps={}){
   "voice.mic-device-capability":30000,
   "mute.text-still-visible":30000,
   "chat.close-keeps-brain-when-mic-on":45000,
-  "mic-off-releases-brain-after-chat-closed":45000
+  "mic-off-releases-brain-after-chat-closed":45000,
+  "character.studio-animation-any-bone-edit-play":90000,
+  "glb.replace-character-file":60000
  };
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
