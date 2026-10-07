@@ -135,6 +135,7 @@ export class CharacterController{
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
+  this.autonomous?.start?.();
   this.idleBusy=false;
   if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(7000);
   return {loaded:true,...x};
