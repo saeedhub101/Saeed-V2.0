@@ -7,8 +7,9 @@ export class AnimationController {
  constructor(avatar){this.avatar=avatar;this.rig=new CharacterRig();this.pose=new PoseController();this.registry=new MotionRegistry();this.active=[];this.state="idle";this.idlePose={};this.safety=new MotionSafety();this.layers=new Map([["base",0],["body",10],["arms",20],["head",30],["face",40],["hands",50],["special",60]]);}
  bindRig(bones={},retargeter=null){this.rig.bind(bones,retargeter);return this.rig.snapshot();}
  register(def){return this.registry.register(def);}
+ setMotionEnabled(id,enabled=true){return this.registry.setEnabled(id,enabled);}
  play(id,options={}){
-  const m=this.registry.get(id);if(!m)return false;const required=m.requiredCapabilities||[];if(required.some(cap=>!this.rig.capabilities?.[cap]))return false;
+  const m=this.registry.get(id);if(!m||m.enabled===false)return false;const required=m.requiredCapabilities||[];if(required.some(cap=>!this.rig.capabilities?.[cap]))return false;
   const layer=options.layer||m.layer||"body",priority=Number(options.priority??this.layers.get(layer)??0);
   const item={m,elapsed:0,duration:Math.max(0,Number(options.duration??m.duration)||0),speed:Math.max(.05,Number(options.speed)||1),intensity:Number(options.intensity??1),layer,loop:Boolean(options.loop??m.loop),blend:Math.max(0,Number(options.blend??m.blend??.15)),priority};
   this.active=this.active.filter(x=>x.layer!==layer||x.priority>priority);
@@ -43,5 +44,5 @@ export class AnimationController {
  setIdlePose(pose={}){this.idlePose=JSON.parse(JSON.stringify(pose||{}));this.pose.setMany(this.idlePose);this.avatar?.applyCharacterPose?.(this.rig.remapPose(this.safety.clampPose(this.pose.snapshot())),this.rig.retargeter);this.avatar?.wakeRender?.();return this.idlePose;}
  setPose(pose={}){this.pose.setMany(pose);const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(this.rig.remapPose(safe),this.rig.retargeter);this.avatar?.wakeRender?.();return safe;}
  setLimit(slot,limit){return this.safety.setLimit(slot,limit);}
- status(){return{state:this.state,motions:this.registry.list(),capabilities:this.rig.capabilities,active:this.active.map(x=>({id:x.m.id,layer:x.layer,priority:x.priority,blend:x.blend,elapsed:x.elapsed,duration:x.duration})),pose:this.pose.snapshot(),idlePose:this.idlePose,retargeting:this.rig.retargeter?.status?.()||null,limits:this.safety.status(),layers:Object.fromEntries(this.layers)}}
+ status(){return{state:this.state,motions:this.registry.definitions(),capabilities:this.rig.capabilities,active:this.active.map(x=>({id:x.m.id,layer:x.layer,priority:x.priority,blend:x.blend,elapsed:x.elapsed,duration:x.duration})),pose:this.pose.snapshot(),idlePose:this.idlePose,retargeting:this.rig.retargeter?.status?.()||null,limits:this.safety.status(),layers:Object.fromEntries(this.layers)}}
 }
