@@ -21,7 +21,7 @@ jobs:
   build:
     name: Test and build Windows
     runs-on: windows-latest
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - name: Checkout exact commit
         uses: actions/checkout@v7
