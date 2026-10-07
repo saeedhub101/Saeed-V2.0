@@ -182,7 +182,7 @@ function installCharacterController(){
  if(!engine||typeof engine.getCharacterPoseStatus!=="function")return false;
  if(window.saeedCharacterRuntime?.controller?.engine===engine){
   const ready=engine.getCharacterPoseStatus?.();
-  if(ready?.loaded&&!window.saeedCharacterRuntime?.controller.characterId)window.saeedCharacterRuntime?.controller.onCharacterLoaded?.();
+  if(ready?.loaded&&(!window.saeedCharacterRuntime?.controller.characterId||!Object.keys(engine.getBoneMap?.()||{}).length))window.saeedCharacterRuntime?.controller.onCharacterLoaded?.();
   return true;
  }
  const controller=new CharacterController(engine);
