@@ -1,1 +1,1 @@
-require("./core/app-runtime");
+require("./main/runtime");
