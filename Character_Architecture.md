@@ -4052,7 +4052,7 @@ The architecture is complete only when:
 
 ---
 
-# 77. Authoritative Statement
+# 128. Authoritative Statement
 
 This document is the architecture contract for the Saeed 3D Character Runtime.
 
