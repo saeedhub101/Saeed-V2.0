@@ -56,15 +56,14 @@ export class CharacterController{
   const available=new Set(names.map(n=>String(n).toLowerCase()));
   const mapping={...auto.mapping};
   for(const [slot,name] of Object.entries(profile?.mapping||{}))if(name&&available.has(String(name).toLowerCase()))mapping[slot]=name;
+  const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
   let bound=false;
-  if(Object.keys(mapping).length)bound=Boolean(this.engine?.bindRig?.(mapping));
+  if(Object.keys(mapping).length)bound=Boolean(this.engine?.bindRig?.(mapping,savedRestPose));
   let mapped=this.engine?.getBoneMap?.()||{};
   if(!Object.keys(mapped).length&&Object.keys(auto.mapping).length){
-   bound=Boolean(this.engine?.bindRig?.(auto.mapping));
+   bound=Boolean(this.engine?.bindRig?.(auto.mapping,savedRestPose));
    mapped=this.engine?.getBoneMap?.()||{};
   }
-  const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
-  if(savedRestPose?.bones)this.engine?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
   this.retargeter.bind(mapped,profile?.calibration||{});
   this.fingers.bind(names);
   this.animation.bindRig(mapped,this.retargeter);
