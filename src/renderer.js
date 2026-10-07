@@ -45,7 +45,7 @@ async function send(){
  if(attachments.length){t=(t?t+"\n\n":"")+"[مرفقات]\n"+attachments.map(a=>"--- "+a.name+" ---\n"+a.text).join("\n");attachments=[];renderAttachments()}
  busy=true;$("input").value="";add("user",t);$("status").textContent="يفكر...";
  const image=pendingImage;pendingImage=null;
- try{const answer=await window.saeed.chat(t,image);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);window.saeed.voice.speakText?.(answer);}}
+ try{const answer=await window.saeed.chat.chat(t,image);if(answer?.error)add("assistant","حدث خطأ: "+answer.error);else if(answer){add("assistant",answer);window.saeed.voice.speakText?.(answer);}}
  catch(e){add("assistant","حدث خطأ: "+e.message)}
  finally{busy=false;$("status").textContent="جاهز";refreshChatTabs()}
 }
