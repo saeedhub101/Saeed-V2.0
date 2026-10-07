@@ -10,7 +10,7 @@ import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js"
 
 export class CharacterController{
  constructor(engine){
-  this.engine=engine;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.engine=engine;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.behavior={idle:true,breathing:false,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:20*60*1000};this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -41,7 +41,7 @@ export class CharacterController{
   if(Object.keys(mapping).length)this.engine?.bindRig?.(mapping);
     const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
     if(savedRestPose?.bones)this.engine?.applyRestPoseSnapshot?.(savedRestPose.bones,savedRestPose.normalization);
-  const mapped=this.engine?.getBoneMap?.()||bones;this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
+  const mapped=this.engine?.getBoneMap?.()||bones;this.retargeter.bind(mapped,profile?.calibration||{});this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=profileId;
   const validation=this.engine?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.engine?.getRestPoseNormalization?.()||{normalized:true};
   if(validation.criticalMissing?.length||rest.normalized===false){
    const parts=[];if(validation.criticalMissing?.length)parts.push("Required rig missing: "+validation.criticalMissing.join(", "));if(rest.normalized===false)parts.push("Rest pose: "+String(rest.detected||"not normalized"));
@@ -69,10 +69,12 @@ export class CharacterController{
  stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
  finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
- setPose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setPose(pose);this.startFrameLoop();return out}
+ setPose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const bones=pose?.__bones;if(bones){for(const [name,rotation] of Object.entries(bones))this.engine?.setBoneRotation?.(name,rotation);this.startFrameLoop();return bones}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
+ setBoneRotation(name,rotation={}){const ok=this.engine?.setBoneRotation?.(name,rotation);if(ok)this.engine?.wakeRender?.();return ok}
+ calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
- remap(mapping={}){const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},restPose:this.retargeter.status(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
- autoMap(){const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.engine?.bindRig?.(auto.mapping);if(ok){const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:this.retargeter.status(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
+ remap(mapping={}){const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
+ autoMap(){const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.engine?.bindRig?.(auto.mapping);if(ok){const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
  saveRestPose(){
   if(!this.characterId)this.bindCurrentCharacter();
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
@@ -81,10 +83,7 @@ export class CharacterController{
     if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
  }
- normalizeRestPose(){
-  const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;
-  return normalization;
- }
+ normalizeRestPose(){const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized)this.engine?.captureAuthoritativeRestPose?.(normalization);return normalization;}
  resetPose(){this.engine?.resetCharacterPose?.();this.animation.pose.clear();this.engine?.wakeRender?.(250);return true}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
@@ -167,7 +166,7 @@ function installCharacterController(){
   remap:m=>controller.remap(m),autoMap:()=>controller.autoMap(),saveRestPose:()=>controller.saveRestPose(),normalizeRestPose:()=>controller.normalizeRestPose(),setLimit:(s,l)=>controller.setLimit(s,l),
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
   listMotions:()=>controller.listMotions(),status:()=>controller.status(),register:def=>controller.animation.register(def),
-  setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};if(v.idle===false)controller.clearIdleTimer();else controller.startIdleScheduler(1200);return {...controller.behavior}},getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),
+  setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};controller.autonomous?.configure?.(controller.behavior);if(v.idle===false)controller.clearIdleTimer();else controller.startIdleScheduler(controller.behavior.frequencyMs);return {...controller.behavior}},setBoneRotation:(n,r)=>controller.setBoneRotation(n,r),calibrateJoint:(s,r)=>controller.calibrateJoint(s,r),getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),
   setVisible:v=>controller.setVisible(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
  };
  controller.setVisible(!document.hidden);
