@@ -1,6 +1,6 @@
 const {OpenAIRealtime,GeminiLive}=require("../../realtime");
 function createVoiceRuntime(deps={}){
- const getAgent=deps.getAgent||(()=>null), diagnostic=deps.diagnostic||(()=>{}), voiceBroadcast=deps.voiceBroadcast||(()=>{});
+ const getAgent=deps.getAgent||(()=>null), diagnostic=deps.diagnostic||(()=>{}), voiceBroadcast=deps.voiceBroadcast||(()=>{}), getToolSchemas=deps.getToolSchemas||(()=>[]), executeTool=deps.executeTool|| (async()=>({ok:false,error:"Tool execution gateway unavailable"}));
  let realtime=null,realtimeUserText="";
 function stopRealtime(){
  if(realtime){realtime.stop();realtime=null}
@@ -14,8 +14,7 @@ function startRealtime(options={}){
  const provider=String(s.realtimeProvider||"openai"),key=s.realtimeApiKey||s.apiKey||"";
  if(!key || (provider==="openai"&&s.provider==="ollama")){diagnostic("ERROR","REALTIME API KEY","Realtime API key is missing");voiceBroadcast("realtime:state","not-configured","Realtime API key is not configured.");return false}
  diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
- const registry=getAgent()?.registry;
- const realtimeTools=(registry?.schemas()||[]).map(t=>({
+ const realtimeTools=getToolSchemas().map(t=>({
   type:"function",
   name:t.function?.name,
   description:t.function?.description||"",
@@ -49,7 +48,7 @@ function startRealtime(options={}){
     voiceBroadcast("agent:event",{type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.",source:"realtime"});
     voiceBroadcast("agent:event",{type:"tool",name,args,source:"realtime"});
     let out;
-    try{out=await registry.call(name,args)}catch(e){out={ok:false,error:e.message}};
+    try{out=await executeTool(name,args)}catch(e){out={ok:false,error:e.message}};
     if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
     else voiceBroadcast("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
