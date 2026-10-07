@@ -14,7 +14,7 @@ must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workf
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must be manual-only");
 must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
-const suiteNames=[1,2,3];
+const suiteNames=[1,2,3,4];
 for(const n of suiteNames){
  const marker=`- name: Packaged EXE E2E Suite ${n} `;
  const start=workflow.indexOf(marker);
