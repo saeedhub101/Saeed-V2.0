@@ -36,7 +36,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
   touchActivity();
   if(brainInitPromise)return brainInitPromise;
   brainInitPromise=(async()=>{
-   const {Agent}=require("../../agent");
+   const {Agent}=require("../conversation/agent");
    const {ToolRegistry}=require("../../tools");
    const registry=new ToolRegistry({
     captureScreen,
