@@ -268,7 +268,7 @@ function render(){
   animationFrame=null;
   renderQueued=false;
   let keepAnimating=false;
-  if(animationTick){try{keepAnimating=animationTick(now)||false}catch(error){animationTick=null;window.saeed?.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
+  if(animationTick){try{keepAnimating=animationTick(now)||false}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
   renderer.render(scene,camera);
   if(keepAnimating)render();
  });
@@ -343,7 +343,7 @@ async function load(data,generation){
   traceGlb("load-error",{generation,error:error?.stack||error?.message||String(error)});
   loadError=String(error?.stack||error?.message||error);
   window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError,window.saeed3DBootstrap.rejection=loadError);
-  window.saeed?.reportDiagnostic?.("ERROR","GLB LOAD",loadError);
+  window.saeed.system.reportDiagnostic?.("ERROR","GLB LOAD",loadError);
   throw error;
  }finally{
   activeLoad=false;
@@ -384,7 +384,7 @@ function apply3DSettings(settings={}){
 window.saeedCharacterRuntime.engineApply3DSettings=apply3DSettings;
 window.saeedCharacterRuntime.engineGet3DSettings=()=>({...viewSettings});
 window.saeedCharacterRuntime.engineSetRuntimeActive=()=>true;
-window.saeed?.onCharacter3DSettings?.(apply3DSettings);
+window.saeed.character.onCharacter3DSettings?.(apply3DSettings);
 
 function setEditorRotation(x=0,y=0,z=0){
  if(!model)return false;
@@ -465,7 +465,7 @@ window.saeedCharacterRuntime.engine={
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
-window.saeed?.on3DQuery?.(requestId=>{
+window.saeed.character.on3DQuery?.(requestId=>{
  const status=window.saeedCharacterRuntime.engine.get3DStatus();
  const pose=getCharacterPoseStatus();
  const boneDetail=pose.loaded?`${pose.controllableBoneCount} controllable bones; rest pose ${pose.restPose?.normalized===false?"needs adjustment":"available"}`:"No character GLB is loaded";
