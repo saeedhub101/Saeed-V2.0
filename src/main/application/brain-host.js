@@ -36,7 +36,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
   touchActivity();
   if(brainInitPromise)return brainInitPromise;
   brainInitPromise=(async()=>{
-   const {Agent}=require("../conversation/agent");
+   const {ConversationAgent}=require("../conversation/conversation-agent");
    const {ToolRegistry}=require("../../tools");
    const registry=new ToolRegistry({
     captureScreen,
@@ -46,7 +46,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
     permissionPolicy,
     confirm
    });
-   agent=new Agent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease});
+   agent=new ConversationAgent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease});
    setAgent(agent);
    setVoiceMuted(Boolean(agent.settings.voiceMuted));
    lastActivity=Date.now();
