@@ -139,7 +139,7 @@ jobs:
             @($controller,"setBehavior"),@($controller,"setMotionEnabled"),@($controller,"bindSlot"),
             @($client,"bindSlot"),@($client,"setBoneRotation"),@($studio,"GLTFLoader"),@($studio,"setBoneRotation"),@($studio,"bindSlot")
           )){if(!$contract[0].Contains($contract[1])){throw "Character component contract missing: $($contract[1])"}}
-          if($studio -notmatch 'import \\* as THREE from "./node_modules/three/build/three.module.js"'){throw "Character Studio Three.js import missing"}
+          if($studio -notmatch 'import \* as THREE from "./node_modules/three/build/three.module.js"'){throw "Character Studio Three.js import missing"}
           if($studio -notmatch 'from "./three/GLTFLoader.js"'){throw "Character Studio GLTFLoader import missing"}
           if($studio -notmatch 'onCharacterSelected'){throw "Character Studio is not connected to selected-character IPC event"}
           Write-Host "CHARACTER_STUDIO_COMPONENTS=PASS"
@@ -160,8 +160,20 @@ jobs:
           }
           $html = @(Get-ChildItem "src" -Recurse -Filter "*.html" -File)
           $css = @(Get-ChildItem "src" -Recurse -Filter "*.css" -File)
+          foreach($file in $html) {
+            $raw = Get-Content $file.FullName -Raw
+            $matches = [regex]::Matches($raw,'<script[^>]*type="module"[^>]*>([\\s\\S]*?)</script>')
+            $index = 0
+            foreach($match in $matches) {
+              $script = Join-Path $env:RUNNER_TEMP ("html-script-" + $index + ".mjs")
+              Set-Content $script $match.Groups[1].Value -Encoding UTF8
+              node --check $script
+              if($LASTEXITCODE -ne 0){ throw "Inline module syntax validation failed: $($file.FullName) block $index" }
+              $index++
+            }
+          }
           Write-Host "Validated JS files: $($js.Count)"
-          Write-Host "HTML files present: $($html.Count)"
+          Write-Host "Validated HTML module scripts: $($html.Count)"
           Write-Host "CSS files present: $($css.Count)"
           $pkg=Get-Content "package.json" -Raw|ConvertFrom-Json
           foreach($dep in @($pkg.dependencies.PSObject.Properties.Name+$pkg.devDependencies.PSObject.Properties.Name)){if(-not(Test-Path "node_modules\\$dep")){throw "Installed dependency missing: $dep"}}
