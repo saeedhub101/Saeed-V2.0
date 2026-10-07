@@ -1055,7 +1055,7 @@ The current startup contract is:
 MIC OFF
 STT OFF
 Realtime OFF
-# TTS READY/IDLE
+TTS is READY/IDLE at startup because Character is visible.
 ```
 
 ---
