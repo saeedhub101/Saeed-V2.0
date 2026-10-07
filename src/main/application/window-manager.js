@@ -15,7 +15,7 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
   try{
    let win=getWindow("restPoseEditorWin");
    if(win&&!win.isDestroyed()){win.show();win.focus();return}
-  win=new BrowserWindow({width:760,height:620,minWidth:560,minHeight:460,title:"Saeed Character Studio",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
+  win=new BrowserWindow({width:1200,height:800,minWidth:900,minHeight:620,title:"Saeed Character Studio",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
    win.setIcon(iconPath());
    win.on("closed",()=>{setWindow("restPoseEditorWin",null)});
    setWindow("restPoseEditorWin",win);
