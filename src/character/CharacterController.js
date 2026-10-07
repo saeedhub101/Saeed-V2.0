@@ -137,10 +137,47 @@ resetBoneToRest(name){
 }
  calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
- remap(mapping={}){this.beginAuthoring();const ok=this.engine?.bindRig?.(mapping);if(!ok)return false;const names=this.engine?.getAvailableBoneNames?.()||[];const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose,customMotions:this.editor.list()});return true}
+ remap(mapping={}){
+  this.beginAuthoring();
+  const ok=this.engine?.bindRig?.(mapping);
+  if(!ok)return false;
+  const names=this.engine?.getAvailableBoneNames?.()||[],mapped=this.engine?.getBoneMap?.()||{};
+  this.retargeter.bind(mapped,this.retargeter.status().calibration);
+  this.fingers.bind(names);
+  this.animation.bindRig(mapped,this.retargeter);
+  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  if(this.characterId){
+   const existing=this.profiles.load(this.characterId)||{};
+   const restPose=existing.normalizehumanoidrestpose||existing.restPose||{
+    normalization:this.engine?.getRestPoseNormalization?.()||null,
+    bones:this.engine?.snapshotBoneRotations?.()||{}
+   };
+   this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
+  }
+  return true;
+}
  autoMap(){
   this.beginAuthoring();
-  const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};const ok=this.engine?.bindRig?.(auto.mapping);if(ok){const mapped=this.engine?.getBoneMap?.()||{};this.retargeter.bind(mapped,this.retargeter.status().calibration);this.fingers.bind(names);this.animation.bindRig(mapped,this.retargeter);this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,calibration:this.retargeter.status().calibration,restPose:this.engine?.getRestPoseNormalization?.(),idlePose:this.animation.idlePose})}return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence}}
+  const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);
+  if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};
+  const ok=this.engine?.bindRig?.(auto.mapping);
+  if(ok){
+   const mapped=this.engine?.getBoneMap?.()||{};
+   this.retargeter.bind(mapped,this.retargeter.status().calibration);
+   this.fingers.bind(names);
+   this.animation.bindRig(mapped,this.retargeter);
+   this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+   if(this.characterId){
+    const existing=this.profiles.load(this.characterId)||{};
+    const restPose=existing.normalizehumanoidrestpose||existing.restPose||{
+     normalization:this.engine?.getRestPoseNormalization?.()||null,
+     bones:this.engine?.snapshotBoneRotations?.()||{}
+    };
+    this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose});
+   }
+  }
+  return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence};
+}
  saveRestPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
@@ -160,8 +197,10 @@ resetBoneToRest(name){
  resetPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return false;
-  this.engine?.resetCharacterPose?.();
+  this.animation.stopAll();
   this.animation.pose.clear();
+  this.idleBusy=false;
+  this.engine?.resetCharacterPose?.();
   this.engine?.wakeRender?.(250);
   return true;
 }
