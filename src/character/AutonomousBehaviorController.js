@@ -19,7 +19,7 @@ export class AutonomousBehaviorController{
   this.recent=[];
   this.lastMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:1200000};
+  this.mood="cheerful";this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:1200000};
  }
  start(){
   if(this.running)return;
@@ -140,6 +140,7 @@ export class AutonomousBehaviorController{
   if(type==="drag-end"){this.character.play("nod",{duration:.65,priority:30});return true}
   return false;
  }
+ update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
   return {running:this.running,visible:this.visible,intent:this.intent,energy:Math.round(this.energy),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction};
