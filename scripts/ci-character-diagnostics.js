@@ -70,4 +70,4 @@ async function run(){
  }catch(e){report("rig runtime",false,e?.stack||e);}
  console.log(`[CHARACTER-DIAG] SUMMARY failures=${failures}`);if(failures>0){console.error("[CHARACTER-DIAG] GATING_FAILURE=true");process.exitCode=1;}else console.log("[CHARACTER-DIAG] GATING_FAILURE=false");
 }
-run().catch(e=>{report("diagnostics fatal",false,e?.stack||e);console.log("[CHARACTER-DIAG] NON_GATING=true");});
+run().catch(e=>{report("diagnostics fatal",false,e?.stack||e);console.error("[CHARACTER-DIAG] GATING_FAILURE=true");process.exitCode=1;});
