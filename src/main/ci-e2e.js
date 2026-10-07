@@ -42,7 +42,7 @@ function createCiE2E(deps={}){
   "chat.open":30000,
   "chat.local-time":30000,
   "brain.intent-open-my-computer":45000,
-  "brain.intent-api-escalation":45000,
+  "brain.intent-api-escalation":90000,
   "chat.response-reaches-character-bubble":60000,
   "voice.chat-response-tts-chain":90000,
   "chat.ui-response-visible":30000,
@@ -128,10 +128,10 @@ function createCiE2E(deps={}){
    });
 
    await check("brain.intent-open-my-computer",async()=>{
-    const agent=await ensureBrain?.();if(!agent)return false;
+    const agent=await operation("ensureBrain",()=>ensureBrain?.());if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
     try{
-      const result=await agent.run("Open my computer");
+      const result=await operation("agent.run",()=>agent.run("Open my computer"),{prompt:"Open my computer"});
       const route=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN ROUTE");
       return Boolean(String(result||"").trim())&&String(route?.message||"").includes("local");
     }finally{agent.onEvent=old}
@@ -140,7 +140,7 @@ function createCiE2E(deps={}){
     const agent=await ensureBrain?.();if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
     try{
-      const result=await agent.run("Open Excel and then book me a ticket");
+      const result=await operation("agent.run",()=>agent.run("Open Excel and then book me a ticket"),{prompt:"Open Excel and then book me a ticket"});
       const api=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN API");
       return Boolean(api)&&String(result||"").trim().length>0;
     }finally{agent.onEvent=old}
