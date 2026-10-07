@@ -19,7 +19,7 @@ export class AutonomousBehaviorController{
   this.recent=[];
   this.lastMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";
+  this.mood="cheerful";this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:1200000};
  }
  start(){
   if(this.running)return;
@@ -36,7 +36,8 @@ export class AutonomousBehaviorController{
  clearTimer(){if(this.timer){clearTimeout(this.timer);this.timer=null}}
  clearSleepTimer(){if(this.sleepTimer){clearTimeout(this.sleepTimer);this.sleepTimer=null}}
  clearBlinkTimer(){if(this.blinkTimer){clearTimeout(this.blinkTimer);this.blinkTimer=null}}
- armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping)return;const delay=2800+Math.random()*4200;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
+ configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer()}return {...this.settings}}
+ armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
  setVisible(value){
   this.visible=value!==false&&String(value)!=="hidden";
   if(!this.visible){this.stop();return true}
@@ -79,7 +80,7 @@ export class AutonomousBehaviorController{
    this.intent="sleeping";
    this.character.stopAll();
    this.character.play("sleep",{priority:60});
-  },SLEEP_AFTER_MS);
+  },Math.max(60000,Number(this.settings.sleepAfterMs)||SLEEP_AFTER_MS));
  }
  chooseIdle(){
   const pool=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get(id));
@@ -94,10 +95,10 @@ export class AutonomousBehaviorController{
   this.clearTimer();
   if(!this.running||!this.visible||this.sleeping)return;
   this.armBlinkTimer();
-  this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.max(1000,Number(delay)||DEFAULT_IDLE_DELAY));
+  this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.max(1000,Number(delay)||Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY));
  }
  evaluateNow(){
-  if(!this.running||!this.visible||this.sleeping)return false;
+  if(!this.running||!this.visible||this.sleeping||this.settings.idle===false)return false;
   this.decayEnergy();
   if(this.character.animation?.active?.length){this.schedule(DEFAULT_IDLE_DELAY);return false}
   if(performance.now()-this.lastMotionAt<this.cooldownMs){this.schedule(this.cooldownMs);return false}
@@ -106,7 +107,7 @@ export class AutonomousBehaviorController{
   this.intent="idle";
   this.lastMotionAt=performance.now();
   const played=this.character.play(id,{priority:10});
-  if(played&&Math.random()<0.45)this.lookAround();
+  if(played&&this.settings.autonomousMovement!==false&&this.settings.eyeTracking!==false)this.lookAround();
   this.armSleepTimer();
   this.schedule(DEFAULT_IDLE_DELAY);
   return Boolean(played);
