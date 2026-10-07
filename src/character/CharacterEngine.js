@@ -288,29 +288,43 @@ new ResizeObserver(resize).observe(canvas);
 
 function display(parsed){
  if(!parsed?.scene)throw new Error("Selected GLB contains no scene");
- if(model)dispose(model);
- root.clear();
- model=parsed.scene;
- root.add(model);
- rig.clear();base.clear();
- boneGroups.clear();
- boneRest.clear();
- getSceneBoneGroups();
- for(const [name,list] of boneGroups){
+ const previous=model;
+ const previousRig=rig,previousBase=base,previousGroups=boneGroups,previousRest=boneRest,previousMorphs=morphs;
+ const next=parsed.scene;
+ const nextGroups=getSceneBoneGroupsForModel(next);
+ const nextRest=new Map();
+ for(const [name,list] of nextGroups){
   const b=list[0];
   if(!b)continue;
-  boneRest.set(name,{
-   rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},
-   position:{x:b.position.x,y:b.position.y,z:b.position.z}
-  });
+  nextRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},position:{x:b.position.x,y:b.position.y,z:b.position.z}});
  }
- collectMorphs();
- // The GLB scene is authoritative before controller binding.
-  window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
-  queueMicrotask(()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
- fit();
- render();
+ try{
+  root.add(next);
+  model=next;
+  rig=new Map();base=new Map();boneGroups=nextGroups;boneRest=nextRest;morphs=new Map();
+  collectMorphs();
+  fit();
+  render();
+ }catch(error){
+  try{root.remove(next)}catch{}
+  model=previous;rig=previousRig;base=previousBase;boneGroups=previousGroups;boneRest=previousRest;morphs=previousMorphs;
+  throw error;
+ }
+ if(previous){
+  try{root.remove(previous)}catch{}
+  dispose(previous);
+ }
+ window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
+ queueMicrotask(()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
 }
+function getSceneBoneGroupsForModel(target){
+ const groups=new Map();
+ const add=b=>{if(!b?.name)return;const key=String(b.name),list=groups.get(key)||[];if(!list.includes(b))list.push(b);groups.set(key,list)};
+ target?.traverse(o=>{if(o?.isBone)add(o)});
+ target?.traverse(o=>{if(!o?.isSkinnedMesh||!o.skeleton?.bones)return;for(const b of o.skeleton.bones)add(b)});
+ return groups;
+}
+
 async function load(data,generation){
  activeLoad=true;
  try{
