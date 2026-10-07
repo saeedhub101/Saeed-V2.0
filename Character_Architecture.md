@@ -4612,3 +4612,958 @@ The objective is to reproduce its strongest architectural principle in a 3D syst
 Saeed is therefore:
 
 **one character runtime, one controller, one authoritative behavior path, one replaceable 3D body, and one unified message surface above the character.**
+
+# 80. Saeed as an Independent Living Character Runtime
+
+This is a foundational architectural requirement for Saeed-V2.0.
+
+Saeed must not behave like a passive 3D model that waits for the application, the chat system, or the LLM to tell it what to do.
+
+Saeed is an **independent character runtime inside the application**.
+
+The application provides the environment, user input, Brain/LLM, tools, audio, windows and services. However, the character itself owns its own behavioral life cycle:
+
+    Application
+       │
+       ├── User interaction
+       ├── Brain / LLM
+       ├── Tools
+       ├── TTS / STT
+       ├── System events
+       └── Renderer
+              │
+              │ semantic events / context
+              ▼
+       +------------------------------+
+       |      Saeed Character Runtime  |
+       |------------------------------|
+       | CharacterController            |
+       | AutonomousBehaviorController   |
+       | State                          |
+       | Mood                           |
+       | Energy                         |
+       | Context                        |
+       | Behavior Policy                |
+       | Scheduler                      |
+       | Motion History                 |
+       | Event Arbitration              |
+       | Motion Intent                  |
+       +---------------+--------------+
+                       |
+                       ▼
+                Motion System
+                       |
+                       ▼
+                 3D Character
+
+The key rule is:
+
+> **The LLM is Saeed's conversational intelligence, not the real-time controller of Saeed's body.**
+
+The LLM may describe meaning, emotion, conversational state, or an explicit character intent. The Character Runtime decides how Saeed physically behaves.
+
+## 80.1 Character Independence
+
+Saeed must be able to continue functioning as a character when:
+
+- the LLM is idle
+- the LLM is unavailable
+- the network is unavailable
+- no conversation is taking place
+- the user is not interacting
+- no tool is running
+- TTS is unavailable
+- STT is unavailable
+- the application is waiting for input
+
+At minimum, local character behavior must still support:
+
+- idle posture
+- breathing / subtle life motion
+- eye behavior when available
+- small gaze changes
+- posture adjustment
+- weight shifting
+- occasional context-appropriate motion
+- sleep
+- wake
+- user-interaction reactions
+- local motion variation
+- recent-motion suppression
+
+LLM-backed autonomous features are optional enrichment only.
+
+## 80.2 Presence Is Not Activity
+
+The character must feel present without constantly performing noticeable actions.
+
+Presence is created by a combination of:
+
+- stable posture
+- breathing
+- blinking
+- eye/gaze behavior
+- tiny head adjustments
+- subtle weight shifts
+- occasional posture correction
+- contextual reactions
+
+These are mostly micro behaviors.
+
+Noticeable major behavior must be much less frequent.
+
+Therefore:
+
+    Character presence
+        !=
+    continuous animation
+
+and:
+
+    Naturalness
+        !=
+    number of animations
+
+The desired result is:
+
+> Saeed usually remains quietly present, occasionally shows meaningful activity, rarely asks for attention, and never competes with the user.
+
+## 80.3 Autonomous Behavior Is Not Random Animation
+
+Autonomy must never be implemented as:
+
+    setInterval(() => randomAnimation(), ...)
+
+or any equivalent scattered random loop.
+
+There must be one authoritative autonomous behavior owner under the CharacterController.
+
+Recommended ownership:
+
+    CharacterController
+       └── AutonomousBehaviorController
+              ├── Scheduler
+              ├── Context Sensor
+              ├── Behavior Policy
+              ├── Cooldown Manager
+              ├── Motion History
+              └── Event Arbiter
+
+The renderer must never create its own autonomous decisions.
+
+## 80.4 What the Character Decides by Itself
+
+The autonomous character system may decide locally:
+
+- whether to remain still
+- whether to perform a micro behavior
+- whether to look toward something
+- whether to adjust posture
+- whether to perform an idle gesture
+- whether to wander
+- whether to enter sleep
+- whether to wake
+- whether to make a very rare attention attempt
+- whether a previous autonomous event should be suppressed
+- which motion family is appropriate
+- how strong or subtle the motion should be
+- whether the current character has the required capabilities
+
+It must not independently decide to:
+
+- send arbitrary network requests
+- expose private user data
+- interrupt important user speech
+- interrupt active TTS
+- overwrite an authoritative user response
+- bypass CharacterController
+- directly manipulate renderer-owned state
+- directly manipulate model-specific bones
+
+## 80.5 LLM and Character Runtime Boundary
+
+The LLM operates at the semantic level.
+
+Valid LLM output:
+
+    emotion = happy
+    state = thinking
+    intent = acknowledge
+    intensity = 0.6
+
+Invalid LLM responsibility:
+
+    rotate head 14 degrees
+    rotate left arm quaternion
+    select GLB bone "mixamorig:Head"
+    run animation clip "Happy01"
+    decide every blink
+    decide every idle movement
+    schedule every posture adjustment
+
+The correct relationship is:
+
+    LLM
+      ↓
+    semantic meaning
+      ↓
+    CharacterController
+      ↓
+    local character policy
+      ↓
+    motion intent
+      ↓
+    motion generator
+      ↓
+    motion safety
+      ↓
+    rig / retargeter
+      ↓
+    GLB
+
+The reverse dependency is forbidden:
+
+    LLM
+      ↓
+    bones / renderer
+
+## 80.6 Autonomous Behavior Must Work Without the LLM
+
+Basic autonomy must never require a successful LLM request.
+
+For example, if Saeed has been idle for several minutes, the local runtime may decide:
+
+    remain still
+
+or:
+
+    subtle gaze shift
+
+or:
+
+    posture adjustment
+
+or:
+
+    small idle gesture
+
+or:
+
+    enter sleep
+
+No LLM call is necessary.
+
+An optional LLM idle thought may exist later, but it must be a separate, throttled enrichment path:
+
+    local autonomy
+          │
+          ├── normal local behavior
+          │
+          └── optional idle-thought request
+                    ↓
+                  LLM
+
+The failure of the optional branch must not affect the character runtime.
+
+## 80.7 Autonomous Behavior Uses Context
+
+Before selecting an autonomous event, the controller should inspect:
+
+- current state
+- current mood
+- energy
+- user activity
+- elapsed inactivity
+- current conversation status
+- current TTS/STT status
+- current tool activity
+- current bubble state
+- current motion
+- recent motion IDs
+- recent motion families
+- recent attention attempts
+- recent wander
+- sleep status
+- time of day
+- character capabilities
+- window/work-area constraints
+- current GLB generation/profile
+
+The autonomous system therefore behaves as a policy engine rather than a random animation picker.
+
+## 80.8 Weighted Autonomous Decision Model
+
+Conceptually:
+
+    score(candidate) =
+        baseWeight
+      + moodCompatibility
+      + stateCompatibility
+      + energyCompatibility
+      + contextCompatibility
+      + timeOfDayCompatibility
+      + capabilityCompatibility
+      + userRelationshipFeedback
+      - recentMotionPenalty
+      - recentFamilyPenalty
+      - cooldownPenalty
+      - attentionPenalty
+      - activityPenalty
+
+The implementation may use another mathematical model, but it must preserve the same architectural properties:
+
+- context awareness
+- memory
+- suppression
+- timing
+- restraint
+- user responsiveness
+
+## 80.9 Quietness Is a Valid Decision
+
+The autonomous system must have an explicit:
+
+    NO_EVENT
+
+or equivalent outcome.
+
+This is essential.
+
+Every evaluation does not need to produce movement.
+
+For example:
+
+    evaluate()
+       ↓
+    candidates
+       ↓
+    policy
+       ↓
+    no candidate sufficiently appropriate
+       ↓
+    remain still
+
+A system that can only choose an animation will inevitably become annoying.
+
+## 80.10 Micro Behavior Layer
+
+Micro behavior should maintain life while remaining visually quiet.
+
+Examples:
+
+- blink
+- breathing
+- eye saccade
+- small gaze correction
+- tiny head correction
+- posture settling
+- subtle shoulder movement
+- small weight shift
+- finger relaxation
+- facial micro-expression
+
+Micro behavior must obey the same authority and safety rules as major behavior.
+
+It should not become a second autonomous controller.
+
+## 80.11 Major Autonomous Behavior
+
+Major autonomous behavior is intentionally rare.
+
+Examples:
+
+- look around
+- stretch
+- thoughtful pose
+- small wave
+- brief body gesture
+- reposition / wander
+- idle reaction
+- sleep transition
+
+Major behavior must have:
+
+- minimum interval
+- probability gate
+- recent-behavior penalty
+- state gate
+- user-activity gate
+- priority gate
+- capability check
+
+## 80.12 Autonomous Wander
+
+Wander is not an uncontrolled random movement.
+
+The autonomous system selects a small valid movement target and submits it through the same authoritative character movement path.
+
+Wander must consider:
+
+- screen/work-area bounds
+- character dimensions
+- current position
+- user activity
+- current state
+- current motion
+- mood
+- energy
+- recent movement
+- minimum distance
+- maximum distance
+- cooldown
+
+Wander must immediately yield to:
+
+- user drag
+- direct user command
+- important system event
+- speaking/listening interaction
+- higher-priority character behavior
+
+## 80.13 Sleep Is a Real Character State
+
+Sleep is not simply an animation clip.
+
+The character runtime transitions into a real sleeping state.
+
+Conceptually:
+
+    ACTIVE
+       ↓
+    IDLE
+       ↓
+    prolonged inactivity
+       ↓
+    sleep candidate
+       ↓
+    SLEEPING
+
+While sleeping, the runtime suppresses:
+
+- autonomous major motion
+- wander
+- idle thoughts
+- attention calls
+- autonomous voice
+- nonessential communication
+
+Quiet micro-life behavior may continue if visually and computationally appropriate.
+
+## 80.14 Wake Is Controlled by the Character Runtime
+
+Valid wake triggers may include:
+
+- click
+- drag
+- user speech
+- direct command
+- explicit summon
+- important system event
+- other configured meaningful interaction
+
+Wake sequence:
+
+    SLEEPING
+       ↓
+    wake trigger
+       ↓
+    wake state
+       ↓
+    wake motion
+       ↓
+    ACTIVE / IDLE
+
+The wake event must not create a duplicate controller or reset the Brain.
+
+## 80.15 User Interaction Always Wins
+
+This is one of the highest-priority rules.
+
+If Saeed is performing autonomous behavior and the user starts meaningful interaction:
+
+    autonomous behavior
+          ↓
+    user interaction
+          ↓
+    autonomous behavior yields
+
+Examples:
+
+- wander → user drag → wander stops
+- idle thought → user message → thought is dropped
+- autonomous gesture → user command → gesture yields if safely interruptible
+- autonomous voice → user conversation → autonomous voice is blocked
+- autonomous bubble → authoritative response → autonomous bubble is suppressed or completed according to policy
+
+The user must never feel that Saeed is ignoring them because an autonomous action was already scheduled.
+
+## 80.16 Autonomous Events Must Expire
+
+Autonomous events must have a validity window.
+
+Example:
+
+    idle thought created at t=100s
+                     ↓
+    user returns at t=101s
+                     ↓
+    event no longer valid
+                     ↓
+    DROP
+
+Do not queue stale autonomous events indefinitely.
+
+This is especially important for:
+
+- bubbles
+- voice
+- wander
+- attention calls
+- gestures
+
+The system must prefer dropping a stale autonomous event over executing it late.
+
+## 80.17 Event Priority
+
+Recommended priority:
+
+    100 system-critical
+     95 direct user manipulation
+     90 direct user interaction
+     85 listening / speaking
+     75 active thinking
+     70 important tool reaction
+     60 normal semantic reaction
+     40 wake
+     25 autonomous movement
+     15 idle thought
+     10 idle major motion
+      1 micro behavior
+
+The exact values may change, but the ordering must remain.
+
+## 80.18 Attention Seeking Must Be Rare
+
+Saeed must not repeatedly call the user's attention.
+
+Attention should use the least intrusive method that is sufficient.
+
+Recommended escalation:
+
+    Level 1
+    subtle gaze / orientation
+
+       ↓ if appropriate
+
+    Level 2
+    small head turn / gesture
+
+       ↓ if appropriate
+
+    Level 3
+    gesture + bubble
+
+       ↓ only when justified
+
+    Level 4
+    sound / voice
+
+Voice should be the most restricted form.
+
+If the user ignores an attention call:
+
+    attentionPenalty ↑
+    cooldown ↑
+    probability ↓
+
+If the user responds positively:
+
+    attentionPenalty ↓
+    normal behavior resumes
+
+Repeated non-response must make Saeed quieter, not more persistent.
+
+## 80.19 One Autonomous Event Owns Its Outputs
+
+An autonomous action should be represented as one coherent semantic event.
+
+Example:
+
+    {
+      type: "attention_call",
+      priority: 25,
+      motionIntent: "gentle_wave",
+      bubble: "I'm here if you need me.",
+      voice: null,
+      duration: 2.0,
+      cooldown: 120000,
+      createdAt: ...
+    }
+
+One event can therefore coordinate:
+
+- motion
+- bubble
+- optional sound
+- optional voice
+- movement
+- cooldown
+- history
+
+This prevents independent subsystems from simultaneously deciding to wave, speak, move and show different bubbles.
+
+## 80.20 Autonomous Communication Must Be More Restricted Than Motion
+
+Communication is more intrusive than silent motion.
+
+Use the hierarchy:
+
+    micro motion
+       <
+    major motion
+       <
+    bubble
+       <
+    sound
+       <
+    voice
+
+The controller should choose the least intrusive output that satisfies the purpose.
+
+Most autonomous events should therefore be silent.
+
+## 80.21 Idle Thoughts
+
+Idle thoughts are optional.
+
+They require stronger gating than ordinary autonomous motion.
+
+Recommended gates:
+
+- sufficient user inactivity
+- no active conversation
+- no active user speech
+- no important tool operation
+- no recent attention call
+- no active bubble conflict
+- no speaking conflict
+- thought cooldown expired
+- probability gate passes
+- current mood/state permits it
+
+The user ignoring an idle thought must not cause Saeed to repeat it.
+
+## 80.22 LLM-Generated Idle Thoughts
+
+An LLM may optionally generate an idle thought, but this is an enrichment feature.
+
+Required protections:
+
+- explicit enablement
+- long cooldown
+- minimal context
+- no sensitive context by default
+- no continuous polling
+- no background request storm
+- network failure fallback
+- user activity cancellation
+- event expiration
+
+The local character runtime remains authoritative.
+
+## 80.23 Mood Is a Modifier, Not a Script
+
+Mood changes behavioral probabilities and motion style.
+
+Examples:
+
+    curious
+       → more gaze/look-around candidates
+
+    happy
+       → positive gesture candidates weighted higher
+
+    sleepy
+       → smaller movement + stronger sleep tendency
+
+    thoughtful
+       → gaze-away/head-tilt candidates weighted higher
+
+Mood must not directly map to one animation.
+
+## 80.24 Energy Is a Modifier, Not a State Machine
+
+Energy changes:
+
+- frequency
+- amplitude
+- speed
+- movement distance
+- willingness to perform major behavior
+
+Low energy:
+
+    smaller
+    slower
+    rarer
+    quieter
+
+High energy:
+
+    larger
+    faster
+    more expressive
+
+Energy remains separate from mood and state.
+
+## 80.25 Time of Day Is a Modifier
+
+Time of day may influence:
+
+- energy
+- sleep probability
+- movement frequency
+- attention tendency
+- idle thought probability
+- style of autonomous behavior
+
+Time of day must never override direct user interaction or important application events.
+
+## 80.26 Character Runtime State
+
+The autonomous subsystem should maintain state similar to:
+
+    {
+      enabled: true,
+      lastEvaluationAt: 0,
+      lastMajorEventAt: 0,
+      lastThoughtAt: 0,
+      lastAttentionCallAt: 0,
+      lastWanderAt: 0,
+      lastSleepAt: 0,
+      inactivityMs: 0,
+      attentionPenalty: 0,
+      currentAutonomousEvent: null,
+      sleeping: false
+    }
+
+This state belongs to the character runtime, not the renderer.
+
+## 80.27 Character Runtime Contract
+
+Recommended contract:
+
+    interface AutonomousBehaviorController {
+      start(): void
+      stop(): void
+      onUserInteraction(event): void
+      onStateChanged(state): void
+      onMoodChanged(mood): void
+      onEnergyChanged(energy): void
+      evaluateNow(): void
+      getStatus(): AutonomousStatus
+    }
+
+The controller must be injectable/testable.
+
+The clock and random source should be injectable so deterministic tests can reproduce behavior.
+
+## 80.28 Character Independence Does Not Mean Architectural Isolation From Events
+
+Saeed is behaviorally independent, but it still receives information from the application.
+
+For example:
+
+    user speaks
+        ↓
+    Character Event Gateway
+        ↓
+    Saeed Character Runtime
+
+or:
+
+    LLM says "Saeed is happy"
+        ↓
+    semantic event
+        ↓
+    CharacterController
+
+or:
+
+    user drags Saeed
+        ↓
+    direct interaction event
+        ↓
+    CharacterController
+        ↓
+    autonomous behavior yields
+
+The character is therefore independent in **decision ownership**, not disconnected from the application.
+
+## 80.29 GLB Replacement Must Preserve Character Independence
+
+Changing the GLB changes the physical body, not the character's behavioral brain.
+
+Correct:
+
+    CharacterController
+          │
+          ├── state
+          ├── mood
+          ├── autonomy
+          ├── history
+          └── policy
+                │
+                ▼
+          CharacterRetargeter
+                │
+                ▼
+          Current GLB
+
+Replacing the GLB must not create:
+
+- a new autonomous controller
+- a new Brain
+- a new scheduler
+- a new bubble system
+- a new motion history
+
+The same character runtime continues controlling the new body.
+
+## 80.30 Renderer Is Not the Character Brain
+
+The Three.js renderer is responsible for displaying the current character.
+
+It must not decide:
+
+- when Saeed should move
+- when Saeed should speak
+- when Saeed should sleep
+- when Saeed should wander
+- when Saeed should call attention
+- what Saeed's mood is
+- what semantic reaction should occur
+
+Renderer input should be the result of character decisions.
+
+    Character decision
+          ↓
+    pose / presentation state
+          ↓
+    Three.js renderer
+          ↓
+    pixels
+
+## 80.31 Character Runtime Is More Than Animation
+
+Saeed must not be architected as:
+
+    animation player + LLM
+
+It is:
+
+    character state
+    + mood
+    + energy
+    + context
+    + memory
+    + autonomous policy
+    + user responsiveness
+    + semantic reactions
+    + motion generation
+    + safety
+    + presentation
+
+Animation is the physical output of this system, not the system itself.
+
+## 80.32 The Five-Minute Test
+
+A core acceptance test is:
+
+> Leave Saeed alone for five minutes.
+
+Expected result:
+
+- Saeed remains visibly alive
+- Saeed does not continuously move
+- major behavior is occasional
+- repeated motions are suppressed
+- attention calls are rare
+- autonomous voice is extremely rare or absent
+- sleep becomes possible after prolonged inactivity
+- no stale events execute after the user returns
+- the character does not compete for attention
+
+Then:
+
+> Interact with Saeed.
+
+Expected result:
+
+- Saeed immediately becomes more responsive
+- autonomous behavior yields
+- user-driven behavior becomes dominant
+- speaking/listening/thinking behavior takes priority
+- after interaction ends, autonomy gradually resumes
+
+This is a core product behavior test, not cosmetic polish.
+
+## 80.33 Final Independence Principle
+
+The following statement is authoritative:
+
+> **Saeed is a living 3D character runtime, not a passive animated model.**
+
+> **The character owns its own local behavior, timing, mood, energy, idle activity, sleep/wake lifecycle, motion selection, variation and attention policy.**
+
+> **The LLM provides conversational intelligence and semantic intent when needed, but it does not control every physical movement.**
+
+> **The CharacterController remains the single authority that arbitrates between user interaction, application events, LLM intent and autonomous character behavior.**
+
+> **The renderer only displays the decisions made by the character runtime.**
+
+The intended relationship is:
+
+    User
+      │
+      ├───────────────┐
+      │               │
+      ▼               ▼
+    Direct        Application / LLM
+    Interaction       │
+      │               │
+      └───────┬───────┘
+              ▼
+       Character Event
+              ▼
+    +----------------------+
+    |  Saeed Character     |
+    |       Runtime        |
+    |----------------------|
+    | State                |
+    | Mood                 |
+    | Energy               |
+    | Context              |
+    | Autonomy             |
+    | Scheduler            |
+    | History              |
+    | Policy               |
+    | Arbitration          |
+    +----------+-----------+
+               ▼
+        Motion Intent
+               ▼
+       Motion Generator
+               ▼
+        Motion Safety
+               ▼
+      Retargeter / Rig
+               ▼
+          Current GLB
+               ▼
+        Three.js Renderer
+
+This principle must guide all future implementation decisions.
+
+If a future feature requires the LLM to micromanage the character's body, that feature must be redesigned so that the LLM emits semantic intent and the Saeed Character Runtime decides the physical behavior.
+
