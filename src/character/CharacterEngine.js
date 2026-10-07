@@ -415,7 +415,7 @@ window.saeedCharacterRuntime.engine={
  }),
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,
- getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.engineCurrentName||"Saeed").trim(),
+ getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
