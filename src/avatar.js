@@ -313,9 +313,9 @@ window.saeedCharacterRuntime.load=async(data,generation)=>{
  if(activeLoad){pendingLoad={data,generation:g};return}
  return load(data,g);
 };
-if(window.__saeedPendingCharacterData){
- const p=window.__saeedPendingCharacterData;
- window.__saeedPendingCharacterData=null;
+if(window.saeedCharacterRuntime.pendingLoad){
+ const p=window.saeedCharacterRuntime.pendingLoad;
+ window.saeedCharacterRuntime.pendingLoad=null;
  void window.saeedCharacterRuntime.load(p.data,p.generation);
 }
 
