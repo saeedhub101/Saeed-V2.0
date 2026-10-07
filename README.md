@@ -105,7 +105,7 @@ Startup state:
 - Mic OFF
 - STT OFF
 - Realtime OFF
-- TTS idle
+- TTS ready/idle because Character is visible (no playback until speech is requested) (Character-presence dependency; no playback until speech is requested)
 - Chat closed
 - Add-on runtimes unloaded
 
@@ -364,7 +364,7 @@ Hide Saeed:
 | Microphone | No | Mic ON |
 | STT | No | Mic ON / configured voice path |
 | Realtime | No | required voice configuration |
-| TTS | No | response needs speech |
+| TTS | Yes while Character is visible and unmuted | speech output when required |
 | Chat | No | Chat opened |
 | Add-on runtime | No | capability requested |
 
