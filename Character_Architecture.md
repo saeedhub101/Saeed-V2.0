@@ -62,7 +62,7 @@ These rules are mandatory.
 
 1. Exactly one authoritative CharacterController exists.
 2. CharacterController owns character behavior.
-3. AvatarRenderer only renders and manages the loaded 3D asset.
+3. CharacterEngine only renders and manages the loaded 3D asset.
 4. Brain never manipulates bones.
 5. Tools never manipulate bones.
 6. The LLM never specifies raw GLB bone names.
@@ -146,7 +146,7 @@ The intended logical ownership is:
     MotionGenerator
        └── semantic motion request → skeletal motion
 
-    AvatarRenderer
+    CharacterEngine
        └── GLB / Three.js / rendering
 
 ---
@@ -305,7 +305,7 @@ These must remain separate.
                         Loaded GLB
                                |
                                v
-                       AvatarRenderer
+                       CharacterEngine
 
 Parallel:
 
@@ -1513,7 +1513,7 @@ Examples:
 
 # 51. Character Renderer
 
-AvatarRenderer owns:
+CharacterEngine owns:
 
 - Three.js scene
 - camera
@@ -1813,7 +1813,7 @@ The current repository may use different filenames for some responsibilities. Do
 | Face | FaceController |
 | Fingers | FingerController |
 | Character persistence | CharacterProfileStore |
-| GLB / Three.js | AvatarRenderer |
+| GLB / Three.js | CharacterEngine |
 | Bubble | BubbleController |
 | Brain | Brain |
 | Tools | Tool Registry |
@@ -2063,7 +2063,7 @@ Read the existing:
 - MotionRegistry
 - MotionSequence
 - MotionSafety
-- AvatarRenderer
+- CharacterEngine
 - CharacterProfileStore
 - bubble implementation
 - character host / IPC
@@ -2269,7 +2269,7 @@ The final responsibility chain is:
       v
     DISPLAY
       |
-      | AvatarRenderer
+      | CharacterEngine
       v
     Saeed 3D
 
@@ -5723,3 +5723,12 @@ A Character Engine implementation is not accepted unless it proves:
 > The Character decides what should happen.  
 > The Engine determines how that decision is technically displayed.  
 > The current GLB is a replaceable body, not the source of Character intelligence.
+
+
+# 81. Autonomous Behavior Ownership
+
+The CharacterController is the single runtime coordinator, but autonomous decision-making is delegated to exactly one AutonomousBehaviorController owned by that runtime. This follows the proven Merlin pattern: one central animation/behavior brain tracks intent, mood, energy, recent motions, cooldowns, sleep/wake state and proactive behavior, while the character controller remains the public command boundary.
+
+AutonomousBehaviorController owns idle selection, recent-motion suppression, energy/time-aware behavior density, sleep/wake timing, and autonomous event arbitration. It must not be duplicated by renderer code, UI code, Brain, LLM, or a second controller.
+
+The LLM may provide semantic intent; it never selects raw bones or schedules physical movement. User interaction always wins. Autonomous events may be dropped rather than queued when a higher-priority action is active.
