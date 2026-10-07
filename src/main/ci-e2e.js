@@ -248,7 +248,7 @@ function createCiE2E(deps={}){
     await depsShowNormalizeHumanoidRestPose();
     const w=getNormalizeHumanoidRestPoseWindow?.();
     if(!visible(w))return {pass:false,error:"Normalize Humanoid Rest Pose window did not open"};
-    const r=await execJs(w,'(()=>({title:document.title,search:Boolean(document.querySelector("#search")),boneList:Boolean(document.querySelector("#boneList")),apply:Boolean(document.querySelector("#apply")),save:Boolean(document.querySelector("#save")),rotation:Boolean(document.querySelector("#rotation"))}))()',true);
+    const r=await execJs(w,'(()=>({title:document.title,search:Boolean(document.querySelector("#search")),boneList:Boolean(document.querySelector("#bone")),apply:Boolean(document.querySelector("#applyBone")),save:Boolean(document.querySelector("#save")),rotation:Boolean(document.querySelector("#rotX")&&document.querySelector("#rotY")&&document.querySelector("#rotZ"))}))()',true);
     w.close();
     return {pass:r.title==="Set Normalize Humanoid Rest Pose"&&Object.values(r).slice(1).every(Boolean),controls:r};
    });
