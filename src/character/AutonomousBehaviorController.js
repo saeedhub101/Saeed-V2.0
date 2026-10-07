@@ -1,0 +1,134 @@
+import { registerCoreMotions } from "./motions.js";
+
+const DEFAULT_IDLE_DELAY=7000;
+const SLEEP_AFTER_MS=20*60*1000;
+const RECENT_LIMIT=4;
+const MIN_ENERGY=20;
+
+export class AutonomousBehaviorController{
+ constructor(character){
+  this.character=character;
+  this.running=false;
+  this.visible=true;
+  this.timer=null;
+  this.sleepTimer=null;
+  this.intent="idle";
+  this.energy=70;
+  this.lastEnergyAt=performance.now();
+  this.lastInteraction=performance.now();
+  this.sleeping=false;
+  this.recent=[];
+  this.lastMotionAt=0;
+  this.cooldownMs=2500;
+  this.mood="cheerful";
+ }
+ start(){
+  if(this.running)return;
+  this.running=true;
+  this.schedule(1800);
+ }
+ stop(){
+  this.running=false;
+  this.clearTimer();
+  this.clearSleepTimer();
+  this.sleeping=false;
+ }
+ clearTimer(){if(this.timer){clearTimeout(this.timer);this.timer=null}}
+ clearSleepTimer(){if(this.sleepTimer){clearTimeout(this.sleepTimer);this.sleepTimer=null}}
+ setVisible(value){
+  this.visible=value!==false&&String(value)!=="hidden";
+  if(!this.visible){this.stop();return true}
+  if(!this.running)this.start();
+  this.schedule(1800);
+  return true;
+ }
+ decayEnergy(){
+  const now=performance.now(),minutes=Math.max(0,(now-this.lastEnergyAt)/60000);
+  this.lastEnergyAt=now;
+  if(this.sleeping){this.energy=Math.min(85,Math.max(this.energy,55+minutes*2));return}
+  this.energy=Math.max(MIN_ENERGY,this.energy-minutes*.5);
+ }
+ gainEnergy(amount){this.decayEnergy();this.energy=Math.min(100,this.energy+amount)}
+ touch(){
+  this.lastInteraction=performance.now();
+  this.gainEnergy(15);
+  this.wakeIfSleeping();
+  this.clearSleepTimer();
+  this.armSleepTimer();
+  if(this.visible)this.schedule(4500);
+  return true;
+ }
+ wakeIfSleeping(){
+  if(!this.sleeping)return false;
+  this.sleeping=false;
+  this.intent="reacting";
+  this.gainEnergy(15);
+  this.character.play("wave",{duration:1.2,priority:45});
+  this.schedule(2500);
+  return true;
+ }
+ armSleepTimer(){
+  this.clearSleepTimer();
+  if(!this.running||!this.visible||this.sleeping)return;
+  this.sleepTimer=setTimeout(()=>{
+   this.sleepTimer=null;
+   if(!this.running||!this.visible)return;
+   this.sleeping=true;
+   this.intent="sleeping";
+   this.character.stopAll();
+   this.character.play("sleep",{priority:60});
+  },SLEEP_AFTER_MS);
+ }
+ chooseIdle(){
+  const pool=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get(id));
+  if(!pool.length)return null;
+  const fresh=pool.filter(id=>!this.recent.includes(id));
+  const source=fresh.length?fresh:pool;
+  const id=source[Math.floor(Math.random()*source.length)];
+  this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);
+  return id;
+ }
+ schedule(delay=DEFAULT_IDLE_DELAY){
+  this.clearTimer();
+  if(!this.running||!this.visible||this.sleeping)return;
+  this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.max(1000,Number(delay)||DEFAULT_IDLE_DELAY));
+ }
+ evaluateNow(){
+  if(!this.running||!this.visible||this.sleeping)return false;
+  this.decayEnergy();
+  if(this.character.animation?.active?.length){this.schedule(DEFAULT_IDLE_DELAY);return false}
+  if(performance.now()-this.lastMotionAt<this.cooldownMs){this.schedule(this.cooldownMs);return false}
+  const id=this.chooseIdle();
+  if(!id){this.schedule(DEFAULT_IDLE_DELAY);return false}
+  this.intent="idle";
+  this.lastMotionAt=performance.now();
+  const played=this.character.play(id,{priority:10});
+  this.armSleepTimer();
+  this.schedule(DEFAULT_IDLE_DELAY);
+  return Boolean(played);
+ }
+ onUserInteraction(event={}){this.touch();return this.handleEvent(event)}
+ onStateChanged(state){if(state?.intent)this.intent=String(state.intent);if(state?.visible!==undefined)this.setVisible(state.visible)}
+ onMoodChanged(mood){this.mood=String(mood||"cheerful");this.character.mood=this.mood}
+ handleEvent(event){
+  const type=typeof event==="string"?event:String(event?.type||"");
+  if(!this.running||!this.visible)return false;
+  this.touch();
+  if(type==="speech-start"){this.intent="speaking";this.character.play("talkGesture",{duration:.9,priority:25});return true}
+  if(type==="speech-end"){this.intent="idle";this.schedule(3500);return true}
+  if(type==="thinking"){this.intent="thinking";this.character.play("think",{duration:2.2,priority:35});return true}
+  if(type==="user-input"){this.intent="reacting";this.character.play("think",{duration:1.8,priority:35});return true}
+  if(type==="tool"){this.intent="doing";this.character.play("think",{duration:1.4,priority:30});return true}
+  if(type==="tool_result"){this.intent="reacting";this.character.play("nod",{duration:.65,priority:40});return true}
+  if(type==="tool_error"){this.intent="reacting";this.character.play("shake",{duration:.7,priority:40});return true}
+  if(type==="double-click"||type==="right-click"){this.character.play("wave",{duration:1.2,priority:45});return true}
+  if(type==="zoom"){this.character.play("lookCloser",{duration:2.2,priority:35});return true}
+  if(type==="drag-end"){this.character.play("nod",{duration:.65,priority:30});return true}
+  return false;
+ }
+ getStatus(){
+  this.decayEnergy();
+  return {running:this.running,visible:this.visible,intent:this.intent,energy:Math.round(this.energy),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction};
+ }
+ destroy(){this.stop();this.character=null}
+}
