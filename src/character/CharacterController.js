@@ -118,17 +118,19 @@ export class CharacterController{
    if(!names.some(x=>String(x)===n))return false;
    const current={...(this.engine?.getCharacterRigAutoMap?.()||{})};
    current[s]=n;
-   const ok=this.engine?.bindRig?.(current);
+   const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+   const existing=this.profiles.load(profileId)||{};
+   const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
+   const ok=this.engine?.bindRig?.(current,savedRestPose);
    if(!ok)return false;
    const mapped=this.engine?.getBoneMap?.()||{};
    if(!mapped[s]||String(mapped[s]?.name||"")!==n)return false;
    this.retargeter.bind(mapped,this.retargeter.status().calibration);
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
-   if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+   this.characterId=profileId;
    if(this.characterId){
-    const existing=this.profiles.load(this.characterId)||{};
-    const restPose=existing.normalizehumanoidrestpose||existing.restPose||{
+    const restPose=savedRestPose||{
      normalization:this.engine?.getRestPoseNormalization?.()||null,
      bones:this.engine?.snapshotBoneRotations?.()||{}
     };
