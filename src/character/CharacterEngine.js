@@ -326,7 +326,7 @@ function getSceneBoneGroupsForModel(target){
 async function load(data,generation){
  activeLoad=true;
  try{
-  const bytes=data instanceof ArrayBuffer?data:data instanceof Uint8Array?data.buffer:data?.buffer;
+  const bytes=data instanceof ArrayBuffer?data:data instanceof Uint8Array?data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength):data?.buffer;
   if(!bytes)throw new Error("Selected GLB data is invalid");
   const parsed=await loader.parseAsync(bytes,"");
   if(generation===loadGeneration)display(parsed);
