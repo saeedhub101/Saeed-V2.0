@@ -1055,7 +1055,7 @@ The current startup contract is:
 MIC OFF
 STT OFF
 Realtime OFF
-TTS ready/idle
+# TTS READY/IDLE
 ```
 
 ---
@@ -3010,7 +3010,7 @@ The application has two mutually exclusive active voice routes for a given conve
 
 When Realtime Voice is active, standard STT and standard TTS are suppressed for that same active voice route whenever the Realtime provider supplies native input transcription and audio output.
 
-Chat remains independent. Opening Chat creates Chat and requests the shared Brain Router only when conversational work requires it. Opening Chat alone does not turn on the microphone or create STT/TTS/Realtime.
+Chat remains independent. Opening Chat creates Chat and requests the shared Brain Router only when conversational work requires it. Opening Chat alone does not turn on the microphone or create STT/Realtime; TTS is already available when Character is visible.
 
 MIC default state at application startup is OFF.
 
@@ -3018,7 +3018,7 @@ MIC default state at application startup is OFF.
 
 | Mode | Mic | STT | Brain Router | TTS | Realtime |
 |---|---|---|---|---|---|
-| Startup | OFF | OFF | OFF unless another feature requires it | OFF | OFF |
+| Startup | OFF | OFF | OFF unless another feature requires it | READY/IDLE while Character is visible and unmuted | OFF |
 | Chat only | OFF | OFF | ON while required | OFF unless speech output requested | OFF |
 | Standard Voice + unmuted | ON | ON | ON while required | ON on demand | OFF |
 | Standard Voice + muted | ON | ON | ON while required | OFF | OFF |
@@ -3029,7 +3029,7 @@ MIC default state at application startup is OFF.
 
 Chat, Standard Voice and Realtime are interfaces to one conversational system. They do not own separate histories or separate Agents.
 Brain Router is an on-demand dependency. It exists while Chat, Voice or another valid conversational operation requires reasoning.
-STT is owned by the Standard Voice route. TTS is owned by audible output demand. Realtime owns its own transport and native audio path.
+STT is owned by the Standard Voice route. TTS is owned by Character presence while unmuted; speech playback is driven by audible output demand. Realtime owns its own transport and native audio path.
 Voice code cannot create or control Character bones. Character code cannot directly operate STT/TTS provider internals.
 
 # 117. Hide Saeed Interaction
