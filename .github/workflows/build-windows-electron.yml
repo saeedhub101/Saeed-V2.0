@@ -377,7 +377,7 @@ jobs:
             Write-Host $outText
             if ($errText) { Write-Host $errText }
           } finally {
-            if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; $proc.WaitForExit(10000) }
           }
 
       - name: Prepare embedded Whisper runtime
@@ -1274,7 +1274,7 @@ jobs:
             Write-Host $outText
             if ($errText) { Write-Host $errText }
           } finally {
-            if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; $proc.WaitForExit(10000) }
           }
 
       - name: Prepare embedded Whisper runtime
@@ -2168,7 +2168,7 @@ jobs:
             Write-Host $outText
             if ($errText) { Write-Host $errText }
           } finally {
-            if (!$proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+            if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; $proc.WaitForExit(10000) }
           }
 
       - name: Prepare embedded Whisper runtime
