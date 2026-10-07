@@ -2304,7 +2304,1712 @@ Character replacement:
 
 ---
 
-# 76. Definition of Done
+
+---
+
+# 76. Autonomous Character Behavior Architecture
+
+This section defines the autonomous behavior system required to make Saeed feel alive without becoming repetitive, distracting, or annoying.
+
+The goal is not to maximize movement.
+
+The goal is:
+
+> **Saeed should usually be quietly present, occasionally show meaningful activity, rarely ask for attention, and never compete with the user.**
+
+This architecture is derived from the strongest behavioral principles observed in Merlin's public implementation: autonomous behavior is separated from normal chat, idle behavior is rate-limited, wandering and idle thoughts are probabilistic, recent actions are suppressed, behavior is gated by the current intent, and the character yields to active user interaction. citeturn0search0
+
+## 76.1 Presence Is Not Activity
+
+A visible character must not be required to perform a noticeable action continuously.
+
+The runtime distinguishes:
+
+    PRESENCE
+       |
+       +-- breathing
+       +-- blink
+       +-- tiny eye movement
+       +-- subtle posture adjustment
+       +-- quiet gaze behavior
+       |
+       +-- OCCASIONAL ACTIVITY
+       |      +-- idle gesture
+       |      +-- look around
+       |      +-- stretch
+       |      +-- small wander
+       |      +-- idle thought
+       |
+       +-- USER-DRIVEN ACTIVITY
+              +-- listening
+              +-- thinking
+              +-- speaking
+              +-- reacting
+              +-- dragging
+              +-- tool activity
+
+The character must never use constant full-body animation merely to prove that it is alive.
+
+The desired visual rhythm is:
+
+    small behavior
+       ↓
+    quiet period
+       ↓
+    small behavior
+       ↓
+    longer quiet period
+       ↓
+    occasional noticeable event
+
+This is more natural than continuous random animation.
+
+---
+
+## 76.2 Autonomous Behavior Is Its Own Subsystem
+
+Autonomous behavior must not be scattered across:
+
+- renderer
+- UI components
+- GLB loader
+- chat code
+- TTS
+- random setInterval calls
+- individual animation functions
+
+There must be one authoritative autonomous decision path under CharacterController.
+
+Recommended logical structure:
+
+    CharacterController
+          |
+          +-- AutonomousBehaviorController
+          |       |
+          |       +-- Scheduler
+          |       +-- Context Sensor
+          |       +-- Behavior Policy
+          |       +-- Cooldown Manager
+          |       +-- Motion History
+          |       +-- Event Arbiter
+          |
+          +-- AnimationController
+          +-- BubbleController
+          +-- VoiceController
+          +-- MovementController
+
+If an existing repository module already owns one of these responsibilities, extend that owner instead of creating a duplicate.
+
+The AutonomousBehaviorController makes decisions.
+
+The execution systems execute approved decisions.
+
+---
+
+## 76.3 Autonomous Event Model
+
+An autonomous action is a semantic event, not an animation command.
+
+Recommended contract:
+
+    AutonomousEvent {
+      id
+      type
+      priority
+      reason
+      state
+      mood
+      energy
+      bubble?
+      voice?
+      motionIntent?
+      movement?
+      duration
+      cooldown
+      createdAt
+    }
+
+Possible types:
+
+    micro_behavior
+    idle_motion
+    idle_thought
+    idle_sound
+    attention_call
+    wander
+    sleep
+    wake
+    gaze_shift
+    posture_change
+
+Example:
+
+    {
+      "type": "idle_thought",
+      "priority": 15,
+      "reason": "long_user_inactivity",
+      "bubble": {
+        "text": "I'm here if you need me.",
+        "durationMs": 7000
+      },
+      "voice": null,
+      "motionIntent": {
+        "intent": "gentle_attention",
+        "intensity": 0.25
+      }
+    }
+
+A single event may produce:
+
+    motion + bubble + voice
+
+or only:
+
+    motion
+
+or only:
+
+    gaze
+
+The character must not speak for every autonomous event.
+
+---
+
+## 76.4 The Autonomous Decision Pipeline
+
+Every autonomous action must pass through:
+
+    Scheduler
+       ↓
+    Is autonomy allowed?
+       ↓
+    Is the user inactive enough?
+       ↓
+    Is Saeed visible?
+       ↓
+    Is the character currently busy?
+       ↓
+    Priority / interruption check
+       ↓
+    Mood / energy / time modifiers
+       ↓
+    Recent-history penalty
+       ↓
+    Cooldown check
+       ↓
+    Candidate weighting
+       ↓
+    Probability gate
+       ↓
+    Execute OR DROP
+       ↓
+    Record result in history
+
+**DROP is a valid outcome.**
+
+The system must not force an action simply because a scheduler tick occurred.
+
+---
+
+## 76.5 User Activity Floor
+
+Autonomous behavior must first respect a minimum inactivity floor.
+
+Recommended initial policy:
+
+    user interaction
+         ↓
+    reset inactivity timer
+         ↓
+    autonomy suppressed
+         ↓
+    inactivity threshold reached
+         ↓
+    autonomous candidates become eligible
+
+The initial threshold should be configurable and should not be treated as a fixed architectural constant.
+
+Suggested starting point:
+
+    60–120 seconds
+
+The exact value can later be tuned from real usage.
+
+Chat submission, mouse interaction with Saeed, drag, panel interaction, speech input, and other meaningful user actions should reset the appropriate inactivity timer.
+
+---
+
+## 76.6 Scheduler
+
+The scheduler should wake periodically to evaluate behavior.
+
+It must not mean:
+
+    every tick = animation
+
+Recommended conceptual cycle:
+
+    scheduler tick
+        ↓
+    inspect context
+        ↓
+    build candidate list
+        ↓
+    remove invalid candidates
+        ↓
+    score candidates
+        ↓
+    apply probability
+        ↓
+    execute at most one autonomous major event
+        ↓
+    return to quiet state
+
+The scheduler may tick frequently enough for responsive state sensing, but autonomous major events must have independent cooldowns.
+
+This separates:
+
+    sensing frequency
+
+from:
+
+    visible behavior frequency
+
+---
+
+## 76.7 Candidate Behavior Classes
+
+Autonomous candidates should be divided into classes.
+
+### Micro
+
+Very low visibility:
+
+- blink
+- eye shift
+- tiny head correction
+- breathing
+- weight adjustment
+- finger adjustment
+- posture correction
+
+### Idle Motion
+
+Noticeable but quiet:
+
+- nod
+- stretch
+- look around
+- thoughtful pose
+- yawn
+- small hand gesture
+
+### Movement
+
+Physical repositioning:
+
+- small wander
+- move closer to a preferred region
+- return from an edge
+- subtle reposition
+
+### Communication
+
+Rare:
+
+- idle thought
+- short bubble
+- optional voice
+- attention call
+
+### Lifecycle
+
+State transitions:
+
+- sleep
+- wake
+- hide
+- show
+
+These classes must have different rates and cooldowns.
+
+---
+
+## 76.8 Probability Must Be Weighted, Not Uniform
+
+Do not use:
+
+    random(allBehaviors)
+
+Instead:
+
+    score(candidate) =
+        baseWeight
+      + moodCompatibility
+      + energyCompatibility
+      + timeCompatibility
+      + contextCompatibility
+      + capabilityCompatibility
+      - recentMotionPenalty
+      - recentFamilyPenalty
+      - frequencyPenalty
+      - userAnnoyancePenalty
+
+Then apply a probability gate.
+
+A candidate with a high score is still not guaranteed to happen.
+
+This produces variation without chaos.
+
+---
+
+## 76.9 Recent-Behavior Suppression
+
+Maintain:
+
+    recentAutonomousEvents
+    recentMotionIds
+    recentMotionFamilies
+    recentBubbleTypes
+    recentAttentionCalls
+
+Each candidate receives a penalty when it was recently used.
+
+Example:
+
+    recent:
+      wave
+      nod
+      wave
+
+A new wave should normally be suppressed.
+
+The history should use time decay so that an action becomes eligible again naturally.
+
+This is stronger than simply saying:
+
+    do not repeat the last animation
+
+because it also prevents repeating an entire behavior family.
+
+---
+
+## 76.10 Cooldowns
+
+Each autonomous behavior has its own cooldown.
+
+Examples:
+
+    blink:
+      very short / naturally scheduled
+
+    idle gesture:
+      tens of seconds to minutes
+
+    wander:
+      minutes
+
+    idle thought:
+      several minutes
+
+    attention call:
+      long cooldown
+
+    sleep:
+      lifecycle-based
+
+Cooldowns must be independent.
+
+A recent blink must not prevent a future wander.
+
+A recent idle thought must not prevent a micro eye movement.
+
+---
+
+## 76.11 Anti-Annoyance Policy
+
+The system must explicitly track user annoyance risk.
+
+The following should reduce autonomous behavior frequency:
+
+- user is actively typing
+- user is talking
+- user is reading
+- chat panel is active
+- character was recently dragged
+- character was recently clicked repeatedly
+- character is currently speaking
+- user dismissed an idle thought
+- user ignored repeated attention attempts
+- the application is not focused
+- the user has disabled autonomous communication
+- quiet hours are active
+- voice is disabled
+- the character has recently made a noticeable movement
+
+The character should interpret repeated non-response as a reason to become quieter, not louder.
+
+---
+
+## 76.12 Attention-Seeking Must Be Extremely Rare
+
+Calling the user is a special behavior.
+
+It should not behave like:
+
+    "Are you there?"
+    "Hello?"
+    "Need anything?"
+    "Hello?"
+    ...
+
+Instead:
+
+    inactivity
+       ↓
+    long enough silence
+       ↓
+    low-probability attention candidate
+       ↓
+    check attention cooldown
+       ↓
+    check recent dismissal / non-response
+       ↓
+    if allowed:
+       gentle motion
+       optional bubble
+       optional sound
+       optional voice
+       ↓
+    return to quiet
+
+An attention call should normally be a single event.
+
+After a user ignores it, the next attention attempt should become much less likely.
+
+---
+
+## 76.13 Attention Call Should Be Multi-Modal
+
+An attention call is not necessarily speech.
+
+Possible levels:
+
+### Level 1 — Invisible
+
+    small gaze toward user
+
+### Level 2 — Subtle
+
+    head turn
+    small wave
+
+### Level 3 — Visible
+
+    gentle attention gesture
+    short bubble
+
+### Level 4 — Audible
+
+    short sound
+    short voice phrase
+
+The system should select the lowest sufficient level.
+
+Do not jump directly to voice.
+
+---
+
+## 76.14 Idle Thoughts
+
+Idle thoughts are optional communication events.
+
+They must satisfy:
+
+    minimum inactivity
+    +
+    idle-thought cooldown
+    +
+    no active conversation
+    +
+    no conflicting bubble
+    +
+    no active speaking
+    +
+    no recent dismissal
+    +
+    probability gate
+
+The initial design should use local deterministic text where possible.
+
+Examples:
+
+    "I'm here if you need me."
+
+    "Taking a quiet moment."
+
+    "Anything I can help with?"
+
+    "I was just thinking."
+
+These messages must remain short.
+
+---
+
+## 76.15 LLM-Generated Idle Thoughts
+
+The LLM must not be required for every idle thought.
+
+Default:
+
+    deterministic local thought pool
+
+Optional:
+
+    LLM-generated idle thought
+
+The LLM path must have:
+
+- separate cooldown
+- token/cost limit
+- privacy control
+- failure fallback
+- maximum length
+- content safety filtering
+- no repeated text
+- no fabricated claims about what the user is doing
+
+If the LLM is unavailable, Saeed must remain fully functional.
+
+---
+
+## 76.16 Idle Sound Policy
+
+Idle sounds must be rarer than micro motion.
+
+Examples:
+
+- quiet sigh
+- tiny hum
+- subtle acknowledgement sound
+- soft yawn sound
+
+Never use sound simply because an idle animation occurred.
+
+Recommended relationship:
+
+    idle motion
+       ↓
+    may have no sound
+
+    idle sound
+       ↓
+    must have its own cooldown
+
+Speech and idle sound share an audio arbitration system.
+
+---
+
+## 76.17 Bubble Ownership
+
+Autonomous bubbles must still use the same authoritative BubbleController.
+
+There must not be:
+
+    normal BubbleController
+
+and:
+
+    separate IdleBubble
+
+Instead:
+
+    CharacterController
+       ↓
+    BubbleController
+       ↑
+    normal response
+    autonomous event
+    system event
+
+Bubble priority must be respected.
+
+An autonomous bubble must never overwrite an important user-facing answer.
+
+---
+
+## 76.18 Voice Ownership
+
+Voice must also remain centralized.
+
+    CharacterController
+          ↓
+    VoiceController
+          ↓
+    audio queue
+
+Rules:
+
+- never interrupt important user-facing speech with idle speech
+- never start idle speech while Saeed is already speaking
+- do not overlap autonomous voice and TTS
+- cancel low-priority idle voice when important speech begins
+- if voice is disabled, autonomous behavior falls back to motion/bubble
+
+---
+
+## 76.19 Autonomous Movement / Wander
+
+Wander is a semantic movement event.
+
+It must not directly set arbitrary screen coordinates from random code scattered around the app.
+
+Pipeline:
+
+    autonomous wander candidate
+          ↓
+    movement policy
+          ↓
+    determine valid nearby targets
+          ↓
+    respect work-area/window bounds
+          ↓
+    avoid dangerous/invalid regions
+          ↓
+    choose small displacement
+          ↓
+    smooth movement
+          ↓
+    stop
+          ↓
+    return to idle
+
+The default wander should be small.
+
+Saeed should normally remain near his current location rather than repeatedly crossing the screen.
+
+---
+
+## 76.20 Wander Context
+
+Movement selection should consider:
+
+- current position
+- display/work area
+- character size
+- screen edges
+- application windows where relevant
+- current user interaction
+- current state
+- energy
+- mood
+- recent movement
+- movement cooldown
+
+High energy may allow slightly larger movement.
+
+Low energy should prefer remaining still.
+
+Sleepy mood should almost never wander.
+
+---
+
+## 76.21 Sleep Lifecycle
+
+Sleep is a real runtime state.
+
+Suggested lifecycle:
+
+    ACTIVE
+      ↓
+    IDLE
+      ↓
+    prolonged inactivity
+      ↓
+    SLEEP_CANDIDATE
+      ↓
+    probability / time / policy check
+      ↓
+    SLEEPING
+
+While sleeping:
+
+    major autonomous motion = disabled
+    wander = disabled
+    idle thoughts = disabled
+    attention calls = disabled
+    nonessential sound = disabled
+
+Micro behavior may continue at very low intensity if the model supports it.
+
+---
+
+## 76.22 Wake Conditions
+
+Wake may be triggered by:
+
+- user click
+- double click
+- drag
+- user speech
+- chat input
+- panel interaction
+- summon action
+- important system event
+- explicit application command
+
+Wake flow:
+
+    sleeping
+       ↓
+    wake trigger
+       ↓
+    wake motion
+       ↓
+    restore active state
+       ↓
+    normal interaction behavior
+
+The wake animation must be interruptible if the user immediately starts a meaningful interaction.
+
+---
+
+## 76.23 Mood Modifies Autonomy
+
+Mood does not directly select a fixed animation.
+
+Instead it changes candidate weights.
+
+Example:
+
+    cheerful:
+      positive gestures ↑
+      social reactions ↑
+
+    curious:
+      gaze shifts ↑
+      look-around ↑
+
+    thoughtful:
+      quiet thinking motions ↑
+      idle speech ↓
+
+    sleepy:
+      micro motion ↑
+      major motion ↓
+      wander ↓
+      speech ↓
+
+    mischievous:
+      playful gestures ↑
+      surprise events slightly ↑
+
+Mood is therefore a probability modifier, not an animation name.
+
+---
+
+## 76.24 Energy Modifies Autonomy
+
+Energy should influence:
+
+- frequency
+- amplitude
+- speed
+- movement distance
+- probability of major events
+- willingness to wander
+- speaking tendency
+
+Example:
+
+    energy 0.9:
+      more movement
+      faster recovery
+      larger gestures
+
+    energy 0.2:
+      longer quiet periods
+      smaller gestures
+      more resting
+      higher sleep probability
+
+Energy must never override user-priority events.
+
+---
+
+## 76.25 Time-of-Day Modifiers
+
+Recommended time categories:
+
+    morning
+    afternoon
+    evening
+    night
+
+Examples:
+
+    morning:
+      stretch
+      wakefulness
+      greeting
+
+    afternoon:
+      normal activity
+
+    evening:
+      lower energy
+      quieter behavior
+
+    night:
+      very low autonomous communication
+      low movement
+      high sleep probability
+
+Time-of-day modifies weights; it does not hard-code behavior.
+
+---
+
+## 76.26 State Gating
+
+Autonomous behavior must respect current state.
+
+Example policy:
+
+    loading:
+      no autonomy
+
+    listening:
+      micro only
+
+    thinking:
+      compatible thinking motion only
+
+    speaking:
+      speech-compatible gestures only
+
+    acting:
+      tool-compatible motion only
+
+    sleeping:
+      wake-triggered events only
+
+    hidden:
+      no visual behavior
+
+    error:
+      controlled error behavior
+
+    idle:
+      full autonomous candidate set
+
+This prevents autonomy from fighting user-driven behavior.
+
+---
+
+## 76.27 User-Driven Events Always Win
+
+Example:
+
+    Saeed is wandering
+          ↓
+    user grabs Saeed
+          ↓
+    drag event
+          ↓
+    wander yields immediately
+          ↓
+    drag becomes authoritative
+
+Another:
+
+    Saeed is doing an idle gesture
+          ↓
+    user starts speaking
+          ↓
+    idle gesture is interrupted/blended as appropriate
+          ↓
+    listening becomes authoritative
+
+Another:
+
+    idle thought is scheduled
+          ↓
+    user sends a message
+          ↓
+    idle thought is dropped
+
+This rule is mandatory:
+
+> **Autonomy must yield to meaningful user interaction.**
+
+---
+
+## 76.28 Event Priority
+
+Recommended conceptual priority:
+
+    100  system-critical
+     95  direct user manipulation
+     90  direct user interaction
+     85  listening / speaking
+     75  active thinking
+     70  important tool reaction
+     60  normal semantic reaction
+     40  wake
+     25  autonomous movement
+     15  idle thought
+     10  idle major motion
+      1  micro behavior
+
+Exact values may change.
+
+The ordering must remain.
+
+---
+
+## 76.29 Event Arbitration
+
+Before execution:
+
+    candidate event
+          ↓
+    compare against active event
+          ↓
+    higher priority?
+       /       \
+     yes       no
+      |         |
+    interrupt   defer/drop
+      |
+      v
+    execute
+
+Low-priority events must not accumulate indefinitely.
+
+For example:
+
+    5 idle gestures
+    2 wander requests
+    3 idle thoughts
+
+must not become a queue that executes after the user returns.
+
+Stale autonomous events should expire.
+
+---
+
+## 76.30 Autonomous Event Expiration
+
+Every autonomous event should have:
+
+    createdAt
+    expiresAt
+
+If the user becomes active before execution:
+
+    event = expired
+    event = dropped
+
+This prevents outdated autonomous decisions from being executed later.
+
+---
+
+## 76.31 Quiet-State Feedback
+
+The system must learn from absence of response.
+
+Example:
+
+    attention call
+       ↓
+    no response
+       ↓
+    attention penalty increases
+
+Repeatedly:
+
+    no response
+       ↓
+    lower attention probability
+       ↓
+    longer cooldown
+
+If the user responds positively:
+
+    interaction
+       ↓
+    attention penalty decreases
+       ↓
+    normal behavior restored
+
+This does not require machine learning.
+
+A simple adaptive score is sufficient.
+
+---
+
+## 76.32 Dismissal Feedback
+
+If the user dismisses an idle thought:
+
+    dismissed
+       ↓
+    record thought category
+       ↓
+    suppress same category
+       ↓
+    extend cooldown
+
+Example:
+
+    "Need anything?"
+
+dismissed repeatedly:
+
+    attention-question category becomes less likely.
+
+This is essential for a non-annoying assistant.
+
+---
+
+## 76.33 One Event = One Coherent Character Action
+
+When autonomy decides to act, the outputs should feel like one event.
+
+Example:
+
+    AutonomousEvent:
+      type = attention_call
+
+      motion:
+        gentle wave
+
+      bubble:
+        "I'm here if you need me."
+
+      voice:
+        optional
+
+This is preferable to three independent systems independently deciding:
+
+    animation
+    bubble
+    sound
+
+at the same moment.
+
+The CharacterController owns the semantic event.
+
+Presentation systems execute its parts.
+
+---
+
+## 76.34 Example Autonomous Timeline
+
+A healthy session might look like:
+
+    00:00  user active
+           Saeed listens / speaks
+
+    01:20  user becomes inactive
+           Saeed remains quiet
+
+    02:10  micro eye movement
+
+    03:40  subtle posture adjustment
+
+    05:00  idle candidate evaluated
+           no event selected
+
+    06:30  small look-around
+
+    08:00  no event
+
+    10:00  small wander
+
+    12:00  no event
+
+    15:00  idle thought candidate
+           probability fails
+           nothing happens
+
+    18:00  idle thought candidate
+           selected
+           gentle gesture + short bubble
+
+    18:30  user still inactive
+           no repeated call
+
+    25:00  sleep candidate
+           selected
+
+    25:05  Saeed sleeps
+
+    31:00  user clicks Saeed
+           wake
+
+    31:02  user starts talking
+           listening
+
+This is the desired behavioral rhythm.
+
+---
+
+## 76.35 What Must NOT Happen
+
+Never implement:
+
+    setInterval(() => playRandomAnimation(), 3000)
+
+Never implement:
+
+    every idle tick => speak
+
+Never implement:
+
+    every idle tick => wander
+
+Never implement:
+
+    every focus event => animation
+
+Never implement:
+
+    every animation => sound
+
+Never implement:
+
+    every idle thought => TTS
+
+Never implement:
+
+    LLM decides every blink
+
+Never implement:
+
+    autonomous queue that can grow without bound
+
+Never implement:
+
+    renderer-owned autonomous brain
+
+Never implement:
+
+    separate idle bubble system
+
+Never implement:
+
+    separate idle voice system
+
+Never implement:
+
+    autonomous behavior that ignores user interaction
+
+---
+
+## 76.36 Proposed AutonomousBehaviorController Contract
+
+Recommended logical interface:
+
+    interface AutonomousBehaviorController {
+      start(): void
+      stop(): void
+      onUserInteraction(event): void
+      onStateChanged(state): void
+      onMoodChanged(mood): void
+      onEnergyChanged(energy): void
+      evaluateNow(): void
+      getStatus(): AutonomousStatus
+    }
+
+Recommended status:
+
+    {
+      enabled: true,
+      lastEvaluationAt: 0,
+      lastMajorEventAt: 0,
+      lastThoughtAt: 0,
+      lastAttentionCallAt: 0,
+      lastWanderAt: 0,
+      lastSleepAt: 0,
+      inactivityMs: 0,
+      attentionPenalty: 0,
+      currentAutonomousEvent: null
+    }
+
+This is a logical contract. Existing modules may implement these responsibilities without creating a new file.
+
+---
+
+## 76.37 Proposed Behavior Policy Contract
+
+Behavior policy should answer:
+
+    canAutonomyRun(context)?
+    canSpeak(context)?
+    canWander(context)?
+    canCallUser(context)?
+    canSleep(context)?
+    canWake(context)?
+    scoreCandidate(candidate, context)?
+    selectCandidate(candidates, context)?
+    shouldInterrupt(active, candidate)?
+
+The policy is deterministic and testable.
+
+It must not directly manipulate the renderer.
+
+---
+
+## 76.38 Autonomous Context
+
+The decision system should have access to:
+
+    currentState
+    currentMood
+    energy
+    visibility
+    userInactivityMs
+    applicationFocused
+    panelVisible
+    bubbleVisible
+    voiceActive
+    speechActive
+    userTyping
+    currentMotion
+    currentMotionPriority
+    recentMotionHistory
+    recentAutonomousEvents
+    recentDismissals
+    timeOfDay
+    sleepState
+    characterCapabilities
+
+This context should be read through the existing authoritative owners.
+
+No duplicate state source is allowed.
+
+---
+
+## 76.39 Autonomous Configuration
+
+User-configurable settings should include:
+
+    autonomousBehavior.enabled
+    autonomousBehavior.idleMotion.enabled
+    autonomousBehavior.wander.enabled
+    autonomousBehavior.idleThoughts.enabled
+    autonomousBehavior.idleVoice.enabled
+    autonomousBehavior.attentionCalls.enabled
+    autonomousBehavior.sleep.enabled
+
+Optional:
+
+    autonomousBehavior.quietHours
+    autonomousBehavior.maxAttentionCallsPerHour
+    autonomousBehavior.idleThoughtCooldown
+    autonomousBehavior.wanderCooldown
+    autonomousBehavior.autonomyIntensity
+
+The default configuration should favor quiet behavior.
+
+---
+
+## 76.40 Autonomy Intensity
+
+Provide a global intensity concept:
+
+    0.0 = almost completely quiet
+    0.25 = very calm
+    0.50 = normal
+    0.75 = lively
+    1.0 = highly active
+
+This value modifies probabilities and cooldowns.
+
+It must not override hard safety and user-priority rules.
+
+Recommended default:
+
+    0.35–0.50
+
+The goal is a calm companion, not a constantly animated mascot.
+
+---
+
+## 76.41 Voice Policy
+
+Voice is the most intrusive autonomous output.
+
+Therefore:
+
+    micro motion < major motion < bubble < sound < voice
+
+in terms of attention cost.
+
+The system should prefer the least intrusive output that satisfies the behavior.
+
+For example:
+
+    need to show presence?
+        → micro motion
+
+    need to react?
+        → gesture
+
+    need to communicate?
+        → bubble
+
+    need to alert?
+        → sound
+
+    genuinely need user attention?
+        → voice
+
+This hierarchy is a core anti-annoyance rule.
+
+---
+
+## 76.42 Privacy and Network Policy
+
+Autonomous behavior should operate locally by default.
+
+Idle behavior must not silently send user data to an LLM.
+
+If an LLM is used for an autonomous thought:
+
+- the user must have enabled that feature
+- only minimal required context is sent
+- no sensitive context is included by default
+- network failure must not break autonomy
+- local fallback text remains available
+
+---
+
+## 76.43 Autonomous Behavior and Character Replacement
+
+Autonomous state belongs to CharacterController, not to a particular GLB.
+
+When the GLB changes:
+
+    old GLB
+       ↓
+    new GLB
+       ↓
+    same state
+    same mood
+    same energy
+    same scheduler
+    same history policy
+       ↓
+    capabilities recalculated
+       ↓
+    behavior continues
+
+However, motion history may need to invalidate entries that require unavailable capabilities.
+
+Example:
+
+    handWave requires hand
+    new GLB has no hand
+
+Then:
+
+    handWave candidate
+       ↓
+    capability check
+       ↓
+    rejected
+       ↓
+    fallback = head nod
+
+---
+
+## 76.44 Autonomous Behavior and Bubble Follow
+
+When an autonomous bubble is visible:
+
+    CharacterController
+          ↓
+    BubbleController
+          ↓
+    world-space character anchor
+          ↓
+    screen projection
+          ↓
+    bubble follows character
+
+The bubble system remains the same system used by normal responses.
+
+---
+
+## 76.45 Autonomous Behavior and TTS Synchronization
+
+If an autonomous event contains voice:
+
+    AutonomousEvent
+       |
+       +-- bubble text
+       |
+       +-- TTS text
+       |
+       +-- speaking state
+       |
+       +-- compatible motion
+       |
+       +-- face behavior
+
+The event must enter the same speech pipeline as normal responses.
+
+There must not be a second TTS implementation for idle behavior.
+
+---
+
+## 76.46 Autonomous State Machine
+
+Conceptual state machine:
+
+    +---------+
+    | ACTIVE  |
+    +----+----+
+         |
+         | no interaction
+         v
+    +---------+
+    |  IDLE   |
+    +----+----+
+         |
+         | candidate selected
+         v
+    +-------------+
+    | AUTONOMOUS  |
+    |   EVENT     |
+    +------+------+ 
+           |
+       +---+---+
+       |       |
+       v       v
+    MOTION   COMMUNICATION
+       |       |
+       +---+---+
+           |
+           v
+        IDLE
+           |
+           | prolonged inactivity
+           v
+       SLEEPING
+           |
+           | user/system trigger
+           v
+         WAKE
+           |
+           v
+         ACTIVE
+
+At any point:
+
+    meaningful user interaction
+             ↓
+       cancel/defer autonomy
+             ↓
+       user-driven state
+
+---
+
+## 76.47 Testing Autonomous Behavior
+
+Required tests:
+
+### Test A — Active user
+
+User is interacting continuously.
+
+Expected:
+
+    no idle thoughts
+    no autonomous wander
+    no attention calls
+    micro behavior may continue
+
+### Test B — Idle user
+
+User is inactive beyond threshold.
+
+Expected:
+
+    scheduler evaluates
+    many evaluations produce no event
+    occasional event occurs
+    events are not repetitive
+
+### Test C — Repetition
+
+Force repeated candidate selection.
+
+Expected:
+
+    recent candidate penalty increases
+    alternative candidates become preferred
+
+### Test D — User interrupts wander
+
+Start wander.
+
+Then drag Saeed.
+
+Expected:
+
+    wander yields
+    drag becomes authoritative
+
+### Test E — User interrupts idle thought
+
+Schedule idle thought.
+
+Then user sends message.
+
+Expected:
+
+    idle thought is dropped
+    user response takes priority
+
+### Test F — Attention call ignored
+
+Trigger attention call.
+
+Do not interact.
+
+Expected:
+
+    next attention probability decreases
+    cooldown increases
+
+### Test G — Attention call answered
+
+Trigger attention call.
+
+Interact positively.
+
+Expected:
+
+    attention penalty decreases
+    normal behavior resumes
+
+### Test H — Sleep
+
+Remain inactive long enough.
+
+Expected:
+
+    Saeed enters sleeping state
+    wander disabled
+    idle communication disabled
+
+### Test I — Wake
+
+Click sleeping Saeed.
+
+Expected:
+
+    wake event
+    wake motion
+    normal idle/interaction behavior
+
+### Test J — Voice conflict
+
+Start normal user-facing TTS.
+
+Attempt autonomous voice.
+
+Expected:
+
+    autonomous voice is dropped/deferred
+
+### Test K — GLB replacement
+
+Replace character while an autonomous event is pending.
+
+Expected:
+
+    stale event is discarded or revalidated
+    new character continues with same controller
+    unsupported motions fall back safely
+
+---
+
+## 76.48 Definition of Natural Behavior
+
+A successful implementation should pass this human test:
+
+> If the user watches Saeed for five minutes without interacting, the character should look alive but should not repeatedly demand attention.
+
+And:
+
+> If the user starts interacting, Saeed should immediately become more responsive and less autonomous.
+
+And:
+
+> If the user ignores Saeed, Saeed should become quieter rather than more persistent.
+
+And:
+
+> If Saeed performs the same semantic action twice, the physical result should not necessarily look identical.
+
+These are behavioral requirements, not optional visual polish.
+
+---
+
+## 76.49 Core Anti-Annoyance Rules
+
+The following rules are mandatory:
+
+1. Autonomy must yield to meaningful user interaction.
+2. Autonomous events are probabilistic, not guaranteed.
+3. Recent behavior must be penalized.
+4. Every noticeable autonomous behavior has a cooldown.
+5. Attention calls have much longer cooldowns.
+6. Repeated ignored attention calls reduce future probability.
+7. Dismissed thoughts reduce related future probability.
+8. Voice is the most restricted autonomous output.
+9. Idle thoughts are optional, not mandatory.
+10. Wander is small and infrequent.
+11. Sleep removes almost all autonomous activity.
+12. Micro behavior may continue quietly.
+13. No autonomous event may overwrite an important user-facing response.
+14. Autonomous events expire when context changes.
+15. No autonomous queue may grow without bound.
+16. No LLM request is required for basic autonomy.
+17. No random behavior is implemented outside the authoritative autonomous policy.
+18. No renderer component may independently decide autonomous behavior.
+
+---
+
+## 76.50 Final Behavioral Formula
+
+The desired Saeed behavior can be summarized as:
+
+    Naturalness
+      =
+        Presence
+      + Variation
+      + Context
+      + Timing
+      + Restraint
+      + Responsiveness
+
+Not:
+
+    Naturalness = number of animations
+
+The most important design principle is:
+
+> **Do less, but choose the moment better.**
+
+Saeed should feel alive because his behavior has timing, context, memory, variation and restraint—not because he is constantly moving.
+
+
+# 127. Definition of Done
 
 The architecture is complete only when:
 
