@@ -10,6 +10,7 @@ export class AutonomousBehaviorController{
   this.visible=true;
   this.timer=null;
   this.sleepTimer=null;
+  this.blinkTimer=null;
   this.intent="idle";
   this.energy=70;
   this.lastEnergyAt=performance.now();
@@ -29,10 +30,13 @@ export class AutonomousBehaviorController{
   this.running=false;
   this.clearTimer();
   this.clearSleepTimer();
+  this.clearBlinkTimer();
   this.sleeping=false;
  }
  clearTimer(){if(this.timer){clearTimeout(this.timer);this.timer=null}}
  clearSleepTimer(){if(this.sleepTimer){clearTimeout(this.sleepTimer);this.sleepTimer=null}}
+ clearBlinkTimer(){if(this.blinkTimer){clearTimeout(this.blinkTimer);this.blinkTimer=null}}
+ armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping)return;const delay=2800+Math.random()*4200;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
  setVisible(value){
   this.visible=value!==false&&String(value)!=="hidden";
   if(!this.visible){this.stop();return true}
@@ -89,6 +93,7 @@ export class AutonomousBehaviorController{
  schedule(delay=DEFAULT_IDLE_DELAY){
   this.clearTimer();
   if(!this.running||!this.visible||this.sleeping)return;
+  this.armBlinkTimer();
   this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.max(1000,Number(delay)||DEFAULT_IDLE_DELAY));
  }
  evaluateNow(){
@@ -122,13 +127,13 @@ export class AutonomousBehaviorController{
   const type=typeof event==="string"?event:String(event?.type||"");
   if(!this.running||!this.visible)return false;
   this.touch();
-  if(type==="speech-start"){this.intent="speaking";this.character.play("talkGesture",{duration:.9,priority:25});return true}
-  if(type==="speech-end"){this.intent="idle";this.schedule(3500);return true}
+  if(type==="speech-start"){this.intent="speaking";this.character.face?.expression?.("happy",.45);this.character.play("talkGesture",{duration:.9,priority:25});return true}
+  if(type==="speech-end"){this.intent="idle";this.character.face?.expression?.(this.mood==="sad"?"sad":"neutral",.5);this.schedule(3500);return true}
   if(type==="thinking"){this.intent="thinking";this.character.play("think",{duration:2.2,priority:35});return true}
   if(type==="user-input"){this.intent="reacting";this.character.play("think",{duration:1.8,priority:35});return true}
-  if(type==="tool"){this.intent="doing";this.character.play("think",{duration:1.4,priority:30});return true}
-  if(type==="tool_result"){this.intent="reacting";this.character.play("nod",{duration:.65,priority:40});return true}
-  if(type==="tool_error"){this.intent="reacting";this.character.play("shake",{duration:.7,priority:40});return true}
+  if(type==="tool"){this.intent="doing";this.character.face?.expression?.("curious",.65);this.character.play("think",{duration:1.4,priority:30});return true}
+  if(type==="tool_result"){this.intent="reacting";this.character.face?.expression?.("pleased",.65);this.character.play("nod",{duration:.65,priority:40});return true}
+  if(type==="tool_error"){this.intent="reacting";this.character.face?.expression?.("sad",.55);this.character.play("shake",{duration:.7,priority:40});return true}
   if(type==="double-click"||type==="right-click"){this.character.play("wave",{duration:1.2,priority:45});return true}
   if(type==="zoom"){this.character.play("lookCloser",{duration:2.2,priority:35});return true}
   if(type==="drag-end"){this.character.play("nod",{duration:.65,priority:30});return true}
