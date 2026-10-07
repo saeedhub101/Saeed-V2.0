@@ -175,7 +175,7 @@ function installCharacterController(){
  return true;
 }
 installCharacterController();
-window.addEventListener("saeed-avatar-ready",installCharacterController);
+window.addEventListener("saeed-character-engine-ready",installCharacterController);
 window.addEventListener("DOMContentLoaded",()=>installCharacterController());
 window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
 document.addEventListener("visibilitychange",()=>window.saeedCharacterRuntime?.controller?.setVisible(!document.hidden));
