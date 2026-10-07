@@ -536,6 +536,7 @@ jobs:
 
       - name: Packaged EXE E2E Suite 5 — Character Studio — every button, bone rotation and live animation
         if: always()
+        id: e2e_suite_5
         continue-on-error: true
         shell: powershell
         timeout-minutes: 8
@@ -582,6 +583,7 @@ jobs:
           }
       - name: Packaged EXE E2E Suite 6 — Normalize Humanoid Rest Pose — window and controls
         if: always()
+        id: e2e_suite_6
         continue-on-error: true
         shell: powershell
         timeout-minutes: 8
