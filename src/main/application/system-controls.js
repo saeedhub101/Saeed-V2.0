@@ -4,7 +4,7 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
   if(!tray)return;
   const muted=Boolean(getVoiceMuted?.());
   const mic=getCurrentMicMode?.()||"off";
-  tray.setContextMenu(Menu.buildFromTemplate([
+  const menu=Menu.buildFromTemplate([
    {label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter}]},
    {label:muted?"Unmute":"Mute",type:"checkbox",checked:muted,click:()=>setVoiceMuted(!muted)},
    {label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:mic==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:mic==="off",click:()=>setMicMode("off")}]},
@@ -14,7 +14,9 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
    {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
    {label:"Updates & Settings",submenu:[{label:"Update status",click:showUpdateStatus},{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},
    {label:"Quit",click:()=>app.quit()}
-  ]));
+  ]);
+  tray.setContextMenu(menu);
+  tray.__saeedContextMenu=menu;
  }
  function contextMenu(){
   const win=getCharacterWindow?.();
