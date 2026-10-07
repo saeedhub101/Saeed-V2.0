@@ -327,41 +327,111 @@ jobs:
           foreach($rel in @("whisper-cli.exe","ggml-base-q5_1.bin")) { $p=Join-Path $whisperRoot $rel; if(!(Test-Path $p -PathType Leaf)){throw "Embedded Whisper asset missing: $p"} }
           Write-Host "PACKAGED_CORE_HAS_EMBEDDED_WHISPER=PASS"
 
-      - name: Packaged EXE end-to-end UI, Brain, Voice and lifecycle test
+      - name: Packaged EXE E2E Suite 1 — Startup, Performance and Character Motion
+        id: e2e_suite_1
+        continue-on-error: true
         shell: powershell
         timeout-minutes: 8
+        env:
+          SAEED_CI_E2E_SUITE: "1"
         run: |
           $ErrorActionPreference = "Stop"
-          $report = Join-Path $PWD "dist\ci-e2e-report.json"
-          $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e.stdout.log"
-          $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e.stderr.log"
+          $report = Join-Path $PWD "dist\ci-e2e-suite-1.json"
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-1.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-1.stderr.log"
           Remove-Item $report -Force -ErrorAction SilentlyContinue
           $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged EXE missing: $exe" }
-          $env:SAEED_CI_E2E_REPORT = $report
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=1" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
           $deadline=(Get-Date).AddSeconds(420)
           while(!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; throw "Packaged E2E test timed out after 420 seconds." }
+          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; throw "E2E Suite 1 timed out." }
           if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
           if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
-          if(!(Test-Path $report)){@{startedAt=(Get-Date).ToUniversalTime().ToString("o");finishedAt=(Get-Date).ToUniversalTime().ToString("o");pass=$false;error="Packaged E2E did not produce ci-e2e-report.json";checks=@{}}|ConvertTo-Json -Depth 8|Set-Content $report -Encoding UTF8; Write-Warning "Packaged E2E did not produce a report; preserving synthetic failure report and continuing."}
-          $result=Get-Content $report -Raw|ConvertFrom-Json
-          Get-Content $report -Raw
-          if(-not $result.pass){Write-Warning "Packaged EXE E2E validation failed. The detailed report will be uploaded for diagnosis; the final E2E gate runs after artifact upload."}
-          Write-Host "PACKAGED_EXE_E2E=PASS"
-          Write-Host "PACKAGED_EXE_CHAT_BRAIN_VOICE_LIFECYCLE=PASS"
+          if(!(Test-Path $report)){ throw "E2E Suite 1 did not produce $report" }
+          Get-Content $report -Raw|Write-Host
 
-      - name: Verify packaged EXE E2E reports
+      - name: Packaged EXE E2E Suite 2 — Chat, Brain and Voice
+        id: e2e_suite_2
+        continue-on-error: true
+        if: always()
+        shell: powershell
+        timeout-minutes: 8
+        env:
+          SAEED_CI_E2E_SUITE: "2"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $report = Join-Path $PWD "dist\ci-e2e-suite-2.json"
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-2.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-2.stderr.log"
+          Remove-Item $report -Force -ErrorAction SilentlyContinue
+          $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged EXE missing: $exe" }
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=2" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline=(Get-Date).AddSeconds(420)
+          while(!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; throw "E2E Suite 2 timed out." }
+          if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
+          if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
+          if(!(Test-Path $report)){ throw "E2E Suite 2 did not produce $report" }
+          Get-Content $report -Raw|Write-Host
+
+      - name: Packaged EXE E2E Suite 3 — Character Studio, Windows, Tray and GLB
+        id: e2e_suite_3
+        continue-on-error: true
+        if: always()
+        shell: powershell
+        timeout-minutes: 8
+        env:
+          SAEED_CI_E2E_SUITE: "3"
+        run: |
+          $ErrorActionPreference = "Stop"
+          $report = Join-Path $PWD "dist\ci-e2e-suite-3.json"
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-3.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-3.stderr.log"
+          Remove-Item $report -Force -ErrorAction SilentlyContinue
+          $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe -PathType Leaf)) { throw "Packaged EXE missing: $exe" }
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=3" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline=(Get-Date).AddSeconds(420)
+          while(!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+          if(!$proc.HasExited){ Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue; throw "E2E Suite 3 timed out." }
+          if(Test-Path $stdout){Get-Content $stdout -Raw|Write-Host}
+          if(Test-Path $stderr){Get-Content $stderr -Raw|Write-Host}
+          if(!(Test-Path $report)){ throw "E2E Suite 3 did not produce $report" }
+          Get-Content $report -Raw|Write-Host
+
+      - name: Upload packaged E2E suite reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Saeed-AI-packaged-e2e-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            dist/ci-e2e-suite-1.json
+            dist/ci-e2e-suite-2.json
+            dist/ci-e2e-suite-3.json
+            ${{ runner.temp }}/saeed-e2e-suite-*.stdout.log
+            ${{ runner.temp }}/saeed-e2e-suite-*.stderr.log
+
+      - name: Final packaged E2E result gate — all suites
+        if: always()
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          foreach($p in @("dist\ci-e2e-report.json")) {
-            if (!(Test-Path $p)) { throw "Required packaged E2E report missing: $p" }
-            $item=Get-Item $p
-            Write-Host "Verified E2E report: $p ($($item.Length) bytes)"
+          $reports=@("dist\ci-e2e-suite-1.json","dist\ci-e2e-suite-2.json","dist\ci-e2e-suite-3.json")
+          $missing=@()
+          $failed=@()
+          foreach($p in $reports){
+            if(!(Test-Path $p)){ $missing+=$p; continue }
+            $r=Get-Content $p -Raw|ConvertFrom-Json
+            Write-Host "================ $p ================"
+            Get-Content $p -Raw|Write-Host
+            if(-not $r.pass){$failed+=$p}
           }
-
+          if($missing.Count){throw "Missing packaged E2E reports: $($missing -join ", ")" }
+          if($failed.Count){throw "Packaged E2E failed in $($failed.Count) suite(s): $($failed -join ", ")" }
+          Write-Host "PACKAGED_EXE_E2E_ALL_SUITES=PASS"
       - name: Generate Windows updater metadata
         shell: pwsh
         run: |
