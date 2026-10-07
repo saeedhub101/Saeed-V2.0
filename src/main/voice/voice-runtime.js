@@ -23,7 +23,9 @@ function startRealtime(options={}){
  const RealtimeClass=provider==="gemini"?GeminiLive:OpenAIRealtime; realtime=new RealtimeClass({
   state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");voiceBroadcast("realtime:state",state,message)},
   event:async(event)=>{
-   if(event.type==="input_audio_buffer.speech_stopped" && realtimeBrainMode==="api"){
+   if(event.type==="input_audio_buffer.speech_started"){voiceBroadcast("agent:event",{type:"speech-start",source:"realtime"});}
+   else if(event.type==="input_audio_buffer.speech_stopped" && realtimeBrainMode==="api"){
+    voiceBroadcast("agent:event",{type:"speech-end",source:"realtime"});
     realtime?.requestResponse();
    }
    else if(provider==="gemini"&&event.serverContent?.modelTurn?.parts){for(const part of event.serverContent.modelTurn.parts){if(part.inlineData?.data)voiceBroadcast("realtime:audio",part.inlineData.data);if(part.text)voiceBroadcast("realtime:assistant-delta",part.text)}}else if(provider==="gemini"&&event.serverContent?.inputTranscription?.text){realtimeUserText=String(event.serverContent.inputTranscription.text||"").trim();voiceBroadcast("realtime:user-final",realtimeUserText)}else if(provider==="gemini"&&event.serverContent?.outputTranscription?.text){const answer=String(event.serverContent.outputTranscription.text||"").trim();if(answer)voiceBroadcast("realtime:assistant-final",answer)}else if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
