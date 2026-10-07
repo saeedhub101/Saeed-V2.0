@@ -4009,7 +4009,535 @@ The most important design principle is:
 Saeed should feel alive because his behavior has timing, context, memory, variation and restraint—not because he is constantly moving.
 
 
-# 127. Definition of Done
+
+# 77. CI / Workflow Verification Contract
+
+The GitHub Actions workflow is part of the engineering safety system.
+
+A successful build alone does not prove that the Saeed character architecture is correct. Future workflow updates must verify both:
+
+1. technical correctness
+2. architectural correctness
+
+The workflow should remain the final automated gate before a build is considered verified.
+
+## 77.1 Existing Baseline Checks
+
+The current workflow already performs important checks including:
+
+- repository structure validation
+- dependency installation
+- JavaScript syntax validation
+- npm tests
+- application startup smoke testing
+- packaged runtime asset verification
+- packaged EXE E2E testing
+- Brain / Voice / lifecycle validation
+- release artifact verification
+- add-on bundle verification
+
+These checks must be preserved unless there is a documented replacement with equal or stronger coverage.
+
+## 77.2 Architecture Contract Check
+
+Add a dedicated CI check that verifies the required architecture files and authoritative owners exist.
+
+At minimum verify:
+
+- exactly one CharacterController implementation
+- the authoritative character host exists
+- the character runtime entry point exists
+- the renderer exists
+- the bubble system exists
+- motion safety exists
+- rig / retargeting components exist
+- no required architecture component is silently deleted
+
+This check should fail the workflow when an architectural owner disappears unexpectedly.
+
+## 77.3 Duplicate Character-System Detection
+
+CI should detect accidental creation of parallel character systems.
+
+The check should search for:
+
+- multiple CharacterController classes
+- multiple authoritative idle schedulers
+- multiple autonomous behavior owners
+- multiple bubble controllers
+- multiple independent TTS character pipelines
+- renderer-owned autonomous decision loops
+- random-animation loops outside the authoritative behavior system
+
+The purpose is to prevent architecture drift.
+
+## 77.4 Semantic Boundary Check
+
+CI should verify that Brain/application code does not directly manipulate character bones.
+
+Forbidden architectural patterns include application-level code that directly performs:
+
+- bone rotation
+- quaternion assignment
+- Euler assignment
+- direct skeletal transform writes
+- model-specific bone-name decisions
+- direct animation selection from LLM output
+
+The expected path is:
+
+    Brain
+      ↓
+    Semantic Event
+      ↓
+    CharacterController
+      ↓
+    Motion Intent
+      ↓
+    Motion System
+      ↓
+    Rig / Retargeter
+      ↓
+    Renderer
+
+This can begin as a targeted static scan and later become an AST-based check if necessary.
+
+## 77.5 Autonomous Behavior Contract Tests
+
+When AutonomousBehaviorController or its equivalent is implemented, CI must test:
+
+- active user suppresses autonomous major behavior
+- idle user permits occasional autonomous behavior
+- repeated behavior receives a penalty
+- cooldowns are respected
+- attention calls are rare
+- ignored attention reduces future probability
+- dismissed thoughts reduce related probability
+- autonomous events expire when context changes
+- autonomous queues cannot grow without bound
+- user interaction interrupts or supersedes autonomy
+- autonomous voice cannot interrupt normal user-facing speech
+- sleep disables nonessential autonomy
+- wake restores normal behavior
+
+These tests should be deterministic.
+
+Use injected clock / random seed / policy inputs where necessary so CI does not depend on real time or uncontrolled randomness.
+
+## 77.6 Motion Selection Tests
+
+CI should verify that motion selection considers:
+
+- state
+- mood
+- energy
+- context
+- capabilities
+- recent motion history
+- recent motion families
+- priority
+- cooldowns
+
+Tests should also verify that:
+
+    happy != one fixed animation
+
+and that the same semantic intent can produce valid variations.
+
+## 77.7 Motion Safety Tests
+
+Generated or procedural motion must be tested for rejection or clamping of:
+
+- NaN
+- Infinity
+- invalid duration
+- excessive joint rotation
+- unsupported joints
+- invalid keyframe timing
+- impossible or unsafe poses
+- excessive acceleration
+
+A safety failure must never corrupt the active character state.
+
+## 77.8 Event Arbitration Tests
+
+CI should test priority ordering.
+
+Required principle:
+
+    direct user interaction
+      >
+    user-facing speech
+      >
+    important system/tool reaction
+      >
+    normal semantic reaction
+      >
+    autonomous behavior
+      >
+    micro idle behavior
+
+At minimum verify:
+
+- drag interrupts wander
+- user message interrupts idle thought
+- user-facing TTS blocks autonomous voice
+- important character reactions can suppress low-priority autonomy
+- stale autonomous events are dropped instead of queued indefinitely
+
+## 77.9 Bubble Integration Tests
+
+CI should verify that the authoritative response path can reach the BubbleController.
+
+Required checks:
+
+- normal response can create a bubble
+- Arabic text is preserved
+- English text is preserved
+- RTL text is supported
+- LTR text is supported
+- multiline text is supported
+- bubble follows the character anchor
+- autonomous bubbles use the same BubbleController
+- no second idle-only bubble implementation exists
+
+## 77.10 Character Replacement Tests
+
+CI should verify transactional GLB replacement.
+
+Test sequence:
+
+    working GLB
+       ↓
+    load replacement
+       ↓
+    replacement succeeds
+       ↓
+    new capabilities calculated
+       ↓
+    same CharacterController continues
+
+Failure case:
+
+    working GLB
+       ↓
+    invalid replacement
+       ↓
+    replacement rejected
+       ↓
+    old GLB remains active
+
+Also verify that autonomous events pending during replacement are revalidated or discarded when their required capabilities are no longer available.
+
+## 77.11 Character Capability Tests
+
+CI should test models with different capabilities.
+
+Examples:
+
+    full body + hands + eyes + jaw
+    body without fingers
+    body without eyes
+    body without jaw
+    reduced skeleton
+
+Expected behavior:
+
+- optional capability loss does not crash the runtime
+- unsupported motions are rejected or replaced by safe fallbacks
+- required minimum rig failures are reported clearly
+- the controller remains functional
+
+## 77.12 State / Mood Separation Tests
+
+CI must prove that:
+
+    state != mood
+    mood != motion
+    motion intent != skeletal implementation
+
+Examples:
+
+    mood = happy
+
+must not automatically mean:
+
+    animation = happy
+
+Changing mood must preserve the current state unless an explicit state transition is requested.
+
+## 77.13 Recent-Behavior and Anti-Repetition Tests
+
+CI should verify:
+
+- recent motion IDs are recorded
+- recent motion families are recorded
+- repeated candidates receive penalties
+- required user-driven repetitions are still allowed
+- old history expires according to policy
+- variation can change amplitude, speed, duration or composition
+
+The test should ensure the system does not become deterministic in the sense of:
+
+    idle → wave → idle → wave → idle → wave
+
+## 77.14 Sleep / Wake Tests
+
+CI should verify:
+
+    prolonged inactivity
+        ↓
+    sleep candidate
+        ↓
+    sleeping
+
+While sleeping:
+
+- wander is disabled
+- idle thoughts are disabled
+- autonomous communication is disabled
+- nonessential major motion is disabled
+
+Wake triggers should be tested for:
+
+- click
+- drag
+- user speech
+- important system event
+- explicit summon
+
+After wake:
+
+    wake motion
+      ↓
+    active / idle
+
+## 77.15 No-LLM Autonomy Test
+
+Basic autonomous behavior must operate without an LLM request.
+
+CI should simulate:
+
+- no network
+- unavailable LLM
+- LLM timeout
+- LLM failure
+
+Expected:
+
+- character remains stable
+- local autonomy continues
+- normal user interaction still works
+- no autonomous feature crashes the application
+
+LLM-generated idle thoughts are optional enrichment, never a runtime dependency.
+
+## 77.16 Privacy / Network Guard
+
+CI should prevent autonomous idle behavior from silently sending user context to a remote model.
+
+If an LLM-backed idle thought is enabled, the test should verify:
+
+- feature opt-in is required
+- minimal context is sent
+- sensitive context is excluded by default
+- network failure has a local fallback
+- no repeated background requests are created by an idle loop
+
+## 77.17 Renderer Purity Test
+
+The renderer should remain a presentation layer.
+
+CI should detect or test against renderer code that:
+
+- chooses autonomous behavior
+- chooses semantic reactions
+- owns character state
+- owns mood
+- creates autonomous queues
+- directly calls the LLM for character behavior
+
+Renderer responsibility:
+
+    receive state / pose / presentation data
+          ↓
+    display character
+
+## 77.18 Deterministic Autonomous Simulation
+
+A future test harness should be able to simulate a complete session without waiting real minutes.
+
+Example:
+
+    t=0      user active
+    t=60s    user idle
+    t=120s   evaluate
+    t=180s   evaluate
+    t=300s   evaluate
+    t=600s   sleep
+    t=601s   user interaction
+    t=602s   wake
+
+The clock must be injectable.
+
+The random source must support a fixed seed.
+
+The resulting sequence should be reproducible in CI.
+
+## 77.19 Five-Minute Naturalness Simulation
+
+A deterministic simulation should represent at least five minutes of inactivity.
+
+The test should verify:
+
+- Saeed does not constantly animate
+- major motions remain below configured frequency
+- attention calls remain rare
+- voice does not repeatedly trigger
+- repeated motions are suppressed
+- sleep eventually becomes possible
+- no autonomous queue grows indefinitely
+
+This is not a visual test. It is a behavioral-frequency test.
+
+## 77.20 User-Return Simulation
+
+Simulate:
+
+    long inactivity
+       ↓
+    autonomous candidate created
+       ↓
+    user returns before execution
+
+Expected:
+
+    candidate expires
+    candidate is dropped
+    user interaction wins
+    no stale bubble / voice / motion appears afterward
+
+This test is especially important for preventing annoying delayed behavior.
+
+## 77.21 Build Gate Levels
+
+Future checks should be classified:
+
+### Hard Gate
+
+Failure blocks the workflow.
+
+Examples:
+
+- syntax errors
+- failed unit/integration tests
+- duplicate authoritative controller
+- semantic boundary violation
+- failed event arbitration
+- failed motion safety
+- failed packaged E2E
+- failed character replacement safety
+
+### Diagnostic
+
+Failure produces a report but does not block the build initially.
+
+Examples:
+
+- character motion coverage statistics
+- idle-frequency statistics
+- autonomy distribution report
+- performance measurements
+- optional animation coverage
+- RAM diagnostics
+
+Diagnostics can later become hard gates after they are stable.
+
+## 77.22 Architecture Regression Report
+
+The workflow should eventually publish a machine-readable report containing:
+
+    architectureChecks
+    characterControllerCount
+    autonomousOwnerCount
+    bubbleOwnerCount
+    semanticBoundaryChecks
+    motionSafetyChecks
+    eventArbitrationChecks
+    sleepWakeChecks
+    glbReplacementChecks
+    capabilityChecks
+    naturalnessSimulation
+    packagedE2E
+
+Example:
+
+    {
+      "pass": true,
+      "architecture": {
+        "singleCharacterController": true,
+        "singleAutonomyOwner": true,
+        "rendererPure": true
+      },
+      "autonomy": {
+        "repetitionSuppression": true,
+        "attentionThrottle": true,
+        "sleepWake": true
+      }
+    }
+
+The report should be uploaded as a workflow artifact for failed or diagnostic runs.
+
+## 77.23 Workflow Execution Order
+
+The intended future order is:
+
+    checkout
+       ↓
+    version / structure validation
+       ↓
+    dependency installation
+       ↓
+    static architecture checks
+       ↓
+    syntax / lint / unit tests
+       ↓
+    character architecture tests
+       ↓
+    autonomous deterministic simulation
+       ↓
+    application smoke test
+       ↓
+    package build
+       ↓
+    packaged runtime validation
+       ↓
+    packaged E2E
+       ↓
+    release artifact verification
+       ↓
+    final gate
+       ↓
+    optional publish
+
+Fast failures should happen before expensive packaging whenever possible.
+
+## 77.24 Verification Rule
+
+A workflow is considered successful only when every Hard Gate passes.
+
+A green build that skips a required architectural test is not considered complete.
+
+The architecture document and workflow must remain synchronized.
+
+When a new architectural requirement is added to this document, one of the following must also happen:
+
+- an existing automated test already covers it, or
+- a new workflow/test requirement is added to cover it.
+
+This prevents the architecture from becoming documentation that is never enforced.
+
+# 78. Definition of Done
 
 The architecture is complete only when:
 
@@ -4052,7 +4580,7 @@ The architecture is complete only when:
 
 ---
 
-# 128. Authoritative Statement
+# 79. Authoritative Statement
 
 This document is the architecture contract for the Saeed 3D Character Runtime.
 
