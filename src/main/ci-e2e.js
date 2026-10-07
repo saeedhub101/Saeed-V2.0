@@ -130,16 +130,20 @@ function createCiE2E(deps={}){
    await check("brain.intent-open-my-computer",async()=>{
     const agent=await ensureBrain?.();if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
-    const result=await agent.run("Open my computer");
-    const route=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN ROUTE");
-    return Boolean(String(result||"").trim())&&String(route?.message||"").includes("local");
+    try{
+      const result=await agent.run("Open my computer");
+      const route=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN ROUTE");
+      return Boolean(String(result||"").trim())&&String(route?.message||"").includes("local");
+    }finally{agent.onEvent=old}
    });
    await check("brain.intent-api-escalation",async()=>{
     const agent=await ensureBrain?.();if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
-    const result=await agent.run("Open Excel and then book me a ticket");
-    const api=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN API");
-    return Boolean(api)&&String(result||"").trim().length>0;
+    try{
+      const result=await agent.run("Open Excel and then book me a ticket");
+      const api=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN API");
+      return Boolean(api)&&String(result||"").trim().length>0;
+    }finally{agent.onEvent=old}
    },{required:true});
 
    await check("chat.response-reaches-character-bubble",async()=>{const cw=chatWindow(),aw=getCharacterWindow?.();if(!cw||!visible(aw))return false;const r=await execJs(w,'(async()=>{const input=document.getElementById("input"),send=document.getElementById("send");input.value="Say exactly: CI_RESPONSE_CHAIN_OK";send.click();const started=Date.now();while(Date.now()-started<20000){const a=[...document.querySelectorAll("#messages .assistant")].map(x=>x.textContent.trim()).filter(Boolean);if(a.some(x=>x.includes("CI_RESPONSE_CHAIN_OK")))return a.find(x=>x.includes("CI_RESPONSE_CHAIN_OK"));await new Promise(r=>setTimeout(r,250));}return ""})()',true);await wait(250);const bubble=await execJs(w,'(()=>({visible:Boolean(document.getElementById("saeedMessageBubble")&&!document.getElementById("saeedMessageBubble").hidden),text:document.getElementById("saeedMessageText")?.textContent||""}))()',true);return {pass:Boolean(r&&bubble.visible&&bubble.text.includes("CI_RESPONSE_CHAIN_OK")),response:r,bubble}});
