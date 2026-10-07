@@ -50,7 +50,7 @@ function createCiE2E(deps={}){
   let timer;
   let timedOut=false;
   const work=checkContext.run(ctx,()=>Promise.resolve().then(fn));
-  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{timedOut=true;ctx.timedOut=true;recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0});resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; test execution was not cancelled so remaining checks can continue.",diagnostic:{check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)}})},timeoutMs)});
+  const timeout=new Promise(resolve=>{timer=setTimeout(()=>{timedOut=true;ctx.timedOut=true;recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0});resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; test execution was not cancelled so remaining checks can continue.",diagnostic:{check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)}})},effectiveTimeoutMs)});
   try{
    const v=await Promise.race([work,timeout]);
    clearTimeout(timer);
