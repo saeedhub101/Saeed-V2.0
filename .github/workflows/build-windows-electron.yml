@@ -19,6 +19,8 @@ concurrency:
 
 jobs:
   build:
+    # Hard guard: only a deliberate manual workflow_dispatch may execute the Windows build.
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     name: Test and build Windows
     runs-on: windows-latest
     timeout-minutes: 120
