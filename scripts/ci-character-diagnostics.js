@@ -23,7 +23,7 @@ async function run(){
  try{
   const {AnimationController}=await import(modules["AnimationController.js"]),{registerCoreMotions}=await import(modules["motions.js"]);
   let last={};const mock={wakeRender(){},resetCharacterPose(){},applyCharacterPose(p){last=JSON.parse(JSON.stringify(p||{}));}};
-  const a=new AnimationController(mock);registerCoreMotions(a);const ids=a.registry.list();
+  const a=new AnimationController(mock);registerCoreMotions(a);a.bindRig(Object.fromEntries(["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"].map((name)=>[name,{name}])),{capabilities:{body:true,arms:true,legs:true,neck:true,eyes:true,blink:true,face:true,fingers:true}});const ids=a.registry.list();
   const expected=["nod","shake","wave","think","jump","clap","dance","talkGesture","lookCloser","sitKnee","standUp","stretch","yawn","crackBack","crackFingers","turnBody","walk","sleep","wake","adhanOpening"];
   report("all core motions registered",expected.every(id=>ids.includes(id)),`registered=${ids.length}/${expected.length}`);
   let played=0,moved=0;
