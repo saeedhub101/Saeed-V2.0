@@ -18,7 +18,7 @@ const suiteNames=[1,2,3];
 for(const n of suiteNames){
  const marker=`- name: Packaged EXE E2E Suite ${n} `;
  const start=workflow.indexOf(marker);
- const end=start<0?-1:workflow.indexOf("\\n      - name:",start+marker.length);
+ const end=start<0?-1:workflow.indexOf("\n      - name:",start+marker.length);
  const block=start<0?"":workflow.slice(start,end<0?workflow.length:end);
  must(start>=0,`Missing independent E2E Suite ${n} step`);
  must(block.includes("if: always()"),`E2E Suite ${n} is not forced to run`);
