@@ -1,5 +1,3 @@
-import { registerCoreMotions } from "./motions.js";
-
 const DEFAULT_IDLE_DELAY=7000;
 const SLEEP_AFTER_MS=20*60*1000;
 const RECENT_LIMIT=4;
