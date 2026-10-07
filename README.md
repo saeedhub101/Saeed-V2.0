@@ -386,7 +386,7 @@ Hide Saeed:
 | Tool registry/permission/dispatch | src/tools/registry.js |
 | Character behavior | src/character/CharacterController.js |
 | Motion definitions | src/character/motions.js |
-| 3D rendering | src/avatar.js |
+| 3D rendering | src/character/CharacterEngine.js |
 | Character window | src/core/character/character-host.js |
 | Voice lifecycle | src/core/voice/voice-host.js + existing voice runtime |
 | Voice renderer client | src/voice/client.js |
