@@ -38,7 +38,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="normalizeRestPose"){const normalization=c.normalizeRestPose?.();return{ok:Boolean(normalization),normalization:normalization||null,status:c.status()}}
   if(x.action==="boneRotation")return{ok:true,rotation:engine?.getBoneRotation?.(String(x.bone||""))||null};
   if(x.action==="setBoneRotation"){const ok=c.setBoneRotation?.(String(x.bone||""),x.rotation||{})??engine?.setBoneRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneRotation?.(String(x.bone||""))||null}};
-  if(x.action==="setBehavior"){const behavior=c.api?.setBehavior?.(x.value||{})||c.setBehavior?.(x.value||{});return{ok:true,behavior,status:c.status()}};
+  if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}};
   if(x.action==="calibrateJoint"){const ok=c.calibrateJoint?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),calibration:c.retargeter?.status?.().calibration||{},status:c.status()}};
   if(x.action==="snapshotRestPose")return{ok:true,bones:engine?.snapshotBoneRotations?.()||{}};
   return{ok:false,error:"Unknown character controller action"};
