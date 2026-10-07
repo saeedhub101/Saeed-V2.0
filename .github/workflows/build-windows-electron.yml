@@ -446,268 +446,31 @@ jobs:
         continue-on-error: true
         shell: powershell
         timeout-minutes: 12
-        env:
-          SAEED_CI_E2E_SUITE: "1"
-        run: |
-          $report = Join-Path $PWD "dist\ci-e2e-suite-1.json"
-          try {
-            $ErrorActionPreference = "Stop"
-            $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-1.stdout.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-1.stderr.log"
-            Remove-Item $report -Force -ErrorAction SilentlyContinue
-            $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
-            if (!(Test-Path $exe -PathType Leaf)) {
-              $result = [ordered]@{ suite = 1; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
-              $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=1" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-              $startupReport = "$report.startup.json"
-              $startupDeadline = (Get-Date).AddSeconds(90)
-              $startupReady = $false
-              while (!$proc.HasExited -and (Get-Date) -lt $startupDeadline) {
-                if (Test-Path $startupReport) {
-                  try {
-                    $startup = Get-Content $startupReport -Raw | ConvertFrom-Json
-                    if ($startup.stage -eq "ci-e2e-start") { $startupReady = $true; break }
-                    if ($startup.stage -in @("startup-failed","uncaughtException")) { break }
-                  } catch {}
-                }
-                Start-Sleep -Seconds 2
-              }
-              if (!$startupReady -and !$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = $env:SAEED_CI_E2E_SUITE; pass = $false; status = "STARTUP_TIMEOUT"; error = "E2E process did not reach ci-e2e-start within 90 seconds"; startupReport = $startupReport; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                $deadline = (Get-Date).AddSeconds(420)
-                while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-              if (!$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 1; pass = $false; status = "TIMEOUT"; error = "E2E Suite 1 timed out"; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-              } else {
-                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
-                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-                if (!(Test-Path $report)) {
-                  $result = [ordered]@{ suite = 1; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
-                  $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-                }
-              }
-            }
-            Get-Content $report -Raw | Write-Host
-          } catch {
-            $message = $_.Exception.Message
-            $result = [ordered]@{ suite = 1; pass = $false; status = "ERROR"; error = $message; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Write-Warning "E2E Suite 1 encountered an unexpected error; report written and continuing to the next independent suite."
-          }
-          if (Test-Path $report) { Get-Content $report -Raw | Write-Host } else {
-            $result = [ordered]@{ suite = 1; pass = $false; status = "ERROR"; error = "Suite failed before report creation"; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Get-Content $report -Raw | Write-Host
-          }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 1
+
       - name: Packaged EXE E2E Suite 2 — Chat, Brain and Voice
         if: always()
         id: e2e_suite_2
         continue-on-error: true
         shell: powershell
         timeout-minutes: 12
-        env:
-          SAEED_CI_E2E_SUITE: "2"
-        run: |
-          $report = Join-Path $PWD "dist\ci-e2e-suite-2.json"
-          try {
-            $ErrorActionPreference = "Stop"
-            $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-2.stdout.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-2.stderr.log"
-            Remove-Item $report -Force -ErrorAction SilentlyContinue
-            $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
-            if (!(Test-Path $exe -PathType Leaf)) {
-              $result = [ordered]@{ suite = 2; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
-              $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=2" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-              $startupReport = "$report.startup.json"
-              $startupDeadline = (Get-Date).AddSeconds(90)
-              $startupReady = $false
-              while (!$proc.HasExited -and (Get-Date) -lt $startupDeadline) {
-                if (Test-Path $startupReport) {
-                  try {
-                    $startup = Get-Content $startupReport -Raw | ConvertFrom-Json
-                    if ($startup.stage -eq "ci-e2e-start") { $startupReady = $true; break }
-                    if ($startup.stage -in @("startup-failed","uncaughtException")) { break }
-                  } catch {}
-                }
-                Start-Sleep -Seconds 2
-              }
-              if (!$startupReady -and !$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = $env:SAEED_CI_E2E_SUITE; pass = $false; status = "STARTUP_TIMEOUT"; error = "E2E process did not reach ci-e2e-start within 90 seconds"; startupReport = $startupReport; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                $deadline = (Get-Date).AddSeconds(420)
-                while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-              if (!$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 2; pass = $false; status = "TIMEOUT"; error = "E2E Suite 2 timed out"; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-              } else {
-                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
-                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-                if (!(Test-Path $report)) {
-                  $result = [ordered]@{ suite = 2; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
-                  $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-                }
-              }
-            }
-            Get-Content $report -Raw | Write-Host
-          } catch {
-            $message = $_.Exception.Message
-            $result = [ordered]@{ suite = 2; pass = $false; status = "ERROR"; error = $message; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Write-Warning "E2E Suite 2 encountered an unexpected error; report written and continuing to the next independent suite."
-          }
-          if (Test-Path $report) { Get-Content $report -Raw | Write-Host } else {
-            $result = [ordered]@{ suite = 2; pass = $false; status = "ERROR"; error = "Suite failed before report creation"; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Get-Content $report -Raw | Write-Host
-          }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 2
+
       - name: Packaged EXE E2E Suite 3 — Character Studio, Windows, Tray and GLB
         if: always()
         id: e2e_suite_3
         continue-on-error: true
         shell: powershell
         timeout-minutes: 12
-        env:
-          SAEED_CI_E2E_SUITE: "3"
-        run: |
-          $report = Join-Path $PWD "dist\ci-e2e-suite-3.json"
-          try {
-            $ErrorActionPreference = "Stop"
-            $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-3.stdout.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-3.stderr.log"
-            Remove-Item $report -Force -ErrorAction SilentlyContinue
-            $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
-            if (!(Test-Path $exe -PathType Leaf)) {
-              $result = [ordered]@{ suite = 3; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
-              $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=3" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-              $startupReport = "$report.startup.json"
-              $startupDeadline = (Get-Date).AddSeconds(90)
-              $startupReady = $false
-              while (!$proc.HasExited -and (Get-Date) -lt $startupDeadline) {
-                if (Test-Path $startupReport) {
-                  try {
-                    $startup = Get-Content $startupReport -Raw | ConvertFrom-Json
-                    if ($startup.stage -eq "ci-e2e-start") { $startupReady = $true; break }
-                    if ($startup.stage -in @("startup-failed","uncaughtException")) { break }
-                  } catch {}
-                }
-                Start-Sleep -Seconds 2
-              }
-              if (!$startupReady -and !$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = $env:SAEED_CI_E2E_SUITE; pass = $false; status = "STARTUP_TIMEOUT"; error = "E2E process did not reach ci-e2e-start within 90 seconds"; startupReport = $startupReport; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                $deadline = (Get-Date).AddSeconds(420)
-                while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-              if (!$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 3; pass = $false; status = "TIMEOUT"; error = "E2E Suite 3 timed out"; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-              } else {
-                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
-                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-                if (!(Test-Path $report)) {
-                  $result = [ordered]@{ suite = 3; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
-                  $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-                }
-              }
-            }
-            Get-Content $report -Raw | Write-Host
-          } catch {
-            $message = $_.Exception.Message
-            $result = [ordered]@{ suite = 3; pass = $false; status = "ERROR"; error = $message; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Write-Warning "E2E Suite 3 encountered an unexpected error; report written and continuing to the next independent suite."
-          }
-          if (Test-Path $report) { Get-Content $report -Raw | Write-Host } else {
-            $result = [ordered]@{ suite = 3; pass = $false; status = "ERROR"; error = "Suite failed before report creation"; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 5 | Set-Content $report -Encoding UTF8
-            Get-Content $report -Raw | Write-Host
-          }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 3
+
       - name: GLB Character Test — independent load pipeline diagnostics
         if: always()
         id: glb_character_test
         continue-on-error: true
         shell: powershell
         timeout-minutes: 12
-        env:
-          SAEED_CI_E2E_SUITE: "4"
-          SAEED_CI_E2E_REPORT: "dist\\ci-e2e-glb-character-test.json"
-        run: |
-          $report = Join-Path $PWD "dist\\ci-e2e-glb-character-test.json"
-          try {
-            $ErrorActionPreference = "Stop"
-            $stdout = Join-Path $env:RUNNER_TEMP "saeed-glb-character-test.stdout.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "saeed-glb-character-test.stderr.log"
-            Remove-Item $report -Force -ErrorAction SilentlyContinue
-            $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
-            if (!(Test-Path $exe -PathType Leaf)) {
-              $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
-              $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=4" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-              $startupReport = "$report.startup.json"
-              $startupDeadline = (Get-Date).AddSeconds(90)
-              $startupReady = $false
-              while (!$proc.HasExited -and (Get-Date) -lt $startupDeadline) {
-                if (Test-Path $startupReport) {
-                  try {
-                    $startup = Get-Content $startupReport -Raw | ConvertFrom-Json
-                    if ($startup.stage -eq "ci-e2e-start") { $startupReady = $true; break }
-                    if ($startup.stage -in @("startup-failed","uncaughtException")) { break }
-                  } catch {}
-                }
-                Start-Sleep -Seconds 2
-              }
-              if (!$startupReady -and !$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "STARTUP_TIMEOUT"; error = "E2E process did not reach ci-e2e-start within 90 seconds"; startupReport = $startupReport; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                $deadline = (Get-Date).AddSeconds(540)
-                while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-              if (!$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "TIMEOUT"; error = "GLB Character Test timed out"; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
-                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-                if (!(Test-Path $report)) {
-                  $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "ERROR"; error = "GLB Character Test exited without producing a report"; time = (Get-Date).ToUniversalTime() }
-                  $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-                }
-              }
-            }
-            Get-Content $report -Raw | Write-Host
-          } catch {
-            $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "ERROR"; error = $_.Exception.Message; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            Write-Warning "GLB Character Test encountered an unexpected error; continuing."
-          }
-          if (Test-Path $report) { Get-Content $report -Raw | Write-Host }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 4
 
       - name: Packaged EXE E2E Suite 5 — Character Studio — every button, bone rotation and live animation
         if: always()
@@ -715,134 +478,16 @@ jobs:
         continue-on-error: true
         shell: powershell
         timeout-minutes: 12
-        env:
-          SAEED_CI_E2E_SUITE: "5"
-          SAEED_CI_E2E_REPORT: "dist\\ci-e2e-suite-5.json"
-        run: |
-          $report = Join-Path $PWD "dist\\ci-e2e-suite-5.json"
-          try {
-            $ErrorActionPreference = "Stop"
-            $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-5.stdout.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-5.stderr.log"
-            Remove-Item $report -Force -ErrorAction SilentlyContinue
-            $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
-            if (!(Test-Path $exe -PathType Leaf)) {
-              $result = [ordered]@{ suite = 5; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
-              $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=5" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-              $startupReport = "$report.startup.json"
-              $startupDeadline = (Get-Date).AddSeconds(90)
-              $startupReady = $false
-              while (!$proc.HasExited -and (Get-Date) -lt $startupDeadline) {
-                if (Test-Path $startupReport) {
-                  try {
-                    $startup = Get-Content $startupReport -Raw | ConvertFrom-Json
-                    if ($startup.stage -eq "ci-e2e-start") { $startupReady = $true; break }
-                    if ($startup.stage -in @("startup-failed","uncaughtException")) { break }
-                  } catch {}
-                }
-                Start-Sleep -Seconds 2
-              }
-              if (!$startupReady -and !$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = $env:SAEED_CI_E2E_SUITE; pass = $false; status = "STARTUP_TIMEOUT"; error = "E2E process did not reach ci-e2e-start within 90 seconds"; startupReport = $startupReport; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                $deadline = (Get-Date).AddSeconds(420)
-                while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-              if (!$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 5; pass = $false; status = "TIMEOUT"; error = "E2E Suite 5 timed out"; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
-                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-                if (!(Test-Path $report)) {
-                  $result = [ordered]@{ suite = 5; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
-                  $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-                }
-              }
-            }
-          } catch {
-            $result = [ordered]@{ suite = 5; pass = $false; status = "ERROR"; error = $_.Exception.Message; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            Write-Warning "E2E Suite 5 encountered an unexpected error; report written and continuing to the next independent suite."
-          }
-          if (Test-Path $report) { Get-Content $report -Raw | Write-Host } else {
-            $result = [ordered]@{ suite = 5; pass = $false; status = "ERROR"; error = "Suite failed before report creation"; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            Get-Content $report -Raw | Write-Host
-          }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 5
+
       - name: Packaged EXE E2E Suite 6 — Normalize Humanoid Rest Pose — window and controls
         if: always()
         id: e2e_suite_6
         continue-on-error: true
         shell: powershell
         timeout-minutes: 12
-        env:
-          SAEED_CI_E2E_SUITE: "6"
-          SAEED_CI_E2E_REPORT: "dist\\ci-e2e-suite-6.json"
-        run: |
-          $report = Join-Path $PWD "dist\\ci-e2e-suite-6.json"
-          try {
-            $ErrorActionPreference = "Stop"
-            $stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-6.stdout.log"
-            $stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-suite-6.stderr.log"
-            Remove-Item $report -Force -ErrorAction SilentlyContinue
-            $exe = Join-Path $PWD "dist\\win-unpacked\\Saeed AI.exe"
-            if (!(Test-Path $exe -PathType Leaf)) {
-              $result = [ordered]@{ suite = 6; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
-              $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=6" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-              $startupReport = "$report.startup.json"
-              $startupDeadline = (Get-Date).AddSeconds(90)
-              $startupReady = $false
-              while (!$proc.HasExited -and (Get-Date) -lt $startupDeadline) {
-                if (Test-Path $startupReport) {
-                  try {
-                    $startup = Get-Content $startupReport -Raw | ConvertFrom-Json
-                    if ($startup.stage -eq "ci-e2e-start") { $startupReady = $true; break }
-                    if ($startup.stage -in @("startup-failed","uncaughtException")) { break }
-                  } catch {}
-                }
-                Start-Sleep -Seconds 2
-              }
-              if (!$startupReady -and !$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = $env:SAEED_CI_E2E_SUITE; pass = $false; status = "STARTUP_TIMEOUT"; error = "E2E process did not reach ci-e2e-start within 90 seconds"; startupReport = $startupReport; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                $deadline = (Get-Date).AddSeconds(420)
-                while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-              if (!$proc.HasExited) {
-                & taskkill.exe /PID $proc.Id /T /F | Out-Null
-                $proc.WaitForExit(10000)
-                $result = [ordered]@{ suite = 6; pass = $false; status = "TIMEOUT"; error = "E2E Suite 6 timed out"; time = (Get-Date).ToUniversalTime() }
-                $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-              } else {
-                if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
-                if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-                if (!(Test-Path $report)) {
-                  $result = [ordered]@{ suite = 6; pass = $false; status = "ERROR"; error = "E2E process exited without producing a report"; time = (Get-Date).ToUniversalTime() }
-                  $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-                }
-              }
-            }
-          } catch {
-            $result = [ordered]@{ suite = 6; pass = $false; status = "ERROR"; error = $_.Exception.Message; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            Write-Warning "E2E Suite 6 encountered an unexpected error; report written and continuing to the next independent suite."
-          }
-          if (Test-Path $report) { Get-Content $report -Raw | Write-Host } else {
-            $result = [ordered]@{ suite = 6; pass = $false; status = "ERROR"; error = "Suite failed before report creation"; time = (Get-Date).ToUniversalTime() }
-            $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
-            Get-Content $report -Raw | Write-Host
-          }
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 6
+
       - name: Upload packaged E2E suite reports
         if: always()
         uses: actions/upload-artifact@v6
