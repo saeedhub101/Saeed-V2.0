@@ -497,6 +497,7 @@ jobs:
         timeout-minutes: 10
         env:
           SAEED_CI_E2E_SUITE: "4"
+          SAEED_CI_E2E_REPORT: "dist\\ci-e2e-glb-character-test.json"
         run: |
           $report = Join-Path $PWD "dist\\ci-e2e-glb-character-test.json"
           try {
@@ -509,7 +510,7 @@ jobs:
               $result = [ordered]@{ suite = 4; name = "GLB Character Test"; pass = $false; status = "BLOCKED"; error = "Packaged EXE missing"; time = (Get-Date).ToUniversalTime() }
               $result | ConvertTo-Json -Depth 10 | Set-Content $report -Encoding UTF8
             } else {
-              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=4 --ci-e2e-report=$report" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+              $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=4" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
               $deadline = (Get-Date).AddSeconds(540)
               while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
               if (!$proc.HasExited) {
