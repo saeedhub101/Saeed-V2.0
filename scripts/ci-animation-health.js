@@ -23,17 +23,17 @@ const required=[
 for(const p of required)check("required module: "+p,exists(p),"file missing");
 
 // 2. Main ownership / renderer scheduling.
-let client="",controller="",registry="",motions="",sequence="",animation="",avatar="";
+let client="",controller="",registry="",motions="",sequence="",animation="",engine="";
 if(exists("src/character/client.js"))client=read("src/character/client.js");
 if(exists("src/character/CharacterController.js"))controller=read("src/character/CharacterController.js");
 if(exists("src/character/MotionRegistry.js"))registry=read("src/character/MotionRegistry.js");
 if(exists("src/character/motions.js"))motions=read("src/character/motions.js");
 if(exists("src/character/MotionSequence.js"))sequence=read("src/character/MotionSequence.js");
 if(exists("src/character/AnimationController.js"))animation=read("src/character/AnimationController.js");
-if(exists("src/character/CharacterEngine.js"))avatar=read("src/character/CharacterEngine.js");
+if(exists("src/character/CharacterEngine.js"))engine=read("src/character/CharacterEngine.js");
 
-check("renderer exposes animation controller",client.includes("window.saeedAnimationController"));
-check("render wake API",client.includes("getRenderWakeMs")||avatar.includes("wakeRender"));
+check("renderer exposes canonical character runtime",client.includes("window.saeedCharacterRuntime"));
+check("render wake API",client.includes("getRenderWakeMs")||engine.includes("wakeRender"));
 check("visibility API",client.includes("setVisible"));
 check("client has no setInterval",!/\bsetInterval\s*\(/.test(client),"continuous interval found in character client");
 check("character controller has motion ownership",/class\s+CharacterController|function\s+CharacterController|CharacterController/.test(controller));
@@ -71,7 +71,7 @@ if(huge.length)warn("large numeric literals in motion source",String(huge.slice(
 
 // 5. Bone/pose APIs and controllers.
 for(const t of ["getBoneMap","applyCharacterPose","getAvailableBoneNames","wakeRender"])
-  check("avatar API "+t,avatar.includes(t),"missing");
+  check("avatar API "+t,engine.includes(t),"missing");
 for(const [p,src] of [
  ["PoseController.js",exists("src/character/PoseController.js")?read("src/character/PoseController.js"):""],
  ["CharacterRig.js",exists("src/character/CharacterRig.js")?read("src/character/CharacterRig.js"):""],
