@@ -18,7 +18,7 @@ const aliases={
  leftEye:["lefteye","eyel"],rightEye:["righteye","eyer"],
  ...Object.fromEntries(["left","right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(finger=>[1,2,3,4].map(segment=>{const prefix=side==="left"?"Left":"Right",sideSuffix=side==="left"?"L":"R";return[side+"Hand"+finger+segment,[prefix+"Hand"+finger+segment,prefix+finger+segment,finger+"."+sideSuffix+"."+segment]]}))))
 };
-const REQUIRED_RIG=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
+const REQUIRED_RIG=[];
 const OPTIONAL_RIG=Object.keys(aliases);
 const fingerAliases=Object.fromEntries(["Left","Right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(f=>[1,2,3,4].map(n=>[side+f+n,side+"Hand"+f+n]))));
 const side=name=>{const raw=String(name||"").toLowerCase(),n=clean(name);return raw.includes(".l")||raw.endsWith("_l")||n.endsWith("l")&&!n.includes("lower")&&!n.includes("left")?"left":raw.includes(".r")||raw.endsWith("_r")||n.endsWith("r")&&!n.includes("right")?"right":n.includes("left")?"left":n.includes("right")?"right":"unknown"};
