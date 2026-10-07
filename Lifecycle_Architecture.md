@@ -878,7 +878,7 @@ Runtime acceptance must verify:
 10. Brain becomes idle and is destroyed
 11. Mic ON creates capture/VAD/STT resources
 12. Mic OFF destroys capture/VAD/STT
-13. TTS is created only when needed
+13. TTS is READY/IDLE while Character is visible and unmuted
 14. Mute stops/destroys TTS
 15. Realtime starts and stops independently
 16. Voice and Chat continue the same conversation
