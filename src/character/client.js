@@ -5,7 +5,7 @@ async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
  const lightweight=action==="status"||action==="listMotions";
- const needsBones=action==="boneNames"||action==="getRig"||action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
+ const needsBones=action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
  const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
@@ -45,7 +45,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="stopAll"){const ok=c.stopAll();return{ok,status:c.status()}}
   if(x.action==="setAnimationEnabled"){const enabled=c.setAnimationEnabled?.(x.enabled!==false);return{ok:true,enabled,status:c.status()}}
   if(x.action==="setAnimationPaused"){const paused=c.setAnimationPaused?.(x.paused===true);return{ok:true,paused,status:c.status()}}
-  if(x.action==="pose"){const pose=c.setPose(x.pose||{});return{ok:true,pose,status:c.status()}}
+  if(x.action==="jointRotation"){const ok=c.setLogicalJointRotation?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneRotation?.(String((engine?.getBoneMap?.()||{})[String(x.slot||"")]?.name||""))||null,status:c.status()}}\n  if(x.action==="pose"){const pose=c.setPose(x.pose||{});return{ok:Boolean(pose),pose,status:c.status()}}
   if(x.action==="idlePose"){const pose=c.setIdlePose(x.pose||{});return{ok:true,pose,status:c.status()}}
   if(x.action==="resetPose"){const ok=c.resetPose();return{ok,status:c.status()}}
   if(x.action==="remap"){const ok=c.remap(x.mapping||{});return{ok,status:c.status()}}
