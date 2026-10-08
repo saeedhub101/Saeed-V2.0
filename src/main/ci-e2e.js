@@ -278,7 +278,7 @@ function createCiE2E(deps={}){
    report.pass=Object.values(report.checks).filter(x=>x.required!==false).every(x=>x.pass);
   }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString();if(e?.code==="E2E_CHECK_TIMEOUT")report.abortReason=report.abortReason||{type:"CHECK_TIMEOUT",check:e.check,diagnostic:e.diagnostic};if(e?.code==="E2E_SUITE_DEADLINE")report.abortReason=report.abortReason||{type:"SUITE_DEADLINE",check:e.check,timeoutMs:suiteDeadlineMs}}
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
-  if(report.abortReason?.type==="CHECK_TIMEOUT"){
+  if(["CHECK_TIMEOUT","SUITE_DEADLINE"].includes(report.abortReason?.type)){
    setTimeout(()=>{try{app?.quit?.()}catch{}},50);
   }
   return report;
