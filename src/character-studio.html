@@ -95,7 +95,7 @@ async function loadPendingStudioCharacter(){
  studioDiagnostic("ERROR","STUDIO CHARACTER DELIVERY TIMEOUT","No selected GLB was delivered to Character Studio within 15 seconds");
  return false;
 }
-$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.system?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}};
+$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.character?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}};
 fillSlots();
 try{init();}catch(error){studioDiagnostic("ERROR","STUDIO INITIALIZATION",error?.stack||error?.message||String(error),{stage:"init"});}
 void loadPendingStudioCharacter().then(()=>cmd({action:"beginAuthoring"}).then(()=>refresh())).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));
