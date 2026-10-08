@@ -16,7 +16,7 @@ function createCiE2E(deps={}){
  const recordTrace=(event,detail={})=>{const item={at:new Date().toISOString(),elapsedMs:Date.now()-started,event,...detail};trace.push(item);if(trace.length>200)trace.shift();return item};
  const persistReport=(reason="checkpoint")=>{
   try{
-   const snapshot={...report,checkpoint:{reason,time:new Date().toISOString()},diagnostics:{...(report.diagnostics||{}),runnerVersion:3,timeoutPolicy:"continue-after-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length}};
+   const snapshot={...report,checkpoint:{reason,time:new Date().toISOString()},diagnostics:{...(report.diagnostics||{}),runnerVersion:4,timeoutPolicy:"continue-after-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length}};
    fs.mkdirSync(path.dirname(out),{recursive:true});
    fs.writeFileSync(out,JSON.stringify(snapshot,null,2),"utf8");
   }catch(e){console.error("CI E2E checkpoint write failed:",e)}
@@ -77,7 +77,7 @@ function createCiE2E(deps={}){
   const timeout=new Promise(resolve=>{timer=setTimeout(()=>{
    ctx.timedOut=true;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
-   recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs}); report.checks[name]={pass:false,required,status:"TIMEOUT",latencyMs:Date.now()-t,detail:{error:"Check exceeded "+effectiveTimeoutMs+" ms",diagnostic}}; report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic}; persistReport("check-timeout");
+   recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs}); report.checks[name]={pass:false,required,status:"TIMEOUT",latencyMs:Date.now()-t,detail:{error:"Check exceeded "+effectiveTimeoutMs+" ms",diagnostic}}; persistReport("check-timeout");
    resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; continuing to the next check.",diagnostic});
   },effectiveTimeoutMs)});
   try{
