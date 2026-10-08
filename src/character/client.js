@@ -66,7 +66,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
   if(x.action==="getRig"){const bones=engine?.getAvailableBoneNames?.()||[];const mapping=engine?.getBoneMap?.()||{};return{ok:Boolean(bones.length),bones,mapping,status:c.status()};}
   if(x.action==="boneNames"){const bones=engine?.getAvailableBoneNames?.()||[];if(!bones.length)return characterFailure(action,"No actual skeleton bone names exposed",{reason:"empty-skeleton"});return{ok:true,bones}};
-  if(x.action==="saveRestPose"){const rest=c.saveRestPose?.();return{ok:Boolean(rest),restPose:rest||null,status:c.status()}}
+  if(x.action==="saveRestPose"){const rest=c.saveRestPose?.();return{ok:Boolean(rest?.persisted),restPose:rest||null,persisted:Boolean(rest?.persisted),status:c.status()}}
   if(x.action==="normalizeRestPose"){const normalization=c.normalizeRestPose?.();return{ok:Boolean(normalization),normalization:normalization||null,status:c.status()}}
   if(x.action==="boneRotation")return{ok:true,rotation:engine?.getBoneRotation?.(String(x.bone||""))||null};
   if(x.action==="bindSlot"){const ok=c.bindSlot?.(String(x.slot||""),String(x.bone||""));return{ok:Boolean(ok),mapping:c.engine?.getCharacterRigAutoMap?.()||{},status:c.status()}}
