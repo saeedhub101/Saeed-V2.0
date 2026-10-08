@@ -58,18 +58,40 @@ function getSceneBones(){
 }
 function getBoneMap(){return Object.fromEntries(rig)}
 function getAvailableBoneNames(){return getSceneBones().map(b=>b.name)}
+function directHumanoidMapping(bones=[]){
+ const list=bones.filter(Boolean),by=new Map(list.map(b=>[String(b.name||"").toLowerCase().replace(/[^a-z0-9]/g,""),b]));
+ const pick=(keys)=>{for(const key of keys){const b=by.get(String(key).toLowerCase().replace(/[^a-z0-9]/g,""));if(b)return b}return null};
+ const mapping={};
+ const exact={
+  hips:["hips","pelvis","root"],spine:["spine","spine1","torso"],chest:["chest","upperchest","spine2"],neck:["neck"],head:["head"],
+  leftShoulder:["shoulderl","leftshoulder"],rightShoulder:["shoulderr","rightshoulder"],
+  leftUpperArm:["upperarml","leftupperarm","leftarm"],rightUpperArm:["upperarmr","rightupperarm","rightarm"],
+  leftForeArm:["lowerarml","leftforearm","leftlowerarm"],rightForeArm:["lowerarmr","rightforearm","rightlowerarm"],
+  leftHand:["lefthand"],rightHand:["righthand"],leftThigh:["upperlegl","leftthigh","leftupperleg"],rightThigh:["upperlegr","rightthigh","rightupperleg"],
+  leftShin:["lowerlegl","leftshin","leftcalf"],rightShin:["lowerlegr","rightshin","rightcalf"],
+  leftFoot:["footl","leftfoot"],rightFoot:["footr","rightfoot"]
+ };
+ const used=new Set();
+ for(const [slot,keys] of Object.entries(exact)){const b=pick(keys);if(b&&!used.has(b.name)){mapping[slot]=b.name;used.add(b.name)}}
+ return mapping;
+}
 function autoMapRig(savedRestPose=null){
  if(!model)return{ok:false,error:"Character GLB is not loaded",mapping:{},confidence:{},mappedBoneCount:0,sceneBoneCount:0};
  const bones=getSceneBones(),names=bones.map(b=>b.name).filter(Boolean);
  if(!names.length)return{ok:false,error:"Character skeleton has no bones",mapping:{},confidence:{},mappedBoneCount:0,sceneBoneCount:0};
  const auto=autoMapBones(bones);
- const mapping=auto?.mapping||{};
- if(!Object.keys(mapping).length)return{ok:false,error:"No compatible logical bones were mapped",mapping:{},confidence:auto?.confidence||{},mappedBoneCount:0,sceneBoneCount:names.length};
+ let mapping=auto?.mapping||{};
+ let confidence=auto?.confidence||{};
+ if(!Object.keys(mapping).length){
+  mapping=directHumanoidMapping(bones);
+  confidence=Object.fromEntries(Object.keys(mapping).map(slot=>[slot,100]));
+ }
+ if(!Object.keys(mapping).length)return{ok:false,error:"No compatible logical bones were mapped",mapping:{},confidence, mappedBoneCount:0,sceneBoneCount:names.length};
  const bound=bindRig(mapping,savedRestPose);
  const mapped=getBoneMap();
  const mappedBoneCount=Object.keys(mapped).length;
  const valid=mappedBoneCount>0&&Object.values(mapped).every(b=>b&&bones.includes(b));
- traceGlb("engine-auto-map",{sceneBoneCount:names.length,mappedBoneCount,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence:auto?.confidence||{}});
+ traceGlb("engine-auto-map",{sceneBoneCount:names.length,mappedBoneCount,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence});
  return{ok:Boolean(bound&&valid),mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence:auto?.confidence||{},mappedBoneCount,sceneBoneCount:names.length,error:bound&&valid?null:"Engine failed to bind mapped scene bones"};
 }
 function bindRig(mapping={},savedRestPose=null){
