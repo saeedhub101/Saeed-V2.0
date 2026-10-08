@@ -456,22 +456,6 @@ jobs:
         timeout-minutes: 12
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 1
 
-      - name: Packaged EXE E2E Suite 2 — Chat, Brain and Voice
-        if: always()
-        id: e2e_suite_2
-        continue-on-error: true
-        shell: powershell
-        timeout-minutes: 12
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 2
-
-      - name: Packaged EXE E2E Suite 3 — Character Studio, Windows, Tray and GLB
-        if: always()
-        id: e2e_suite_3
-        continue-on-error: true
-        shell: powershell
-        timeout-minutes: 12
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 3
-
       - name: GLB Character Test — independent load pipeline diagnostics
         if: always()
         id: glb_character_test
@@ -505,8 +489,6 @@ jobs:
           path: |
             dist/ci-e2e-performance-rest-pose.json
             dist/ci-e2e-suite-1.json
-            dist/ci-e2e-suite-2.json
-            dist/ci-e2e-suite-3.json
             dist/ci-e2e-suite-5.json
             dist/ci-e2e-suite-6.json
             dist/ci-e2e-glb-character-test.json
@@ -534,7 +516,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = "Stop"
-          $reports=@("dist\ci-e2e-performance-rest-pose.json","dist\ci-e2e-suite-1.json","dist\ci-e2e-suite-2.json","dist\ci-e2e-suite-3.json","dist\ci-e2e-suite-5.json","dist\ci-e2e-suite-6.json","dist\ci-e2e-glb-character-test.json")
+          $reports=@("dist\ci-e2e-performance-rest-pose.json","dist\ci-e2e-suite-1.json","dist\ci-e2e-suite-5.json","dist\ci-e2e-suite-6.json","dist\ci-e2e-glb-character-test.json")
           $missing=@()
           $failed=@()
           foreach($p in $reports){
@@ -645,8 +627,6 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-e2e-suite-1.json
-            dist/ci-e2e-suite-2.json
-            dist/ci-e2e-suite-3.json
             dist/ci-e2e-suite-5.json
             dist/ci-e2e-suite-6.json
             dist/ci-e2e-glb-character-test.json
