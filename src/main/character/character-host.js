@@ -19,19 +19,20 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   if(!win||win.isDestroyed())return{ok:false,error:"Character window could not be created"};
   if(!ipcMain)return{ok:false,error:"Character command IPC is unavailable"};
   try{win.webContents.setBackgroundThrottling(false)}catch{}
-  const readyDeadline=Date.now()+20000;
-  while(Date.now()<readyDeadline){
-   try{
-    const ready=await win.webContents.executeJavaScript("(()=>{try{const e=window.saeedCharacterRuntime?.engine,c=window.saeedCharacterRuntime?.controller,p=e?.getCharacterPoseStatus?.()||{};const names=e?.getAvailableBoneNames?.()||[];const map=e?.getBoneMap?.()||{};if(p.loaded&&names.length&&Object.keys(map).length)return{ready:true,boneCount:names.length,mapped:Object.keys(map).length};if(p.loaded&&names.length&&!Object.keys(map).length){const r=c?.onCharacterLoaded?.();const next=e?.getBoneMap?.()||{};return{ready:p.loaded&&names.length>0&&Object.keys(next).length>0,boneCount:names.length,mapped:Object.keys(next).length,bindResult:r||null}}return{ready:false,boneCount:names.length,mapped:Object.keys(map).length,loaded:Boolean(p.loaded)}}catch(error){return{ready:false,error:error?.message||String(error)}}})()",true);
-    if(ready?.ready)break;
-   }catch(error){return{ok:false,error:"Character renderer IPC readiness check failed: "+(error?.message||String(error))}}
-   await new Promise(resolve=>setTimeout(resolve,100));
+  async function waitForCharacterReady(timeoutMs=30000){
+   const deadline=Date.now()+timeoutMs;
+   let last=null;
+   while(Date.now()<deadline){
+    try{
+     last=await win.webContents.executeJavaScript("(()=>{try{const rt=window.saeedCharacterRuntime||{},e=rt.engine,c=rt.controller,p=e?.getCharacterPoseStatus?.()||{},names=e?.getAvailableBoneNames?.()||[],map=e?.getBoneMap?.()||{};if(!p.loaded||!names.length)return{ready:false,stage:p.loaded?\"skeleton\":\"glb\",loaded:Boolean(p.loaded),boneCount:names.length,mapped:Object.keys(map).length,controller:Boolean(c)};if(c&&!Object.keys(map).length){try{c.onCharacterLoaded?.()}catch{}}const next=e?.getBoneMap?.()||{};const mapped=Object.keys(next).length;return{ready:Boolean(p.loaded&&names.length&&mapped),stage:mapped?\"ready\":\"rig\",loaded:Boolean(p.loaded),boneCount:names.length,mapped,controller:Boolean(rt.controller),actualBones:Object.keys(p.bones||{}).length}}catch(error){return{ready:false,stage:\"renderer\",error:error?.message||String(error)}}})()",true);
+     if(last?.ready)return last;
+    }catch(error){last={ready:false,stage:"ipc",error:error?.message||String(error)}}
+    await new Promise(resolve=>setTimeout(resolve,100));
+   }
+   return last||{ready:false,stage:"timeout"};
   }
-  try{
-   const ready=await win.webContents.executeJavaScript("(()=>{const e=window.saeedCharacterRuntime?.engine,c=window.saeedCharacterRuntime?.controller,p=e?.getCharacterPoseStatus?.()||{},names=e?.getAvailableBoneNames?.()||[],map=e?.getBoneMap?.()||{};return{loaded:Boolean(p.loaded),boneCount:names.length,mapped:Object.keys(map).length,controller:Boolean(c)}})()",true);
-   if(!ready?.loaded||!ready?.boneCount)return{ok:false,error:"Character Skeleton is not ready through IPC",diagnostic:ready};
-   if(!ready?.mapped)return{ok:false,error:"Character Skeleton is loaded but CharacterController has no bound bones",diagnostic:ready};
-  }catch(error){return{ok:false,error:"Character Skeleton readiness validation failed: "+(error?.message||String(error))}}
+  const readiness=await waitForCharacterReady(30000);
+  if(!readiness?.ready)return{ok:false,error:"CharacterWindow did not reach Skeleton→Rig READY state",diagnostic:readiness};
   if(win.webContents.isLoadingMainFrame?.()){
    try{await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{cleanup();reject(new Error("Character renderer did not finish loading"))},15000);const cleanup=()=>{clearTimeout(timer);win.webContents.removeListener("did-finish-load",ready);win.webContents.removeListener("did-fail-load",failed)};const ready=()=>{cleanup();resolve()};const failed=(_,code,description)=>{cleanup();reject(new Error("Character renderer load failed ("+code+"): "+description))};win.webContents.once("did-finish-load",ready);win.webContents.once("did-fail-load",failed)})}catch(error){return{ok:false,error:error?.message||String(error)}}
   }
