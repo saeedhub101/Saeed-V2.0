@@ -16,7 +16,14 @@ function fillBones(filter=""){
 async function refresh(){
  $("refresh").disabled=true;status("Reading the loaded skeleton…");
  try{
-    const result=await command({action:"status"}),actual=result?.status?.actualBones||result?.actualBones||{};
+  let result=null,actual={};
+  const deadline=Date.now()+15000;
+  while(Date.now()<deadline){
+   result=await command({action:"status"});
+   actual=result?.status?.actualBones||result?.actualBones||{};
+   if(Object.keys(actual).length)break;
+   await new Promise(resolve=>setTimeout(resolve,150));
+  }
   bones=Object.entries(actual).map(([name,detail])=>({name,parent:String(detail?.parent||"")}));
     baseRotations=Object.fromEntries(Object.entries(actual).map(([name,detail])=>[name,detail?.rotation||{x:0,y:0,z:0}]));
     $("characterState").textContent=result?.status?.characterLoaded||result?.characterLoaded?"Character connected. Adjust any bone, then save the complete rest pose.":"Character renderer is available; waiting for its GLB skeleton.";
