@@ -26,8 +26,8 @@ function createRuntimeComposition(ctx){
  const setVoiceMuted=muted=>{const result=ensureVoiceHost().setVoiceMuted(muted);if(!muted&&getState().characterWin)ensureVoiceHost().ensureTts();return result};
  const ensureScreenCapture=()=>ctx.state.screenCapture||(ctx.state.screenCapture=load("screenCapture","../application/screen-capture").createScreenCapture({desktopCapturer,permissionPolicy,confirmPermission,diagnostic}));
  const captureScreen=()=>ensureScreenCapture().captureScreen();
- const showRestPoseEditor=async()=>{await characterApi.showCharacter();const result=await ensureWindowManager().showRestPoseEditor();characterHost?.sendPendingCharacterData?.();return result};
- const showNormalizeHumanoidRestPose=async()=>{await characterApi.showCharacter();const result=await ensureWindowManager().showNormalizeHumanoidRestPose();characterHost?.sendPendingCharacterData?.();return result};
+ const showRestPoseEditor=async()=>{try{await characterApi.createCharacterWindow();}catch(error){diagnostic("ERROR","CHARACTER STUDIO CHARACTER WINDOW",error?.stack||error?.message||String(error),{domain:"3D"});}const result=await ensureWindowManager().showRestPoseEditor();characterHost?.sendPendingCharacterData?.();return result};
+ const showNormalizeHumanoidRestPose=async()=>{try{await characterApi.createCharacterWindow();}catch(error){diagnostic("ERROR","NORMALIZE CHARACTER WINDOW",error?.stack||error?.message||String(error),{domain:"3D"});}const result=await ensureWindowManager().showNormalizeHumanoidRestPose();characterHost?.sendPendingCharacterData?.();return result};
  const characterStore=load("characterStore","../character/character-store").createCharacterStore({app,path,fs,screen,getCharacterWindow:()=>getState().characterWin,fitCharacterToDisplay:(...args)=>characterHost?.fitCharacterToDisplay?.(...args),diagnostic});
  const {character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings}=characterStore;
  const {createCharacterHost}=load("characterHost","../character/character-host");
