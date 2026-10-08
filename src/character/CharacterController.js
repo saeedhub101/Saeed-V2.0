@@ -245,7 +245,15 @@ export class CharacterController{
 }
  autoMap(){
   this.beginAuthoring();
-  const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  // Authoritative Saeed mapping must be used by the explicit Auto Map action too.
+  // The generic mapper remains the fallback for arbitrary/custom GLBs.
+  const authoritative=this.bindCurrentCharacter?.();
+  if(authoritative?.mappedBoneCount){
+   this.rigReady=true;
+   return{ok:true,mapping:authoritative.autoMapping?.mapping||this.engine?.getCharacterRigAutoMap?.()||{},confidence:authoritative.autoMapping?.confidence||{},mappedBoneCount:authoritative.mappedBoneCount,sceneBoneCount:authoritative.sceneBoneCount};
+  }
+  const auto=autoMapBones(names);
   if(!Object.keys(auto.mapping).length){this.rigReady=false;return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};}
   this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
