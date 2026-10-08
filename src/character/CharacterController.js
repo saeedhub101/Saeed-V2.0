@@ -126,8 +126,21 @@ export class CharacterController{
   const bones=this.engine?.snapshotBoneRotations?.()||{};
   const authoritativeNormalization=this.engine?.getRestPoseNormalization?.()||normalization;
   const restPose={normalization:authoritativeNormalization,bones};
-  if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-  return restPose;
+  let persisted=false;
+  let persistedProfile=null;
+  if(this.characterId){
+   persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
+   const stored=this.profiles.load(this.characterId)||{};
+   persisted=Boolean(stored?.restPose?.bones&&Object.keys(stored.restPose.bones).length===Object.keys(bones).length);
+   if(!persisted){
+    this.engine?.applyRestPoseSnapshot?.(bones,authoritativeNormalization);
+    persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
+    const retry=this.profiles.load(this.characterId)||{};
+    persisted=Boolean(retry?.restPose?.bones&&Object.keys(retry.restPose.bones).length===Object.keys(bones).length);
+    persistedProfile=retry;
+   }
+  }
+  return {...restPose,persisted,profileId:this.characterId,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
  }
  normalizeRestPose(){
   const ready=this.ensureRigBound({authoring:true});
