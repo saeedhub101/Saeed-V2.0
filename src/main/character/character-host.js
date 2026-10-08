@@ -14,6 +14,14 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   while(Date.now()<deadline){
    try{
     last=await target.webContents.executeJavaScript("(()=>{try{const rt=window.saeedCharacterRuntime||{},e=rt.engine,c=rt.controller,p=e?.getCharacterPoseStatus?.()||{},names=e?.getAvailableBoneNames?.()||[],map=e?.getBoneMap?.()||{};if(!p.loaded||!names.length)return{ready:false,stage:p.loaded?\"skeleton\":\"glb\",loaded:Boolean(p.loaded),boneCount:names.length,mapped:Object.keys(map).length,controller:Boolean(c)};if(c&&!Object.keys(map).length){try{c.onCharacterLoaded?.()}catch{}}const next=e?.getBoneMap?.()||{};const mapped=Object.keys(next).length;return{ready:Boolean(p.loaded&&names.length&&mapped),stage:mapped?\"ready\":\"rig\",loaded:Boolean(p.loaded),boneCount:names.length,mapped,controller:Boolean(rt.controller),actualBones:Object.keys(p.bones||{}).length}}catch(error){return{ready:false,stage:\"renderer\",error:error?.message||String(error)}}})()",true);
+    if(last?.loaded&&last?.boneCount&&!last?.mapped){
+      try{await target.webContents.executeJavaScript("(()=>{const c=window.saeedCharacterRuntime?.controller;if(c){try{c.onCharacterLoaded?.()}catch{};if(!Object.keys(c.engine?.getBoneMap?.()||{}).length){try{c.autoMap?.()}catch{}}}return true})()",true)}catch{}
+      try{
+       const retry=await target.webContents.executeJavaScript("(()=>{const e=window.saeedCharacterRuntime?.engine,c=window.saeedCharacterRuntime?.controller,p=e?.getCharacterPoseStatus?.()||{},n=e?.getAvailableBoneNames?.()||[],m=e?.getBoneMap?.()||{};return{ready:Boolean(p.loaded&&n.length&&Object.keys(m).length),loaded:Boolean(p.loaded),boneCount:n.length,mapped:Object.keys(m).length,controller:Boolean(c),actualBones:Object.keys(p.bones||{}).length}})()",true);
+       if(retry?.ready)return retry;
+       last=retry;
+      }catch{}
+    }
     if(last?.ready)return last;
    }catch(error){last={ready:false,stage:"ipc",error:error?.message||String(error)}}
    await new Promise(resolve=>setTimeout(resolve,100));
