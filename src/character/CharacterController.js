@@ -165,7 +165,13 @@ export class CharacterController{
   this.animation.stopAll();
   this.animation.pose.clear();
   this.idleBusy=false;
-  this.engine?.resetCharacterPose?.();
+  const profile=this.characterId?(this.profiles.load(this.characterId)||{}):{};
+  const savedRest=profile.normalizehumanoidrestpose||profile.restPose||null;
+  if(savedRest?.bones&&Object.keys(savedRest.bones).length){
+   this.engine?.applyRestPoseSnapshot?.(savedRest.bones,savedRest.normalization||null);
+  }else{
+   this.engine?.resetCharacterPose?.();
+  }
   this.engine?.wakeRender?.(250);
   return true;
 }
