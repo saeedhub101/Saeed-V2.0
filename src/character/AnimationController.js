@@ -18,7 +18,7 @@ export class AnimationController {
  }
  stop(id){const before=this.active.length;this.active=this.active.filter(x=>x.m.id!==id);if(!this.active.length)this.state="idle";this.avatar?.wakeRender?.();return this.active.length!==before;}
  stopLayer(layer){const before=this.active.length;this.active=this.active.filter(x=>x.layer!==layer);if(!this.active.length)this.state="idle";this.avatar?.wakeRender?.();return this.active.length!==before;}
- stopAll(){this.active=[];this.state="idle";this.pose.clear();this.avatar?.resetCharacterPose?.();this.avatar?.wakeRender?.();return true;}
+ stopAll({reset=true}={}){this.active=[];this.state="idle";this.pose.clear();if(reset)this.avatar?.resetCharacterPose?.();this.avatar?.wakeRender?.();return true;}
  update(dt=.0166666667){
   const delta=Math.max(0,Math.min(.25,Number(dt)||0));this.pose.clear();if(Object.keys(this.idlePose).length)this.pose.setMany(this.idlePose);
   if(!this.active.length){const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);return safe;}
