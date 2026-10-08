@@ -9,6 +9,10 @@ async function executeCharacterCommand(command={}){
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
  const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
+ if(action==="status"){
+  const c=controller(),s=c?.status?.();
+  if(c&&s!==undefined)return{ok:true,status:s};
+ }
  const deadline=Date.now()+(requiresRig?25000:15000);
  while(Date.now()<deadline){
   const c=controller(),engine=runtime()?.engine;
