@@ -35,7 +35,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,renderHoldUntil=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
 function traceGlb(stage,detail={}){const entry={at:new Date().toISOString(),stage,...detail};glbTrace.push(entry);if(glbTrace.length>200)glbTrace.splice(0,glbTrace.length-200);if(String(stage).toLowerCase().includes("error")||String(stage).toLowerCase().includes("fail")){try{window.saeed?.system?.reportDiagnostic?.("ERROR","3D ENGINE TRACE",detail?.error||stage,{domain:"3D",traceStage:stage,trace:entry})}catch{}}}
 let lastRestPose={detected:"unknown",normalized:false};
@@ -294,8 +294,8 @@ function render(){
   renderQueued=false;
   if(lastFrameAt){const dt=Number(now)-Number(lastFrameAt);if(dt>0)renderFps=1000/dt}
   lastFrameAt=Number(now)||lastFrameAt;
-  let keepAnimating=false;
-  if(animationTick){try{keepAnimating=animationTick(now)||false}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
+  let keepAnimating=Date.now()<renderHoldUntil;
+  if(animationTick){try{keepAnimating=animationTick(now)||keepAnimating}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
   try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now()}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError)}
   if(keepAnimating)render();
  });
@@ -304,7 +304,7 @@ function renderImmediate(){
  if(renderQueued&&animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;renderQueued=false}
  try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now();return true}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-immediate-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError);return false}
 }
-function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;return true}
+function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;if(animationTick)renderHoldUntil=Date.now()+8000;return true}\nfunction wakeRender(ms=8000){renderHoldUntil=Math.max(renderHoldUntil,Date.now()+Math.max(1000,Number(ms)||8000));renderImmediate();render();return true}
 
 function resize(){
  const r=canvas.getBoundingClientRect();
@@ -571,7 +571,7 @@ window.saeedCharacterRuntime.engine={
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,autoMapRig,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
- getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
+ getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
