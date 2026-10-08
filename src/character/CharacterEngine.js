@@ -106,9 +106,11 @@ function bindRig(mapping={},savedRestPose=null){
  if(savedRestPose?.bones){
   for(const [name,r] of Object.entries(savedRestPose.bones)){
    const list=boneGroups.get(String(name))||[];
+   const qx=Number(r?.qx),qy=Number(r?.qy),qz=Number(r?.qz),qw=Number(r?.qw);
+   const hasQuaternion=[qx,qy,qz,qw].every(Number.isFinite);
    const x=Number(r?.x),y=Number(r?.y),z=Number(r?.z);
-   if(!list.length||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;
-   for(const target of list)target.rotation.set(x,y,z);
+   if(!list.length||(!hasQuaternion&&(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))))continue;
+   for(const target of list){if(hasQuaternion)target.quaternion.set(qx,qy,qz,qw);else target.rotation.set(x,y,z);}
   }
   lastRestPose=savedRestPose.normalization||{detected:"saved",normalized:true,corrected:false,stillTPose:false};
  }else lastRestPose=normalizeHumanoidRestPose();
@@ -181,8 +183,8 @@ function validateRig(mapping={}){
  const capabilities={body:Boolean(rig.get("hips")),arms:Boolean(rig.get("leftUpperArm")&&rig.get("rightUpperArm")),legs:Boolean(rig.get("leftThigh")&&rig.get("rightThigh")),neck:Boolean(rig.get("neck")),eyes:Boolean(rig.get("leftEye")&&rig.get("rightEye")),blink:Boolean(rig.get("leftEye")&&rig.get("rightEye")),face:Boolean(rig.get("jaw")),fingers:Boolean(rig.get("leftHand")&&rig.get("rightHand"))};
  return{ok:mapped.length>0,missing,criticalMissing,optionalMissing:missing,mapped:mapped.length,required,optional,capabilities};
 }
-function resetCharacterPose(){getSceneBones();for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}render();}
-function captureAuthoritativeRestPose(normalization=lastRestPose){getSceneBones();boneRest=new Map();for(const [name,list] of boneGroups){const b=list[0];if(b)boneRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},position:{x:b.position.x,y:b.position.y,z:b.position.z}})}lastRestPose={...(normalization||{}),saved:true};for(const [slot,b] of rig){const p=boneRest.get(String(b.name));if(p)base.set(slot,{x:p.rotation.x,y:p.rotation.y,z:p.rotation.z})}return snapshotBoneRotations();}
+function resetCharacterPose(){getSceneBones();for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){if([p.rotation?.qx,p.rotation?.qy,p.rotation?.qz,p.rotation?.qw].every(Number.isFinite))target.quaternion.set(p.rotation.qx,p.rotation.qy,p.rotation.qz,p.rotation.qw);else target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}render();}
+function captureAuthoritativeRestPose(normalization=lastRestPose){getSceneBones();boneRest=new Map();for(const [name,list] of boneGroups){const b=list[0];if(b)boneRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w},position:{x:b.position.x,y:b.position.y,z:b.position.z}})}lastRestPose={...(normalization||{}),saved:true};for(const [slot,b] of rig){const p=boneRest.get(String(b.name));if(p)base.set(slot,{x:p.rotation.x,y:p.rotation.y,z:p.rotation.z})}return snapshotBoneRotations();}
 function applyCharacterPose(pose={},retargeter=null){
  for(const [slot,r] of Object.entries(pose)){
   const b=rig.get(slot);if(!b)continue;
@@ -332,7 +334,7 @@ function display(parsed){
  for(const [name,list] of nextGroups){
   const b=list[0];
   if(!b)continue;
-  nextRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},position:{x:b.position.x,y:b.position.y,z:b.position.z}});
+  nextRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w},position:{x:b.position.x,y:b.position.y,z:b.position.z}});
  }
  try{
   root.add(next);
@@ -497,7 +499,7 @@ function resetBoneToRest(name){
  const rest=boneRest.get(key);
  if(!list.length||!rest)return false;
  for(const b of list){
-  b.rotation.set(rest.rotation.x,rest.rotation.y,rest.rotation.z);
+  if([rest.rotation?.qx,rest.rotation?.qy,rest.rotation?.qz,rest.rotation?.qw].every(Number.isFinite))b.quaternion.set(rest.rotation.qx,rest.rotation.qy,rest.rotation.qz,rest.rotation.qw);else b.rotation.set(rest.rotation.x,rest.rotation.y,rest.rotation.z);
   b.position.set(rest.position.x,rest.position.y,rest.position.z);
  }
  render();
@@ -510,9 +512,11 @@ function applyRestPoseSnapshot(snapshot={},normalization=null){
  getSceneBones();
  for(const [name,r] of Object.entries(snapshot||{})){
   const list=boneGroups.get(String(name))||[];
+  const qx=Number(r?.qx),qy=Number(r?.qy),qz=Number(r?.qz),qw=Number(r?.qw);
+  const hasQuaternion=[qx,qy,qz,qw].every(Number.isFinite);
   const x=Number(r?.x),y=Number(r?.y),z=Number(r?.z);
-  if(!list.length||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))continue;
-  for(const b of list)b.rotation.set(x,y,z);
+  if(!list.length||(!hasQuaternion&&(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))))continue;
+  for(const b of list){if(hasQuaternion)b.quaternion.set(qx,qy,qz,qw);else b.rotation.set(x,y,z);}
  }
  for(const [slot,b] of rig){
   const list=boneGroups.get(String(b.name))||[b];
@@ -540,7 +544,7 @@ function snapshotLogicalPose(){
 function snapshotBoneRotations(){
  getSceneBones();
  const out={};
- for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
+ for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w};
  return out;
 }
 function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
