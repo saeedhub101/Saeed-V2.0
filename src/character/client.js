@@ -1,7 +1,10 @@
 (()=>{const button=document.getElementById("micToggle"),icon=document.getElementById("micToggleIcon"),label=document.getElementById("micToggleLabel"),character=document.getElementById("character"),runtime=()=>window.saeedCharacterRuntime,controller=()=>runtime()?.controller;let dragging=false,lastX=0,lastY=0;
 async function executeCharacterCommand(command={}){
- const x=command||{},directActions=new Set(["status","boneNames","autoMap","beginAuthoring","endAuthoring","boneRotation","setBoneRotation","resetBoneToRest","snapshotRestPose","normalizeRestPose","saveRestPose","bindSlot","remap"]);
- const requiresRig=!directActions.has(String(x.action||""));
+ const x=command||{};
+ const action=String(x.action||"");
+ // Only boneNames is valid before a rig exists. Every other controller operation
+ // must first establish the real logical-to-scene mapping.
+ const requiresRig=action!=="boneNames";
  const deadline=Date.now()+25000;
  while(Date.now()<deadline){
   const c=controller(),engine=runtime()?.engine;
@@ -10,8 +13,9 @@ async function executeCharacterCommand(command={}){
     const engineStatus=engine?.getCharacterPoseStatus?.();
     if(engineStatus?.loaded&&Object.keys(engine?.getAvailableBoneNames?.()||{}).length){
      const current=c.status?.();
-     if(!requiresRig||current?.characterLoaded&&Object.keys(current?.autoRig||{}).length)break;
-     c.onCharacterLoaded?.();
+     if(current?.characterLoaded&&!Object.keys(current?.autoRig||{}).length){
+      try{c.onCharacterLoaded?.()}catch{}
+     }
      const bound=c.status?.();
      if(!requiresRig||bound?.characterLoaded&&Object.keys(bound?.autoRig||{}).length)break;
     }
