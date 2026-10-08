@@ -25,12 +25,12 @@ async function refresh(){
    if(Object.keys(actual).length)break;
    await new Promise(resolve=>setTimeout(resolve,150));
   }
-  bones=Object.entries(actual).map(([name,detail])=>({name,parent:String(detail?.parent||"")}));
+  if(!Object.keys(actual).length){diagnostic("ERROR","REST POSE SKELETON TIMEOUT","No GLB skeleton was exposed by the authoritative Character Engine after 15 seconds",{action:"status",characterLoaded:Boolean(result?.status?.characterLoaded||result?.characterLoaded),status:result?.status||result});}bones=Object.entries(actual).map(([name,detail])=>({name,parent:String(detail?.parent||"")}));
     baseRotations=Object.fromEntries(Object.entries(actual).map(([name,detail])=>[name,detail?.rotation||{x:0,y:0,z:0}]));
     $("characterState").textContent=result?.status?.characterLoaded||result?.characterLoaded?"Character connected. Adjust any bone, then save the complete rest pose.":"Character renderer is available; waiting for its GLB skeleton.";
   if(!bones.length){$("characterState").className="error";status(result?.error||"No bones found. Load a GLB character first.","error");fillBones();return}
     $("characterState").className="";fillBones($("search").value);status("Found "+bones.length+" bones. Select one to edit its rotation on all three axes.");
- }catch(error){$("characterState").textContent="Character unavailable";$("characterState").className="error";status(error.message,"error")}
+ }catch(error){diagnostic("ERROR","REST POSE REFRESH",error?.stack||error?.message||String(error));$("characterState").textContent="Character unavailable — see 3D Diagnostics";$("characterState").className="error";status(error.message,"error")}
  finally{$("refresh").disabled=false}
 }
 async function apply(value){
