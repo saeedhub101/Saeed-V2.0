@@ -1,0 +1,12 @@
+/* Character window / 3D canvas — restored without changing the GLB asset */
+.characterWindow #characterFrame{position:absolute;left:0;right:0;top:0;bottom:0;width:auto;height:auto;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden;pointer-events:none}
+.characterWindow .frameTitle{position:absolute;top:9px;left:50%;transform:translateX(-50%);z-index:12;font:600 10px "Segoe UI",system-ui,sans-serif;color:#59677a;background:#ffffffdf;border:1px solid #d8e0ea;border-radius:8px;padding:4px 8px;white-space:nowrap}
+.characterWindow .frameTitle span{color:#7b8797;font-weight:500}
+.characterWindow #character{position:absolute;left:50%;bottom:0;width:100%;height:100%;transform:translateX(-50%);animation:none;pointer-events:auto;cursor:grab}
+.characterWindow #character.dragging{transform:translateX(-50%);animation:none}
+.characterWindow #avatar{position:absolute;inset:0;width:100%;height:100%;display:block;max-width:100%;max-height:100%}
+.characterWindow .characterStatus{position:absolute;left:50%;bottom:9px;transform:translateX(-50%);font:10px Consolas,monospace;color:#59677a;background:#ffffffdc;border:1px solid #dfe5ed;border-radius:8px;padding:3px 7px;z-index:10;pointer-events:none}
+#clearChat{width:auto!important;min-width:0!important;padding:0 10px!important;font-size:11px!important}
+.chatHeader{-webkit-app-region:drag;cursor:move}
+.chatHeader button,.chatHeader .micBadge,.chatHeader .brandMark{-webkit-app-region:no-drag}
+.brandMark img,.mark img{width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block}
