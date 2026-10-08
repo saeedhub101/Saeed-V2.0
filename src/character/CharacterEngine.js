@@ -353,7 +353,6 @@ function display(parsed){
   dispose(previous);
  }
  traceGlb("display-success",{generation:loadGeneration,boneCount:boneGroups.size,meshCount:countSceneMeshes(next),skinnedMeshCount:countSceneSkinnedMeshes(next)});
- window.dispatchEvent(new CustomEvent("saeed-character-loaded"));
  ensureControllerBinding();
 }
 function countSceneMeshes(target){let n=0;target?.traverse?.(o=>{if(o?.isMesh||o?.isSkinnedMesh)n++});return n;}
@@ -365,10 +364,17 @@ function ensureControllerBinding(attempt=0){
  if(!names.length){if(attempt<40)setTimeout(()=>ensureControllerBinding(attempt+1),125);return false;}
  try{
   const status=controller.status?.();
-  if(status?.characterLoaded&&Object.keys(status?.autoRig||{}).length)return true;
+  if(status?.characterLoaded&&Object.keys(status?.autoRig||{}).length){
+   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:names.length,mapped:Object.keys(status.autoRig||{}).length}}));
+   return true;
+  }
   const result=controller.onCharacterLoaded?.();
-  traceGlb("controller-bind",{attempt,boneCount:names.length,mapped:Object.keys(result?.rig?.bones||{}).length,loaded:Boolean(result?.loaded),reason:result?.reason||null});
-  if(result?.loaded)return true;
+  const mapped=Object.keys(result?.mapping||result?.rig?.bones||{}).length;
+  traceGlb("controller-bind",{attempt,boneCount:names.length,mapped,loaded:Boolean(result?.loaded),reason:result?.reason||null});
+  if(result?.loaded){
+   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:names.length,mapped}}));
+   return true;
+  }
  }catch(error){traceGlb("controller-bind-error",{attempt,error:error?.stack||error?.message||String(error)});}
  if(attempt<40)setTimeout(()=>ensureControllerBinding(attempt+1),125);
  return false;
