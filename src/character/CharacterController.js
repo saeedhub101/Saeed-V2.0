@@ -56,227 +56,57 @@ export class CharacterController{
   if(this.binding)return this.lastBindingResult||{loaded:false,reason:"Character rig binding already in progress"};
   this.binding=true;
   try{
-  const sceneGroups=this.engine?.getSceneBoneGroups?.()||new Map();
-  const sceneNames=[...sceneGroups.keys()].filter(Boolean);
-  const apiNames=this.engine?.getAvailableBoneNames?.()||[];
-  const names=[...new Set([...sceneNames,...apiNames].map(String).filter(Boolean))];
-  if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
-  // AUTHORITATIVE SCENE MAPPING: resolve the real Saeed skeleton names first.
-  // AutoRigMapper remains the generic fallback for arbitrary GLBs.
-  const exactSlots={hips:"Hips",spine:"Torso",chest:"Chest",neck:"Neck",head:"Head",leftShoulder:"ShoulderL",rightShoulder:"ShoulderR",leftUpperArm:"UpperArmL",rightUpperArm:"UpperArmR",leftForeArm:"LowerArmL",rightForeArm:"LowerArmR",leftThigh:"UpperLegL",rightThigh:"UpperLegR",leftShin:"LowerLegL",rightShin:"LowerLegR",leftFoot:"FootL",rightFoot:"FootR"};
-  const exactByLower=new Map(names.map(n=>[String(n).toLowerCase(),String(n)]));
-  const exactMapping={};
-  for(const [slot,name] of Object.entries(exactSlots)){const actual=exactByLower.get(name.toLowerCase());if(actual)exactMapping[slot]=actual;}
-  const genericAuto=autoMapBones(names);
-  const auto={...genericAuto,mapping:{...genericAuto.mapping,...exactMapping},confidence:{...genericAuto.confidence}};
-  const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-  const profile=this.profiles.load(profileId);
-  const available=new Set(names.map(n=>String(n).toLowerCase()));
-  const mapping={...auto.mapping};
-  for(const [slot,name] of Object.entries(profile?.mapping||{}))if(name&&available.has(String(name).toLowerCase()))mapping[slot]=name;
-  const savedRestPose=profile?.normalizehumanoidrestpose||profile?.restPose;
-  let bound=false;
-  if(Object.keys(mapping).length)bound=Boolean(this.engine?.bindRig?.(mapping,savedRestPose));
-  let mapped=this.engine?.getBoneMap?.()||{};
-  if(!Object.keys(mapped).length&&Object.keys(auto.mapping).length){
-   bound=Boolean(this.engine?.bindRig?.(auto.mapping,savedRestPose));
-   mapped=this.engine?.getBoneMap?.()||{};
-  }
-  const mappedNames=Object.values(mapped).map(b=>String(b?.name||b||"").toLowerCase()).filter(Boolean);
-  if(!Object.keys(mapped).length||!mappedNames.every(name=>available.has(name))){
-   bound=Boolean(this.engine?.bindRig?.(auto.mapping,savedRestPose));
-   mapped=this.engine?.getBoneMap?.()||{};
-  }
-  if(!Object.keys(mapped).length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No controllable bones were bound to the current skeleton",mappedBoneCount:0,sceneBoneCount:names.length};return this.lastBindingResult}
-  this.retargeter.bind(mapped,profile?.calibration||{});
-  this.fingers.bind(names);
-  this.animation.bindRig(mapped,this.retargeter);
-  this.characterId=profileId;
-  const validation=this.engine?.getRigValidation?.()||{ok:true,missing:[],criticalMissing:[]},rest=this.engine?.getRestPoseNormalization?.()||{normalized:true};
-  if(validation.criticalMissing?.length||rest.normalized===false){
-   const parts=[];if(validation.criticalMissing?.length)parts.push("Required rig missing: "+validation.criticalMissing.join(", "));if(rest.normalized===false)parts.push("Rest pose: "+String(rest.detected||"not normalized"));
-   window.saeed.system.reportDiagnostic?.("ERROR","RIG VALIDATION",parts.join(" • ")||"Rig validation failed",{missing:validation.missing||[],criticalMissing:validation.criticalMissing||[],rest});
-  }
-  if(profile){if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
-  else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}} ,idlePose:this.animation.idlePose});
-  const result={rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId,bound,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,loaded:true};
-  this.rigReady=result.mappedBoneCount>0;
-  this.lastBindingResult=result;
-  return result;
-  }finally{this.binding=false}
- }
- beginAuthoring(){
-  this.authoring=true;
-  this.autonomous?.stop?.();
-  this.animation.stopAll();
-  this.clearIdleTimer();
-  this.idleBusy=false;
-  this.engine?.wakeRender?.();
-  return true;
- }
- endAuthoring(){
-  this.authoring=false;
-  if(this.animationEnabled&&!this.animationPaused&&this.visible)this.autonomous?.start?.();
-  return true;
- }
- play(id,options={}){
-  if(this.authoring)this.endAuthoring();
-  if(!this.animationEnabled||this.animationPaused)return false;
-  if(!this.characterId)this.bindCurrentCharacter();
-  const key=String(id||"idle");
-  if(key==="idle"){
-   this.animation.stopAll();
-   this.idleBusy=false;
-   this.animation.setIdlePose(this.animation.idlePose||{});
-   this.startIdleScheduler(7000);
-   return true;
-  }
-  const ok=this.animation.play(key,options);
-  if(ok)this.startFrameLoop();
-  return ok;
- }
- stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
- stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
- finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
- setPose(pose={}){if(this.authoring)this.beginAuthoring();if(!this.animationEnabled||this.animationPaused)return false;if(pose?.__captureRest){const rest=this.saveRestPose();this.startFrameLoop();return rest}const bones=pose?.__bones;if(bones){for(const [name,transform] of Object.entries(bones)){if(transform?.rotation||transform?.position)this.engine?.setBoneTransform?.(name,transform);else this.engine?.setBoneRotation?.(name,transform)}this.startFrameLoop();return bones}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
-  bindSlot(slot,name){
-   this.beginAuthoring();
-   const s=String(slot||"").trim(),n=String(name||"").trim();
-   if(!s||!n)return false;
    const names=this.engine?.getAvailableBoneNames?.()||[];
-   if(!names.some(x=>String(x)===n))return false;
-   const current={...(this.engine?.getCharacterRigAutoMap?.()||{})};
-   current[s]=n;
+   if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
    const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-   const existing=this.profiles.load(profileId)||{};
-   const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
-   const ok=this.engine?.bindRig?.(current,savedRestPose);
-   if(!ok){this.rigReady=false;return false;}
+   const profile=this.profiles.load(profileId)||{};
+   const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
+   const engineMap=this.engine?.getCharacterRigAutoMap?.()||{};
+   let mapping=Object.keys(engineMap).length?{...engineMap}:null;
+   let autoResult=null;
+   if(!mapping){
+    autoResult=this.engine?.autoMapRig?.(savedRestPose)||{ok:false};
+    mapping=autoResult?.mapping||{};
+   }
+   if(profile.mapping&&Object.keys(profile.mapping).length){
+    const available=new Set(names.map(String));
+    const profileMapping={};
+    for(const [slot,name] of Object.entries(profile.mapping))if(name&&available.has(String(name)))profileMapping[slot]=String(name);
+    if(Object.keys(profileMapping).length)mapping={...mapping,...profileMapping};
+   }
+   if(!Object.keys(mapping).length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:autoResult?.error||"Engine could not map any logical bones",mappedBoneCount:0,sceneBoneCount:names.length};return this.lastBindingResult;}
+   const bound=this.engine?.bindRig?.(mapping,savedRestPose);
    const mapped=this.engine?.getBoneMap?.()||{};
-   if(!mapped[s]||String(mapped[s]?.name||"")!==n){this.rigReady=false;return false;}
+   const mappedBoneCount=Object.keys(mapped).length;
+   const available=new Set(names.map(String));
+   const valid=mappedBoneCount>0&&Object.values(mapped).every(b=>available.has(String(b?.name||b)));
+   if(!bound||!valid){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"Engine rig binding did not resolve mapped bones to the current skeleton",mappedBoneCount,sceneBoneCount:names.length,mapping};return this.lastBindingResult;}
    this.retargeter.bind(mapped,this.retargeter.status().calibration);
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
+   this.animation.stopAll();
    this.characterId=profileId;
-   this.rigReady=Object.keys(mapped).length>0;
-   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"No controllable bones after bindSlot",mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
-   if(this.characterId){
-    const restPose=savedRestPose||{
-     normalization:this.engine?.getRestPoseNormalization?.()||null,
-     bones:this.engine?.snapshotBoneRotations?.()||{}
-    };
-    this.profiles.save(this.characterId,{mapping:current,autoConfidence:existing.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose});
-   }
-   return true;
-  }
-  resolveAuthoringBoneName(name){
-   const requested=String(name||"").trim();
-   if(!requested)return null;
-   const available=this.engine?.getAvailableBoneNames?.()||[];
-   const exact=available.find(n=>String(n)===requested);
-   if(exact)return String(exact);
-   const lower=new Map(available.map(n=>[String(n).toLowerCase(),String(n)]));
-   const caseInsensitive=lower.get(requested.toLowerCase());
-   if(caseInsensitive)return caseInsensitive;
-   const mapped=this.engine?.getBoneMap?.()||{};
-   const semantic=mapped[requested];
-   const actual=semantic?.name||semantic;
-   if(actual&&available.some(n=>String(n)===String(actual)))return String(actual);
-   const auto=this.engine?.getCharacterRigAutoMap?.()||{};
-   const autoActual=auto[requested];
-   if(autoActual&&available.some(n=>String(n)===String(autoActual)))return String(autoActual);
-   return null;
-  }
-  setBoneRotation(name,rotation={}){
-   // DIRECT AUTHORING PATH: resolve the requested semantic/scene name once, then
-   // operate on the already-loaded Three.js bone. Never rebind during editing.
-   const bone=this.resolveAuthoringBoneName(name);
-   if(!bone)return false;
-   const x=Number(rotation?.x),y=Number(rotation?.y),z=Number(rotation?.z);
-   if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
-   const ok=this.engine?.setBoneRotation?.(bone,{x,y,z});
-   if(!ok)return false;
-   const applied=this.engine?.getBoneRotation?.(bone),epsilon=1e-8;
-   if(!applied||Math.abs(applied.x-x)>epsilon||Math.abs(applied.y-y)>epsilon||Math.abs(applied.z-z)>epsilon)return false;
-   this.animation.pose?.delete?.(bone);
-   this.engine?.wakeRender?.();
-   return true;
-  }
-  resetBoneToRest(name){
-   // DIRECT AUTHORING PATH: resolve once and reset the existing scene bone without rebinding.
-   const bone=this.resolveAuthoringBoneName(name);
-   if(!bone)return null;
-   const ok=this.engine?.resetBoneToRest?.(bone);
-   if(!ok)return null;
-   this.animation.pose?.delete?.(bone);
-   this.engine?.wakeRender?.();
-   return this.engine?.getBoneRotation?.(bone)||this.engine?.getRestBoneRotation?.(bone)||null;
-  }
- calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
- setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
- remap(mapping={}){
-  this.beginAuthoring();
-  const names=this.engine?.getAvailableBoneNames?.()||[];
-  const available=new Set(names.map(String));
-  const requested=Object.values(mapping||{}).filter(Boolean).map(String);
-  if(!requested.length||requested.some(name=>!available.has(name))){this.rigReady=false;return false;}
-  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-  const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
-  const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
-  const ok=this.engine?.bindRig?.(mapping,savedRestPose);
-  if(!ok){this.rigReady=false;return false;}
-  const mapped=this.engine?.getBoneMap?.()||{};
-  if(!Object.keys(mapped).length){this.rigReady=false;return false;}
-  this.retargeter.bind(mapped,this.retargeter.status().calibration);
-  this.fingers.bind(names);
-  this.animation.bindRig(mapped,this.retargeter);
-  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-  if(this.characterId){
-   const existing=this.profiles.load(this.characterId)||{};
-   const restPose=existing.normalizehumanoidrestpose||existing.restPose||{
-    normalization:this.engine?.getRestPoseNormalization?.()||null,
-    bones:this.engine?.snapshotBoneRotations?.()||{}
-   };
-   this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
-  }
-  this.rigReady=Object.keys(mapped).length>0;
-  this.lastBindingResult={loaded:this.rigReady,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:true};
-  return this.rigReady;
-}
+   this.rigReady=true;
+   const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
+   this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
+   this.lastBindingResult={loaded:true,mappedBoneCount,sceneBoneCount:names.length,bound:true,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
+   return this.lastBindingResult;
+  }finally{this.binding=false;}
+ }
  autoMap(){
   this.beginAuthoring();
   const names=this.engine?.getAvailableBoneNames?.()||[];
-  // Authoritative Saeed mapping must be used by the explicit Auto Map action too.
-  // The generic mapper remains the fallback for arbitrary/custom GLBs.
-  const authoritative=this.bindCurrentCharacter?.();
-  if(authoritative?.mappedBoneCount){
-   this.rigReady=true;
-   return{ok:true,mapping:authoritative.autoMapping?.mapping||this.engine?.getCharacterRigAutoMap?.()||{},confidence:authoritative.autoMapping?.confidence||{},mappedBoneCount:authoritative.mappedBoneCount,sceneBoneCount:authoritative.sceneBoneCount};
-  }
-  const auto=autoMapBones(names);
-  if(!Object.keys(auto.mapping).length){this.rigReady=false;return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};}
-  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-  const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
-  const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
-  const ok=this.engine?.bindRig?.(auto.mapping,savedRestPose);
-  if(ok){
-   const mapped=this.engine?.getBoneMap?.()||{};
-   this.retargeter.bind(mapped,this.retargeter.status().calibration);
-   this.fingers.bind(names);
-   this.animation.bindRig(mapped,this.retargeter);
-   if(this.characterId){
-    const restPose=savedRestPose||{
-     normalization:this.engine?.getRestPoseNormalization?.()||null,
-     bones:this.engine?.snapshotBoneRotations?.()||{}
-    };
-    this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose});
-   }
-  }
-  const mapped=this.engine?.getBoneMap?.()||{};
-  this.rigReady=Boolean(ok&&Object.keys(mapped).length);
-  this.lastBindingResult={loaded:this.rigReady,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:Boolean(ok)};
-  return{ok:this.rigReady,mapping:auto.mapping,confidence:auto.confidence,mappedBoneCount:Object.keys(mapped).length};
-}
+  if(!names.length){this.rigReady=false;return{ok:false,error:"Character skeleton has no bones",mapping:{},confidence:{},mappedBoneCount:0};}
+  const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const profile=this.profiles.load(profileId)||{};
+  const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
+  const result=this.engine?.autoMapRig?.(savedRestPose)||{ok:false,error:"CharacterEngine autoMapRig is unavailable",mapping:{},confidence:{},mappedBoneCount:0};
+  if(!result.ok){this.rigReady=false;this.lastBindingResult={loaded:false,mappedBoneCount:result.mappedBoneCount||0,sceneBoneCount:names.length,bound:false,reason:result.error};return result;}
+  const bound=this.bindCurrentCharacter();
+  if(!bound?.loaded){this.rigReady=false;return{...result,ok:false,error:bound?.reason||"Controller could not consume the Engine rig",mappedBoneCount:bound?.mappedBoneCount||0};}
+  this.rigReady=true;
+  return{...result,ok:true,mapping:bound.mapping||result.mapping, mappedBoneCount:bound.mappedBoneCount,sceneBoneCount:names.length};
+ }
  saveRestPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
