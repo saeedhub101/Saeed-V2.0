@@ -32,18 +32,25 @@ export class CharacterController{
   const names=this.engine?.getAvailableBoneNames?.()||[];
   if(!names.length)return{ok:false,error:"Character skeleton has no bones"};
   const available=new Set(names.map(String));
-  const current=this.engine?.getBoneMap?.()||{};
-  const valid=Object.values(current).length>0&&Object.values(current).every(b=>available.has(String(b?.name||b)));
-  if(!valid){
-   const result=this.onCharacterLoaded?.();
-   const mapped=this.engine?.getBoneMap?.()||{};
-   const finalValid=Object.values(mapped).length>0&&Object.values(mapped).every(b=>available.has(String(b?.name||b)));
-   if(!finalValid)return{ok:false,error:result?.reason||"Character rig could not be bound to the current skeleton",result};
+  const validMap=map=>{
+   const entries=Object.values(map||{});
+   return entries.length>0&&entries.every(b=>available.has(String(b?.name||b)));
+  };
+  let mapped=this.engine?.getBoneMap?.()||{};
+  if(!validMap(mapped)){
+   let result=null;
+   try{result=this.onCharacterLoaded?.()}catch(error){result={ok:false,reason:error?.message||String(error)}}
+   mapped=this.engine?.getBoneMap?.()||{};
+   if(!validMap(mapped)){
+    try{const fallback=this.autoMap?.();if(fallback?.ok)result=fallback}catch(error){result={ok:false,reason:error?.message||String(error)}}
+    mapped=this.engine?.getBoneMap?.()||{};
+   }
+   if(!validMap(mapped))return{ok:false,error:result?.reason||"Character rig could not be bound to the current skeleton",result};
   }
-  const boneCount=Object.keys(this.engine?.getBoneMap?.()||{}).length;
-  if(boneCount){this.rigReady=true;}
+  const boneCount=Object.keys(mapped).length;
+  this.rigReady=true;
   if(authoring)this.beginAuthoring();
-  return{ok:Boolean(boneCount),mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount};
+  return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount};
  }
  bindCurrentCharacter(){
   if(this.binding)return this.lastBindingResult||{loaded:false,reason:"Character rig binding already in progress"};
