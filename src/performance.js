@@ -106,10 +106,10 @@ window.saeed.character.onCharacterSelected?.(()=>{if(document.querySelector(".ta
 const rigTabJoints=["hips","head","leftShoulder","rightShoulder","leftUpperArm","rightUpperArm","leftThigh","rightThigh","spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye",...["left","right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(finger=>[1,2,3,4].map(segment=>side+"Hand"+finger+segment)))];
 async function refreshRigTab(){
  try{
-  const s=await window.saeed.character.getCharacterController();
-  const namesResult=await controllerCommand({action:"boneNames"});
-  const names=[...new Set(namesResult?.bones||[])];
-  const mapped=s?.retargeting?.bones||{};
+  const rigResult=await controllerCommand({action:"getRig"});
+  const names=[...new Set(rigResult?.bones||[])];
+  const s=rigResult?.status||{};
+  const mapped=rigResult?.mapping&&typeof rigResult.mapping==="object"?rigResult.mapping:(s?.retargeting?.bones||{});
   const grid=$("rigMappingGrid");
   const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const opts='<option value="">— Not mapped —</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join("");
