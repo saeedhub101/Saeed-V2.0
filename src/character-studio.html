@@ -13,7 +13,7 @@
   document.querySelectorAll("#studioTabs button[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
   document.querySelectorAll(".side .panel").forEach(p=>p.classList.toggle("active",p.id===tab));
  };
- document.querySelectorAll("#studioTabs button[data-tab]").forEach(b=>b.addEventListener("click",()=>activate(b.dataset.tab)));
+ document.querySelectorAll("#studioTabs button[data-tab]").forEach(b=>b.addEventListener("click",e=>{e.preventDefault();e.stopPropagation();activate(b.dataset.tab);}));
  activate("rig");
 })();
 </script>
@@ -95,10 +95,9 @@ async function loadPendingStudioCharacter(){
  studioDiagnostic("ERROR","STUDIO CHARACTER DELIVERY TIMEOUT","No selected GLB was delivered to Character Studio within 15 seconds");
  return false;
 }
-void loadPendingStudioCharacter();
-$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}window.saeed?.character?.closeWindow?.()};
+$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.system?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}};
 fillSlots();
 try{init();}catch(error){studioDiagnostic("ERROR","STUDIO INITIALIZATION",error?.stack||error?.message||String(error),{stage:"init"});}
-void cmd({action:"beginAuthoring"}).then(()=>refresh()).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));
+void loadPendingStudioCharacter().then(()=>cmd({action:"beginAuthoring"}).then(()=>refresh())).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));
 
 </script></body></html>
