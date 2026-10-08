@@ -128,6 +128,7 @@ export class CharacterController{
   const restPose={normalization:authoritativeNormalization,bones};
   if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
+ }
  normalizeRestPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
