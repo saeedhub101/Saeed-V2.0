@@ -476,6 +476,7 @@ function getEditorRotation(){
  return{x:model.rotation.x,y:model.rotation.y,z:model.rotation.z};
 }
 function getCharacterPoseStatus(){
+ getSceneBones();
  const required=[];
  const bones={};
  for(const [name,list] of boneGroups){const b=list[0];if(!b)continue;bones[name]={name,parent:b.parent?.name||"",rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z},position:{x:b.position.x,y:b.position.y,z:b.position.z},restPose:boneRest.get(name)||null};}
