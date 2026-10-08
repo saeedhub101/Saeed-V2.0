@@ -28,11 +28,11 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
  async function command(command={}){
   let win=getCharacterWindow();
   if(!win||win.isDestroyed()){
-   try{win=await createCharacterWindow()}catch(error){return{ok:false,error:error?.message||String(error)}}
+   try{win=await createCharacterWindow()}catch(error){diagnostic("ERROR","CHARACTER WINDOW CREATE",error?.stack||error?.message||String(error),{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error:error?.message||String(error),diagnostic:{stage:"window-create"}}}
    win=getCharacterWindow();
   }
-  if(!win||win.isDestroyed())return{ok:false,error:"Character window could not be created"};
-  if(!ipcMain)return{ok:false,error:"Character command IPC is unavailable"};
+  if(!win||win.isDestroyed()){const error="Character window could not be created";diagnostic("ERROR","CHARACTER WINDOW",error,{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error};}
+  if(!ipcMain){const error="Character command IPC is unavailable";diagnostic("ERROR","CHARACTER IPC",error,{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error,diagnostic:{stage:"ipc",action:command?.action}};}
   try{win.webContents.setBackgroundThrottling(false)}catch{}
   // Every controller operation starts from a real Skeleton→Rig READY state.
   // Bone edits remain direct once readiness is established; readiness never rebinds
@@ -40,18 +40,18 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   // Binding/authoring bootstrap actions must be allowed with Skeleton READY.\n  // Requiring Rig READY for autoMap/remap/bindSlot creates a circular deadlock:\n  // those actions are precisely what establish the Rig mapping.\n  const skeletonOnlyActions=new Set(["boneNames","boneRotation","setBoneRotation","resetBoneToRest","autoMap","remap","bindSlot","beginAuthoring","endAuthoring","saveRestPose","normalizeRestPose","snapshotRestPose"]);
   const requiresRig=!skeletonOnlyActions.has(String(command?.action||""));
   const readiness=await waitForCharacterReady(win,30000,{requireRig:requiresRig});
-  if(!readiness?.ready)return{ok:false,error:"CharacterWindow did not reach Skeleton→Rig READY state",diagnostic:readiness};
+  if(!readiness?.ready){diagnostic("ERROR","CHARACTER COMMAND READINESS",`Cannot execute ${String(command?.action||"unknown")}: renderer readiness failed`,{domain:"3D",action:String(command?.action||"unknown"),readiness});return{ok:false,error:`Character renderer readiness failed at ${readiness?.stage||"unknown"}: ${readiness?.error||"see diagnostics"}`,diagnostic:readiness};}
   if(win.webContents.isLoadingMainFrame?.()){
-   try{await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{cleanup();reject(new Error("Character renderer did not finish loading"))},15000);const cleanup=()=>{clearTimeout(timer);win.webContents.removeListener("did-finish-load",ready);win.webContents.removeListener("did-fail-load",failed)};const ready=()=>{cleanup();resolve()};const failed=(_,code,description)=>{cleanup();reject(new Error("Character renderer load failed ("+code+"): "+description))};win.webContents.once("did-finish-load",ready);win.webContents.once("did-fail-load",failed)})}catch(error){return{ok:false,error:error?.message||String(error)}}
+   try{await new Promise((resolve,reject)=>{const timer=setTimeout(()=>{cleanup();reject(new Error("Character renderer did not finish loading"))},15000);const cleanup=()=>{clearTimeout(timer);win.webContents.removeListener("did-finish-load",ready);win.webContents.removeListener("did-fail-load",failed)};const ready=()=>{cleanup();resolve()};const failed=(_,code,description)=>{cleanup();reject(new Error("Character renderer load failed ("+code+"): "+description))};win.webContents.once("did-finish-load",ready);win.webContents.once("did-fail-load",failed)})}catch(error){diagnostic("ERROR","CHARACTER RENDERER LOAD",error?.stack||error?.message||String(error),{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error:error?.message||String(error),diagnostic:{stage:"renderer-load"}}}
   }
   const requestId="character-command-"+Date.now()+"-"+(++characterLoadGeneration);
   return await new Promise(resolve=>{
    let settled=false;
    const finish=result=>{if(settled)return;settled=true;clearTimeout(timeout);ipcMain.removeListener("character:command-result",onResult);resolve(result)};
    const onResult=(_,id,result)=>{if(id===requestId)finish(result)};
-   const timeout=setTimeout(()=>finish({ok:false,error:"Character command timed out"}),30000);
+   const timeout=setTimeout(()=>{const error="Character command timed out";diagnostic("ERROR","CHARACTER COMMAND TIMEOUT",error,{domain:"3D",action:String(command?.action||"unknown"),requestId});finish({ok:false,error,diagnostic:{stage:"command-timeout",requestId,action:command?.action}})},30000);
    ipcMain.on("character:command-result",onResult);
-   try{win.webContents.send("character:command",requestId,command)}catch(error){finish({ok:false,error:error?.message||String(error)})}
+   try{win.webContents.send("character:command",requestId,command)}catch(error){diagnostic("ERROR","CHARACTER IPC SEND",error?.stack||error?.message||String(error),{domain:"3D",action:String(command?.action||"unknown"),requestId});finish({ok:false,error:error?.message||String(error),diagnostic:{stage:"ipc-send",requestId}})}
   });
  }
  function sendPendingCharacterData(){
