@@ -2,10 +2,19 @@
 async function executeCharacterCommand(command={}){
  const deadline=Date.now()+25000;
  while(Date.now()<deadline){
-  const c=controller();
+  const c=controller(),engine=runtime()?.engine;
   if(c){
-   const status=c.status?.();
-   if(status?.characterLoaded)break;
+   try{
+    const engineStatus=engine?.getCharacterPoseStatus?.();
+    if(engineStatus?.loaded){
+     const current=c.status?.();
+     if(!current?.characterLoaded||!Object.keys(current?.autoRig||{}).length){
+      c.onCharacterLoaded?.();
+     }
+     const bound=c.status?.();
+     if(bound?.characterLoaded&&Object.keys(bound?.autoRig||{}).length)break;
+    }
+   }catch{}
   }
   await new Promise(resolve=>setTimeout(resolve,100));
  }
