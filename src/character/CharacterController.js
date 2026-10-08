@@ -61,7 +61,14 @@ export class CharacterController{
   const apiNames=this.engine?.getAvailableBoneNames?.()||[];
   const names=[...new Set([...sceneNames,...apiNames].map(String).filter(Boolean))];
   if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
-  const auto=autoMapBones(names);
+  // AUTHORITATIVE SCENE MAPPING: resolve the real Saeed skeleton names first.
+  // AutoRigMapper remains the generic fallback for arbitrary GLBs.
+  const exactSlots={hips:"Hips",spine:"Torso",chest:"Chest",neck:"Neck",head:"Head",leftShoulder:"ShoulderL",rightShoulder:"ShoulderR",leftUpperArm:"UpperArmL",rightUpperArm:"UpperArmR",leftForeArm:"LowerArmL",rightForeArm:"LowerArmR",leftThigh:"UpperLegL",rightThigh:"UpperLegR",leftShin:"LowerLegL",rightShin:"LowerLegR",leftFoot:"FootL",rightFoot:"FootR"};
+  const exactByLower=new Map(names.map(n=>[String(n).toLowerCase(),String(n)]));
+  const exactMapping={};
+  for(const [slot,name] of Object.entries(exactSlots)){const actual=exactByLower.get(name.toLowerCase());if(actual)exactMapping[slot]=actual;}
+  const genericAuto=autoMapBones(names);
+  const auto={...genericAuto,mapping:{...genericAuto.mapping,...exactMapping},confidence:{...genericAuto.confidence}};
   const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const profile=this.profiles.load(profileId);
   const available=new Set(names.map(n=>String(n).toLowerCase()));
