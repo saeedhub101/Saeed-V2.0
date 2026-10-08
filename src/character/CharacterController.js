@@ -156,8 +156,8 @@ export class CharacterController{
    return true;
   }
   setBoneRotation(name,rotation={}){
-   const ready=this.ensureRigBound({authoring:true});
-   if(!ready.ok)return false;
+   // DIRECT AUTHORING PATH: operate on the already-bound Three.js bone.
+   // Never rebind or self-heal while the user is dragging/editing a bone.
    const bone=String(name||"");
    const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
    if(!available.has(bone))return false;
@@ -172,8 +172,7 @@ export class CharacterController{
    return true;
   }
   resetBoneToRest(name){
-  const ready=this.ensureRigBound({authoring:true});
-  if(!ready.ok)return null;
+  // DIRECT AUTHORING PATH: reset the already-bound bone without rebinding.
   const bone=String(name||"");
   const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
   if(!available.has(bone))return null;
