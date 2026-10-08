@@ -4,7 +4,7 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="boneNames"||action==="listMotions";
+ const lightweight=action==="status"||action==="boneNames"||action==="getRig"||action==="listMotions";
  const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
@@ -63,6 +63,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="lookAt")return{ok:Boolean(c.face?.lookAt?.(x.x,x.y,x.z))};
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
+  if(x.action==="getRig"){const bones=engine?.getAvailableBoneNames?.()||[];const mapping=engine?.getBoneMap?.()||{};return{ok:Boolean(bones.length),bones,mapping,status:c.status()};}
   if(x.action==="boneNames"){const bones=engine?.getAvailableBoneNames?.()||[];if(!bones.length)return characterFailure(action,"No actual skeleton bone names exposed",{reason:"empty-skeleton"});return{ok:true,bones}};
   if(x.action==="saveRestPose"){const rest=c.saveRestPose?.();return{ok:Boolean(rest),restPose:rest||null,status:c.status()}}
   if(x.action==="normalizeRestPose"){const normalization=c.normalizeRestPose?.();return{ok:Boolean(normalization),normalization:normalization||null,status:c.status()}}
