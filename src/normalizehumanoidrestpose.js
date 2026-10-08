@@ -3,7 +3,18 @@ const diagnosticLog=[];function diagnostic(level,stage,message,meta={}){const it
 let bones=[],selected="",draft={},baseRotations={};
 const axes=["X","Y","Z"];
 function status(text,kind=""){const el=$("state");el.textContent=text;el.className=kind}
-async function command(payload){try{const result=await window.saeed.character.characterController(payload);if(result?.ok===false)diagnostic("ERROR","CHARACTER COMMAND",result.error||"Command failed",{action:payload?.action,bone:payload?.bone});return result}catch(error){diagnostic("ERROR","CHARACTER IPC",error?.stack||error?.message||String(error),{action:payload?.action,bone:payload?.bone});throw error}}
+async function command(payload){
+ const action=String(payload?.action||"unknown");
+ diagnostic("INFO","REST POSE COMMAND START",action,{action,bone:payload?.bone||null});
+ try{
+  const result=await window.saeed.character.characterController(payload);
+  if(result?.ok===false)diagnostic("ERROR","REST POSE COMMAND FAILED",result.error||"Command failed",{action,bone:payload?.bone,result});
+  else diagnostic("INFO","REST POSE COMMAND RESULT",action,{ok:result?.ok!==false});
+  return result;
+ }catch(error){
+  diagnostic("ERROR","REST POSE IPC",error?.stack||error?.message||String(error),{action,bone:payload?.bone});
+  throw error;
+ }}
 function radians(value){return Number(value||0)*Math.PI/180}
 function readDraft(){return{x:radians($("rotX").value),y:radians($("rotY").value),z:radians($("rotZ").value)}}
 function writeDraft(rotation={}){for(const axis of axes){const key=axis.toLowerCase();$("rot"+axis).value=Number((Number(rotation[key])||0)*180/Math.PI).toFixed(1)}}
