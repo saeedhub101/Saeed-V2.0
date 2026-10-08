@@ -184,7 +184,7 @@ function applyCharacterPose(pose={},retargeter=null){
   const list=boneGroups.get(String(b.name))||[b];
   for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);
  }
- for(const [boneName,transform] of Object.entries(pose))if(!rig.has(boneName))setBoneRotation(boneName,{rotation:transform});
+ for(const [boneName,transform] of Object.entries(pose))if(!rig.has(boneName))setBoneRotation(boneName,transform);
  render();
  return true;
 }
@@ -456,7 +456,8 @@ function getBoneRotation(name){
 function setBoneRotation(name,rotation={}){
  const list=boneGroups.get(String(name||""))||[];
  if(!list.length)return false;
- const x=Number(rotation.x),y=Number(rotation.y),z=Number(rotation.z);
+ const source=rotation?.rotation&&typeof rotation.rotation==="object"?rotation.rotation:rotation;
+ const x=Number(source.x),y=Number(source.y),z=Number(source.z);
  if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
  for(const b of list)b.rotation.set(x,y,z);
  render();
