@@ -304,7 +304,8 @@ function renderImmediate(){
  if(renderQueued&&animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;renderQueued=false}
  try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now();return true}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-immediate-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError);return false}
 }
-function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;if(animationTick)renderHoldUntil=Date.now()+8000;return true}\nfunction wakeRender(ms=8000){renderHoldUntil=Math.max(renderHoldUntil,Date.now()+Math.max(1000,Number(ms)||8000));renderImmediate();render();return true}
+function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;if(animationTick)renderHoldUntil=Date.now()+8000;return true}
+function wakeRender(ms=8000){renderHoldUntil=Math.max(renderHoldUntil,Date.now()+Math.max(1000,Number(ms)||8000));renderImmediate();render();return true}
 
 function resize(){
  const r=canvas.getBoundingClientRect();
