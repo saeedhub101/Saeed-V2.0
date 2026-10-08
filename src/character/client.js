@@ -4,9 +4,11 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="boneNames";
- const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring";
- const requiresRig=!lightweight&&!needsBones;
+ const lightweight=action==="status"||action==="boneNames"||action==="listMotions";
+ const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
+ const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
+ const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
+ const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
  const deadline=Date.now()+(requiresRig?25000:15000);
  while(Date.now()<deadline){
   const c=controller(),engine=runtime()?.engine;
