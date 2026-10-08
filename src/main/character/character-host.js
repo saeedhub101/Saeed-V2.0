@@ -64,7 +64,10 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   // Every controller operation starts from a real Skeleton→Rig READY state.
   // Bone edits remain direct once readiness is established; readiness never rebinds
   // an already valid rig during the actual edit operation.
-  // Binding/authoring bootstrap actions must be allowed with Skeleton READY.\n  // Requiring Rig READY for autoMap/remap/bindSlot creates a circular deadlock:\n  // those actions are precisely what establish the Rig mapping.\n  const actionName=String(command?.action||"");
+  // Binding/authoring bootstrap actions must be allowed with Skeleton READY.
+  // Requiring Rig READY for autoMap/remap/bindSlot creates a circular deadlock:
+  // those actions are precisely what establish the Rig mapping.
+  const actionName=String(command?.action||"");
   const skeletonOnlyActions=new Set(["boneNames","boneRotation","setBoneRotation","resetBoneToRest","autoMap","remap","bindSlot","beginAuthoring","endAuthoring","saveRestPose","normalizeRestPose","snapshotRestPose","status","listMotions","setAnimationEnabled","setAnimationPaused","stop","stopAll","resetPose"]);
   const directBonePose=actionName==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
   const requiresRig=!skeletonOnlyActions.has(actionName)&&!directBonePose;
