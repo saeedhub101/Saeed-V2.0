@@ -440,6 +440,14 @@ jobs:
           foreach($rel in @("whisper-cli.exe","ggml-base-q5_1.bin")) { $p=Join-Path $whisperRoot $rel; if(!(Test-Path $p -PathType Leaf)){throw "Embedded Whisper asset missing: $p"} }
           Write-Host "PACKAGED_CORE_HAS_EMBEDDED_WHISPER=PASS"
 
+      - name: FIRST PACKAGED EXE TEST — Performance Character Rest Pose Save
+        if: always()
+        id: e2e_performance_rest_pose
+        continue-on-error: true
+        shell: powershell
+        timeout-minutes: 12
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 0
+
       - name: Packaged EXE E2E Suite 1 — Startup, Performance and Character Motion
         if: always()
         id: e2e_suite_1
@@ -495,6 +503,7 @@ jobs:
           name: Saeed-AI-packaged-e2e-${{ github.run_number }}
           if-no-files-found: warn
           path: |
+            dist/ci-e2e-performance-rest-pose.json
             dist/ci-e2e-suite-1.json
             dist/ci-e2e-suite-2.json
             dist/ci-e2e-suite-3.json
@@ -668,7 +677,7 @@ jobs:
               if ($raw -match "STATUS=FAIL") { $failures.Add("Validation report failed: $($r.Name)") }
             }
           } else { $failures.Add("ci-reports directory was not created.") }
-          foreach ($p in @("dist\\ci-e2e-suite-1.json","dist\\ci-e2e-suite-2.json","dist\\ci-e2e-suite-3.json","dist\\ci-e2e-suite-5.json","dist\\ci-e2e-suite-6.json","dist\\ci-e2e-glb-character-test.json")) {
+          foreach ($p in @("dist\\ci-e2e-performance-rest-pose.json","dist\\ci-e2e-suite-1.json","dist\\ci-e2e-suite-2.json","dist\\ci-e2e-suite-3.json","dist\\ci-e2e-suite-5.json","dist\\ci-e2e-suite-6.json","dist\\ci-e2e-glb-character-test.json")) {
             if (!(Test-Path $p)) { $failures.Add("Missing E2E report: $p"); continue }
             try { $r = Get-Content $p -Raw | ConvertFrom-Json; if (-not $r.pass) { $failures.Add("E2E suite failed: $p") } }
             catch { $failures.Add("Invalid E2E report: $p") }
