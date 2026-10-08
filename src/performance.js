@@ -85,9 +85,11 @@ $("characterResetPose").onclick=async()=>{const r=await controllerCommand({actio
 $("characterApplyPose").onclick=async()=>{const slot=$("characterJoint").value;const rad=v=>Number(v||0)*Math.PI/180;const rotation={x:rad($("characterPoseX").value),y:rad($("characterPoseY").value),z:rad($("characterPoseZ").value)};const r=await controllerCommand({action:"jointRotation",slot,rotation});$("characterControllerState").textContent=r?.ok?"Applied "+slot+" to the real GLB bone.":(r?.error||"Joint pose failed");await refreshCharacterController()};
 $("characterJoint").onchange=refreshCharacterController;
 $("characterSaveIdle").onclick=async()=>{
- const s=await controllerCommand({action:"status"});if(!s?.status)return;
- const pose=s.status.pose||{};settings=await window.saeed.system.setSettings({...settings,characterController:{...(settings.characterController||{}),idlePose:pose}});
- await controllerCommand({action:"idlePose",pose});$("characterControllerState").textContent="Idle pose saved";
+ const r=await controllerCommand({action:"idlePose",pose:{}});
+ if(!r?.ok){$("characterControllerState").textContent=r?.error||"Idle pose save failed";return}
+ const pose=r.pose||r.status?.idlePose||{};
+ settings=await window.saeed.system.setSettings({...settings,characterController:{...(settings.characterController||{}),idlePose:pose}});
+ $("characterControllerState").textContent="Idle pose saved";
 };
 $("rigApply")?.addEventListener("click",async()=>{
  const mapping={};for(const el of document.querySelectorAll("[data-rig-tab-slot]"))if(el.value)mapping[el.dataset.rigTabSlot]=el.value;
