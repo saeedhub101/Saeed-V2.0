@@ -67,7 +67,7 @@ function frame(){if(!model)return;const box=new THREE.Box3().setFromObject(model
 function loop(){if(markers.length){for(const m of markers){const p=m.userData.bone.getWorldPosition(new THREE.Vector3());m.position.copy(p);m.scale.setScalar(m.userData.bone===selected?1.8:1);m.material.opacity=m.userData.bone===selected?1:.72}}renderer.render(scene,camera);requestAnimationFrame(loop)}
 function down(e){drag=true;last={x:e.clientX,y:e.clientY};const r=$("studio3d").getBoundingClientRect();mouse.x=((e.clientX-r.left)/r.width)*2-1;mouse.y=-((e.clientY-r.top)/r.height)*2+1;ray.setFromCamera(mouse,camera);const hits=ray.intersectObjects(markers,true);if(hits.length){select(hits[0].object.userData.bone.name)}}
 function move(e){if(!drag)return;yaw-=(e.clientX-last.x)*.008;pitch=Math.max(-1.2,Math.min(1.2,pitch+(e.clientY-last.y)*.006));last={x:e.clientX,y:e.clientY};look()}
-function load(data){try{studioDiagnostic("INFO","STUDIO GLB LOAD","Received GLB for Character Studio",{bytes:data?.byteLength??data?.length??null});const bytes=data instanceof Uint8Array?data:new Uint8Array(data);new GLTFLoader().parse(bytes.buffer,"",(g)=>{root.clear();markerGroup.clear();markers=[];model=g.scene;root.add(model);bones=[];model.traverse(o=>{if(o.isBone)bones.push(o)});for(const b of bones){const m=new THREE.Mesh(new THREE.SphereGeometry(.018,8,8),new THREE.MeshBasicMaterial({color:0x53d6c6,transparent:true,opacity:.72}));m.userData.bone=b;markerGroup.add(m);markers.push(m)}frame();fillBones();$("hint").textContent="Character ready • click any bone to select it";$("viewerStatus").textContent=bones.length+" bones";$("charInfo").textContent="Loaded • "+bones.length+" bones";},e=>{studioDiagnostic("ERROR","STUDIO GLTF PARSE",e?.stack||e?.message||String(e),{domain:"3D"});msg("rigStatus","GLB error: "+(e?.message||String(e)),"warn")})}catch(e){studioDiagnostic("ERROR","STUDIO GLB LOAD",e?.stack||e?.message||String(e),{domain:"3D"});msg("rigStatus",e?.message||String(e),"warn")}}}
+function load(data){try{const normalizeBytes=value=>{if(value instanceof Uint8Array)return value;if(value instanceof ArrayBuffer)return new Uint8Array(value);if(ArrayBuffer.isView(value))return new Uint8Array(value.buffer,value.byteOffset,value.byteLength);if(value&&Array.isArray(value.data))return new Uint8Array(value.data);return new Uint8Array(value||[])};studioDiagnostic("INFO","STUDIO GLB LOAD","Received GLB for Character Studio",{bytes:data?.byteLength??data?.length??data?.data?.length??null,type:data?.constructor?.name||typeof data});const bytes=normalizeBytes(data);if(bytes.byteLength<20)throw new Error("Character Studio received invalid or empty GLB data");new GLTFLoader().parse(bytes.buffer,"",(g)=>{root.clear();markerGroup.clear();markers=[];model=g.scene;root.add(model);bones=[];model.traverse(o=>{if(o.isBone)bones.push(o)});for(const b of bones){const m=new THREE.Mesh(new THREE.SphereGeometry(.018,8,8),new THREE.MeshBasicMaterial({color:0x53d6c6,transparent:true,opacity:.72}));m.userData.bone=b;markerGroup.add(m);markers.push(m)}frame();fillBones();$("hint").textContent="Character ready • click any bone to select it";$("viewerStatus").textContent=bones.length+" bones";$("charInfo").textContent="Loaded • "+bones.length+" bones";},e=>{studioDiagnostic("ERROR","STUDIO GLTF PARSE",e?.stack||e?.message||String(e),{domain:"3D"});msg("rigStatus","GLB error: "+(e?.message||String(e)),"warn")})}catch(e){studioDiagnostic("ERROR","STUDIO GLB LOAD",e?.stack||e?.message||String(e),{domain:"3D"});msg("rigStatus",e?.message||String(e),"warn")}}}
 function msg(id,t,k=""){const e=$(id);e.textContent=t;e.className="status "+k}
 function select(name){selected=bones.find(b=>b.name===name)||null;if(!selected)return;$("boneName").value=selected.name;$("rx").value=Math.round(THREE.MathUtils.radToDeg(selected.rotation.x));$("ry").value=Math.round(THREE.MathUtils.radToDeg(selected.rotation.y));$("rz").value=Math.round(THREE.MathUtils.radToDeg(selected.rotation.z));$("selectedInfo").textContent=selected.name+" • parent: "+(selected.parent?.name||"root");const idx=[...$("boneList").options].find(o=>o.value===selected.name);if(idx)idx.selected=true}
 function fillBones(){const s=$("boneList");s.innerHTML=bones.map(b=>"<option>"+b.name.replace(/</g,"&lt;")+"</option>").join("");if(bones[0])select(bones[0].name)}
@@ -84,8 +84,12 @@ async function loadPendingStudioCharacter(){
    const p=await window.saeed.character.getPendingCharacter?.();
    if(p?.data){
     load(p.data,p.generation);
-    studioDiagnostic("INFO","STUDIO CHARACTER DELIVERY","Loaded the authoritative pending GLB into Character Studio",{generation:p.generation});
-    return true;
+    await new Promise(resolve=>setTimeout(resolve,350));
+    if(bones.length>0){
+     studioDiagnostic("INFO","STUDIO CHARACTER DELIVERY","Loaded the authoritative pending GLB into Character Studio",{generation:p.generation,boneCount:bones.length});
+     return true;
+    }
+    studioDiagnostic("WARN","STUDIO CHARACTER DELIVERY","Pending GLB was received but no bones were exposed yet; retrying",{generation:p.generation});
    }
   }catch(error){
    studioDiagnostic("ERROR","STUDIO PENDING DELIVERY",error?.stack||error?.message||String(error));
@@ -95,7 +99,7 @@ async function loadPendingStudioCharacter(){
  studioDiagnostic("ERROR","STUDIO CHARACTER DELIVERY TIMEOUT","No selected GLB was delivered to Character Studio within 15 seconds");
  return false;
 }
-$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.character?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}};
+$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.character?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}setTimeout(()=>{try{window.saeed?.character?.closeWindow?.()}catch{}try{window.close()}catch{}},150);};
 fillSlots();
 try{init();}catch(error){studioDiagnostic("ERROR","STUDIO INITIALIZATION",error?.stack||error?.message||String(error),{stage:"init"});}
 void loadPendingStudioCharacter().then(()=>cmd({action:"beginAuthoring"}).then(()=>refresh())).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));
