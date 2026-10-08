@@ -1,8 +1,9 @@
 const $=id=>document.getElementById(id);
+const diagnosticLog=[];function diagnostic(level,stage,message,meta={}){const item={at:new Date().toISOString(),level,stage,message:String(message||""),meta};diagnosticLog.unshift(item);diagnosticLog.splice(30);const el=$("diagnostics");if(el)el.textContent=diagnosticLog.map(x=>`[${x.at}] ${x.level} ${x.stage}\n${x.message}${Object.keys(x.meta||{}).length?"\n"+JSON.stringify(x.meta):""}`).join("\n\n");try{window.saeed?.system?.reportDiagnostic?.(level,stage,message,{domain:"3D",...meta})}catch{}}window.saeed?.system?.onDiagnostic?.(e=>{if(String(e?.stage||"").includes("3D")||String(e?.stage||"").includes("CHARACTER")||String(e?.stage||"GLB")||e?.level==="ERROR")diagnosticLog.unshift({at:e.at||new Date().toISOString(),level:e.level,stage:e.stage,message:e.message,meta:e.meta||{}});const el=$("diagnostics");if(el)el.textContent=diagnosticLog.slice(0,30).map(x=>`[${x.at}] ${x.level} ${x.stage}\n${x.message}${Object.keys(x.meta||{}).length?"\n"+JSON.stringify(x.meta):""}`).join("\n\n")});
 let bones=[],selected="",draft={},baseRotations={};
 const axes=["X","Y","Z"];
 function status(text,kind=""){const el=$("state");el.textContent=text;el.className=kind}
-function command(payload){return window.saeed.character.characterController(payload)}
+async function command(payload){try{const result=await window.saeed.character.characterController(payload);if(result?.ok===false)diagnostic("ERROR","CHARACTER COMMAND",result.error||"Command failed",{action:payload?.action,bone:payload?.bone});return result}catch(error){diagnostic("ERROR","CHARACTER IPC",error?.stack||error?.message||String(error),{action:payload?.action,bone:payload?.bone});throw error}}
 function radians(value){return Number(value||0)*Math.PI/180}
 function readDraft(){return{x:radians($("rotX").value),y:radians($("rotY").value),z:radians($("rotZ").value)}}
 function writeDraft(rotation={}){for(const axis of axes){const key=axis.toLowerCase();$("rot"+axis).value=Number((Number(rotation[key])||0)*180/Math.PI).toFixed(1)}}
