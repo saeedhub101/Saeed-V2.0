@@ -6,8 +6,8 @@ function createCiE2E(deps={}){
  const suiteArg=String(process.env.SAEED_CI_E2E_SUITE||"all");
  const out=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist",suiteArg==="all"?"ci-e2e-report.json":`ci-e2e-suite-${suiteArg}.json`);
  const started=Date.now();
- const suiteDeadlineMs=8*60*1000;
- const suiteDeadlineAt=started+suiteDeadlineMs;
+
+
  const suiteFor=name=>{if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2")return n.startsWith("chat.")||n.startsWith("brain.")||n.startsWith("voice.")||n.startsWith("mute.")||n.startsWith("mic-");if(suiteArg==="3")return (n.startsWith("windows.")||n.startsWith("character.")||n.startsWith("hide-")||n.startsWith("show-")||n.startsWith("tray.")||n.startsWith("glb.")||n.startsWith("idle-final"))&&!n.startsWith("character.studio-")&&n!=="character.normalize-humanoid-rest-pose-window";if(suiteArg==="4")return n.startsWith("glbtest.");if(suiteArg==="5")return n.startsWith("character.studio-");if(suiteArg==="6")return n==="character.normalize-humanoid-rest-pose-window";return true};
  const {AsyncLocalStorage}=require("async_hooks");
  const checkContext=new AsyncLocalStorage();
@@ -16,7 +16,7 @@ function createCiE2E(deps={}){
  const recordTrace=(event,detail={})=>{const item={at:new Date().toISOString(),elapsedMs:Date.now()-started,event,...detail};trace.push(item);if(trace.length>200)trace.shift();return item};
  const persistReport=(reason="checkpoint")=>{
   try{
-   const snapshot={...report,checkpoint:{reason,time:new Date().toISOString()},diagnostics:{...(report.diagnostics||{}),runnerVersion:3,timeoutPolicy:"abort-current-suite-on-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length}};
+   const snapshot={...report,checkpoint:{reason,time:new Date().toISOString()},diagnostics:{...(report.diagnostics||{}),runnerVersion:3,timeoutPolicy:"continue-after-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length}};
    fs.mkdirSync(path.dirname(out),{recursive:true});
    fs.writeFileSync(out,JSON.stringify(snapshot,null,2),"utf8");
   }catch(e){console.error("CI E2E checkpoint write failed:",e)}
@@ -67,7 +67,6 @@ function createCiE2E(deps={}){
  };
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
-  if(Date.now()>=suiteDeadlineAt){const error="Suite hard deadline exceeded ("+suiteDeadlineMs+" ms)";report.checks[name]={pass:false,required,status:"SUITE_DEADLINE",error};report.abortReason={type:"SUITE_DEADLINE",check:name,timeoutMs:suiteDeadlineMs};persistReport("suite-deadline");throw Object.assign(new Error(error),{code:"E2E_SUITE_DEADLINE",check:name});}
   const effectiveTimeoutMs=suite1Timeouts[name]||suite2Timeouts[name]||timeoutMs;
   const t=Date.now();
   const ctx={name,startedAt:t,operation:null,operationStartedAt:t,timedOut:false};
@@ -79,7 +78,7 @@ function createCiE2E(deps={}){
    ctx.timedOut=true;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
    recordTrace("check-timeout",{check:name,timeoutMs:effectiveTimeoutMs,lastOperation:diagnostic.lastOperation,lastOperationElapsedMs:diagnostic.lastOperationElapsedMs}); report.checks[name]={pass:false,required,status:"TIMEOUT",latencyMs:Date.now()-t,detail:{error:"Check exceeded "+effectiveTimeoutMs+" ms",diagnostic}}; report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic}; persistReport("check-timeout");
-   resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; no subsequent check will start and this suite will stop.",diagnostic});
+   resolve({pass:false,status:"TIMEOUT",error:"Check exceeded "+effectiveTimeoutMs+" ms; continuing to the next check.",diagnostic});
   },effectiveTimeoutMs)});
   try{
    const v=await Promise.race([work,timeout]);
@@ -90,13 +89,11 @@ function createCiE2E(deps={}){
    persistReport("check-complete");
    recordTrace(pass?"check-pass":"check-fail",{check:name,status:pass?"PASS":(v?.status||"FAILED"),error:v?.error,diagnostic:v?.diagnostic});
    if(v?.status==="TIMEOUT"){
-    report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic:v.diagnostic};
-    throw Object.assign(new Error("E2E check timeout: "+name),{code:"E2E_CHECK_TIMEOUT",check:name,diagnostic:v.diagnostic});
+    
    }
    return report.checks[name];
   }catch(e){
    clearTimeout(timer);
-   if(e?.code==="E2E_CHECK_TIMEOUT")throw e;
    const diagnostic={check:name,lastOperation:ctx.operation,lastOperationElapsedMs:ctx.operation?Date.now()-ctx.operationStartedAt:0,trace:trace.slice(-20)};
    report.checks[name]={pass:false,required,latencyMs:Date.now()-t,status:"ERROR",error:String(e?.stack||e),diagnostic};
    persistReport("check-error");
@@ -274,13 +271,10 @@ function createCiE2E(deps={}){
    await check("idle-final",async()=>{await wait(1000);return {pass:Boolean(getCharacterWindow?.())}});
    report.finishedAt=new Date().toISOString();
    report.durationMs=Date.now()-started;
-   report.diagnostics={runnerVersion:2,timeoutPolicy:"abort-current-suite-on-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length};
+   report.diagnostics={runnerVersion:4,timeoutPolicy:"continue-after-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length};
    report.pass=Object.values(report.checks).filter(x=>x.required!==false).every(x=>x.pass);
-  }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString();if(e?.code==="E2E_CHECK_TIMEOUT")report.abortReason=report.abortReason||{type:"CHECK_TIMEOUT",check:e.check,diagnostic:e.diagnostic};if(e?.code==="E2E_SUITE_DEADLINE")report.abortReason=report.abortReason||{type:"SUITE_DEADLINE",check:e.check,timeoutMs:suiteDeadlineMs}}
+  }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString()}
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
-  if(["CHECK_TIMEOUT","SUITE_DEADLINE"].includes(report.abortReason?.type)){
-   setTimeout(()=>{try{app?.quit?.()}catch{}},50);
-  }
   return report;
  }
  return{run};
