@@ -1,6 +1,7 @@
 import * as THREE from "../../node_modules/three/build/three.module.js";
 import {GLTFLoader} from "../three/GLTFLoader.js";
 import "./CharacterController.js";
+import {autoMapBones} from "./AutoRigMapper.js";
 
 const canvas=document.getElementById("avatar");
 const scene=new THREE.Scene();
@@ -57,6 +58,20 @@ function getSceneBones(){
 }
 function getBoneMap(){return Object.fromEntries(rig)}
 function getAvailableBoneNames(){return getSceneBones().map(b=>b.name)}
+function autoMapRig(savedRestPose=null){
+ if(!model)return{ok:false,error:"Character GLB is not loaded",mapping:{},confidence:{},mappedBoneCount:0,sceneBoneCount:0};
+ const bones=getSceneBones(),names=bones.map(b=>b.name).filter(Boolean);
+ if(!names.length)return{ok:false,error:"Character skeleton has no bones",mapping:{},confidence:{},mappedBoneCount:0,sceneBoneCount:0};
+ const auto=autoMapBones(bones);
+ const mapping=auto?.mapping||{};
+ if(!Object.keys(mapping).length)return{ok:false,error:"No compatible logical bones were mapped",mapping:{},confidence:auto?.confidence||{},mappedBoneCount:0,sceneBoneCount:names.length};
+ const bound=bindRig(mapping,savedRestPose);
+ const mapped=getBoneMap();
+ const mappedBoneCount=Object.keys(mapped).length;
+ const valid=mappedBoneCount>0&&Object.values(mapped).every(b=>b&&bones.includes(b));
+ traceGlb("engine-auto-map",{sceneBoneCount:names.length,mappedBoneCount,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence:auto?.confidence||{}});
+ return{ok:Boolean(bound&&valid),mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence:auto?.confidence||{},mappedBoneCount,sceneBoneCount:names.length,error:bound&&valid?null:"Engine failed to bind mapped scene bones"};
+}
 function bindRig(mapping={},savedRestPose=null){
  if(!model)return false;
  const groups=getSceneBoneGroups(),by={};boneGroups=groups;
@@ -516,7 +531,7 @@ window.saeedCharacterRuntime.engine={
   components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":(loadError?"error":"waiting"),detail:loadError||undefined}},
   metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,renderCount,lastRenderAt,canvasWidth:canvas.width,canvasHeight:canvas.height,clientWidth:canvas.clientWidth,clientHeight:canvas.clientHeight,hidden:document.hidden}
  }),
- getBoneMap,getBones:getBoneMap,getAvailableBoneNames,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
+ getBoneMap,getBones:getBoneMap,getAvailableBoneNames,autoMapRig,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,
