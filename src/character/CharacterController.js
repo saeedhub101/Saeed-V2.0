@@ -143,7 +143,6 @@ export class CharacterController{
     persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
     persisted=verify(persistedProfile||this.profiles.load(this.characterId)||{});
    }
-   if(persisted)this.engine?.applyRestPoseSnapshot?.(bones,authoritativeNormalization);
   }
   return {...restPose,persisted,profileId:this.characterId,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
  }
