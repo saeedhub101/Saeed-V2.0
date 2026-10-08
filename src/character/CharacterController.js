@@ -45,7 +45,13 @@ export class CharacterController{
     try{const fallback=this.autoMap?.();if(fallback?.ok)result=fallback}catch(error){result={ok:false,reason:error?.message||String(error)}}
     mapped=this.engine?.getBoneMap?.()||{};
    }
-   if(!validMap(mapped))return{ok:false,error:result?.reason||"Character rig could not be bound to the current skeleton",result};
+   if(!validMap(mapped)){
+    if(authoring){
+     this.beginAuthoring();
+     return{ok:true,mapping:{},boneCount:0,sceneBoneCount:names.length,rawBoneControl:true};
+    }
+    return{ok:false,error:result?.reason||"Character rig could not be bound to the current skeleton",result};
+   }
   }
   const boneCount=Object.keys(mapped).length;
   this.rigReady=true;
@@ -122,7 +128,17 @@ export class CharacterController{
  normalizeRestPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
-  const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;if(normalization?.normalized){this.engine?.captureAuthoritativeRestPose?.(normalization);if(!this.characterId)this.bindCurrentCharacter();if(this.characterId)this.profiles.save(this.characterId,{restPose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}},normalizehumanoidrestpose:{normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}}});}return normalization;}
+  const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;
+  if(normalization?.normalized){
+   this.engine?.captureAuthoritativeRestPose?.(normalization);
+   if(!this.characterId&&Object.keys(this.engine?.getBoneMap?.()||{}).length)this.bindCurrentCharacter();
+   if(this.characterId){
+    const restPose={normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}};
+    this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
+   }
+  }
+  return normalization;
+}
  resetPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return false;
@@ -133,6 +149,8 @@ export class CharacterController{
   this.engine?.wakeRender?.(250);
   return true;
 }
+ setBoneRotation(name,rotation={}){const bone=String(name||"");if(!bone)return false;const ok=this.engine?.setBoneRotation?.(bone,rotation);if(ok)this.engine?.wakeRender?.(120);return Boolean(ok)}
+ resetBoneToRest(name){const bone=String(name||"");if(!bone)return null;const ok=this.engine?.resetBoneToRest?.(bone);if(!ok)return null;this.engine?.wakeRender?.(120);return this.engine?.getBoneRotation?.(bone)||null}
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
