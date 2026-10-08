@@ -92,7 +92,7 @@ function autoMapRig(savedRestPose=null){
  const mappedBoneCount=Object.keys(mapped).length;
  const valid=mappedBoneCount>0&&Object.values(mapped).every(b=>b&&bones.includes(b));
  traceGlb("engine-auto-map",{sceneBoneCount:names.length,mappedBoneCount,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence});
- return{ok:Boolean(bound&&valid),mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence:auto?.confidence||{},mappedBoneCount,sceneBoneCount:names.length,error:bound&&valid?null:"Engine failed to bind mapped scene bones"};
+ return{ok:Boolean(bound&&valid),mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||null])),confidence,mappedBoneCount,sceneBoneCount:names.length,error:bound&&valid?null:"Engine failed to bind mapped scene bones"};
 }
 function bindRig(mapping={},savedRestPose=null){
  if(!model)return false;
