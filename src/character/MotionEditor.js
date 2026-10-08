@@ -1,6 +1,6 @@
 function lerp(a,b,t){return a+(b-a)*t}
 function interpolate(a,b,t){return{x:lerp(Number(a?.x)||0,Number(b?.x)||0,t),y:lerp(Number(a?.y)||0,Number(b?.y)||0,t),z:lerp(Number(a?.z)||0,Number(b?.z)||0,t)}}
-const LOGICAL_JOINTS=new Set(["hips","spine","chest","neck","head","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","leftEye","rightEye","jaw","leftShoulder","rightShoulder"]);
+const LOGICAL_JOINTS=new Set(["hips","spine","chest","neck","head","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","leftEye","rightEye","jaw"]);
 export class MotionEditor{
  constructor(registry){this.registry=registry;this.custom=new Map();}
  validate(def){const errors=[];if(!def?.id)errors.push("Motion id is required");if(!Array.isArray(def?.keyframes)||!def.keyframes.length)errors.push("At least one keyframe is required");for(const k of def?.keyframes||[]){for(const slot of Object.keys(k.pose||{})){if(!LOGICAL_JOINTS.has(slot))errors.push("Unknown logical joint: "+slot);for(const axis of ["x","y","z"])if(k.pose?.[slot]?.[axis]!==undefined&&!Number.isFinite(Number(k.pose[slot][axis])))errors.push("Invalid rotation for "+slot+"."+axis);}}return{ok:!errors.length,errors};}
