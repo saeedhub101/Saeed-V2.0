@@ -524,6 +524,19 @@ function applyRestPoseSnapshot(snapshot={},normalization=null){
  render();
  return true;
 }
+function snapshotLogicalPose(){
+ getSceneBones();
+ const out={};
+ for(const [slot,b] of rig){
+  const baseRotation=base.get(slot)||{x:0,y:0,z:0};
+  out[slot]={
+   x:b.rotation.x-baseRotation.x,
+   y:b.rotation.y-baseRotation.y,
+   z:b.rotation.z-baseRotation.z
+  };
+ }
+ return out;
+}
 function snapshotBoneRotations(){
  getSceneBones();
  const out={};
