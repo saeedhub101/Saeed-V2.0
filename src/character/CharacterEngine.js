@@ -166,39 +166,11 @@ function findNamedBone(sideName,part){
 function normalizeHumanoidRestPose(){
  const hips=rig.get("hips")||findBoneByAliases(["hips","hip","pelvis","mixamorighips"]);
  const head=rig.get("head")||findBoneByAliases(["head","mixamorighead"]);
- const left=rig.get("leftUpperArm")||findNamedBone("left","upper");
- const right=rig.get("rightUpperArm")||findNamedBone("right","upper");
  if(!hips||!head)return{detected:"custom",normalized:true,corrected:false,stillTPose:false,reason:"No humanoid hips/head pair; preserving the GLB rest pose"};
  model.updateWorldMatrix(true,true);
  const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);
- if(vertical<.45)return{detected:"laydown",normalized:false,reason:"Character is not upright"};
- const leftPosition=left?.getWorldPosition(new THREE.Vector3()),rightPosition=right?.getWorldPosition(new THREE.Vector3());
- const side=leftPosition&&rightPosition?rightPosition.sub(leftPosition):new THREE.Vector3(1,0,0);
- side.addScaledVector(up.clone().normalize(),-side.dot(up.clone().normalize())).normalize();
- if(side.lengthSq()<.01)side.set(1,0,0);
- const upAxis=up.normalize();
- const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};
- const armState=()=>{
-  const ld=direction(left),rd=direction(right);
-  if(!ld||!rd)return null;
-  const spread=Math.abs(ld.dot(side))>.65&&Math.abs(rd.dot(side))>.65;
-  const horizontal=Math.abs(ld.dot(upAxis))<.5&&Math.abs(rd.dot(upAxis))<.5;
-  const relaxed=Math.abs(ld.dot(side))+Math.abs(rd.dot(side))>1.2;
-  return{ld,rd,horizontal,spread,relaxed};
- };
- const before=armState();
- if(!before)return{detected:"upright-unknown-arms",normalized:true,corrected:false,stillTPose:false};
- if(before.horizontal&&before.spread&&before.relaxed){
-  const leftFore=rig.get("leftForeArm")||findNamedBone("left","fore"),rightFore=rig.get("rightForeArm")||findNamedBone("right","fore");
-    const neutralLeft=new THREE.Vector3(-.62,-.82,0),neutralRight=new THREE.Vector3(.62,-.82,0);
-    aimBoneChild(left,neutralLeft);
-    aimBoneChild(right,neutralRight);
-  model.updateWorldMatrix(true,true);
-  const after=armState();
-  const stillTPose=Boolean(after?.horizontal&&after?.spread&&after?.relaxed);
-  const result={detected:"t-pose",normalized:!stillTPose,corrected:true,stillTPose};if(!stillTPose)captureAuthoritativeRestPose(result);return result;
- }
- return{detected:"upright",normalized:true,corrected:false,stillTPose:false};
+ if(vertical<.45)return{detected:"laydown",normalized:false,corrected:false,reason:"Character is not upright; GLB rest pose preserved"};
+ return{detected:"glb-rest-pose",normalized:true,corrected:false,stillTPose:false,reason:"GLB rest pose preserved; no automatic arm or hand rotation applied"};
 }
 function validateRig(mapping={}){
  const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
