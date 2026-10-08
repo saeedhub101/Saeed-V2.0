@@ -579,7 +579,7 @@ window.saeedCharacterRuntime.engine={
     characterController:{state:window.saeedCharacterRuntime?.controller?"ready":"waiting",detail:window.saeedCharacterRuntime?.controller?"CharacterController connected":"CharacterController unavailable"},
     rigMapping:{state:Object.keys(map).length?"ready":(names.length?"warn":"waiting"),detail:(Object.keys(map).length+" logical slots mapped from "+names.length+" skeleton bones"),mappedSlots:Object.keys(map).length},
     restPose:{state:pose.restPose?.normalized===false?"warn":(pose.loaded?"ready":"waiting"),detail:String(pose.restPose?.detected||"unknown")},
-    tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")},
+    tPose:{state:pose.tPose?.isTPose===true?"warn":(pose.tPose?.detected?"ready":"waiting"),detail:String(pose.tPose?.detected||"unknown")},
     motion:{state:pose.loaded&&Object.keys(map).length?"ready":"waiting",detail:pose.loaded&&Object.keys(map).length?"Character motion path available":"Motion requires loaded character + mapped rig"}
    },
    character:{loaded:Boolean(pose.loaded),boneCount:names.length,skeletonCount:pose.skeletonCount||names.length,rigMapped:Object.keys(map).length,restPose:pose.restPose,tPose:pose.tPose},
@@ -604,7 +604,7 @@ window.saeed.character.on3DQuery?.(requestId=>{
  const status=window.saeedCharacterRuntime.engine.get3DStatus();
  const pose=getCharacterPoseStatus();
  const boneDetail=pose.loaded?`${pose.controllableBoneCount} controllable bones; rest pose ${pose.restPose?.normalized===false?"needs adjustment":"available"}`:"No character GLB is loaded";
- const report={...status,overall:{...status.overall,detail:status.overall.detail+" • "+boneDetail},components:{...status.components,characterRig:{state:pose.loaded?"ready":"waiting",detail:boneDetail},restPose:{state:pose.restPose?.normalized===false?"warn":"ready",detail:String(pose.restPose?.detected||"unknown")},tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")}},character:{loaded:pose.loaded,boneCount:pose.controllableBoneCount,skeletonCount:pose.skeletonCount,restPose:pose.restPose,tPose:pose.tPose}};
+ const report={...status,overall:{...status.overall,detail:status.overall.detail+" • "+boneDetail},components:{...status.components,characterRig:{state:pose.loaded?"ready":"waiting",detail:boneDetail},restPose:{state:pose.restPose?.normalized===false?"warn":"ready",detail:String(pose.restPose?.detected||"unknown")},tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")}},character:{loaded:pose.loaded,boneCount:getAvailableBoneNames().length,skeletonCount:pose.skeletonCount||getAvailableBoneNames().length,controllableBoneCount:pose.controllableBoneCount,restPose:pose.restPose,tPose:pose.tPose}};
  window.saeed.character.report3DStatus?.(requestId,report);
 });
 resize();
