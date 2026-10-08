@@ -37,8 +37,10 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   // Every controller operation starts from a real Skeleton→Rig READY state.
   // Bone edits remain direct once readiness is established; readiness never rebinds
   // an already valid rig during the actual edit operation.
-  // Binding/authoring bootstrap actions must be allowed with Skeleton READY.\n  // Requiring Rig READY for autoMap/remap/bindSlot creates a circular deadlock:\n  // those actions are precisely what establish the Rig mapping.\n  const skeletonOnlyActions=new Set(["boneNames","boneRotation","setBoneRotation","resetBoneToRest","autoMap","remap","bindSlot","beginAuthoring","endAuthoring","saveRestPose","normalizeRestPose","snapshotRestPose"]);
-  const requiresRig=!skeletonOnlyActions.has(String(command?.action||""));
+  // Binding/authoring bootstrap actions must be allowed with Skeleton READY.\n  // Requiring Rig READY for autoMap/remap/bindSlot creates a circular deadlock:\n  // those actions are precisely what establish the Rig mapping.\n  const actionName=String(command?.action||"");
+  const skeletonOnlyActions=new Set(["boneNames","boneRotation","setBoneRotation","resetBoneToRest","autoMap","remap","bindSlot","beginAuthoring","endAuthoring","saveRestPose","normalizeRestPose","snapshotRestPose","status","listMotions","setAnimationEnabled","setAnimationPaused","stop","stopAll","resetPose"]);
+  const directBonePose=actionName==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
+  const requiresRig=!skeletonOnlyActions.has(actionName)&&!directBonePose;
   const readiness=await waitForCharacterReady(win,30000,{requireRig:requiresRig});
   if(!readiness?.ready){diagnostic("ERROR","CHARACTER COMMAND READINESS",`Cannot execute ${String(command?.action||"unknown")}: renderer readiness failed`,{domain:"3D",action:String(command?.action||"unknown"),readiness});return{ok:false,error:`Character renderer readiness failed at ${readiness?.stage||"unknown"}: ${readiness?.error||"see diagnostics"}`,diagnostic:readiness};}
   if(win.webContents.isLoadingMainFrame?.()){
