@@ -292,6 +292,8 @@ function render(){
  animationFrame=requestAnimationFrame((now)=>{
   animationFrame=null;
   renderQueued=false;
+  if(lastFrameAt){const dt=Number(now)-Number(lastFrameAt);if(dt>0)renderFps=1000/dt}
+  lastFrameAt=Number(now)||lastFrameAt;
   let keepAnimating=false;
   if(animationTick){try{keepAnimating=animationTick(now)||false}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
   try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now()}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError)}
