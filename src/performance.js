@@ -72,8 +72,8 @@ async function refreshCharacterController(){
   await refreshTopCharacterMotionControls();
  }catch(e){$("characterControllerState").textContent="Controller unavailable: "+e.message}
 }
-$("characterPlayMotion").onclick=async()=>{const motion=$("characterMotion").value;await controllerCommand({action:"play",motion,options:{duration:Number($("characterMotionDuration").value)||undefined,speed:Number($("characterMotionSpeed").value)||1,intensity:Number($("characterMotionIntensity").value)||1,loop:motion==="idle"}});$("characterControllerState").textContent="Playing "+motion};
-$("characterStopMotion").onclick=async()=>{await controllerCommand({action:"stopAll"});$("characterControllerState").textContent="Stopped"};
+$("characterPlayMotion").onclick=async()=>{const motion=$("characterMotion").value;const r=await controllerCommand({action:"play",motion,options:{duration:Number($("characterMotionDuration").value)||undefined,speed:Number($("characterMotionSpeed").value)||1,intensity:Number($("characterMotionIntensity").value)||1,loop:motion==="idle"}});$("characterControllerState").textContent=r?.ok?"Playing "+motion:(r?.error||"Play motion failed");await refreshCharacterMotionControls()};
+$("characterStopMotion").onclick=async()=>{const r=await controllerCommand({action:"stopAll"});$("characterControllerState").textContent=r?.ok?"Stopped":(r?.error||"Stop failed");await refreshCharacterMotionControls()};
 async function refreshCharacterMotionControls(){try{const r=await controllerCommand({action:"status"});const s=r?.status||{};const toggle=$("characterAnimationsToggle"),pause=$("characterPauseMotion");if(toggle)toggle.textContent=s.animationEnabled===false?"Animations OFF":"Animations ON";if(pause)pause.textContent=s.animationPaused?"Resume":"Pause";}catch{}}
 async function refreshTopCharacterMotionControls(){try{const r=await controllerCommand({action:"status"});const s=r?.status||{};const t=$("characterAnimationsToggleTop"),p=$("characterPauseMotionTop"),m=$("characterMotionControlState");if(t)t.textContent=s.animationEnabled===false?"Animations OFF":"Animations ON";if(p)p.textContent=s.animationPaused?"Resume":"Pause";if(m)m.textContent=s.animationEnabled===false?"Animations are OFF — all character motions are blocked.":s.animationPaused?"Character motion is paused.":"Character animations are ON."; }catch{}}
 $("characterPauseMotionTop").onclick=async()=>{const r=await controllerCommand({action:"status"});const paused=!(r?.status?.animationPaused===true);await controllerCommand({action:"setAnimationPaused",paused});await refreshCharacterMotionControls();await refreshTopCharacterMotionControls()};
@@ -81,8 +81,8 @@ $("characterAnimationsToggleTop").onclick=async()=>{const r=await controllerComm
 
 $("characterPauseMotion").onclick=async()=>{const r=await controllerCommand({action:"status"});const paused=!(r?.status?.animationPaused===true);await controllerCommand({action:"setAnimationPaused",paused});$("characterControllerState").textContent=paused?"Character motion paused":"Character motion resumed";await refreshCharacterMotionControls()};
 $("characterAnimationsToggle").onclick=async()=>{const r=await controllerCommand({action:"status"});const enabled=r?.status?.animationEnabled!==false;await controllerCommand({action:"setAnimationEnabled",enabled:!enabled});$("characterControllerState").textContent=enabled?"All animations disabled":"All animations enabled";await refreshCharacterMotionControls()};
-$("characterResetPose").onclick=async()=>{await controllerCommand({action:"resetPose"});$("characterControllerState").textContent="Pose reset";};
-$("characterApplyPose").onclick=async()=>{const slot=$("characterJoint").value;const rad=v=>Number(v||0)*Math.PI/180;const pose={};pose[slot]={x:rad($("characterPoseX").value),y:rad($("characterPoseY").value),z:rad($("characterPoseZ").value)};await controllerCommand({action:"pose",pose});$("characterControllerState").textContent="Applied "+slot};
+$("characterResetPose").onclick=async()=>{const r=await controllerCommand({action:"resetPose"});$("characterControllerState").textContent=r?.ok?"Pose reset":(r?.error||"Pose reset failed");await refreshCharacterController()};
+$("characterApplyPose").onclick=async()=>{const slot=$("characterJoint").value;const rad=v=>Number(v||0)*Math.PI/180;const rotation={x:rad($("characterPoseX").value),y:rad($("characterPoseY").value),z:rad($("characterPoseZ").value)};const r=await controllerCommand({action:"jointRotation",slot,rotation});$("characterControllerState").textContent=r?.ok?"Applied "+slot+" to the real GLB bone.":(r?.error||"Joint pose failed");await refreshCharacterController()};
 $("characterJoint").onchange=refreshCharacterController;
 $("characterSaveIdle").onclick=async()=>{
  const s=await controllerCommand({action:"status"});if(!s?.status)return;
@@ -92,7 +92,7 @@ $("characterSaveIdle").onclick=async()=>{
 $("rigApply")?.addEventListener("click",async()=>{
  const mapping={};for(const el of document.querySelectorAll("[data-rig-tab-slot]"))if(el.value)mapping[el.dataset.rigTabSlot]=el.value;
  const r=await controllerCommand({action:"remap",mapping});
- $("rigTabState").textContent=r?.ok?"Manual rig mapping applied and saved.":"Manual rig mapping failed.";
+ $("rigTabState").textContent=r?.ok?"Manual rig mapping applied and saved.":(r?.error||"Manual rig mapping failed.");
  await refreshRigTab();
 });
 $("rigAuto")?.addEventListener("click",async()=>{
