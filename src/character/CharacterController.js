@@ -130,15 +130,20 @@ export class CharacterController{
   let persistedProfile=null;
   if(this.characterId){
    persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-   const stored=this.profiles.load(this.characterId)||{};
-   persisted=Boolean(stored?.restPose?.bones&&Object.keys(stored.restPose.bones).length===Object.keys(bones).length);
+   const verify=(stored={})=>{
+    const saved=stored?.restPose?.bones||{};
+    const names=Object.keys(bones);
+    return names.length>0&&names.every(name=>{
+     const a=bones[name],b=saved[name];
+     return b&&Math.abs(Number(b.x)-Number(a.x))<1e-7&&Math.abs(Number(b.y)-Number(a.y))<1e-7&&Math.abs(Number(b.z)-Number(a.z))<1e-7;
+    });
+   };
+   persisted=verify(persistedProfile||this.profiles.load(this.characterId)||{});
    if(!persisted){
-    this.engine?.applyRestPoseSnapshot?.(bones,authoritativeNormalization);
     persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-    const retry=this.profiles.load(this.characterId)||{};
-    persisted=Boolean(retry?.restPose?.bones&&Object.keys(retry.restPose.bones).length===Object.keys(bones).length);
-    persistedProfile=retry;
+    persisted=verify(persistedProfile||this.profiles.load(this.characterId)||{});
    }
+   if(persisted)this.engine?.applyRestPoseSnapshot?.(bones,authoritativeNormalization);
   }
   return {...restPose,persisted,profileId:this.characterId,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
  }
@@ -162,7 +167,7 @@ export class CharacterController{
  resetPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return false;
-  this.animation.stopAll();
+  this.animation.stopAll({reset:false});
   this.animation.pose.clear();
   this.idleBusy=false;
   const profile=this.characterId?(this.profiles.load(this.characterId)||{}):{};
@@ -181,7 +186,7 @@ export class CharacterController{
  beginAuthoring(){
   this.authoring=true;
   this.autonomous?.stop?.();
-  this.animation.stopAll();
+  this.animation.stopAll({reset:false});
   this.clearIdleTimer();
   this.idleBusy=false;
   this.engine?.wakeRender?.();
