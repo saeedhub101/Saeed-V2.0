@@ -2,12 +2,31 @@
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- // Only boneNames is valid before a rig exists. Every other controller operation
- // must first establish the real logical-to-scene mapping.
- const requiresRig=action!=="boneNames";
- const deadline=Date.now()+25000;
+ const lightweight=action==="status"||action==="boneNames";
+ const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose";
+ const requiresRig=!lightweight&&!needsBones;
+ const deadline=Date.now()+(requiresRig?25000:15000);
  while(Date.now()<deadline){
   const c=controller(),engine=runtime()?.engine;
+  if(c){
+   try{
+    const engineStatus=engine?.getCharacterPoseStatus?.();
+    const names=engine?.getAvailableBoneNames?.()||[];
+    if(engineStatus?.loaded&&names.length){
+     if(requiresRig){
+      const current=c.status?.();
+      if(current?.characterLoaded&&!Object.keys(current?.autoRig||{}).length){
+       try{c.onCharacterLoaded?.()}catch{}
+      }
+      const bound=c.status?.();
+      if(bound?.characterLoaded&&Object.keys(bound?.autoRig||{}).length)break;
+     }else break;
+    }
+   }catch{}
+  }
+  await new Promise(resolve=>setTimeout(resolve,100));
+ }
+ const c=controller(),engine=runtime()?.engine;
   if(c){
    try{
     const engineStatus=engine?.getCharacterPoseStatus?.();
