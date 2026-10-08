@@ -85,7 +85,7 @@ function createCiE2E(deps={}){
    const detail=typeof v==="object"&&v&&!Array.isArray(v)?v:undefined;
    report.checks[name]={pass,required,latencyMs:Date.now()-t,status:v?.status||undefined,detail};
    persistReport("check-complete");
-   recordTrace(pass?"check-pass":"check-fail",{check:name,status:v?.status||"FAILED",error:v?.error,diagnostic:v?.diagnostic});
+   recordTrace(pass?"check-pass":"check-fail",{check:name,status:pass?"PASS":(v?.status||"FAILED"),error:v?.error,diagnostic:v?.diagnostic});
    if(v?.status==="TIMEOUT"){
     report.abortReason={type:"CHECK_TIMEOUT",check:name,timeoutMs:effectiveTimeoutMs,diagnostic:v.diagnostic};
     throw Object.assign(new Error("E2E check timeout: "+name),{code:"E2E_CHECK_TIMEOUT",check:name,diagnostic:v.diagnostic});
