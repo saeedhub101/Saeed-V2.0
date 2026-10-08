@@ -229,9 +229,9 @@ export class CharacterController{
  
  setIdlePose(pose={}){
   if(!this.animationEnabled||this.animationPaused)return false;
-  this.beginAuthoring();
   const requested=pose&&Object.keys(pose).length?pose:null;
   const current=requested||this.engine?.snapshotLogicalPose?.()||this.animation.pose.snapshot()||{};
+  this.beginAuthoring();
   const out=this.animation.setIdlePose(current);
   if(!this.characterId){
    const names=this.engine?.getAvailableBoneNames?.()||[];
