@@ -40,8 +40,10 @@ export class CharacterController{
    const finalValid=Object.values(mapped).length>0&&Object.values(mapped).every(b=>available.has(String(b?.name||b)));
    if(!finalValid)return{ok:false,error:result?.reason||"Character rig could not be bound to the current skeleton",result};
   }
+  const boneCount=Object.keys(this.engine?.getBoneMap?.()||{}).length;
+  if(boneCount){this.rigReady=true;}
   if(authoring)this.beginAuthoring();
-  return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount:Object.keys(this.engine?.getBoneMap?.()||{}).length};
+  return{ok:Boolean(boneCount),mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount};
  }
  bindCurrentCharacter(){
   if(this.binding)return this.lastBindingResult||{loaded:false,reason:"Character rig binding already in progress"};
