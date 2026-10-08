@@ -34,8 +34,11 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   if(!win||win.isDestroyed())return{ok:false,error:"Character window could not be created"};
   if(!ipcMain)return{ok:false,error:"Character command IPC is unavailable"};
   try{win.webContents.setBackgroundThrottling(false)}catch{}
-  const directActions=new Set(["status","boneNames","autoMap","beginAuthoring","endAuthoring","boneRotation","setBoneRotation","resetBoneToRest","snapshotRestPose","normalizeRestPose","saveRestPose","bindSlot","remap"]);
-  const requiresRig=!directActions.has(String(command?.action||""));
+  // Every controller operation starts from a real Skeleton→Rig READY state.
+  // Bone edits remain direct once readiness is established; readiness never rebinds
+  // an already valid rig during the actual edit operation.
+  const skeletonOnlyActions=new Set(["boneNames"]);
+  const requiresRig=!skeletonOnlyActions.has(String(command?.action||""));
   const readiness=await waitForCharacterReady(win,30000,{requireRig:requiresRig});
   if(!readiness?.ready)return{ok:false,error:"CharacterWindow did not reach Skeleton→Rig READY state",diagnostic:readiness};
   if(win.webContents.isLoadingMainFrame?.()){
