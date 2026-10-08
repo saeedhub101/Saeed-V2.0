@@ -1,4 +1,5 @@
 function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath,rootPath}){
+ const loadFileBounded=async(win,file,ms=12000)=>{let timer;try{await Promise.race([win.loadFile(file),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error("Window load timeout after "+ms+" ms")),ms)})]);return true}catch(e){diagnostic("ERROR","WINDOW LOAD",e?.message||String(e));try{win.close()}catch{}return false}finally{clearTimeout(timer)}};
  async function showPerformance(){
   try{
    let win=getWindow("performanceWin");
@@ -7,7 +8,7 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.setIcon(iconPath());
    win.on("closed",()=>{setWindow("performanceWin",null)});
    setWindow("performanceWin",win);
-   await win.loadFile(path.join(rootPath,"performance.html"));
+   if(!await loadFileBounded(win,path.join(rootPath,"performance.html")))return;
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}
  }
@@ -19,7 +20,7 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.setIcon(iconPath());
    win.on("closed",()=>{setWindow("restPoseEditorWin",null)});
    setWindow("restPoseEditorWin",win);
-  await win.loadFile(path.join(rootPath,"character-studio.html"));
+  if(!await loadFileBounded(win,path.join(rootPath,"character-studio.html")))return;
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","REST POSE EDITOR",e.message)}
  }
@@ -31,7 +32,7 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.setIcon(iconPath());
    win.on("closed",()=>{setWindow("normalizeHumanoidRestPoseWin",null)});
    setWindow("normalizeHumanoidRestPoseWin",win);
-   await win.loadFile(path.join(rootPath,"normalizehumanoidrestpose.html"));
+   if(!await loadFileBounded(win,path.join(rootPath,"normalizehumanoidrestpose.html")))return;
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","NORMALIZE HUMANOID REST POSE WINDOW",e.message)}
  }
@@ -43,7 +44,7 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.setIcon(iconPath());
    win.on("closed",()=>setWindow("settingsWin",null));
    setWindow("settingsWin",win);
-   await win.loadFile(path.join(rootPath,"settings.html"));
+   if(!await loadFileBounded(win,path.join(rootPath,"settings.html")))return;
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","SETTINGS WINDOW",e.message)}
 }
@@ -53,7 +54,7 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    if(win&&!win.isDestroyed()){win.show();win.focus();return}
    win=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Learning / Teach Mode",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
    win.setIcon(iconPath());win.on("closed",()=>setWindow("learningWin",null));setWindow("learningWin",win);
-   await win.loadFile(path.join(rootPath,"learning","window.html"));win.show();win.focus();
+   if(!await loadFileBounded(win,path.join(rootPath,"learning","window.html")))return;win.show();win.focus();
   }catch(e){diagnostic("ERROR","LEARNING WINDOW",e.message)}
  }
  async function showAddons(){
