@@ -1,5 +1,5 @@
 const DEFAULT_IDLE_DELAY=7000;
-const SLEEP_AFTER_MS=20*60*1000;
+const SLEEP_AFTER_MS=60*60*1000;
 const RECENT_LIMIT=4;
 const MIN_ENERGY=20;
 
@@ -19,7 +19,7 @@ export class AutonomousBehaviorController{
   this.recent=[];
   this.lastMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:1200000};
+  this.mood="cheerful";this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:3600000};
  }
  start(){
   if(this.running)return;
