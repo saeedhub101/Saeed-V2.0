@@ -51,7 +51,7 @@ export class CharacterController{
   const sceneNames=[...sceneGroups.keys()].filter(Boolean);
   const apiNames=this.engine?.getAvailableBoneNames?.()||[];
   const names=[...new Set([...sceneNames,...apiNames].map(String).filter(Boolean))];
-  if(!names.length)return{rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
+  if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
   const auto=autoMapBones(names);
   const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const profile=this.profiles.load(profileId);
@@ -135,13 +135,15 @@ export class CharacterController{
    const existing=this.profiles.load(profileId)||{};
    const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
    const ok=this.engine?.bindRig?.(current,savedRestPose);
-   if(!ok)return false;
+   if(!ok){this.rigReady=false;return false;}
    const mapped=this.engine?.getBoneMap?.()||{};
-   if(!mapped[s]||String(mapped[s]?.name||"")!==n)return false;
+   if(!mapped[s]||String(mapped[s]?.name||"")!==n){this.rigReady=false;return false;}
    this.retargeter.bind(mapped,this.retargeter.status().calibration);
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
    this.characterId=profileId;
+   this.rigReady=Object.keys(mapped).length>0;
+   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"No controllable bones after bindSlot",mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
    if(this.characterId){
     const restPose=savedRestPose||{
      normalization:this.engine?.getRestPoseNormalization?.()||null,
@@ -184,12 +186,16 @@ export class CharacterController{
  remap(mapping={}){
   this.beginAuthoring();
   const names=this.engine?.getAvailableBoneNames?.()||[];
+  const available=new Set(names.map(String));
+  const requested=Object.values(mapping||{}).filter(Boolean).map(String);
+  if(!requested.length||requested.some(name=>!available.has(name))){this.rigReady=false;return false;}
   this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
   const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
   const ok=this.engine?.bindRig?.(mapping,savedRestPose);
-  if(!ok)return false;
+  if(!ok){this.rigReady=false;return false;}
   const mapped=this.engine?.getBoneMap?.()||{};
+  if(!Object.keys(mapped).length){this.rigReady=false;return false;}
   this.retargeter.bind(mapped,this.retargeter.status().calibration);
   this.fingers.bind(names);
   this.animation.bindRig(mapped,this.retargeter);
@@ -202,12 +208,14 @@ export class CharacterController{
    };
    this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
   }
-  return true;
+  this.rigReady=Object.keys(mapped).length>0;
+  this.lastBindingResult={loaded:this.rigReady,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:true};
+  return this.rigReady;
 }
  autoMap(){
   this.beginAuthoring();
   const names=this.engine?.getAvailableBoneNames?.()||[],auto=autoMapBones(names);
-  if(!Object.keys(auto.mapping).length)return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};
+  if(!Object.keys(auto.mapping).length){this.rigReady=false;return{ok:false,error:"No compatible bones were found",mapping:{},confidence:auto.confidence};}
   this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
   const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
@@ -225,7 +233,10 @@ export class CharacterController{
     this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose});
    }
   }
-  return{ok:Boolean(ok),mapping:auto.mapping,confidence:auto.confidence};
+  const mapped=this.engine?.getBoneMap?.()||{};
+  this.rigReady=Boolean(ok&&Object.keys(mapped).length);
+  this.lastBindingResult={loaded:this.rigReady,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:Boolean(ok)};
+  return{ok:this.rigReady,mapping:auto.mapping,confidence:auto.confidence,mappedBoneCount:Object.keys(mapped).length};
 }
  saveRestPose(){
   const ready=this.ensureRigBound({authoring:true});
@@ -320,8 +331,8 @@ export class CharacterController{
   return {loaded:true,...x,mappedBoneCount:Object.keys(finalMap).length,rigReady:true};
  }
  update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt);this.autonomous?.update?.(dt)}
- destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
- status(){let a=this.engine?.getCharacterPoseStatus?.()||{};let mapped=this.engine?.getBoneMap?.()||{};if(a.loaded){try{const ready=this.ensureRigBound();if(ready.ok)mapped=this.engine?.getBoneMap?.()||mapped}catch(error){this.engine?.reportDiagnostic?.("ERROR","CHARACTER CONTROLLER BIND",error?.message||String(error))}a=this.engine?.getCharacterPoseStatus?.()||a;mapped=this.engine?.getBoneMap?.()||mapped}return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.()||Object.fromEntries(Object.entries(mapped).map(([slot,bone])=>[slot,bone?.name||bone])),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),rigReady:Boolean(this.rigReady&&Object.keys(mapped).length),mappedBoneCount:Object.keys(mapped).length,mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior,autonomous:this.autonomous?.getStatus?.()},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
+ destroy(){this.rigReady=false;this.binding=false;this.lastBindingResult=null;this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
+ status(){let a=this.engine?.getCharacterPoseStatus?.()||{};let mapped=this.engine?.getBoneMap?.()||{};if(a.loaded){try{const ready=this.ensureRigBound();if(ready.ok)mapped=this.engine?.getBoneMap?.()||mapped}catch(error){this.engine?.reportDiagnostic?.("ERROR","CHARACTER CONTROLLER BIND",error?.message||String(error))}a=this.engine?.getCharacterPoseStatus?.()||a;mapped=this.engine?.getBoneMap?.()||mapped}return{...this.animation.status(),profileId:this.characterId,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.()||Object.fromEntries(Object.entries(mapped).map(([slot,bone])=>[slot,bone?.name||bone])),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),rigReady:Boolean(a.loaded&&this.rigReady&&Object.keys(mapped).length),mappedBoneCount:Object.keys(mapped).length,mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior,autonomous:this.autonomous?.getStatus?.()},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
   const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
