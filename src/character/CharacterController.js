@@ -169,12 +169,29 @@ export class CharacterController{
    }
    return true;
   }
+  resolveAuthoringBoneName(name){
+   const requested=String(name||"").trim();
+   if(!requested)return null;
+   const available=this.engine?.getAvailableBoneNames?.()||[];
+   const exact=available.find(n=>String(n)===requested);
+   if(exact)return String(exact);
+   const lower=new Map(available.map(n=>[String(n).toLowerCase(),String(n)]));
+   const caseInsensitive=lower.get(requested.toLowerCase());
+   if(caseInsensitive)return caseInsensitive;
+   const mapped=this.engine?.getBoneMap?.()||{};
+   const semantic=mapped[requested];
+   const actual=semantic?.name||semantic;
+   if(actual&&available.some(n=>String(n)===String(actual)))return String(actual);
+   const auto=this.engine?.getCharacterRigAutoMap?.()||{};
+   const autoActual=auto[requested];
+   if(autoActual&&available.some(n=>String(n)===String(autoActual)))return String(autoActual);
+   return null;
+  }
   setBoneRotation(name,rotation={}){
-   // DIRECT AUTHORING PATH: operate on the already-bound Three.js bone.
-   // Never rebind or self-heal while the user is dragging/editing a bone.
-   const bone=String(name||"");
-   const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
-   if(!available.has(bone))return false;
+   // DIRECT AUTHORING PATH: resolve the requested semantic/scene name once, then
+   // operate on the already-loaded Three.js bone. Never rebind during editing.
+   const bone=this.resolveAuthoringBoneName(name);
+   if(!bone)return false;
    const x=Number(rotation?.x),y=Number(rotation?.y),z=Number(rotation?.z);
    if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
    const ok=this.engine?.setBoneRotation?.(bone,{x,y,z});
@@ -186,16 +203,15 @@ export class CharacterController{
    return true;
   }
   resetBoneToRest(name){
-  // DIRECT AUTHORING PATH: reset the already-bound bone without rebinding.
-  const bone=String(name||"");
-  const available=new Set((this.engine?.getAvailableBoneNames?.()||[]).map(String));
-  if(!available.has(bone))return null;
-  const ok=this.engine?.resetBoneToRest?.(bone);
-  if(!ok)return null;
-  this.animation.pose?.delete?.(bone);
-  this.engine?.wakeRender?.();
-  return this.engine?.getBoneRotation?.(bone)||this.engine?.getRestBoneRotation?.(bone)||null;
-}
+   // DIRECT AUTHORING PATH: resolve once and reset the existing scene bone without rebinding.
+   const bone=this.resolveAuthoringBoneName(name);
+   if(!bone)return null;
+   const ok=this.engine?.resetBoneToRest?.(bone);
+   if(!ok)return null;
+   this.animation.pose?.delete?.(bone);
+   this.engine?.wakeRender?.();
+   return this.engine?.getBoneRotation?.(bone)||this.engine?.getRestBoneRotation?.(bone)||null;
+  }
  calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
  setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
  remap(mapping={}){
