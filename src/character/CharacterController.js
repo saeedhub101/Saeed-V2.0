@@ -150,7 +150,7 @@ export class CharacterController{
   return true;
 }
  setBoneRotation(name,rotation={}){const bone=String(name||"");if(!bone)return false;const ok=this.engine?.setBoneRotation?.(bone,rotation);if(ok)this.engine?.wakeRender?.(120);return Boolean(ok)}
- setLogicalJointRotation(slot,rotation={}){const key=String(slot||"").trim();if(!key)return false;const mapped=this.engine?.getBoneMap?.()||{};const bone=mapped[key];const name=String(bone?.name||bone||"");if(!name)return false;const ok=this.engine?.setBoneRotation?.(name,rotation);if(ok){this.animation.pose.set(key,{x:Number(rotation?.x)||0,y:Number(rotation?.y)||0,z:Number(rotation?.z)||0});this.engine?.wakeRender?.(3000)}return Boolean(ok)}
+ setLogicalJointRotation(slot,rotation={}){const key=String(slot||"").trim();if(!key)return false;this.beginAuthoring();const mapped=this.engine?.getBoneMap?.()||{};const bone=mapped[key];const name=String(bone?.name||bone||"");if(!name)return false;const ok=this.engine?.setBoneRotation?.(name,rotation);if(ok){this.animation.pose.set(key,{x:Number(rotation?.x)||0,y:Number(rotation?.y)||0,z:Number(rotation?.z)||0});this.engine?.wakeRender?.(8000)}return Boolean(ok)}
  resetBoneToRest(name){const bone=String(name||"");if(!bone)return null;const ok=this.engine?.resetBoneToRest?.(bone);if(!ok)return null;this.engine?.wakeRender?.(120);return this.engine?.getBoneRotation?.(bone)||null}
  beginAuthoring(){
   this.authoring=true;
