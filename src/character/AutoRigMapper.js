@@ -43,16 +43,11 @@ export function autoMapBones(bones=[]){
   }
   if(best&&best.score>=55){mapping[slot]=best.name;scores[slot]=best.score;used.add(best.name)}
  }
- // A non-humanoid/custom GLB is still controllable. Never invent six humanoid
- // bones; expose one real fallback bone only when semantic mapping found nothing.
- if(!Object.keys(mapping).length&&list.length){
-  const item=list[0];
-  mapping.generic=item.name;
-  scores.generic=30;
- }
+ // Never invent a logical "generic" bone. A rig is valid only when a real
+ // logical slot was mapped from the actual skeleton supplied by CharacterEngine.
  return {mapping,scores,confidence:Object.fromEntries(Object.entries(scores).map(([k,v])=>[k,Math.round(Math.min(100,v/1.2))]))};
 }
 export function requiredRigSlots(){return [...REQUIRED_RIG]}
 export function optionalRigSlots(){return [...OPTIONAL_RIG]}
-export function logicalSlots(){return [...Object.keys(aliases),"generic"]}
+export function logicalSlots(){return [...Object.keys(aliases)]}
 export function getFingerAliases(){return {...fingerAliases}}
