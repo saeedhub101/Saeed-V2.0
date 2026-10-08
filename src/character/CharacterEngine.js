@@ -485,12 +485,14 @@ function getCharacterPoseStatus(){
  const rigValidation=validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name])));return {loaded:Boolean(model),requiredRig:rigValidation,capabilities:{...rigValidation.capabilities,blink:Boolean(morphs.has("blink")||morphs.has("eyeclose")||rigValidation.capabilities.blink),visemes:morphs.size>0,expressions:morphs.size>0},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,skeletonCount:boneGroups.size,duplicateBoneGroups:[...boneGroups.entries()].filter(([,list])=>list.length>1).map(([name,list])=>({name,count:list.length})),tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
 function getBoneRotation(name){
+ getSceneBones();
  const list=boneGroups.get(String(name||""))||[];
  const b=list[0];
  if(!b)return null;
  return{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
 }
 function setBoneRotation(name,rotation={}){
+ getSceneBones();
  const list=boneGroups.get(String(name||""))||[];
  if(!list.length)return false;
  const source=rotation?.rotation&&typeof rotation.rotation==="object"?rotation.rotation:rotation;
@@ -507,6 +509,7 @@ function getRestBoneRotation(name){
  return{x:rest.rotation.x,y:rest.rotation.y,z:rest.rotation.z};
 }
 function resetBoneToRest(name){
+ getSceneBones();
  const key=String(name||"");
  const list=boneGroups.get(key)||[];
  const rest=boneRest.get(key);
@@ -518,8 +521,8 @@ function resetBoneToRest(name){
  render();
  return true;
 }
-function setBoneTransform(name,transform={}){const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const rest=boneRest.get(String(name||""));if(!rest)return false;const rr=transform?.rotation||transform||{},pp=transform?.position||{};const rx=Number(rr.x),ry=Number(rr.y),rz=Number(rr.z),px=Number(pp.x),py=Number(pp.y),pz=Number(pp.z);if(!Number.isFinite(rx)||!Number.isFinite(ry)||!Number.isFinite(rz))return false;for(const b of list){b.rotation.set(rest.rotation.x+rx,rest.rotation.y+ry,rest.rotation.z+rz);if(Number.isFinite(px))b.position.x=rest.position.x+px;if(Number.isFinite(py))b.position.y=rest.position.y+py;if(Number.isFinite(pz))b.position.z=rest.position.z+pz}render();return true}
-function setRestRelativeBoneRotation(name,delta={}){const list=boneGroups.get(String(name||""))||[];const rest=boneRest.get(String(name||""));if(!list.length||!rest)return false;const x=rest.rotation.x+(Number(delta.x)||0),y=rest.rotation.y+(Number(delta.y)||0),z=rest.rotation.z+(Number(delta.z)||0);for(const b of list)b.rotation.set(x,y,z);render();return true}
+function setBoneTransform(name,transform={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const rest=boneRest.get(String(name||""));if(!rest)return false;const rr=transform?.rotation||transform||{},pp=transform?.position||{};const rx=Number(rr.x),ry=Number(rr.y),rz=Number(rr.z),px=Number(pp.x),py=Number(pp.y),pz=Number(pp.z);if(!Number.isFinite(rx)||!Number.isFinite(ry)||!Number.isFinite(rz))return false;for(const b of list){b.rotation.set(rest.rotation.x+rx,rest.rotation.y+ry,rest.rotation.z+rz);if(Number.isFinite(px))b.position.x=rest.position.x+px;if(Number.isFinite(py))b.position.y=rest.position.y+py;if(Number.isFinite(pz))b.position.z=rest.position.z+pz}render();return true}
+function setRestRelativeBoneRotation(name,delta={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];const rest=boneRest.get(String(name||""));if(!list.length||!rest)return false;const x=rest.rotation.x+(Number(delta.x)||0),y=rest.rotation.y+(Number(delta.y)||0),z=rest.rotation.z+(Number(delta.z)||0);for(const b of list)b.rotation.set(x,y,z);render();return true}
 function createVirtualControlBone(name,parentName,position={x:0,y:0,z:0}){const parent=boneGroups.get(String(parentName||""))?.[0];if(!parent||!name||boneGroups.has(String(name)))return false;const b=new THREE.Bone();b.name=String(name);b.position.set(Number(position.x)||0,Number(position.y)||0,Number(position.z)||0);parent.add(b);boneGroups.set(b.name,[b]);captureAuthoritativeRestPose(lastRestPose);render();return true}
 function applyRestPoseSnapshot(snapshot={},normalization=null){
  getSceneBones();
