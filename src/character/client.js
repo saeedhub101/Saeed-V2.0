@@ -4,8 +4,8 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="boneNames"||action==="getRig"||action==="listMotions";
- const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
+ const lightweight=action==="status"||action==="listMotions";
+ const needsBones=action==="boneNames"||action==="getRig"||action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
  const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
