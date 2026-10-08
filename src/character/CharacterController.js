@@ -10,7 +10,7 @@ import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js"
 
 export class CharacterController{
  constructor(engine){
-  this.engine=engine;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.behavior={idle:true,breathing:false,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:20*60*1000};this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.authoring=false;this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.engine=engine;this.rigReady=false;this.binding=false;this.lastBindingResult=null;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.behavior={idle:true,breathing:false,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:20*60*1000};this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.authoring=false;this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
   this.autonomous.configure(this.behavior);registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -44,11 +44,13 @@ export class CharacterController{
   return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount:Object.keys(this.engine?.getBoneMap?.()||{}).length};
  }
  bindCurrentCharacter(){
+  if(this.binding)return this.lastBindingResult||{loaded:false,reason:"Character rig binding already in progress"};
+  this.binding=true;
+  try{
   const sceneGroups=this.engine?.getSceneBoneGroups?.()||new Map();
   const sceneNames=[...sceneGroups.keys()].filter(Boolean);
   const apiNames=this.engine?.getAvailableBoneNames?.()||[];
   const names=[...new Set([...sceneNames,...apiNames].map(String).filter(Boolean))];
-  const existing=this.engine?.getBoneMap?.()||{};
   if(!names.length)return{rig:this.animation.rig.snapshot(),autoMapping:{mapping:{},scores:{},confidence:{}},profileId:null};
   const auto=autoMapBones(names);
   const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
@@ -64,6 +66,12 @@ export class CharacterController{
    bound=Boolean(this.engine?.bindRig?.(auto.mapping,savedRestPose));
    mapped=this.engine?.getBoneMap?.()||{};
   }
+  const mappedNames=Object.values(mapped).map(b=>String(b?.name||b||"").toLowerCase()).filter(Boolean);
+  if(!Object.keys(mapped).length||!mappedNames.every(name=>available.has(name))){
+   bound=Boolean(this.engine?.bindRig?.(auto.mapping,savedRestPose));
+   mapped=this.engine?.getBoneMap?.()||{};
+  }
+  if(!Object.keys(mapped).length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No controllable bones were bound to the current skeleton",mappedBoneCount:0,sceneBoneCount:names.length};return this.lastBindingResult}
   this.retargeter.bind(mapped,profile?.calibration||{});
   this.fingers.bind(names);
   this.animation.bindRig(mapped,this.retargeter);
@@ -75,7 +83,11 @@ export class CharacterController{
   }
   if(profile){if(profile.idlePose)this.animation.setIdlePose(profile.idlePose);if(Array.isArray(profile.customMotions))for(const motion of profile.customMotions){try{this.editor.define(motion)}catch{}}}
   else this.profiles.save(this.characterId,{mapping:auto.mapping,autoConfidence:auto.confidence,restPose:{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}} ,idlePose:this.animation.idlePose});
-  return{rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId,bound,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
+  const result={rig:this.animation.rig.snapshot(),autoMapping:auto,profileId:this.characterId,bound,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,loaded:true};
+  this.rigReady=result.mappedBoneCount>0;
+  this.lastBindingResult=result;
+  return result;
+  }finally{this.binding=false}
  }
  beginAuthoring(){
   this.authoring=true;
@@ -287,27 +299,25 @@ export class CharacterController{
  startFrameLoop(){this.lastTickAt=0;this.engine?.wakeRender?.();return true}
  onCharacterLoaded(){
   const poseStatus=this.engine?.getCharacterPoseStatus?.();
-  if(!poseStatus?.loaded)return {loaded:false,reason:"Character GLB is not loaded yet"};
+  if(!poseStatus?.loaded){this.rigReady=false;return {loaded:false,reason:"Character GLB is not loaded yet"}}
   const sceneNames=this.engine?.getAvailableBoneNames?.()||[];
-  if(!sceneNames.length)return {loaded:false,reason:"Character GLB is loaded but no bones are exposed yet"};
+  if(!sceneNames.length){this.rigReady=false;return {loaded:false,reason:"Character GLB is loaded but no bones are exposed yet"}}
   const x=this.bindCurrentCharacter();
-  const mappedCount=Number(x?.mappedBoneCount||Object.keys(x?.rig?.bones||{}).length);
-  if(mappedCount===0){
-   const auto=this.autoMap();
-   if(!auto?.ok)return {loaded:false,reason:"Character GLB bones are present but no controllable mapping was produced",boneCount:sceneNames.length,auto};
-   x.rig=this.animation.rig.snapshot();x.autoMapping=auto;
-  }
+  if(!x?.mappedBoneCount){this.rigReady=false;return{loaded:false,reason:x?.reason||"Character rig binding produced no controllable bones",boneCount:sceneNames.length,auto:x?.autoMapping||null}}
   const finalMap=this.engine?.getBoneMap?.()||{};
-  if(!Object.keys(finalMap).length)return{loaded:false,reason:"Character rig binding did not produce a controllable rig",boneCount:sceneNames.length};
+  const available=new Set(sceneNames.map(String));
+  const valid=Object.values(finalMap).length>0&&Object.values(finalMap).every(b=>available.has(String(b?.name||b)));
+  if(!valid){this.rigReady=false;return{loaded:false,reason:"Character rig contains a bone outside the current skeleton",boneCount:sceneNames.length}}
   this.retargeter.bind(finalMap,this.retargeter.status().calibration);
   this.animation.bindRig(finalMap,this.retargeter);
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
+  this.rigReady=true;
   this.autonomous?.start?.();
   this.idleBusy=false;
   if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(7000);
-  return {loaded:true,...x,mappedBoneCount:Object.keys(finalMap).length};
+  return {loaded:true,...x,mappedBoneCount:Object.keys(finalMap).length,rigReady:true};
  }
  update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt);this.autonomous?.update?.(dt)}
  destroy(){this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
