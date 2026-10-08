@@ -18,7 +18,19 @@
 <script type="module">
 import * as THREE from "../node_modules/three/build/three.module.js";
 import {GLTFLoader} from "./three/GLTFLoader.js";
-const $=id=>document.getElementById(id),cmd=p=>window.saeed.character.characterController(p);
+const $=id=>document.getElementById(id);
+async function cmd(p){
+ const action=String(p?.action||"unknown");
+ studioDiagnostic("INFO","STUDIO COMMAND START",action,{action});
+ try{
+  const result=await window.saeed.character.characterController(p);
+  if(result?.ok===false)studioDiagnostic("ERROR","STUDIO COMMAND FAILED",result.error||"Command failed",{action,result});
+  else studioDiagnostic("INFO","STUDIO COMMAND RESULT",action,{ok:result?.ok!==false});
+  return result;
+ }catch(error){
+  studioDiagnostic("ERROR","STUDIO COMMAND EXCEPTION",error?.stack||error?.message||String(error),{action});
+  throw error;
+ }}
 const diagnosticLog=[];function studioDiagnostic(level,stage,message,meta={}){const item={at:new Date().toISOString(),level,stage,message:String(message||""),meta};diagnosticLog.unshift(item);diagnosticLog.splice(40);const el=$("diagnostics");if(el)el.textContent=diagnosticLog.map(x=>`[${x.at}] ${x.level} ${x.stage}\n${x.message}${Object.keys(x.meta||{}).length?"\n"+JSON.stringify(x.meta):""}`).join("\n\n");}window.saeed?.system?.onDiagnostic?.(e=>{if(String(e?.stage||"").includes("3D")||String(e?.stage||"").includes("CHARACTER")||String(e?.stage||"GLB")||e?.level==="ERROR")studioDiagnostic(e.level,e.stage,e.message,e.meta||{})});
 // Character Studio is an authoring UI, not a second runtime controller.
 // Expose a read-only facade so lifecycle/status consumers see the authoritative main CharacterController.
@@ -43,5 +55,25 @@ function fillSlots(){ $("slot").innerHTML=logical.map(x=>"<option value='"+x+"'>
 async function refresh(){const r=await cmd({action:"status"});if(r?.ok===false)studioDiagnostic("ERROR","CHARACTER STATUS",r.error||"Status failed",r);const s=r.status||r;$("mapInfo").textContent=JSON.stringify(s.autoRig||{},null,2);$("mapping").textContent="Mapped slots: "+Object.keys(s.autoRig||{}).length;$("motion").innerHTML=(s.motions||[]).map(m=>"<option value='"+m.id+"'>"+m.id+"</option>").join("");}
 $("boneList").onchange=()=>select($("boneList").value);$("apply").onclick=setRot;$("resetBone").onclick=async()=>{if(!selected)return;const r=await cmd({action:"resetBoneToRest",bone:selected.name});if(r?.ok===false)studioDiagnostic("ERROR","BONE RESET",r.error||"Reset failed",{bone:selected.name,result:r});if(r?.ok){const v=r.rotation||{x:0,y:0,z:0};selected.rotation.set(v.x,v.y,v.z);select(selected.name);msg("rigStatus","Bone reset to authoritative Rest Pose.","ok")}else msg("rigStatus",r?.error||"Could not reset bone to Rest Pose","warn")};$("bind").onclick=async()=>{if(!selected)return;const slot=$("slot").value;const r=await cmd({action:"bindSlot",slot,bone:selected.name});if(r?.ok===false)studioDiagnostic("ERROR","RIG BIND SLOT",r.error||"Binding failed",{slot,bone:selected.name,result:r});msg("rigStatus",r.ok?"Bound "+selected.name+" → "+slot:(r?.error||"Binding failed"),r.ok?"ok":"warn");await refresh()};$("auto").onclick=async()=>{const r=await cmd({action:"autoMap"});if(r?.ok===false)studioDiagnostic("ERROR","RIG AUTO-MAP",r.error||"AutoMap failed",r);msg("poseStatus",JSON.stringify(r.mapping||r),r.ok?"ok":"warn");refresh()};$("capture").onclick=async()=>{const r=await cmd({action:"saveRestPose"});msg("poseStatus","Current pose saved as authoritative Rest Pose.","ok");refresh()};$("normalize").onclick=async()=>{const r=await cmd({action:"normalizeRestPose"});if(r?.ok===false)studioDiagnostic("ERROR","REST POSE NORMALIZE",r.error||"Normalize failed",r);msg("poseStatus",JSON.stringify(r),"ok");refresh()};$("resetRest").onclick=async()=>{await cmd({action:"resetPose"});refresh()};$("play").onclick=async()=>{const r=await cmd({action:"play",motion:$("motion").value,options:{speed:Number($("speed").value)||1,duration:Number($("duration").value)||1}});if(!r?.ok)studioDiagnostic("ERROR","MOTION PLAY",r?.error||"Motion unavailable",r);msg("animStatus",r.ok?"Playing on main character",r.ok?"ok":"warn")};$("stop").onclick=()=>cmd({action:"stopAll"});$("loadMotion").onclick=async()=>{const r=await cmd({action:"listMotions"});const m=(r.motions||[]).find(x=>x.id===$("motion").value);if(!m){msg("animStatus","Selected motion is not editable.","warn");return}$("motionId").value=m.id;$("duration").value=m.duration||1;$("motionLayer").value=m.layer||"body";$("motionLoop").value=String(!!m.loop);$("motionKeyframes").value=JSON.stringify(m.keyframes||[],null,2);msg("animStatus","Loaded "+m.id+" for editing.","ok")};$("saveMotion").onclick=async()=>{try{const id=$("motionId").value.trim();if(!id)throw new Error("Motion ID is required");const keyframes=JSON.parse($("motionKeyframes").value||"[]");const r=await cmd({action:"defineMotion",motion:{id,duration:Number($("duration").value)||1,layer:$("motionLayer").value,loop:$("motionLoop").value==="true",keyframes}});msg("animStatus",r.ok?"Motion saved to character profile.":r.error||"Motion save failed",r.ok?"ok":"warn");await refresh()}catch(e){msg("animStatus","Invalid keyframes JSON: "+e.message,"warn")}};$("deleteMotion").onclick=async()=>{const id=$("motionId").value.trim()||$("motion").value;if(!id)return;const r=await cmd({action:"deleteMotion",id});msg("animStatus",r.ok?"Motion deleted.":r.error||"Delete failed",r.ok?"ok":"warn");await refresh()};$("front").onclick=()=>{yaw=0;pitch=.08;look()};$("resetCam").onclick=()=>{yaw=0;pitch=.08;frame()};$("showBones").onclick=()=>{showSkeleton=!showSkeleton;markerGroup.visible=showSkeleton;$("showBones").textContent="Bones: "+(showSkeleton?"ON":"OFF");};
 document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$(b.dataset.tab).classList.add("active")});
-window.saeed.character.onCharacterSelected?.((data)=>load(data));window.saeed.character.getPendingCharacter?.().then(p=>{if(p?.data)load(p.data,p.generation)}).catch(()=>{});$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}window.saeed.character.closeWindow?.()};init();fillSlots();void cmd({action:"beginAuthoring"});refresh();
+window.saeed.character.onCharacterSelected?.((data)=>load(data));
+async function loadPendingStudioCharacter(){
+ const deadline=Date.now()+15000;
+ while(Date.now()<deadline){
+  try{
+   const p=await window.saeed.character.getPendingCharacter?.();
+   if(p?.data){
+    load(p.data,p.generation);
+    studioDiagnostic("INFO","STUDIO CHARACTER DELIVERY","Loaded the authoritative pending GLB into Character Studio",{generation:p.generation});
+    return true;
+   }
+  }catch(error){
+   studioDiagnostic("ERROR","STUDIO PENDING DELIVERY",error?.stack||error?.message||String(error));
+  }
+  await new Promise(resolve=>setTimeout(resolve,250));
+ }
+ studioDiagnostic("ERROR","STUDIO CHARACTER DELIVERY TIMEOUT","No selected GLB was delivered to Character Studio within 15 seconds");
+ return false;
+}
+void loadPendingStudioCharacter();
+$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}window.saeed.character.closeWindow?.()};init();fillSlots();void cmd({action:"beginAuthoring"});refresh();
 </script></body></html>
