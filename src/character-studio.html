@@ -15,7 +15,7 @@
 <section class="bottom"><div class="box"><h3>Selected Bone</h3><div id="selectedInfo">None</div><div class="small">Click a bone in the 3D viewport or select it from Rig.</div></div><div class="box"><h3>Rig Mapping</h3><div id="mapInfo">Loading…</div></div><div class="box"><h3>Character</h3><div id="charInfo">Waiting…</div></div></section>
 </main>
 <script type="module">
-import * as THREE from "./node_modules/three/build/three.module.js";
+import * as THREE from "../node_modules/three/build/three.module.js";
 import {GLTFLoader} from "./three/GLTFLoader.js";
 const $=id=>document.getElementById(id),cmd=p=>window.saeed.character.characterController(p);
 // Character Studio is an authoring UI, not a second runtime controller.
