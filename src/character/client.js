@@ -27,22 +27,6 @@ async function executeCharacterCommand(command={}){
   await new Promise(resolve=>setTimeout(resolve,100));
  }
  const c=controller(),engine=runtime()?.engine;
-  if(c){
-   try{
-    const engineStatus=engine?.getCharacterPoseStatus?.();
-    if(engineStatus?.loaded&&Object.keys(engine?.getAvailableBoneNames?.()||{}).length){
-     const current=c.status?.();
-     if(current?.characterLoaded&&!Object.keys(current?.autoRig||{}).length){
-      try{c.onCharacterLoaded?.()}catch{}
-     }
-     const bound=c.status?.();
-     if(!requiresRig||bound?.characterLoaded&&Object.keys(bound?.autoRig||{}).length)break;
-    }
-   }catch{}
-  }
-  await new Promise(resolve=>setTimeout(resolve,100));
- }
- const c=controller(),engine=runtime()?.engine;
  if(!c)return{ok:false,error:"Character controller unavailable"};
  try{
   if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
