@@ -95,7 +95,7 @@ export class CharacterController{
    this.rigReady=true;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
    this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
-   this.lastBindingResult={loaded:true,mappedBoneCount,sceneBoneCount:names.length,bound:true,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
+   this.lastBindingResult={loaded:true,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
    return this.lastBindingResult;
   }finally{this.binding=false;}
  }
