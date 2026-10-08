@@ -552,11 +552,42 @@ function snapshotBoneRotations(){
 function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
- get3DStatus:()=>({
-  overall:{state:model?"ready":(loadError?"error":"starting"),detail:model?"3D character rendered":(loadError?"GLB load failed: "+loadError:"Waiting for GLB")},
-  components:{renderer:{state:"ready"},scene:{state:"ready"},camera:{state:"ready"},canvas:{state:"ready"},sceneContent:{state:model?"rendered":(loadError?"error":"waiting"),detail:loadError||undefined}},
-  metrics:{drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,geometries:renderer.info.memory.geometries,textures:renderer.info.memory.textures,renderCount,lastRenderAt,canvasWidth:canvas.width,canvasHeight:canvas.height,clientWidth:canvas.clientWidth,clientHeight:canvas.clientHeight,hidden:document.hidden}
- }),
+ get3DStatus:()=>{
+  const pose=getCharacterPoseStatus();
+  const names=getAvailableBoneNames();
+  const map=getBoneMap();
+  const glbState=loadError?"error":(model?"ready":"waiting");
+  const sceneState=renderer&&scene?"ready":"error";
+  const renderState=lastRenderAt?"rendered":"waiting";
+  return{
+   timestamp:new Date().toISOString(),
+   overall:{state:loadError?"error":(model&&names.length?"ready":"starting"),detail:loadError?String(loadError):(model?"GLB loaded; renderer active; skeleton "+names.length+" bones":"Waiting for authoritative GLB")},
+   components:{
+    moduleBootstrap:{state:window.saeed3DBootstrap?.error?"error":"ready",detail:window.saeed3DBootstrap?.error||"CharacterEngine module loaded"},
+    threeJs:{state:THREE?"ready":"error",detail:THREE?"Three.js available":"Three.js unavailable"},
+    gltfLoader:{state:GLTFLoader?"ready":"error",detail:GLTFLoader?"GLTFLoader available":"GLTFLoader unavailable"},
+    webgl:{state:renderer?"ready":"error",detail:renderer?"WebGL renderer created":"WebGL renderer unavailable"},
+    renderer:{state:sceneState,detail:renderer?"WebGL renderer active":"Renderer unavailable"},
+    scene:{state:sceneState,detail:scene?"THREE.Scene active":"Scene unavailable"},
+    camera:{state:camera?"ready":"error",detail:camera?"Camera active":"Camera unavailable"},
+    lights:{state:scene?"ready":"waiting",detail:scene?"Lighting initialized":"Scene unavailable"},
+    canvas:{state:canvas?"ready":"error",detail:canvas?(canvas.clientWidth+"×"+canvas.clientHeight):"Canvas unavailable"},
+    renderLoop:{state:renderState,detail:lastRenderAt?("Last render "+lastRenderAt):"No completed render recorded",frames:renderCount,fps:renderFps,lastRenderAt},
+    sceneContent:{state:model?"rendered":(loadError?"error":"waiting"),detail:model?("Character scene loaded; "+(pose.skeletonCount||names.length)+" skeleton bones"):(loadError?String(loadError):"Waiting for GLB")},
+    selectedGlb:{state:glbState,detail:loadError||"Authoritative Saeed GLB",name:"Saeed_AI-3D.glb"},
+    skeleton:{state:names.length?"ready":(model?"error":"waiting"),detail:names.length?(names.length+" actual THREE.Bone objects exposed"):"No actual skeleton bone names exposed",boneCount:names.length,bones:names},
+    characterController:{state:window.saeedCharacterRuntime?.controller?"ready":"waiting",detail:window.saeedCharacterRuntime?.controller?"CharacterController connected":"CharacterController unavailable"},
+    rigMapping:{state:Object.keys(map).length?"ready":(names.length?"warn":"waiting"),detail:(Object.keys(map).length+" logical slots mapped from "+names.length+" skeleton bones"),mappedSlots:Object.keys(map).length},
+    restPose:{state:pose.restPose?.normalized===false?"warn":(pose.loaded?"ready":"waiting"),detail:String(pose.restPose?.detected||"unknown")},
+    tPose:{state:pose.tPose?.isTPose?"warn":"ready",detail:String(pose.tPose?.detected||"unknown")},
+    motion:{state:pose.loaded&&Object.keys(map).length?"ready":"waiting",detail:pose.loaded&&Object.keys(map).length?"Character motion path available":"Motion requires loaded character + mapped rig"}
+   },
+   character:{loaded:Boolean(pose.loaded),boneCount:names.length,skeletonCount:pose.skeletonCount||names.length,rigMapped:Object.keys(map).length,restPose:pose.restPose,tPose:pose.tPose},
+   metrics:{drawCalls:renderer?.info?.render?.calls??0,triangles:renderer?.info?.render?.triangles??0,geometries:renderer?.info?.memory?.geometries??0,textures:renderer?.info?.memory?.textures??0,renderCount, lastRenderAt,canvasWidth:canvas?.width??0,canvasHeight:canvas?.height??0,clientWidth:canvas?.clientWidth??0,clientHeight:canvas?.clientHeight??0,hidden:document.hidden},
+   version:THREE?.REV||"",
+   lastError:loadError||null
+  };
+ }
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,autoMapRig,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
  getBoneRotation,setBoneRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
