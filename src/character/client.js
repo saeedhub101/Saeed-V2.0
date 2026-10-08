@@ -1,4 +1,6 @@
-(()=>{const button=document.getElementById("micToggle"),icon=document.getElementById("micToggleIcon"),label=document.getElementById("micToggleLabel"),character=document.getElementById("character"),runtime=()=>window.saeedCharacterRuntime,controller=()=>runtime()?.controller;let dragging=false,lastX=0,lastY=0;
+(()=>{const button=document.getElementById("micToggle"),icon=document.getElementById("micToggleIcon"),label=document.getElementById("micToggleLabel"),character=document.getElementById("character"),runtime=()=>window.saeedCharacterRuntime,controller=()=>runtime()?.controller;
+function characterDiagnostic(level,stage,message,meta={}){try{window.saeed?.system?.reportDiagnostic?.(level,stage,message,{domain:"3D",...meta})}catch{}}
+function characterFailure(action,error,meta={}){const message=error?.stack||error?.message||String(error||"Unknown character error");characterDiagnostic("ERROR","CHARACTER COMMAND",message,{action,...meta});return{ok:false,error:message,diagnostic:{domain:"3D",stage:"CHARACTER COMMAND",action,message}}}let dragging=false,lastX=0,lastY=0;
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
@@ -27,7 +29,7 @@ async function executeCharacterCommand(command={}){
   await new Promise(resolve=>setTimeout(resolve,100));
  }
  const c=controller(),engine=runtime()?.engine;
- if(!c)return{ok:false,error:"Character controller unavailable"};
+ if(!c)return characterFailure(action,"Character controller unavailable",{reason:"controller-missing"});
  try{
   if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
   if(x.action==="stop"){const ok=c.stop(x.motion);return{ok,status:c.status()}}
@@ -63,10 +65,11 @@ async function executeCharacterCommand(command={}){
   if(x.action==="calibrateJoint"){const ok=c.calibrateJoint?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),calibration:c.retargeter?.status?.().calibration||{},status:c.status()}}
   if(x.action==="snapshotRestPose")return{ok:true,bones:engine?.snapshotBoneRotations?.()||{}};
   return{ok:false,error:"Unknown character controller action"};
- }catch(error){return{ok:false,error:error?.message||String(error)}}
+ }catch(error){return characterFailure(action,error,{payload:x})}
 }
 window.saeed.character.onCharacterCommand?.(async(id,command)=>{
  const result=await executeCharacterCommand(command);
+ if(result?.ok===false)characterDiagnostic("ERROR","CHARACTER COMMAND FAILED",result.error||"Unknown command failure",{action:String(command?.action||""),result});
  window.saeed.character.characterCommandResult?.(id,result);
 });
 if(character){character.addEventListener("mousedown",e=>{if(e.button!==0||e.target.closest("button,input,a,select,textarea"))return;dragging=true;lastX=e.screenX;lastY=e.screenY;controller()?.touch?.();e.preventDefault()});window.addEventListener("mousemove",e=>{if(!dragging)return;const dx=e.screenX-lastX,dy=e.screenY-lastY;lastX=e.screenX;lastY=e.screenY;window.saeed.character.moveWindowBy(dx,dy)});window.addEventListener("mouseup",()=>{dragging=false;controller()?.touch?.()});character.addEventListener("contextmenu",()=>controller()?.handleEvent?.({type:"right-click"}));character.addEventListener("wheel",()=>controller()?.handleEvent?.({type:"zoom"}),{passive:true})}
