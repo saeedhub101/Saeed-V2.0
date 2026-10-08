@@ -81,6 +81,6 @@ window.saeed.character.getPendingCharacter?.().then(p=>{if(p?.data)load(p.data,p
 $("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.character?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}setTimeout(()=>{try{window.saeed?.character?.closeWindow?.()}catch{}try{window.close()}catch{}},150);};
 fillSlots();
 try{init();}catch(error){studioDiagnostic("ERROR","STUDIO INITIALIZATION",error?.stack||error?.message||String(error),{stage:"init"});}
-void loadPendingStudioCharacter().then(()=>cmd({action:"beginAuthoring"}).then(()=>refresh())).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));
+void cmd({action:"beginAuthoring"}).then(()=>refresh()).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));
 
 </script></body></html>
