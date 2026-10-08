@@ -1,9 +1,9 @@
 param(
-  [Parameter(Mandatory=$true)][ValidateSet("1","2","3","4","5","6")][string]$Suite
+  [Parameter(Mandatory=$true)][ValidateSet("0","1","2","3","4","5","6")][string]$Suite
 )
 
 $ErrorActionPreference = "Stop"
-$reportName = if ($Suite -eq "4") { "ci-e2e-glb-character-test.json" } else { "ci-e2e-suite-$Suite.json" }
+$reportName = if ($Suite -eq "4") { "ci-e2e-glb-character-test.json" } elseif ($Suite -eq "0") { "ci-e2e-performance-rest-pose.json" } else { "ci-e2e-suite-$Suite.json" }
 $report = Join-Path $PWD ("dist\" + $reportName)
 $stdout = Join-Path $env:RUNNER_TEMP ("saeed-e2e-suite-$Suite.stdout.log")
 $stderr = Join-Path $env:RUNNER_TEMP ("saeed-e2e-suite-$Suite.stderr.log")
@@ -21,7 +21,7 @@ try {
   if (!(Test-Path $exe -PathType Leaf)) {
     Write-Result ([ordered]@{
       suite = [int]$Suite
-      name = if ($Suite -eq "4") { "GLB Character Test" } else { "Packaged EXE E2E Suite $Suite" }
+      name = if ($Suite -eq "4") { "GLB Character Test" } elseif ($Suite -eq "0") { "Performance Character Rest Pose Save Test" } else { "Packaged EXE E2E Suite $Suite" }
       pass = $false
       status = "BLOCKED"
       error = "Packaged EXE missing"
