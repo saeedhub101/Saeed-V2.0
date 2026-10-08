@@ -114,12 +114,13 @@ export class CharacterController{
   return{...result,ok:true,mapping:bound.mapping||result.mapping, mappedBoneCount:bound.mappedBoneCount,sceneBoneCount:names.length};
  }
  saveRestPose(){
-  const ready=this.ensureRigBound({authoring:true});
-  if(!ready.ok)return null;
-  if(!this.characterId){
-   const names=this.engine?.getAvailableBoneNames?.()||[];
-   if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-  }
+  const pose=this.engine?.getCharacterPoseStatus?.()||{};
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  if(!pose.loaded||!names.length)return null;
+  // Capture the current authoritative transforms directly. Rebinding here can restore
+  // an older persisted pose before the new pose is captured.
+  this.beginAuthoring();
+  if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
   this.engine?.captureAuthoritativeRestPose?.(normalization);
   const bones=this.engine?.snapshotBoneRotations?.()||{};
@@ -127,7 +128,6 @@ export class CharacterController{
   const restPose={normalization:authoritativeNormalization,bones};
   if(this.characterId)this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
   return restPose;
- }
  normalizeRestPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
