@@ -3,7 +3,7 @@ async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
  const lightweight=action==="status"||action==="boneNames";
- const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose";
+ const needsBones=action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring";
  const requiresRig=!lightweight&&!needsBones;
  const deadline=Date.now()+(requiresRig?25000:15000);
  while(Date.now()<deadline){
