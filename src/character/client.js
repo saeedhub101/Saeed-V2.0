@@ -31,6 +31,9 @@ async function executeCharacterCommand(command={}){
  const c=controller(),engine=runtime()?.engine;
  if(!c)return characterFailure(action,"Character controller unavailable",{reason:"controller-missing"});
  try{
+  const finalPose=engine?.getCharacterPoseStatus?.()||{};
+  const finalNames=engine?.getAvailableBoneNames?.()||[];
+  if(!finalPose?.loaded||!finalNames.length)characterDiagnostic("ERROR","CHARACTER SKELETON UNAVAILABLE","Authoritative Character Engine has no exposed GLB skeleton bones",{action,loaded:Boolean(finalPose?.loaded),boneCount:finalNames.length,pose:finalPose});
   if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
   if(x.action==="stop"){const ok=c.stop(x.motion);return{ok,status:c.status()}}
   if(x.action==="stopAll"){const ok=c.stopAll();return{ok,status:c.status()}}
@@ -54,7 +57,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="lookAt")return{ok:Boolean(c.face?.lookAt?.(x.x,x.y,x.z))};
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
-  if(x.action==="boneNames")return{ok:true,bones:engine?.getAvailableBoneNames?.()||[]};
+  if(x.action==="boneNames"){const bones=engine?.getAvailableBoneNames?.()||[];if(!bones.length)return characterFailure(action,"No actual skeleton bone names exposed",{reason:"empty-skeleton"});return{ok:true,bones}};
   if(x.action==="saveRestPose"){const rest=c.saveRestPose?.();return{ok:Boolean(rest),restPose:rest||null,status:c.status()}}
   if(x.action==="normalizeRestPose"){const normalization=c.normalizeRestPose?.();return{ok:Boolean(normalization),normalization:normalization||null,status:c.status()}}
   if(x.action==="boneRotation")return{ok:true,rotation:engine?.getBoneRotation?.(String(x.bone||""))||null};
