@@ -18,6 +18,10 @@
 import * as THREE from "./node_modules/three/build/three.module.js";
 import {GLTFLoader} from "./three/GLTFLoader.js";
 const $=id=>document.getElementById(id),cmd=p=>window.saeed.character.characterController(p);
+// Character Studio is an authoring UI, not a second runtime controller.
+// Expose a read-only facade so lifecycle/status consumers see the authoritative main CharacterController.
+window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
+window.saeedCharacterRuntime.controller={status:async()=>{try{const r=await window.saeed.character.getCharacterController();return r?.status||r||null}catch{return null}}};
 const logical=["hips","spine","chest","neck","head","jaw","leftShoulder","rightShoulder","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot","leftEye","rightEye"];
 let scene,camera,renderer,root,model,bones=[],selected=null,showSkeleton=true,drag=false,last={x:0,y:0},yaw=0,pitch=.08,dist=3,markerGroup=null,markers=[];
 const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();
