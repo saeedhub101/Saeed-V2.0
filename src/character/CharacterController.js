@@ -116,7 +116,10 @@ export class CharacterController{
  saveRestPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
-  if(!this.characterId)this.bindCurrentCharacter();
+  if(!this.characterId){
+   const names=this.engine?.getAvailableBoneNames?.()||[];
+   if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  }
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
   this.engine?.captureAuthoritativeRestPose?.(normalization);
   const bones=this.engine?.snapshotBoneRotations?.()||{};
@@ -131,7 +134,10 @@ export class CharacterController{
   const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;
   if(normalization?.normalized){
    this.engine?.captureAuthoritativeRestPose?.(normalization);
-   if(!this.characterId&&Object.keys(this.engine?.getBoneMap?.()||{}).length)this.bindCurrentCharacter();
+   if(!this.characterId){
+    const names=this.engine?.getAvailableBoneNames?.()||[];
+    if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+   }
    if(this.characterId){
     const restPose={normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}};
     this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
@@ -221,7 +227,19 @@ export class CharacterController{
   
  calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
  
- setIdlePose(pose={}){if(!this.animationEnabled||this.animationPaused)return false;const out=this.animation.setIdlePose(pose);if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});return out}
+ setIdlePose(pose={}){
+  if(!this.animationEnabled||this.animationPaused)return false;
+  this.beginAuthoring();
+  const requested=pose&&Object.keys(pose).length?pose:null;
+  const current=requested||this.engine?.snapshotLogicalPose?.()||this.animation.pose.snapshot()||{};
+  const out=this.animation.setIdlePose(current);
+  if(!this.characterId){
+   const names=this.engine?.getAvailableBoneNames?.()||[];
+   if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  }
+  if(this.characterId)this.profiles.save(this.characterId,{idlePose:out});
+  return out;
+ }
  remap(mapping={}){
   this.beginAuthoring();
   const names=this.engine?.getAvailableBoneNames?.()||[];
