@@ -47,7 +47,19 @@ $("provider")?.addEventListener("change",()=>{const p=String($("provider").value
 // Character Controller
 let characterControllerState=null;
 const characterJoints=["head","neck","spine","chest","leftUpperArm","rightUpperArm","leftForeArm","rightForeArm","leftHand","rightHand","leftThigh","rightThigh","leftShin","rightShin","leftFoot","rightFoot"];
-async function controllerCommand(command){try{return await window.saeed.character.characterController(command)}catch(e){$("characterControllerState").textContent=e.message;return{ok:false,error:e.message}}}
+async function controllerCommand(command){
+ const action=String(command?.action||"unknown");
+ try{
+  window.saeed.system.reportDiagnostic?.("INFO","PERFORMANCE CHARACTER COMMAND",action,{domain:"3D",action});
+  const result=await window.saeed.character.characterController(command);
+  if(result?.ok===false)window.saeed.system.reportDiagnostic?.("ERROR","PERFORMANCE CHARACTER COMMAND FAILED",result.error||"Character command failed",{domain:"3D",action,result});
+  return result;
+ }catch(e){
+  window.saeed.system.reportDiagnostic?.("ERROR","PERFORMANCE CHARACTER COMMAND EXCEPTION",e?.stack||e?.message||String(e),{domain:"3D",action});
+  $("characterControllerState").textContent=e.message;
+  return{ok:false,error:e.message};
+ }
+}
 async function refreshCharacterController(){
  try{
   const s=await window.saeed.character.getCharacterController();characterControllerState=s;
