@@ -1,18 +1,19 @@
 (()=>{const button=document.getElementById("micToggle"),icon=document.getElementById("micToggleIcon"),label=document.getElementById("micToggleLabel"),character=document.getElementById("character"),runtime=()=>window.saeedCharacterRuntime,controller=()=>runtime()?.controller;let dragging=false,lastX=0,lastY=0;
 async function executeCharacterCommand(command={}){
+ const x=command||{},directActions=new Set(["status","boneNames","autoMap","beginAuthoring","endAuthoring","boneRotation","setBoneRotation","resetBoneToRest","snapshotRestPose","normalizeRestPose","saveRestPose","bindSlot","remap"]);
+ const requiresRig=!directActions.has(String(x.action||""));
  const deadline=Date.now()+25000;
  while(Date.now()<deadline){
   const c=controller(),engine=runtime()?.engine;
   if(c){
    try{
     const engineStatus=engine?.getCharacterPoseStatus?.();
-    if(engineStatus?.loaded){
+    if(engineStatus?.loaded&&Object.keys(engine?.getAvailableBoneNames?.()||{}).length){
      const current=c.status?.();
-     if(!current?.characterLoaded||!Object.keys(current?.autoRig||{}).length){
-      c.onCharacterLoaded?.();
-     }
+     if(!requiresRig||current?.characterLoaded&&Object.keys(current?.autoRig||{}).length)break;
+     c.onCharacterLoaded?.();
      const bound=c.status?.();
-     if(bound?.characterLoaded&&Object.keys(bound?.autoRig||{}).length)break;
+     if(!requiresRig||bound?.characterLoaded&&Object.keys(bound?.autoRig||{}).length)break;
     }
    }catch{}
   }
@@ -20,7 +21,6 @@ async function executeCharacterCommand(command={}){
  }
  const c=controller(),engine=runtime()?.engine;
  if(!c)return{ok:false,error:"Character controller unavailable"};
- const x=command||{};
  try{
   if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
   if(x.action==="stop"){const ok=c.stop(x.motion);return{ok,status:c.status()}}
@@ -52,8 +52,8 @@ async function executeCharacterCommand(command={}){
   if(x.action==="bindSlot"){const ok=c.bindSlot?.(String(x.slot||""),String(x.bone||""));return{ok:Boolean(ok),mapping:c.engine?.getCharacterRigAutoMap?.()||{},status:c.status()}}
   if(x.action==="setBoneRotation"){const ok=c.setBoneRotation?.(String(x.bone||""),x.rotation||{})??engine?.setBoneRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneRotation?.(String(x.bone||""))||null}};
   if(x.action==="resetBoneToRest"){const bone=String(x.bone||"");const rotation=c.resetBoneToRest?.(bone);return{ok:Boolean(rotation),rotation:rotation||null,status:c.status()}};
-  if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}};
-  if(x.action==="calibrateJoint"){const ok=c.calibrateJoint?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),calibration:c.retargeter?.status?.().calibration||{},status:c.status()}};
+  if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}}
+  if(x.action==="calibrateJoint"){const ok=c.calibrateJoint?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),calibration:c.retargeter?.status?.().calibration||{},status:c.status()}}
   if(x.action==="snapshotRestPose")return{ok:true,bones:engine?.snapshotBoneRotations?.()||{}};
   return{ok:false,error:"Unknown character controller action"};
  }catch(error){return{ok:false,error:error?.message||String(error)}}
