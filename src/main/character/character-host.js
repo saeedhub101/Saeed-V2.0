@@ -86,15 +86,11 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
    try{win.webContents.send("character:command",requestId,command)}catch(error){diagnostic("ERROR","CHARACTER IPC SEND",error?.stack||error?.message||String(error),{domain:"3D",action:String(command?.action||"unknown"),requestId});finish({ok:false,error:error?.message||String(error),diagnostic:{stage:"ipc-send",requestId}})}
   });
  }
- async function sendPendingCharacterData(){
+ function sendPendingCharacterData(){
   const editor=getRestPoseEditorWindow?.();
   if(!editor||editor.isDestroyed()||!pendingCharacterData)return false;
   try{
    editor.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation);
-   const base64=Buffer.from(pendingCharacterData.data).toString("base64");
-   const generation=Number(pendingCharacterData.generation)||0;
-   const script=`window.__saeedStudioReceiveGLB?.(${JSON.stringify(base64)},${generation});true`;
-   await editor.webContents.executeJavaScript(script,true);
    return true;
   }catch(error){diagnostic("ERROR","STUDIO GLB DELIVERY",error?.stack||error?.message||String(error));return false}
  }
