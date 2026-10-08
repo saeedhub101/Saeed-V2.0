@@ -151,6 +151,105 @@ export class CharacterController{
 }
  setBoneRotation(name,rotation={}){const bone=String(name||"");if(!bone)return false;const ok=this.engine?.setBoneRotation?.(bone,rotation);if(ok)this.engine?.wakeRender?.(120);return Boolean(ok)}
  resetBoneToRest(name){const bone=String(name||"");if(!bone)return null;const ok=this.engine?.resetBoneToRest?.(bone);if(!ok)return null;this.engine?.wakeRender?.(120);return this.engine?.getBoneRotation?.(bone)||null}
+ beginAuthoring(){
+  this.authoring=true;
+  this.autonomous?.stop?.();
+  this.animation.stopAll();
+  this.clearIdleTimer();
+  this.idleBusy=false;
+  this.engine?.wakeRender?.();
+  return true;
+ }
+ endAuthoring(){
+  this.authoring=false;
+  if(this.animationEnabled&&!this.animationPaused&&this.visible)this.autonomous?.start?.();
+  return true;
+ }
+ 
+ play(id,options={}){
+  if(this.authoring)this.endAuthoring();
+  if(!this.animationEnabled||this.animationPaused)return false;
+  if(!this.characterId)this.bindCurrentCharacter();
+  const key=String(id||"idle");
+  if(key==="idle"){
+   this.animation.stopAll();
+   this.idleBusy=false;
+   this.animation.setIdlePose(this.animation.idlePose||{});
+   this.startIdleScheduler(7000);
+   return true;
+  }
+  const ok=this.animation.play(key,options);
+  if(ok)this.startFrameLoop();
+  return ok;
+ }
+ stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
+ stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
+ finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
+ setPose(pose={}){if(this.authoring)this.beginAuthoring();if(!this.animationEnabled||this.animationPaused)return false;if(pose?.__captureRest){const rest=this.saveRestPose();this.startFrameLoop();return rest}const bones=pose?.__bones;if(bones){for(const [name,transform] of Object.entries(bones)){if(transform?.rotation||transform?.position)this.engine?.setBoneTransform?.(name,transform);else this.engine?.setBoneRotation?.(name,transform)}this.startFrameLoop();return bones}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
+  
+ bindSlot(slot,name){
+   this.beginAuthoring();
+   const s=String(slot||"").trim(),n=String(name||"").trim();
+   if(!s||!n)return false;
+   const names=this.engine?.getAvailableBoneNames?.()||[];
+   if(!names.some(x=>String(x)===n))return false;
+   const current={...(this.engine?.getCharacterRigAutoMap?.()||{})};
+   current[s]=n;
+   const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+   const existing=this.profiles.load(profileId)||{};
+   const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
+   const ok=this.engine?.bindRig?.(current,savedRestPose);
+   if(!ok){this.rigReady=false;return false;}
+   const mapped=this.engine?.getBoneMap?.()||{};
+   if(!mapped[s]||String(mapped[s]?.name||"")!==n){this.rigReady=false;return false;}
+   this.retargeter.bind(mapped,this.retargeter.status().calibration);
+   this.fingers.bind(names);
+   this.animation.bindRig(mapped,this.retargeter);
+   this.characterId=profileId;
+   this.rigReady=Object.keys(mapped).length>0;
+   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"No controllable bones after bindSlot",mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
+   if(this.characterId){
+    const restPose=savedRestPose||{
+     normalization:this.engine?.getRestPoseNormalization?.()||null,
+     bones:this.engine?.snapshotBoneRotations?.()||{}
+    };
+    this.profiles.save(this.characterId,{mapping:current,autoConfidence:existing.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose});
+   }
+   return true;
+  }
+  
+ calibrateJoint(slot,rotation={}){const ok=this.retargeter.setCalibration(slot,rotation);if(ok&&this.characterId)this.profiles.save(this.characterId,{calibration:this.retargeter.status().calibration});return ok}
+ 
+ remap(mapping={}){
+  this.beginAuthoring();
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  const available=new Set(names.map(String));
+  const requested=Object.values(mapping||{}).filter(Boolean).map(String);
+  if(!requested.length||requested.some(name=>!available.has(name))){this.rigReady=false;return false;}
+  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const existing=this.characterId?(this.profiles.load(this.characterId)||{}):{};
+  const savedRestPose=existing.normalizehumanoidrestpose||existing.restPose||null;
+  const ok=this.engine?.bindRig?.(mapping,savedRestPose);
+  if(!ok){this.rigReady=false;return false;}
+  const mapped=this.engine?.getBoneMap?.()||{};
+  if(!Object.keys(mapped).length){this.rigReady=false;return false;}
+  this.retargeter.bind(mapped,this.retargeter.status().calibration);
+  this.fingers.bind(names);
+  this.animation.bindRig(mapped,this.retargeter);
+  this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  if(this.characterId){
+   const existing=this.profiles.load(this.characterId)||{};
+   const restPose=existing.normalizehumanoidrestpose||existing.restPose||{
+    normalization:this.engine?.getRestPoseNormalization?.()||null,
+    bones:this.engine?.snapshotBoneRotations?.()||{}
+   };
+   this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
+  }
+  this.rigReady=Object.keys(mapped).length>0;
+  this.lastBindingResult={loaded:this.rigReady,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:true};
+  return this.rigReady;
+}
+ 
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
