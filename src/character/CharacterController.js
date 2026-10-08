@@ -135,7 +135,7 @@ export class CharacterController{
     const names=Object.keys(bones);
     return names.length>0&&names.every(name=>{
      const a=bones[name],b=saved[name];
-     return b&&Math.abs(Number(b.x)-Number(a.x))<1e-7&&Math.abs(Number(b.y)-Number(a.y))<1e-7&&Math.abs(Number(b.z)-Number(a.z))<1e-7;
+     return b&&Math.abs(Number(b.x)-Number(a.x))<1e-7&&Math.abs(Number(b.y)-Number(a.y))<1e-7&&Math.abs(Number(b.z)-Number(a.z))<1e-7&&(["qx","qy","qz","qw"].every(k=>Number.isFinite(Number(a[k]))&&Number.isFinite(Number(b[k]))?Math.abs(Number(b[k])-Number(a[k]))<1e-7:true));
     });
    };
    persisted=verify(persistedProfile||this.profiles.load(this.characterId)||{});
