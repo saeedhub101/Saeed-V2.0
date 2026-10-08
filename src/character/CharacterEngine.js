@@ -35,7 +35,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
 function traceGlb(stage,detail={}){const entry={at:new Date().toISOString(),stage,...detail};glbTrace.push(entry);if(glbTrace.length>200)glbTrace.splice(0,glbTrace.length-200);if(String(stage).toLowerCase().includes("error")||String(stage).toLowerCase().includes("fail")){try{window.saeed?.system?.reportDiagnostic?.("ERROR","3D ENGINE TRACE",detail?.error||stage,{domain:"3D",traceStage:stage,trace:entry})}catch{}}}
 let lastRestPose={detected:"unknown",normalized:false};
@@ -583,7 +583,7 @@ window.saeedCharacterRuntime.engine={
     motion:{state:pose.loaded&&Object.keys(map).length?"ready":"waiting",detail:pose.loaded&&Object.keys(map).length?"Character motion path available":"Motion requires loaded character + mapped rig"}
    },
    character:{loaded:Boolean(pose.loaded),boneCount:names.length,skeletonCount:pose.skeletonCount||names.length,rigMapped:Object.keys(map).length,restPose:pose.restPose,tPose:pose.tPose},
-   metrics:{drawCalls:renderer?.info?.render?.calls??0,triangles:renderer?.info?.render?.triangles??0,geometries:renderer?.info?.memory?.geometries??0,textures:renderer?.info?.memory?.textures??0,renderCount, lastRenderAt,canvasWidth:canvas?.width??0,canvasHeight:canvas?.height??0,clientWidth:canvas?.clientWidth??0,clientHeight:canvas?.clientHeight??0,hidden:document.hidden},
+   metrics:{drawCalls:renderer?.info?.render?.calls??0,triangles:renderer?.info?.render?.triangles??0,geometries:renderer?.info?.memory?.geometries??0,textures:renderer?.info?.memory?.textures??0,renderCount, lastRenderAt, fps:renderFps,canvasWidth:canvas?.width??0,canvasHeight:canvas?.height??0,clientWidth:canvas?.clientWidth??0,clientHeight:canvas?.clientHeight??0,hidden:document.hidden},
    version:THREE?.REV||"",
    lastError:loadError||null
   };
