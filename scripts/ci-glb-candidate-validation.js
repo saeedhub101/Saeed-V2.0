@@ -31,4 +31,4 @@ assert.equal(partialRig.ok,true,"must accept a character with a partial skeleton
 assert.equal(partialRig.hasSkeleton,true,"must report available skeleton");
 assert.throws(()=>validateGlbCandidate(makeGlb({...valid,nodes:[{mesh:0,skin:1,children:[1]},{name:"Hips"}]})),/invalid skin index/,"must reject an invalid skin reference");
 assert.throws(()=>validateGlbCandidate(Buffer.alloc(10)),/too small/,"must reject truncated binary");
-console.log("GLB_CANDIDATE_VALIDATION=PASS (15 assertions)");
+console.log("GLB_CANDIDATE_VALIDATION=PASS (14 assertions)");
