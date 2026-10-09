@@ -1,6 +1,6 @@
 const net=require("net"),tls=require("tls");
 
-function escapeQuote(v){return String(v??"").replace(/\\/g,"\\\\").replace(/"/g,'\\"')}
+function escapeQuote(v){const value=String(v??"");if(/[\r\n\0]/.test(value))throw new Error("Email protocol argument contains a forbidden line break");return value.replace(/\\/g,"\\\\").replace(/"/g,'\\"')}
 
 function connect(config,{tlsMode=config.tls}={}){
   return new Promise((resolve,reject)=>{
@@ -55,6 +55,7 @@ async function smtpSend(config,msg){
 async function smtpCommand(socket,next,cmd){socket.write(String(cmd)+"\r\n");let lines=[];while(true){const line=await next();lines.push(line);if(/^\d{3} /.test(line))return line}}
 
 async function pop3Auth(config){
+  for(const [label,value] of [["username",config.username],["password",config.password]])if(/[\r\n\0]/.test(String(value??"")))throw new Error("POP3 "+label+" contains a forbidden line break");
   const socket=await connect(config),next=lineReader(socket);let r=await next();if(!/^\+OK/.test(r))throw new Error(r);
   if(config.accessToken){
     socket.write("AUTH XOAUTH2\r\n");r=await next();if(!/^\+/.test(r))throw new Error(r);
