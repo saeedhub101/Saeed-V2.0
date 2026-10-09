@@ -53,6 +53,7 @@ function startRealtime(options={}){
     const activeRealtime=realtime;
     let out;
     try{out=await executeTool(name,args,{isCurrent:()=>Boolean(activeRealtime)&&realtime===activeRealtime})}catch(e){out={ok:false,error:e.message}};
+    if(!activeRealtime||realtime!==activeRealtime)return;
     if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
     else voiceBroadcast("agent:event",{type:"tool_result",name,result:redactToolResult(name,out),source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
