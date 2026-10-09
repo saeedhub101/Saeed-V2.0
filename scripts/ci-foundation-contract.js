@@ -128,6 +128,14 @@ must(permissionManagerSource.includes("No live confirmation surface; operation d
 must(settingsStoreSource.includes('files:"ask"')&&settingsStoreSource.includes('addons:"ask"')&&settingsStoreSource.includes('mcp:"ask"'),"New installations must default side-effecting/external capabilities to Always ask");
 must(read("src/performance.js").includes('execution:"ask",mcp:"ask",addons:"ask"'),"Performance UI does not expose the new secure permission categories");
 must(read("src/performance.html").includes('id="permission-mcp"')&&read("src/performance.html").includes('id="permission-addons"'),"Performance UI is missing MCP/add-on permission controls");
+must(read("src/tools/registry.js").includes('redactToolArgs(name,args)'),"Tool Registry learning records must redact secrets");
+must(read("src/main/brain/model-executor.js").includes('args:redactToolArgs(c.function.name,a)'),"Chat tool events must redact credentials and email bodies");
+must(read("src/main/voice/voice-runtime.js").includes('args:redactToolArgs(name,args)'),"Realtime tool events must redact credentials and email bodies");
+must(read("src/tools/addons.js").includes('credentials.get(provider,account)')&&!read("src/tools/addons.js").includes('password:{type:"string"}'),"Email tools must retrieve saved credentials without exposing passwords in model schemas");
+must(read("src/addons/credentials.js").includes("child.stdin.end(JSON.stringify({target:target(provider,account)")&&!read("src/addons/credentials.js").includes('"/pass:"'),"Windows Credential Manager writes must not expose passwords in process arguments");
+must(read("src/performance.html").includes('id="emailCredentialPassword"')&&read("src/preload.js").includes("storeEmailCredential:"),"Secure email credential setup UI/IPC is missing");
+must(read("src/main/runtime.js").includes('ipcMain.handle("email:credential:store"'),"Secure email credential IPC handler is missing");
+must(read("src/main/application/brain-host.js").includes("Confirm sending this email?"),"Email send confirmation does not show a send-specific confirmation");
 must(read("src/character/CharacterController.js").includes("AutonomousBehaviorController"),"Character autonomy ownership missing");
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle lifecycle contract missing");
 must(read("src/main/character/character-host.js").includes("characterLoadGeneration"),"Character stale-load generation guard missing");
