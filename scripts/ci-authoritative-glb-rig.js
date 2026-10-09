@@ -18,11 +18,12 @@ async function main(){
  const temporary=path.join(os.tmpdir(),"saeed-rig-map-"+process.pid+"-"+Date.now()+".mjs");
  try{
   fs.writeFileSync(temporary,fs.readFileSync(mapperPath,"utf8"),"utf8");
-  const {autoMapBones,requiredRigSlots}=await import(pathToFileURL(temporary).href);
+  const {autoMapBones,requiredRigSlots,optionalRigSlots}=await import(pathToFileURL(temporary).href);
   const names=doc.nodes.map(n=>n?.name).filter(Boolean);
   const mapping=autoMapBones(names).mapping;
   const required=requiredRigSlots();
   assert.deepEqual(required,["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"],"six required humanoid joints must be declared");
+  assert.deepEqual(required.filter(slot=>optionalRigSlots().includes(slot)),[],"required humanoid joints must not also be reported as optional");
   const missing=required.filter(slot=>!mapping[slot]||!names.includes(mapping[slot]));
   assert.deepEqual(missing,[],"authoritative GLB must automatically map all required real bones: "+JSON.stringify({mapping,missing,names}));
   console.log("AUTHORITATIVE_GLB_RIG=PASS ("+names.length+" named nodes; "+required.length+" required joints mapped to real bones)");
