@@ -41,7 +41,7 @@ const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntim
 function traceGlb(stage,detail={}){const entry={at:new Date().toISOString(),stage,...detail};glbTrace.push(entry);if(glbTrace.length>200)glbTrace.splice(0,glbTrace.length-200);if(String(stage).toLowerCase().includes("error")||String(stage).toLowerCase().includes("fail")){try{window.saeed?.system?.reportDiagnostic?.("ERROR","3D ENGINE TRACE",detail?.error||stage,{domain:"3D",traceStage:stage,trace:entry})}catch{}}}
 let lastRestPose={detected:"unknown",normalized:false};
 
-function getSceneBoneGroups(){
+function getSceneBoneGroups(target=model){
  const groups=new Map();
  const add=(b)=>{
   if(!b?.name)return;
@@ -49,8 +49,8 @@ function getSceneBoneGroups(){
   if(!list.includes(b))list.push(b);
   groups.set(key,list);
  };
- model?.traverse(o=>{if(o?.isBone)add(o)});
- model?.traverse(o=>{if(!o?.isSkinnedMesh||!o.skeleton?.bones)return;for(const b of o.skeleton.bones)add(b)});
+ target?.traverse(o=>{if(o?.isBone)add(o)});
+ target?.traverse(o=>{if(!o?.isSkinnedMesh||!o.skeleton?.bones)return;for(const b of o.skeleton.bones)add(b)});
  return groups;
 }
 function getSceneBones(){
@@ -431,7 +431,7 @@ window.saeedCharacterRuntime.load=async(data,generation)=>{
 if(window.saeedCharacterRuntime.pendingLoad){
  const p=window.saeedCharacterRuntime.pendingLoad;
  window.saeedCharacterRuntime.pendingLoad=null;
- void window.saeedCharacterRuntime.load(p.data,p.generation);
+ void window.saeedCharacterRuntime.load(p.data,p.generation).then(result=>p.resolve?.(result),error=>p.reject?.(error));
 }
 
 function apply3DSettings(settings={}){
