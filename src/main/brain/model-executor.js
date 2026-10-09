@@ -25,7 +25,7 @@ class ModelExecutor{
       for(const call of calls){
        if(!current())return "";
        let args={};try{args=typeof call.arguments==="string"?JSON.parse(call.arguments):call.arguments||{}}catch{}
-       const name=String(call.name||call.function?.name||"");if(!current())return "";const out=await registry.call(name,args);if(!current())return "";
+       const name=String(call.name||call.function?.name||"");if(!current())return "";const out=await registry.call(name,args,{isCurrent:current});if(!current())return "";
        messages.push({role:"assistant",content:"",tool_calls:[{id:call.id||"addon-call",type:"function",function:{name,arguments:JSON.stringify(args)}}]});
        messages.push({role:"tool",tool_call_id:call.id||"addon-call",content:JSON.stringify(out)});
       }
@@ -62,8 +62,8 @@ class ModelExecutor{
   let stepBudget=ciE2E?Math.min(baseStepLimit(),4):baseStepLimit();
   const runTool=async(name,args)=>{
    if(!current())return{ok:false,error:"Stale conversation request cancelled"};
-   if(!ciE2E)return registry.call(name,args);
-   try{return await Promise.race([registry.call(name,args),new Promise(resolve=>setTimeout(()=>resolve({ok:false,error:"CI E2E tool timeout"}),8000))])}
+   if(!ciE2E)return registry.call(name,args,{isCurrent:current});
+   try{return await Promise.race([registry.call(name,args,{isCurrent:current}),new Promise(resolve=>setTimeout(()=>resolve({ok:false,error:"CI E2E tool timeout"}),8000))])}
    catch(e){return{ok:false,error:e.message}}
   };
   for(let step=0;;step++){
