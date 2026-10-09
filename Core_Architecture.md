@@ -4,7 +4,7 @@
 **Scope:** Application shell, Brain, routing, tools, capabilities and orchestration
 
 ## 1. Core principle
-## Current implementation map
+### Current implementation map
 
 - Electron entry and lifecycle wiring: `src/main.js`, `src/main/runtime.js`.
 - Runtime/service composition: `src/main/application/runtime-composition.js`.
