@@ -63,8 +63,8 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    if(win&&!win.isDestroyed()){win.show();win.focus();win.webContents.send("addons:refresh");return}
    win=new BrowserWindow({width:1060,height:760,minWidth:760,minHeight:560,title:"Saeed Add-ons / Plug-ins",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),backgroundColor:"#f4f6fa",webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:false}});
    win.setIcon(iconPath());win.on("closed",()=>setWindow("addonsWin",null));setWindow("addonsWin",win);
-   win.webContents.once("did-finish-load",()=>{win?.show();win?.focus()});
-   await win.loadFile(path.join(rootPath,"addons","window.html"));
+   if(!await loadFileBounded(win,path.join(rootPath,"addons","window.html")))return;
+   win.show();win.focus();
   }catch(e){diagnostic("ERROR","ADDONS WINDOW",e.message)}
  }
  return {showPerformance,showSettings,showLearning,showAddons,showRestPoseEditor,showNormalizeHumanoidRestPose};
