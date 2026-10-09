@@ -44,6 +44,9 @@ async function main(){
  assert.equal(Object.hasOwn(sendSchema.properties,"accessToken"),false,"email schema must not expose access tokens");
  assert.equal(emailTools.some(x=>["credential_store","credential_get"].includes(x.function?.name)),false,"credential management must not be model-callable");
  const credentialsSource=fs.readFileSync(path.join(__dirname,"..","src","addons","credentials.js"),"utf8");
+ const emailClientSource=fs.readFileSync(path.join(__dirname,"..","src","addons","email-client.js"),"utf8");
+ assert.ok(emailClientSource.includes(String.raw`\x01auth=Bearer `),"SMTP/IMAP/POP3 OAuth SASL payloads must contain actual JavaScript control-byte escapes");
+ assert.equal(emailClientSource.includes(String.raw`\\x01auth=Bearer `),false,"OAuth SASL separators must not be double-escaped as literal backslash text");
  assert.equal(credentialsSource.includes('"/pass:"'),false,"credential storage must not put passwords in process arguments");
  assert.ok(credentialsSource.includes("child.stdin.end(JSON.stringify({target:target(provider,account)"),"credential secrets must be sent through stdin, not command-line arguments");
  assert.ok(credentialsSource.includes("public UInt32 Flags;public UInt32 Type;public string TargetName;public string Comment;public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;public UInt32 BlobSize;public IntPtr Blob;"),"Credential Manager CREDENTIAL layout must match the native Windows structure field order and DWORD widths");
