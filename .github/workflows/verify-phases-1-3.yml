@@ -75,6 +75,7 @@ jobs:
           node --check src/tools/redact.js
           node --check src/addons/credentials.js
           node --check src/addons/email-client.js
+          node --check src/addons/email-account-store.js
           node --check src/performance.js
           node --check src/main/character/glb-validation.js
           node --check src/main/application/brain-host.js
