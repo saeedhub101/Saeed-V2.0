@@ -1,9 +1,9 @@
 # Saeed V2.0 — Current Repair Plan
 
-**Status:** Active during Phase 1 only  
+**Status:** Active cross-phase conformance work  
 **Scope:** Repair and conformance work that is necessary to establish the foundation.
 
-This document is **not** the Saeed product roadmap. The complete product roadmap is in ROADMAP.md.
+This document is **not** the Saeed product roadmap. The complete product roadmap is in ROADMAP.md. Repair and conformance work may occur in any active phase when it blocks a current milestone; it must not redefine Phases 2–4 as future-only or replace their product-development scope.
 
 ## Repair principle
 
