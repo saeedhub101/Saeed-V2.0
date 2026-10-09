@@ -10,7 +10,7 @@
 - Runtime/service composition: `src/main/application/runtime-composition.js`.
 - Brain routing: `src/main/brain/brain.js`; Brain lifecycle: `src/main/application/brain-host.js`.
 - Conversation: `src/main/conversation/conversation-agent.js`.
-- Tool execution and schemas: `src/tools/registry.js` and implementations under `src/tools/`.
+- Tool execution and schemas: `src/tools/registry.js` and implementations under `src/tools/`, including permission-controlled email tools in `src/tools/email.js`.
 - Add-on management: the service under `src/addons/` and IPC under `src/main/ipc/addons-ipc.js`.
 - Secure renderer API: `src/preload.js`.
 
