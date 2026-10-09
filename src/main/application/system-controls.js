@@ -1,7 +1,9 @@
-function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showNormalizeHumanoidRestPose,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,updateNow}){
+function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showNormalizeHumanoidRestPose,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,getTranscriptLabelEnabled,toggleTranscriptLabel,updateNow}){
+ let currentTray=null;
  function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
  function rebuildTray(tray){
   if(!tray)return;
+  currentTray=tray;
   const muted=Boolean(getVoiceMuted?.());
   const mic=getCurrentMicMode?.()||"off";
   const menu=Menu.buildFromTemplate([
@@ -11,6 +13,7 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
     {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Character Studio — Bones / Rest Pose / Animation",click:showRestPoseEditor},{label:"Normalize Humanoid Rest Pose",click:showNormalizeHumanoidRestPose},{label:"Size",submenu:characterSizeMenu()}]},
    {label:"Add-ons / Plug-ins",click:showAddons},
    {label:"Learning / Teach Mode",click:showLearning},
+   {label:(getTranscriptLabelEnabled?.()?"Hide":"Show")+" microphone transcript label",click:()=>{toggleTranscriptLabel?.();if(currentTray)rebuildTray(currentTray)}},
    {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
    {label:"Updates & Settings",submenu:[{label:"Update status",click:showUpdateStatus},{label:"Check for Updates",click:updateNow},{label:"Settings",click:showSettings}]},
    {label:"Quit",click:()=>app.quit()}
