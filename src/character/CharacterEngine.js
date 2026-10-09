@@ -469,31 +469,27 @@ function getCharacterPoseStatus(){
  const rigValidation=validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name])));return {loaded:Boolean(model),requiredRig:rigValidation,capabilities:{...rigValidation.capabilities,blink:Boolean(morphs.has("blink")||morphs.has("eyeclose")||rigValidation.capabilities.blink),visemes:morphs.size>0,expressions:morphs.size>0},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,skeletonCount:boneGroups.size,duplicateBoneGroups:[...boneGroups.entries()].filter(([,list])=>list.length>1).map(([name,list])=>({name,count:list.length})),tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
 function getBoneRotation(name){getSceneBones();const b=(boneGroups.get(String(name||""))||[])[0];return b?{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}:null}
-function getBoneEditorRotation(name){getSceneBones();const key=String(name||""),b=(boneGroups.get(key)||[])[0],rest=boneRest.get(key);if(!b||!rest)return null;const baseQ=new THREE.Quaternion(Number(rest.rotation.qx)||0,Number(rest.rotation.qy)||0,Number(rest.rotation.qz)||0,Number.isFinite(Number(rest.rotation.qw))?Number(rest.rotation.qw):1),parentQ=new THREE.Quaternion();b.parent?.getWorldQuaternion?.(parentQ);const baseWorld=parentQ.clone().multiply(baseQ),currentWorld=parentQ.clone().multiply(b.quaternion),delta=currentWorld.multiply(baseWorld.invert()),e=new THREE.Euler().setFromQuaternion(delta,"XYZ");return{x:e.x,y:e.y,z:e.z}}
+function restLocalQuaternion(object){const rest=object?.isBone?boneRest.get(String(object.name||"")):null;if(rest&&[rest.rotation?.qx,rest.rotation?.qy,rest.rotation?.qz,rest.rotation?.qw].every(Number.isFinite))return new THREE.Quaternion(rest.rotation.qx,rest.rotation.qy,rest.rotation.qz,rest.rotation.qw);return object?.quaternion?.clone?.()||new THREE.Quaternion()}
+function getRestWorldQuaternion(bone){const chain=[];for(let node=bone;node;node=node.parent)chain.unshift(node);const world=new THREE.Quaternion();for(const node of chain)world.multiply(restLocalQuaternion(node));return world}
+function getBoneEditorRotation(name){getSceneBones();const key=String(name||""),b=(boneGroups.get(key)||[])[0];if(!b||!boneRest.has(key))return null;const baseWorld=getRestWorldQuaternion(b),currentWorld=b.getWorldQuaternion(new THREE.Quaternion()),delta=currentWorld.multiply(baseWorld.invert()),e=new THREE.Euler().setFromQuaternion(delta,"XYZ");return{x:e.x,y:e.y,z:e.z}}
 function setBoneRotation(name,rotation={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const s=rotation?.rotation&&typeof rotation.rotation==="object"?rotation.rotation:rotation,x=Number(s.x),y=Number(s.y),z=Number(s.z);if(![x,y,z].every(Number.isFinite))return false;for(const b of list)b.rotation.set(x,y,z);render();return true}
 function setBoneEditorRotation(name,rotation={}){
  getSceneBones();
  const key=String(name||"");
  const list=boneGroups.get(key)||[];
- const rest=boneRest.get(key);
- if(!list.length||!rest)return false;
+ if(!list.length||!boneRest.has(key))return false;
  const source=rotation?.rotation&&typeof rotation.rotation==="object"?rotation.rotation:rotation;
  const x=Number(source.x),y=Number(source.y),z=Number(source.z);
  if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
- const baseQ=new THREE.Quaternion(
-  Number(rest.rotation.qx)||0,Number(rest.rotation.qy)||0,
-  Number(rest.rotation.qz)||0,Number.isFinite(Number(rest.rotation.qw))?Number(rest.rotation.qw):1
- );
  const deltaQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z,"XYZ"));
  const parentQ=new THREE.Quaternion();
  const inverseParentQ=new THREE.Quaternion();
  for(const b of list){
-  parentQ.identity();
-  b.parent?.getWorldQuaternion?.(parentQ);
+  b.parent?.getWorldQuaternion?.(parentQ.identity());
   inverseParentQ.copy(parentQ).invert();
-  // Apply the requested X/Y/Z turn around the character's world axes while
-  // retaining the original GLB local rest orientation.
-  const worldBase=parentQ.clone().multiply(baseQ);
+  // Compose against the immutable Rest Pose world orientation. This keeps the
+  // editor's axes stable even after an ancestor bone has been edited.
+  const worldBase=getRestWorldQuaternion(b);
   const worldDelta=deltaQ.clone().multiply(worldBase);
   b.quaternion.copy(inverseParentQ.multiply(worldDelta));
  }
