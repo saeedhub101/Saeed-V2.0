@@ -56,7 +56,7 @@ export class CharacterController{
   }
   const boneCount=Object.keys(mapped).length;
   const missingRequired=missingRequiredSlots(mapped);
-  this.rigReady=missingRequired.length===0;
+  this.rigReady=Object.keys(mapped).length>0;
   if(missingRequired.length&&!authoring)return{ok:false,error:"Character rig is missing required joints: "+missingRequired.join(", "),missingRequired,boneCount,sceneBoneCount:names.length};
   if(authoring)this.beginAuthoring();
   return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount,sceneBoneCount:names.length,missingRequired,rawBoneControl:missingRequired.length>0};
