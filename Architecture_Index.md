@@ -12,7 +12,7 @@
 5. Engine_Architecture.md — authoritative runtime, rendering, asset and engine integration contract.
 6. Security_Architecture.md — authoritative permissions, secrets, isolation and trust boundaries.
 7. Testing_and_Acceptance_Architecture.md — authoritative verification and release gates.
-8. README.md — concise project entry point; it must never contradict the authoritative documents.
+8. README.md — concise project entry point and current code-path map; it summarizes constraints but does not supersede the authoritative domain documents.
 
 ## 2. Domain ownership
 
@@ -74,3 +74,16 @@ Planning documents may sequence work and identify missing implementation, but th
 ## 7. Pre-Build Rule
 
 No packaged build is considered meaningful until the active phase's static and architecture checks are addressed. Runtime acceptance remains required according to Testing_and_Acceptance_Architecture.md.
+
+
+## 4. Current code paths
+
+- Startup/composition: `src/main.js` → `src/main/runtime.js` → `src/main/application/runtime-composition.js`.
+- Tray and window manager: `src/main/application/system-controls.js`, `src/main/application/window-manager.js`.
+- Renderer IPC boundary: `src/preload.js`.
+- Character 3D runtime and authoring: `src/character/CharacterEngine.js`, `src/character/CharacterController.js`, `src/character-studio.html`.
+- Voice renderer and host: `src/renderer/voice/voice-client.js`, `src/main/voice/voice-host.js`.
+- Add-ons / Learning: `src/addons/window.html`, `src/learning/window.html`.
+- Verification: `scripts/ci-foundation-contract.js`, `scripts/ci-architecture-contract.js`, `scripts/ci-animation-health.js`, `src/main/ci-e2e.js`, `.github/workflows/build-windows-electron.yml`.
+
+Update these paths only after verifying the actual imports and file locations. Keep all original architecture requirements intact when refreshing implementation references.
