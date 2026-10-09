@@ -62,43 +62,42 @@ async function smtpCommand(socket,next,cmd,config){
 }
 
 async function pop3Auth(config){
+  assertCurrent(config);
   for(const [label,value] of [["username",config.username],["password",config.password]])if(/[\r\n\0]/.test(String(value??"")))throw new Error("POP3 "+label+" contains a forbidden line break");
-  const socket=await connect(config),next=lineReader(socket);let r=await next();if(!/^\+OK/.test(r))throw new Error(r);
-  if(config.accessToken){
-    socket.write("AUTH XOAUTH2\r\n");r=await next();if(!/^\+/.test(r))throw new Error(r);
-    socket.write(Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64")+"\r\n");r=await next();
-  }else{
-    socket.write("USER "+config.username+"\r\n");r=await next();if(!/^\+OK/.test(r))throw new Error(r);
-    socket.write("PASS "+config.password+"\r\n");r=await next();
-  }
-  if(!/^\+OK/.test(r)){socket.destroy();throw new Error(r)}return{socket,next};
+  const socket=await connect(config),next=lineReader(socket);
+  try{
+    assertCurrent(config);let r=await next();assertCurrent(config);if(!/^\+OK/.test(r))throw new Error(r);
+    if(config.accessToken){
+      assertCurrent(config);socket.write("AUTH XOAUTH2\r\n");r=await next();assertCurrent(config);if(!/^\+/.test(r))throw new Error(r);
+      assertCurrent(config);socket.write(Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64")+"\r\n");r=await next();assertCurrent(config);
+    }else{
+      assertCurrent(config);socket.write("USER "+config.username+"\r\n");r=await next();assertCurrent(config);if(!/^\+OK/.test(r))throw new Error(r);
+      assertCurrent(config);socket.write("PASS "+config.password+"\r\n");r=await next();assertCurrent(config);
+    }
+    if(!/^\+OK/.test(r))throw new Error(r);return{socket,next};
+  }catch(error){socket.destroy();throw error}
 }
-async function pop3List(config){const c=await pop3Auth(config);try{c.socket.write("STAT\r\n");const r=await c.next();if(!/^\+OK/.test(r))throw new Error(r);return r}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
-async function pop3ListMessages(config){const c=await pop3Auth(config);try{c.socket.write("LIST\r\n");const status=await c.next();if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.map(line=>{const m=line.match(/^(\d+)\s+(\d+)$/);return m?{index:Number(m[1]),size:Number(m[2])}:null}).filter(Boolean)}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
-async function pop3Fetch(config,index){const n=Number(index);if(!Number.isSafeInteger(n)||n<1)throw new Error("POP3 message index must be a positive integer");const c=await pop3Auth(config);try{c.socket.write("RETR "+n+"\r\n");const status=await c.next();if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.join("\r\n")}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
+async function pop3List(config){const c=await pop3Auth(config);try{assertCurrent(config);c.socket.write("STAT\r\n");const r=await c.next();assertCurrent(config);if(!/^\+OK/.test(r))throw new Error(r);return r}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
+async function pop3ListMessages(config){const c=await pop3Auth(config);try{assertCurrent(config);c.socket.write("LIST\r\n");const status=await c.next();assertCurrent(config);if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();assertCurrent(config);if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.map(line=>{const m=line.match(/^(\d+)\s+(\d+)$/);return m?{index:Number(m[1]),size:Number(m[2])}:null}).filter(Boolean)}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
+async function pop3Fetch(config,index){const n=Number(index);if(!Number.isSafeInteger(n)||n<1)throw new Error("POP3 message index must be a positive integer");assertCurrent(config);const c=await pop3Auth(config);try{assertCurrent(config);c.socket.write("RETR "+n+"\r\n");const status=await c.next();assertCurrent(config);if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();assertCurrent(config);if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.join("\r\n")}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
 
 function imapSession(config){
   return connect(config,{tlsMode:true}).then(async socket=>{
-    const next=lineReader(socket),greeting=await next();if(!/^\*/.test(greeting))throw new Error(greeting);
-    let counter=0;
-    const command=async(command,continuation)=>{
-      const tag="S"+(++counter).toString(36).toUpperCase();
-      socket.write(tag+" "+command+"\r\n");
-      const lines=[];
-      while(true){
-        const line=await next();
-        if(line.startsWith("+ ")||line==="+"){
-          if(continuation)socket.write(String(continuation)+"\r\n");
-          continue;
+    try{
+      assertCurrent(config);const next=lineReader(socket),greeting=await next();assertCurrent(config);if(!/^\*/.test(greeting))throw new Error(greeting);
+      let counter=0;
+      const command=async(command,continuation)=>{
+        assertCurrent(config);const tag="S"+(++counter).toString(36).toUpperCase();socket.write(tag+" "+command+"\r\n");
+        const lines=[];
+        while(true){
+          const line=await next();assertCurrent(config);
+          if(line.startsWith("+ ")||line==="+"){if(continuation){assertCurrent(config);socket.write(String(continuation)+"\r\n")}continue}
+          lines.push(line);
+          if(line.startsWith(tag+" ")){if(!/\bOK\b/i.test(line))throw new Error(line);return lines}
         }
-        lines.push(line);
-        if(line.startsWith(tag+" ")){
-          if(!/\bOK\b/i.test(line))throw new Error(line);
-          return lines;
-        }
-      }
-    };
-    return{socket,command,close:()=>socket.destroy()};
+      };
+      return{socket,command,close:()=>socket.destroy()};
+    }catch(error){socket.destroy();throw error}
   });
 }
 async function imapLoginSession(config){
