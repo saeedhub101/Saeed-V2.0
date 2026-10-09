@@ -32,6 +32,28 @@ function lineReader(socket){
 }
 
 function assertCurrent(config){if(typeof config?.isCurrent==="function"&&!config.isCurrent())throw new Error("Email operation cancelled")}
+async function smtpVerify(config){
+ let socket=await connect(config,{tlsMode:Boolean(config.tls)}),next=lineReader(socket);
+ try{
+  assertCurrent(config);let r=await next();assertCurrent(config);if(!/^2/.test(r))throw new Error(r);
+  let eh=await smtpCommand(socket,next,"EHLO saeed",config);
+  if(config.startTls&&!config.tls){
+   if(!/^2/.test(eh))throw new Error(eh);
+   r=await smtpCommand(socket,next,"STARTTLS",config);if(!/^2/.test(r))throw new Error(r);
+   socket=tls.connect({socket,servername:config.host,rejectUnauthorized:true});next=lineReader(socket);await next();assertCurrent(config);eh=await smtpCommand(socket,next,"EHLO saeed",config);
+  }
+  if(!/^2/.test(eh))throw new Error(eh);
+  if(config.accessToken){
+   r=await smtpCommand(socket,next,"AUTH XOAUTH2 "+Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"),config);
+  }else if(config.username){
+   r=await smtpCommand(socket,next,"AUTH LOGIN",config);if(!/^3/.test(r))throw new Error(r);
+   r=await smtpCommand(socket,next,Buffer.from(config.username).toString("base64"),config);if(!/^3/.test(r))throw new Error(r);
+   r=await smtpCommand(socket,next,Buffer.from(config.password||"").toString("base64"),config);
+  }else throw new Error("SMTP authentication credentials are required");
+  if(!/^2/.test(r))throw new Error(r);
+  try{await smtpCommand(socket,next,"QUIT",config)}catch{}return true;
+ }finally{try{socket.destroy()}catch{}}
+}
 async function smtpSend(config,msg){
  let socket=await connect(config,{tlsMode:Boolean(config.tls)}),next=lineReader(socket);
  try{
@@ -135,4 +157,4 @@ async function imapFetch(config,{mailbox="INBOX",sequence=1,uid=true,headersOnly
     return r.filter(x=>/^\* \d+ FETCH /.test(x)).join("\n");
   }finally{s.close()}
 }
-module.exports={smtpSend,pop3List,pop3ListMessages,pop3Fetch,imapProbe,imapLogin,imapListFolders,imapSelect,imapSearch,imapFetch};
+module.exports={smtpSend,smtpVerify,pop3List,pop3ListMessages,pop3Fetch,imapProbe,imapLogin,imapListFolders,imapSelect,imapSearch,imapFetch};
