@@ -9,6 +9,9 @@ Build and release Saeed V2.0 as a complete Windows AI desktop companion: a persi
 
 ## Phase model
 
+**Execution status:** Phases 1, 2, 3, and 4 are all active parts of the current product-development roadmap. Their active status does not mean every acceptance criterion is complete; completion must be recorded only when the corresponding implementation and test evidence exists.
+
+
 The four phases are **product-development phases**. They are not four repair phases.
 
 | Phase | Product milestone | Main outcome |
@@ -196,3 +199,28 @@ Otherwise, keep moving forward and schedule the improvement with the feature tha
 **Foundation → Character/Realtime → Intelligence/Capabilities → Product/Release**
 
 Cross-cutting security, lifecycle and verification are implemented with the feature that needs them, not postponed to the end.
+
+## Active cross-phase work added to the roadmap
+
+### Character asset and motion verification
+
+- Verify GLB parsing, typed-array offsets, skeleton discovery, humanoid bone mapping, required/optional rig capabilities, and safe replacement of a working model.
+- Verify rest-pose preview, edit, commit, reset, save/load, and runtime reapplication.
+- Verify animation clip discovery, playback, generation/editing workflow, retargeting, axis conventions, nested-parent stability, and recovery from invalid clips or rigs.
+- Each check must inspect the real runtime state and diagnostic report; static source assertions alone are not acceptance proof.
+
+### Email capability
+
+- Add an optional, permission-controlled email capability: IMAP for receiving/synchronizing and reading messages, POP3 as an alternative retrieval path, SMTP for sending.
+- Store credentials only through the established secret/settings boundary; never expose credentials in renderer logs or diagnostics.
+- Add account setup, connection status, mailbox listing, message reading, send confirmation, cancellation, timeout/retry handling, and provider-independent tests.
+
+### Optional microphone transcript label
+
+- Add a tray/taskbar toggle for a small optional label/bubble beneath Saeed.
+- When enabled, show the recognized text from the user's microphone input so the user can verify speech-to-text accuracy.
+- Persist the toggle, display transcription failures/empty results clearly, and leave microphone capture OFF at startup.
+
+### Add-ons and Learning access
+
+- Verify that tray commands open the existing `src/addons/window.html` and `src/learning/window.html` pages through the current window manager and that page-load failures are reported and covered by E2E checks.
