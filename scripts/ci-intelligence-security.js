@@ -42,6 +42,11 @@ async function main(){
  const noSurface=createPermissionManager({getAgent:()=>null,showChat:async()=>{},getChatWindow:()=>null,diagnostic:()=>{}});
  assert.equal(noSurface.permissionPolicy("unknown-capability"),"ask","unknown categories must fail closed");
  assert.equal(await noSurface.confirmPermission("files",{name:"write_file"}),false,"confirmation without a live chat surface must deny");
- console.log("INTELLIGENCE_SECURITY=PASS (schemas, central dispatch, deny policy, sensitive confirmation, fail-closed UI)");
+ const learning=require("../src/learning");
+ let current=true,executed=0;
+ const learned=await learning.run(process.cwd(),{call:async()=>{executed++;current=false;return{ok:true}}},{id:"cancel-test",steps:[{tool:"first"},{tool:"second"},{tool:"third"}]},{isCurrent:()=>current});
+ assert.equal(learned.stale,true,"learned skill should stop when its conversation is invalidated");
+ assert.equal(executed,1,"stale learned skills must not execute subsequent side-effecting steps");
+ console.log("INTELLIGENCE_SECURITY=PASS (schemas, central dispatch, cancellation, deny policy, sensitive confirmation, fail-closed UI)");
 }
 main().catch(error=>{console.error(error);process.exitCode=1});
