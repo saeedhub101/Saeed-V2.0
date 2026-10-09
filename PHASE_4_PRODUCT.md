@@ -111,4 +111,7 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 - Email-send confirmation now previews the correct message body and selects Deny as the default action so Enter does not authorize a consequential send accidentally.
 - Model requests are cancelled when their conversation becomes stale, and provider responses are bounded by a timeout.
 
+
+- The API Brain provider selector now lists enabled, installed LLM add-ons, so provider selection is explicit instead of silently replacing the configured API provider. A stale selection reports that the add-on is unavailable rather than falling through to a different provider.
+
 **Verification status:** these are source-level changes only. No test suite or build was run; Phase 4 release criteria remain pending.
