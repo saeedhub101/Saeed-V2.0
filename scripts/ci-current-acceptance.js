@@ -125,6 +125,12 @@ function main() {
   check("packaged-acceptance-suite-wired", missingIds.length === 0 && runner.includes("current"),
     { requiredChecks: acceptanceIds, missingChecks: missingIds, runnerSupportsCurrentSuite: runner.includes("current") });
 
+  const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
+  const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
+  const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
+  check("packaged-runner-startup-handshake-and-report-preservation", startupMarkerPresent && reportPreservedOnRunnerFailure,
+    { startupMarkerPresent, reportPreservedOnRunnerFailure, note: "The packaged app must emit the exact runner handshake, and runner failures must not overwrite the detailed app acceptance report." });
+
   const report = {
     suite: "current-product-preflight",
     createdAt: new Date().toISOString(),

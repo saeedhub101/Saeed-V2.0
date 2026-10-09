@@ -15,15 +15,18 @@ $required = @(
 )
 
 function Write-Result([object]$Result) {
-  New-Item -ItemType Directory -Force -Path (Split-Path $report -Parent) | Out-Null
-  $Result | ConvertTo-Json -Depth 30 | Set-Content $report -Encoding UTF8
-  Get-Content $report -Raw | Write-Host
+  $destination = $report
+  if (Test-Path $report -PathType Leaf) { $destination = "$report.runner-failure.json" }
+  New-Item -ItemType Directory -Force -Path (Split-Path $destination -Parent) | Out-Null
+  $Result | ConvertTo-Json -Depth 30 | Set-Content $destination -Encoding UTF8
+  Get-Content $destination -Raw | Write-Host
 }
 
 try {
   New-Item -ItemType Directory -Force -Path (Split-Path $report -Parent) | Out-Null
   Remove-Item $report -Force -ErrorAction SilentlyContinue
   Remove-Item "$report.startup.json" -Force -ErrorAction SilentlyContinue
+  Remove-Item "$report.runner-failure.json" -Force -ErrorAction SilentlyContinue
   if (!(Test-Path $exe -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;error="Packaged EXE missing";requiredChecks=$required})
     exit 1
