@@ -19,16 +19,16 @@ function safeHeader(value,label){
  if(!text||/[\r\n\0]/.test(text))throw new Error("Invalid email "+label);
  return text;
 }
-async function emailConfig(args,protocol){
- const email=require("../addons/email"),credentials=require("../addons/credentials");
+async function emailConfig(args,protocol,ctx){
+ const email=require("../addons/email"),credentials=require("../addons/credentials"),accounts=require("../addons/email-account-store");
  const provider=String(args.provider||"").trim().toLowerCase(),account=String(args.account||"").trim();
  if(!provider||!account)throw new Error("Select an email provider and account first");
- const defaults=email.provider(provider)[protocol]||{};
- const host=String(args.host||defaults.host||"").trim(),port=Number(args.port||defaults.port);
+ const defaults=email.provider(provider)[protocol]||{},savedAccount=accounts.get(ctx.userDataPath,provider,account),savedServer=savedAccount?.servers?.[protocol]||{};
+ const host=String(args.host||savedServer.host||defaults.host||"").trim(),port=Number(args.port||savedServer.port||defaults.port);
  if(!host||!Number.isInteger(port)||port<1||port>65535)throw new Error("This provider needs a valid "+protocol.toUpperCase()+" host and port");
  const saved=await credentials.get(provider,account);
  if(!saved||!String(saved.username||"").trim()||(!String(saved.password||"")&&!String(saved.accessToken||"")))throw new Error("No usable saved email credentials for this provider/account; save credentials before connecting");
- return{...defaults,...args,host,port,username:saved.username,password:saved.password,accessToken:saved.accessToken,tls:args.tls===undefined?Boolean(defaults.tls):Boolean(args.tls),startTls:args.startTls===undefined?Boolean(defaults.startTls):Boolean(args.startTls)};
+ return{...defaults,...savedServer,...args,host,port,username:saved.username,password:saved.password,accessToken:saved.accessToken,tls:args.tls===undefined?Boolean(savedServer.tls??defaults.tls):Boolean(args.tls),startTls:args.startTls===undefined?Boolean(savedServer.startTls??defaults.startTls):Boolean(args.startTls)};
 }
 async function call(name,args,ctx){
  const u=ctx.userDataPath;
@@ -39,7 +39,7 @@ async function call(name,args,ctx){
   if(name==="email_provider_info")return{ok:true,provider:email.provider(args.provider),providers:email.PROVIDERS};
   if(name==="email_test_connection")return{ok:true,connected:await email.testTcp(args)};
   if(name==="email_send"){
-   const config=await emailConfig(args,"smtp");
+   const config=await emailConfig(args,"smtp",ctx);
    const from=safeHeader(args.from,"sender"),to=[].concat(args.to||[]).map(x=>safeHeader(x,"recipient"));
    if(!to.length)throw new Error("At least one email recipient is required");
    const subject=String(args.subject||"(no subject)").replace(/[\r\n\0]/g," ").slice(0,300);
@@ -47,19 +47,19 @@ async function call(name,args,ctx){
    const message="From: "+from+"\r\nTo: "+to.join(", ")+"\r\nSubject: "+subject+"\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n"+body;
    return{ok:true,sent:await client.smtpSend({...config,isCurrent:ctx.isCurrent},message),to,subject};
   }
-  if(name==="email_imap_folders"){const config=await emailConfig(args,"imap");return{ok:true,folders:await client.imapListFolders({...config,isCurrent:ctx.isCurrent})}}
+  if(name==="email_imap_folders"){const config=await emailConfig(args,"imap",ctx);return{ok:true,folders:await client.imapListFolders({...config,isCurrent:ctx.isCurrent})}}
   if(name==="email_imap_search"){
-   const config=await emailConfig(args,"imap"),criteria=String(args.criteria||"ALL"),mailbox=safeHeader(args.mailbox||"INBOX","mailbox");
+   const config=await emailConfig(args,"imap",ctx),criteria=String(args.criteria||"ALL"),mailbox=safeHeader(args.mailbox||"INBOX","mailbox");
    if(/[\r\n\0]/.test(criteria)||criteria.length>300)throw new Error("Invalid IMAP search criteria");
    return{ok:true,results:await client.imapSearch({...config,isCurrent:ctx.isCurrent},{...args,mailbox,criteria})};
   }
   if(name==="email_imap_fetch"){
-   const config=await emailConfig(args,"imap"),mailbox=safeHeader(args.mailbox||"INBOX","mailbox"),sequence=String(args.sequence||"");
+   const config=await emailConfig(args,"imap",ctx),mailbox=safeHeader(args.mailbox||"INBOX","mailbox"),sequence=String(args.sequence||"");
    if(!/^\d+(?::\d+)?$/.test(sequence))throw new Error("IMAP sequence must be a number or numeric range");
    return{ok:true,message:await client.imapFetch({...config,isCurrent:ctx.isCurrent},{...args,mailbox,sequence})};
   }
-  if(name==="email_pop3_list"){const config=await emailConfig(args,"pop3");return{ok:true,messages:await client.pop3ListMessages({...config,isCurrent:ctx.isCurrent})}}
-  if(name==="email_pop3_fetch"){const config=await emailConfig(args,"pop3"),index=Number(args.index);if(!Number.isSafeInteger(index)||index<1)throw new Error("POP3 message index must be a positive integer");return{ok:true,message:await client.pop3Fetch({...config,isCurrent:ctx.isCurrent},index)}}
+  if(name==="email_pop3_list"){const config=await emailConfig(args,"pop3",ctx);return{ok:true,messages:await client.pop3ListMessages({...config,isCurrent:ctx.isCurrent})}}
+  if(name==="email_pop3_fetch"){const config=await emailConfig(args,"pop3",ctx),index=Number(args.index);if(!Number.isSafeInteger(index)||index<1)throw new Error("POP3 message index must be a positive integer");return{ok:true,message:await client.pop3Fetch({...config,isCurrent:ctx.isCurrent},index)}}
  }
  return null;
 }
