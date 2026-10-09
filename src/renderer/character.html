@@ -6,8 +6,10 @@
  const finish=result=>{
   const status=window.saeedCharacterRuntime.engine?.get3DStatus?.();
   const boneCount=Number(result?.boneCount||status?.components?.skeleton?.boneCount||0);
-  const ok=result?.ok===true&&!result?.stale&&boneCount>0&&status?.components?.sceneContent?.state==="rendered";
-  const finalResult={...result,ok,boneCount,error:result?.error||(!ok?"GLB did not produce a visible character with a real skeleton":"")};
+  const meshCount=Number(result?.meshCount||status?.components?.sceneContent?.meshCount||status?.components?.sceneContent?.objectCount||0);
+  const sceneRendered=status?.components?.sceneContent?.state==="rendered";
+  const ok=result?.ok===true&&!result?.stale&&sceneRendered&&(meshCount>0||boneCount>0);
+  const finalResult={...result,ok,boneCount,meshCount,rigAvailable:boneCount>0,error:result?.error||(!ok?"GLB did not produce a visible mesh in the active scene":"")};
   window.saeed.character.characterLoadResult?.(g,finalResult);
   return finalResult;
  };
