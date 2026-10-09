@@ -42,11 +42,16 @@ const transcriptCss=read("src/renderer/style.css");
 const voiceClient=read("src/renderer/voice/voice-client.js");
 const composition=read("src/main/application/runtime-composition.js");
 const preloadSource=read("src/preload.js");
+must((preloadSource.match(/characterLoadResult:/g)||[]).length===1,"Preload exposes duplicate characterLoadResult API entries");
 must(transcriptUi.includes("saeedTranscriptLabel")&&transcriptCss.includes("saeedTranscriptLabel"),"Optional microphone transcript label UI is missing");
 must(voiceClient.includes("saeedShowTranscript?.(clean)")&&voiceClient.includes("saeedShowTranscript?.(text)"),"Realtime/local STT results are not routed to the optional transcript label");
 must(composition.includes("transcript-label.json")&&composition.includes("toggleTranscriptLabel"),"Taskbar transcript label setting is not persisted");
 must(trayControls.includes("microphone transcript label"),"Taskbar has no microphone transcript label toggle");
 must(preloadSource.includes("onTranscriptLabel")&&preloadSource.includes("getTranscriptLabelEnabled"),"Transcript label renderer API is missing");
+const learningSource=read("src/learning/index.js");
+const brainSource=read("src/main/brain/brain.js");
+must(learningSource.includes("isCurrent=()=>true")&&learningSource.includes("stale:true"),"Learned skill runner does not stop when the active conversation is cancelled");
+must(brainSource.includes("learning().run(this.getDir(),this.registry,learned,{isCurrent:current})"),"Brain does not propagate request cancellation into learned skills");
 must(read("src/main/runtime.js").includes('ipcMain.handle("transcript-label:get"'),"Transcript label preference IPC is missing");
 
 
