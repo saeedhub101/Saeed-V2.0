@@ -9,6 +9,17 @@ The Engine layer presents the Character Runtime and manages technical 3D resourc
 
 The Engine is not the Character brain.
 
+## Current implementation map
+
+- Three.js scene, renderer, camera, GLB loader integration, live skeleton/bone state, and low-level pose APIs: `src/character/CharacterEngine.js`.
+- GLTFLoader implementation: `src/three/GLTFLoader.js`.
+- Character behavior/orchestration: `src/character/CharacterController.js`.
+- Rig mapping and binding: `src/character/AutoRigMapper.js`, `src/character/CharacterRig.js`.
+- Runtime character authoring: `src/character-studio.html`.
+- Main-process GLB selection/delivery: `src/main/character/character-host.js`.
+
+The Engine currently does more than draw pixels: it owns technical 3D resources and exposes low-level GLB/skeleton/pose operations. Semantic behavior and motion decisions remain outside the Engine.
+
 Character_Architecture.md decides behavior. Engine_Architecture.md decides how that behavior is represented safely and efficiently by the rendering/runtime engine.
 
 ## 2. Engine boundary
