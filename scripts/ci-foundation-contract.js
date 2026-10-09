@@ -64,6 +64,9 @@ must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workf
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must be manual-only");
 must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
+must(exists(".github/workflows/verify-phases-1-3.yml"),"Manual no-build Phase 1–3 verification workflow is missing");
+const verifyWorkflow=read(".github/workflows/verify-phases-1-3.yml");
+must(/^on:\s*$/m.test(verifyWorkflow)&&/workflow_dispatch:/m.test(verifyWorkflow)&&!/\b(electron-builder|npm run build|npm run dist)\b/.test(verifyWorkflow),"Phase 1–3 verification workflow must be manual-only and must not build the application");
 const suiteNames=[0,1,4,5,6];
 const runner=read("scripts/ci-run-packaged-e2e.ps1");
 for(const n of suiteNames){
