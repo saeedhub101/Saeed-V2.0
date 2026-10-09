@@ -26,7 +26,7 @@ const glbBytesTest=read("scripts/ci-glb-bytes.js");
 const packageJson=read("package.json");
 must(engine.includes('import {normalizeGlbArrayBuffer} from "./glb-bytes.js"')&&engine.includes("normalizeGlbArrayBuffer(data)"),"CharacterEngine does not use the canonical GLB byte normalizer");
 must(engine.includes("candidateMeshCount=countSceneMeshes(parsed.scene)")&&engine.includes("no renderable mesh in its active scene"),"CharacterEngine must reject invisible GLB candidates before replacing the current character");
-must(characterHostForChecks.includes("Number(result?.meshCount)<1"),"Character host must not persist a GLB without a visible mesh and real skeleton");
+must(characterHostForChecks.includes("!(Number(result?.boneCount)>=1)")&&characterHostForChecks.includes("!(Number(result?.meshCount)>=1)"),"Character host must reject candidate results without positive bone and mesh counts");
 must(glbBytes.includes("ArrayBuffer.isView(value)")&&glbBytes.includes("value.byteOffset")&&glbBytes.includes("missing glTF magic"),"GLB byte normalization does not protect typed-array offsets and binary headers");
 must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&packageJson.includes("node scripts/ci-glb-bytes.js"),"GLB byte normalization regression tests are not wired into npm test");
 must(exists("scripts/ci-authoritative-glb-rig.js")&&packageJson.includes("node scripts/ci-authoritative-glb-rig.js"),"Authoritative GLB rig mapping test is not wired into npm test");
