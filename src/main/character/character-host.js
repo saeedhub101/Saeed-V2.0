@@ -26,7 +26,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
    if(!sendPendingCharacterDataToCharacterWindow(target)){clearTimeout(timer);loadWaiters.delete(generation);resolve({ok:false,generation,error:"Character GLB could not be delivered to the renderer"});return}
    sendPendingCharacterData();
   });
-  if(result?.ok!==true||!(Number(result?.boneCount)>=1)||!(Number(result?.meshCount)>=1)){
+  if(result?.ok!==true||!(Number(result?.meshCount)>=1)){
    pendingCharacterData=timeoutRestoredPending||previousPending;
    diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a real skeleton; previous character retained",{name,generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}});
    return{ok:false,error:result?.error||"Candidate did not expose a real skeleton; previous character retained",generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}};
@@ -39,7 +39,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   }
   const agent=getAgent();
   if(agent){agent.settings={...agent.settings,selectedCharacterName:path.basename(name)};agent.persistSettings()}
-  diagnostic("INFO","GLB SELECTED","Character candidate loaded, skeleton-verified and saved",{name:path.basename(name),size:candidate.byteLength,persistedPath:persisted,boneCount:result.boneCount,meshCount:result.meshCount});
+  diagnostic("INFO","GLB SELECTED","Character candidate rendered and saved",{name:path.basename(name),size:candidate.byteLength,persistedPath:persisted,boneCount:result.boneCount,meshCount:result.meshCount});
   return{ok:true,name:path.basename(name),size:candidate.byteLength,persistedPath:persisted,generation,validation,boneCount:result.boneCount,meshCount:result.meshCount};
  }
  function chooseCharacter(){return dialog.showOpenDialog(getCharacterWindow(),{title:"Choose Saeed Character",filters:[{name:"GLB 3D Character",extensions:["glb"]}],properties:["openFile"]}).then(async r=>{if(r.canceled||!r.filePaths[0])return;const file=r.filePaths[0];try{const data=fs.readFileSync(file),result=await loadCandidateCharacter(data,path.basename(file));if(!result.ok)diagnostic("ERROR","GLB SELECTED",result.error,{name:path.basename(file)});}catch(e){diagnostic("ERROR","GLB SELECTED",e?.message||String(e))}})}
