@@ -67,7 +67,7 @@ async function call(name,args={},context={}){
   if(!to.length||to.length>20)throw new Error("Provide between 1 and 20 recipients");
   const subject=clean(args.subject,"subject",250),body=String(args.body??"");if(!body.trim()||body.length>100000)throw new Error("Email body must contain 1–100000 characters");
   if(/[\r\n\0]/.test(subject))throw new Error("Email subject contains a forbidden line break");
-  const from=validateAddress(c.account.includes("@")?c.account:c.username);
+  const from=validateAddress(c.account.includes("@")?c.account:c.username);c.from=from;
   const message=headers(subject,from,to)+"\r\n\r\n"+body.replace(/\r?\n/g,"\r\n");
   checkCurrent(context);await client.smtpSend(c,message);checkCurrent(context);
   return{ok:true,sent:true,from,to,subject,bodyOmitted:true};
