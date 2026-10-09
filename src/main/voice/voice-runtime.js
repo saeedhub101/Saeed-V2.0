@@ -50,8 +50,9 @@ function startRealtime(options={}){
     try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
     voiceBroadcast("agent:event",{type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.",source:"realtime"});
     voiceBroadcast("agent:event",{type:"tool",name,args:redactToolArgs(name,args),source:"realtime"});
+    const activeRealtime=realtime;
     let out;
-    try{out=await executeTool(name,args)}catch(e){out={ok:false,error:e.message}};
+    try{out=await executeTool(name,args,{isCurrent:()=>Boolean(activeRealtime)&&realtime===activeRealtime})}catch(e){out={ok:false,error:e.message}};
     if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
     else voiceBroadcast("agent:event",{type:"tool_result",name,result:redactToolResult(name,out),source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
