@@ -104,3 +104,11 @@ Saeed V2.0 is complete only when the packaged product passes the acceptance cont
 ## Optional microphone transcript label
 
 Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath the character. When enabled, it displays the user's recognized speech text after STT returns it; it must not display raw microphone audio or claim transcription success before text is available. The feature is optional, persists its setting, handles empty/error results visibly, and does not change the existing microphone startup policy (Mic remains OFF at startup).
+
+
+## Source implementation updates — 2026-10-10
+
+- Email-send confirmation now previews the correct message body and selects Deny as the default action so Enter does not authorize a consequential send accidentally.
+- Model requests are cancelled when their conversation becomes stale, and provider responses are bounded by a timeout.
+
+**Verification status:** these are source-level changes only. No test suite or build was run; Phase 4 release criteria remain pending.
