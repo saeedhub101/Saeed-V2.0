@@ -392,6 +392,7 @@ function getSceneBoneGroupsForModel(target){
 }
 
 async function load(data,generation){
+ const previousLoadError=loadError;
  activeLoad=true;loadError=null;
  traceGlb("load-start",{generation,dataType:data?.constructor?.name||typeof data,byteLength:data?.byteLength??data?.length??null});
  try{
@@ -400,26 +401,31 @@ async function load(data,generation){
   traceGlb("parse-start",{generation,byteLength:bytes.byteLength});
   const parsed=await loader.parseAsync(bytes,"");
   traceGlb("parse-success",{generation,hasScene:Boolean(parsed?.scene),sceneName:parsed?.scene?.name||""});
-  if(generation===loadGeneration){traceGlb("generation-accepted",{generation});display(parsed)}else traceGlb("generation-rejected",{generation,currentGeneration:loadGeneration});
+  if(!parsed?.scene)throw new Error("GLB parsed without a renderable scene");
+  const candidateBoneCount=getSceneBoneGroups(parsed.scene).size;
+  if(candidateBoneCount<1)throw new Error("GLB candidate has no actual THREE.Bone skeleton; current character preserved");
+  if(generation===loadGeneration){traceGlb("generation-accepted",{generation,boneCount:candidateBoneCount});display(parsed);return{ok:true,generation,boneCount:candidateBoneCount,meshCount:countSceneMeshes(parsed.scene)}}
+  traceGlb("generation-rejected",{generation,currentGeneration:loadGeneration});
+  return{ok:false,stale:true,generation,error:"GLB load was superseded by a newer character generation"};
  }catch(error){
   traceGlb("load-error",{generation,error:error?.stack||error?.message||String(error)});
-  loadError=String(error?.stack||error?.message||error);
-  window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError,window.saeed3DBootstrap.rejection=loadError);
-  window.saeed.system.reportDiagnostic?.("ERROR","GLB LOAD",loadError);
+  const errorText=String(error?.stack||error?.message||error);
+  if(!model){loadError=errorText;window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError,window.saeed3DBootstrap.rejection=loadError)}else{loadError=previousLoadError;traceGlb("candidate-rejected-preserved-current",{generation,error:errorText,currentModelPreserved:true})}
+  window.saeed.system.reportDiagnostic?.("ERROR","GLB LOAD",errorText);
   throw error;
  }finally{
   activeLoad=false;
   if(pendingLoad){
    const p=pendingLoad;
    pendingLoad=null;
-   void load(p.data,p.generation);
+   void load(p.data,p.generation).then(value=>p.resolve?.(value),error=>p.reject?.(error));
   }
  }
 }
 window.saeedCharacterRuntime.load=async(data,generation)=>{
  const g=Number(generation)||++loadGeneration;
  loadGeneration=Math.max(loadGeneration,g);
- if(activeLoad){pendingLoad={data,generation:g};return}
+ if(activeLoad){return new Promise((resolve,reject)=>{if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,superseded:true,generation:pendingLoad.generation,error:"GLB load superseded by a newer request"});pendingLoad={data,generation:g,resolve,reject}})}
  return load(data,g);
 };
 if(window.saeedCharacterRuntime.pendingLoad){
@@ -558,7 +564,7 @@ function snapshotBoneRotations(){
  for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w};
  return out;
 }
-function destroyEngine(){loadGeneration++;activeLoad=false;pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
+function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
  get3DStatus:()=>{
