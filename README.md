@@ -434,6 +434,12 @@ Authoritative asset: assets/Saeed_AI-3D.glb
 
 Old GLB names must not return as alternate runtime defaults.
 
+### Current runtime additions
+
+- Add-ons / Plug-ins and Learning / Teach Mode are opened through the current window manager and exposed in the tray menu and character context menu.
+- An optional microphone-transcript label can be toggled from the tray. When enabled, it shows text returned by the active STT path so the user can check recognition accuracy. It does not turn on the microphone; Mic remains OFF at startup.
+- POP3 / IMAP receiving and SMTP sending are active roadmap work under Phase 3; email account integration is not claimed as implemented by this change.
+
 ## 17. Final user experience
 
 ```text
