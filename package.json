@@ -7,7 +7,7 @@
     "start": "electron .",
     "build": "electron-builder --win --dir --publish never",
     "dist": "electron-builder --win nsis --publish never",
-    "test": "node scripts/ci-glb-bytes.js && node --check src/main.js && node --check src/preload.js && node --check src/main/conversation/conversation-agent.js && node --check src/main/brain/brain.js && node --check src/main/application/brain-host.js && node --check src/main/character/character-host.js && node --check src/tools/registry.js && node scripts/ci-animation-health.js && node scripts/ci-architecture-contract.js && node scripts/ci-foundation-contract.js"
+    "test": "node scripts/ci-glb-bytes.js && node scripts/ci-intelligence-security.js && node --check src/main.js && node --check src/preload.js && node --check src/main/conversation/conversation-agent.js && node --check src/main/brain/brain.js && node --check src/main/application/brain-host.js && node --check src/main/character/character-host.js && node --check src/tools/registry.js && node scripts/ci-animation-health.js && node scripts/ci-architecture-contract.js && node scripts/ci-foundation-contract.js"
   },
   "dependencies": {
     "three": "0.180.0",
