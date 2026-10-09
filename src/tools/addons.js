@@ -27,7 +27,8 @@ async function emailConfig(args,protocol){
  const host=String(args.host||defaults.host||"").trim(),port=Number(args.port||defaults.port);
  if(!host||!Number.isInteger(port)||port<1||port>65535)throw new Error("This provider needs a valid "+protocol.toUpperCase()+" host and port");
  const saved=await credentials.get(provider,account);
- return{...defaults,...args,host,port,username:saved.username,password:saved.password,tls:args.tls===undefined?Boolean(defaults.tls):Boolean(args.tls),startTls:args.startTls===undefined?Boolean(defaults.startTls):Boolean(args.startTls)};
+ if(!saved||!String(saved.username||"").trim()||(!String(saved.password||"")&&!String(saved.accessToken||"")))throw new Error("No usable saved email credentials for this provider/account; save credentials before connecting");
+ return{...defaults,...args,host,port,username:saved.username,password:saved.password,accessToken:saved.accessToken,tls:args.tls===undefined?Boolean(defaults.tls):Boolean(args.tls),startTls:args.startTls===undefined?Boolean(defaults.startTls):Boolean(args.startTls)};
 }
 async function call(name,args,ctx){
  const u=ctx.userDataPath;
