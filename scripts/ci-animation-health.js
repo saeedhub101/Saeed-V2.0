@@ -131,7 +131,7 @@ try{
  const jsonLength=bytes.readUInt32LE(12),jsonType=bytes.readUInt32LE(16);
  if(jsonType!==0x4E4F534A)throw new Error("First GLB chunk is not JSON");
  if(jsonLength<2||20+jsonLength>bytes.length)throw new Error("GLB JSON chunk bounds are invalid");
- const gltf=JSON.parse(bytes.toString("utf8",20,20+jsonLength).replace(/\\u0000+$/g,"").trim());
+ const gltf=JSON.parse(bytes.toString("utf8",20,20+jsonLength).replace(/[\u0000 ]+$/g,"").trim());
  const nodes=Array.isArray(gltf.nodes)?gltf.nodes:[];
  const skins=Array.isArray(gltf.skins)?gltf.skins:[];
  const badJoints=skins.flatMap((skin,skinIndex)=>(skin.joints||[]).filter(j=>!Number.isInteger(j)||j<0||j>=nodes.length).map(j=>({skinIndex,joint:j})));
