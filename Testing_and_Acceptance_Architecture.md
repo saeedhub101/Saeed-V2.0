@@ -41,6 +41,23 @@ Run the installed application and verify single instance, startup state, Charact
 ### Gate F — End-to-End
 Verify text conversation, voice conversation, tool execution, Character reaction, interruption, Hide/Show, provider failure, invalid asset recovery and application shutdown.
 
+## 2.1 Current repository checks and evidence requirements
+
+The following implementation paths and test IDs are active in the current repository. Keep these names synchronized with the code and reports; do not treat a source-token check as proof that the packaged runtime works.
+
+- Static contract runner: `npm test`, including `scripts/ci-animation-health.js`, `scripts/ci-architecture-contract.js`, and `scripts/ci-foundation-contract.js`.
+- Actual bundled GLB binary inspection: `scripts/ci-animation-health.js` validates the GLB magic/header, version, declared byte length, JSON chunk bounds and parse, node table, skins, and skin-joint indices. A passing static GLB inspection is necessary but does not replace loading the GLB through Three.js.
+- Actual packaged GLB load path: Suite 4 (`scripts/ci-run-packaged-e2e.ps1 -Suite 4`) writes `dist/ci-e2e-glb-character-test.json`; inspect its individual checks and stage trace for load/parse/display success, generation handling, and repeat loads.
+- Character Studio startup and live skeleton discovery: `character.studio-open-and-controls` verifies the visible window, loaded character state, mapped rig, and actual bone options.
+- Rest Pose save/reset: `character.studio-bone-rotation`, `performance.character-save-rest-pose`, and `character.normalize-humanoid-rest-pose-window` must verify live rotations and saved/restored values, not merely button existence.
+- Axis editing: `character.studio-editor-world-axis-rotation` verifies applied values against actual bone rotation; `character.studio-nested-axis-stability` verifies parent/child axes remain stable under nested transforms.
+- Animation authoring and playback: `character.studio-create-edit-delete-motion` and `performance.create-edit-delete-motion` verify motion creation, editing, registry state, playback-induced bone changes, and cleanup. The generated motion test must observe an actual change in the loaded character.
+- Add-ons and Learning access: `startup.addons-window-opens` and `startup.learning-window-opens` verify the real windows and expected page controls.
+- Optional microphone transcript label: `startup.microphone-transcript-label-toggle-and-render` verifies persisted enable/disable IPC and actual recognized-text label rendering.
+- Workflow policy: Windows builds are manual-only via `workflow_dispatch`. Do not enable automatic builds to execute tests. Run the manual workflow deliberately, then inspect every required report and each check's actual `pass` value.
+
+A test name or report file existing is not a pass. A workflow's overall green status is not sufficient if any required subcheck failed, timed out, or has missing evidence.
+
 ## 3. Character acceptance
 
 The Character must be tested independently of the LLM.
