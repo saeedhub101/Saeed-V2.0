@@ -1,11 +1,11 @@
 # Saeed V2.0 — Phase 4: Product & Release
 
-**Status:** Planned  
+**Status:** Active — current product-development phase  
 **Type:** Product-development phase
 
 ## Goal
 
-Turn the completed runtime and intelligence layers into a polished, reliable Windows product.
+Continue integrating, hardening, and validating the runtime and intelligence layers as a polished Windows product. Phase 4 productization is active alongside foundation, runtime, and intelligence work.
 
 ## 1. User experience
 
@@ -13,14 +13,16 @@ Complete:
 - Character controls;
 - Chat;
 - Voice controls;
-- bubble/presentation;
+- response bubble/presentation;
+- optional user speech-transcript label/bubble, toggleable from the taskbar/tray, showing the recognized text from microphone input so the user can verify STT accuracy;
 - Motion/Animation Control;
 - Character Preparation/Rigging;
 - settings;
 - provider management;
 - add-on management;
 - learning and memory controls;
-- diagnostics.
+- diagnostics;
+- email account and capability controls with safe credential handling;
 
 ## 2. Product workflows
 
@@ -98,3 +100,7 @@ Release requires:
 ## Exit criteria
 
 Saeed V2.0 is complete only when the packaged product passes the acceptance contract and the core user journeys work repeatedly, not merely once in development.
+
+## Optional microphone transcript label
+
+Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath the character. When enabled, it displays the user's recognized speech text after STT returns it; it must not display raw microphone audio or claim transcription success before text is available. The feature is optional, persists its setting, handles empty/error results visibly, and does not change the existing microphone startup policy (Mic remains OFF at startup).
