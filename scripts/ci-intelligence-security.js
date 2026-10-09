@@ -38,6 +38,7 @@ async function main(){
  const credentialsSource=fs.readFileSync(path.join(__dirname,"..","src","addons","credentials.js"),"utf8");
  assert.equal(credentialsSource.includes('"/pass:"'),false,"credential storage must not put passwords in process arguments");
  assert.ok(credentialsSource.includes("child.stdin.end(JSON.stringify({target:target(provider,account)"),"credential secrets must be sent through stdin, not command-line arguments");
+ assert.ok(credentialsSource.includes("public UInt32 Flags;public UInt32 Type;public string TargetName;public string Comment;public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;public UInt32 BlobSize;public IntPtr Blob;"),"Credential Manager CREDENTIAL layout must match the native Windows structure field order and DWORD widths");
  const noSurface=createPermissionManager({getAgent:()=>null,showChat:async()=>{},getChatWindow:()=>null,diagnostic:()=>{}});
  assert.equal(noSurface.permissionPolicy("unknown-capability"),"ask","unknown categories must fail closed");
  assert.equal(await noSurface.confirmPermission("files",{name:"write_file"}),false,"confirmation without a live chat surface must deny");
