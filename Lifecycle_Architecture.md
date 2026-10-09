@@ -4,7 +4,7 @@
 
 This document is the strict lifecycle contract for Saeed V2.0.
 
-## Current implementation map (verified against the repository)
+### Current implementation map (verified against the repository)
 
 These are current code locations, not a replacement for the lifecycle requirements in this document.
 
