@@ -9,6 +9,11 @@ class ModelExecutor{
   const s=settings||{};
     const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
   const addonLlm=addonPreference?addonRuntime().find(dir,"llm",addonPreference):null;
+  if(addonPreference&&!addonLlm){
+   const answer="The selected LLM add-on is unavailable or disabled. Open Add-ons / Plug-ins, enable an LLM provider, and select it again in Performance settings.";
+   onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN ADD-ON",message:"Selected LLM add-on is unavailable",meta:{id:addonPreference}});
+   history.push({role:"user",content:String(text)},{role:"assistant",content:answer});saveHistory();onEvent({type:"answer",text:answer,source:"addon-unavailable"});return answer;
+  }
   if(addonLlm){
    try{
     if(!current())return "";
