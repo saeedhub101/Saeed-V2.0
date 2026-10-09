@@ -45,6 +45,8 @@ async function main(){
  assert.ok(credentialsSource.includes("child.stdin.end(JSON.stringify({target:target(provider,account)"),"credential secrets must be sent through stdin, not command-line arguments");
  assert.ok(credentialsSource.includes("public UInt32 Flags;public UInt32 Type;public string TargetName;public string Comment;public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;public UInt32 BlobSize;public IntPtr Blob;"),"Credential Manager CREDENTIAL layout must match the native Windows structure field order and DWORD widths");
  assert.ok(credentialsSource.includes("$credentialType=[type]'CredNative+C';$c=[Runtime.InteropServices.Marshal]::PtrToStructure($p,$credentialType)"),"Credential Manager read must resolve the nested native type explicitly");
+ assert.ok(credentialsSource.includes("$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$t=[string]$d.target;"),"Credential target must be passed to PowerShell through stdin, not interpolated into source");
+ assert.ok(credentialsSource.includes("ps.stdin.end(JSON.stringify({target:t}))")&&!credentialsSource.includes("CredRead('$t'"),"Credential reads must not interpolate account-controlled text into PowerShell");
  const noSurface=createPermissionManager({getAgent:()=>null,showChat:async()=>{},getChatWindow:()=>null,diagnostic:()=>{}});
  assert.equal(noSurface.permissionPolicy("unknown-capability"),"ask","unknown categories must fail closed");
  assert.equal(await noSurface.confirmPermission("files",{name:"write_file"}),false,"confirmation without a live chat surface must deny");
