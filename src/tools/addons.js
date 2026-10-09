@@ -45,21 +45,21 @@ async function call(name,args,ctx){
    const subject=String(args.subject||"(no subject)").replace(/[\r\n\0]/g," ").slice(0,300);
    const body=String(args.message||"");
    const message="From: "+from+"\r\nTo: "+to.join(", ")+"\r\nSubject: "+subject+"\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\n"+body;
-   return{ok:true,sent:await client.smtpSend(config,message),to,subject};
+   return{ok:true,sent:await client.smtpSend({...config,isCurrent:ctx.isCurrent},message),to,subject};
   }
-  if(name==="email_imap_folders"){const config=await emailConfig(args,"imap");return{ok:true,folders:await client.imapListFolders(config)}}
+  if(name==="email_imap_folders"){const config=await emailConfig(args,"imap");return{ok:true,folders:await client.imapListFolders({...config,isCurrent:ctx.isCurrent})}}
   if(name==="email_imap_search"){
    const config=await emailConfig(args,"imap"),criteria=String(args.criteria||"ALL"),mailbox=safeHeader(args.mailbox||"INBOX","mailbox");
    if(/[\r\n\0]/.test(criteria)||criteria.length>300)throw new Error("Invalid IMAP search criteria");
-   return{ok:true,results:await client.imapSearch(config,{...args,mailbox,criteria})};
+   return{ok:true,results:await client.imapSearch({...config,isCurrent:ctx.isCurrent},{...args,mailbox,criteria})};
   }
   if(name==="email_imap_fetch"){
    const config=await emailConfig(args,"imap"),mailbox=safeHeader(args.mailbox||"INBOX","mailbox"),sequence=String(args.sequence||"");
    if(!/^\d+(?::\d+)?$/.test(sequence))throw new Error("IMAP sequence must be a number or numeric range");
-   return{ok:true,message:await client.imapFetch(config,{...args,mailbox,sequence})};
+   return{ok:true,message:await client.imapFetch({...config,isCurrent:ctx.isCurrent},{...args,mailbox,sequence})};
   }
-  if(name==="email_pop3_list"){const config=await emailConfig(args,"pop3");return{ok:true,messages:await client.pop3ListMessages(config)}}
-  if(name==="email_pop3_fetch"){const config=await emailConfig(args,"pop3"),index=Number(args.index);if(!Number.isSafeInteger(index)||index<1)throw new Error("POP3 message index must be a positive integer");return{ok:true,message:await client.pop3Fetch(config,index)}}
+  if(name==="email_pop3_list"){const config=await emailConfig(args,"pop3");return{ok:true,messages:await client.pop3ListMessages({...config,isCurrent:ctx.isCurrent})}}
+  if(name==="email_pop3_fetch"){const config=await emailConfig(args,"pop3"),index=Number(args.index);if(!Number.isSafeInteger(index)||index<1)throw new Error("POP3 message index must be a positive integer");return{ok:true,message:await client.pop3Fetch({...config,isCurrent:ctx.isCurrent},index)}}
  }
  return null;
 }
