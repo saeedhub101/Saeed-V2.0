@@ -9,7 +9,7 @@ function makeGlb(document){
  out.writeUInt32LE(0x46546c67,0);out.writeUInt32LE(2,4);out.writeUInt32LE(total,8);out.writeUInt32LE(jsonChunk.length,12);out.writeUInt32LE(0x4e4f534a,16);jsonChunk.copy(out,20);
  return out;
 }
-const valid={asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],meshes:[{primitives:[{attributes:{}}]}]};
+const valid={asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0,skin:0,children:[1]},{name:"Hips"}],meshes:[{primitives:[{attributes:{POSITION:0,JOINTS_0:1,WEIGHTS_0:2}}]}],skins:[{joints:[1]}]};
 assert.equal(validateGlbCandidate(makeGlb(valid)).ok,true,"valid GLB candidate");
 const offset=Buffer.alloc(makeGlb(valid).length+9);makeGlb(valid).copy(offset,4);
 assert.equal(validateGlbCandidate(new Uint8Array(offset.buffer,offset.byteOffset+4,makeGlb(valid).length)).ok,true,"typed-array view with nonzero offset");
@@ -22,6 +22,8 @@ for(const [label,mutate,pattern] of [
 ]){
  const b=makeGlb(valid);mutate(b);assert.throws(()=>validateGlbCandidate(b),pattern,label);
 }
-assert.throws(()=>validateGlbCandidate(makeGlb({asset:{version:"2.0"},scenes:[{nodes:[0]}],nodes:[{mesh:0}]})),/no meshes/,"must reject a scene without a mesh");
+assert.throws(()=>validateGlbCandidate(makeGlb({asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{children:[1]},{name:"Hips"}],meshes:[{primitives:[{attributes:{}}]}],skins:[{joints:[1]}]})),/no renderable mesh/,"must reject a scene with no reachable mesh");
+assert.throws(()=>validateGlbCandidate(makeGlb({asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],meshes:[{primitives:[{attributes:{}}]}]})),/no skinned character mesh/,"must reject an unskinned character candidate");
+assert.throws(()=>validateGlbCandidate(makeGlb({...valid,nodes:[{mesh:0,skin:1,children:[1]},{name:"Hips"}]})),/invalid skin index/,"must reject an invalid skin reference");
 assert.throws(()=>validateGlbCandidate(Buffer.alloc(10)),/too small/,"must reject truncated binary");
-console.log("GLB_CANDIDATE_VALIDATION=PASS (9 assertions)");
+console.log("GLB_CANDIDATE_VALIDATION=PASS (12 assertions)");
