@@ -59,7 +59,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="endAuthoring"){const ok=c.endAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
   if(x.action==="status")return{ok:true,status:c.status()};
   if(x.action==="semantic")return c.semantic(x.intent,x.options||{});
-  if(x.action==="face")return{ok:true,result:c.face?.expression?.(x.expression,x.intensity)};
+  if(x.action==="face"){const applied=Boolean(c.face?.expression?.(x.expression,x.intensity));return{ok:applied,result:applied?"expression-applied":"expression-unavailable",status:c.face?.status?.()||null}};
   if(x.action==="blink")return{ok:Boolean(c.face?.blink?.())};
   if(x.action==="lookAt")return{ok:Boolean(c.face?.lookAt?.(x.x,x.y,x.z))};
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
