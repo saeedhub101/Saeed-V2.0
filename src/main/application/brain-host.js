@@ -8,14 +8,16 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
    const result=await dialog.showMessageBox({type:"question",buttons:["Allow","Deny"],defaultId:0,cancelId:1,title:"Saeed Permission",message:"Allow Saeed to perform this action?",detail:label+(detail?"\n"+detail:"")});
    return result.response===0;
   }
-  return true;
+  diagnostic("WARN","PERMISSION","No native confirmation dialog is available; operation denied",{name,permissionCategory});
+  return false;
  };
  const requestStepIncrease=async({current,requested,task})=>{
   if(dialog?.showMessageBox){
    const result=await dialog.showMessageBox({type:"question",buttons:["Allow","Deny"],defaultId:0,cancelId:1,title:"Saeed Execution Limit",message:"Allow Saeed to continue with more steps?",detail:"Current limit: "+current+"\nRequested: "+requested+"\n"+String(task||"")});
    return result.response===0;
   }
-  return true;
+  diagnostic("WARN","EXECUTION LIMIT","No native confirmation dialog is available; additional steps denied",{current,requested});
+  return false;
  };
  const IDLE_TIMEOUT_MS=2*60*1000;
  function scheduleIdleRelease(){clearTimeout(idleTimer);if(!agent||IDLE_TIMEOUT_MS<=0)return;if(getMicMode?.()==="on")return;idleTimer=setTimeout(()=>{void evaluateLifecycle()},IDLE_TIMEOUT_MS)}
