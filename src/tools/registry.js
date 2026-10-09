@@ -1,6 +1,6 @@
 const {redactToolArgs}=require("./redact");
 const path=require("path"),{Computer}=require("../main/automation/computer");
-const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./addons")];
+const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./addons"),require("./email")];
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy,recordHook,characterController}={}){
   this.computer=new Computer();this.memory=null;this.tasks=null;this.userDataPath=userDataPath||process.cwd();this.captureScreen=captureScreen||(()=>null);
