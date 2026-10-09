@@ -172,8 +172,8 @@ jobs:
           $controller=if(Test-Path "src/character/CharacterController.js"){Get-Content "src/character/CharacterController.js" -Raw}else{""}
           $studio=if(Test-Path "src/character-studio.html"){Get-Content "src/character-studio.html" -Raw}else{""}
           $client=if(Test-Path "src/character/client.js"){Get-Content "src/character/client.js" -Raw}else{""}
-          foreach($c in @(@($engine,"setBoneRotation"),@($engine,"bindRig"),@($engine,"captureAuthoritativeRestPose"),@($controller,"setBehavior"),@($controller,"setMotionEnabled"),@($controller,"bindSlot"),@($client,"bindSlot"),@($client,"setBoneRotation"),@($studio,"GLTFLoader"),@($studio,"setBoneRotation"),@($studio,"bindSlot"))){if(!$c[0].Contains($c[1])){$errors.Add("Missing contract: $($c[1])")}}
-          if($studio -notmatch 'import \* as THREE from "./node_modules/three/build/three.module.js"'){$errors.Add("Studio Three.js import missing")}
+          foreach($c in @(@($engine,"setBoneRotation"),@($engine,"bindRig"),@($engine,"captureAuthoritativeRestPose"),@($controller,"setBehavior"),@($controller,"setMotionEnabled"),@($controller,"bindSlot"),@($client,"bindSlot"),@($client,"setBoneRotation"),@($studio,"GLTFLoader"),@($studio,"setBoneEditorRotation"),@($studio,"bindSlot"))){if(!$c[0].Contains($c[1])){$errors.Add("Missing contract: $($c[1])")}}
+          if($studio -notmatch 'import \* as THREE from "\.\./node_modules/three/build/three\.module\.js"'){$errors.Add("Studio Three.js import missing")}
           if($studio -notmatch 'from "./three/GLTFLoader.js"'){$errors.Add("Studio GLTFLoader import missing")}
           if($studio -notmatch 'onCharacterSelected'){$errors.Add("Studio selected-character event missing")}
           @("=== CHARACTER STUDIO / RUNTIME CONTRACT ===","Checked: $($required.Count)","Errors: $($errors.Count)")|Set-Content $report
@@ -500,16 +500,20 @@ jobs:
       - name: Final GLB Character Test gate
         if: always()
         continue-on-error: true
-        shell: powershell
+        shell: pwsh
         run: |
-          if (!(Test-Path "dist\\ci-e2e-glb-character-test.json")) {
-            Write-Host "GLB_CHARACTER_TEST=FAIL — report missing"
+          $report = 'dist/ci-e2e-glb-character-test.json'
+          if (-not (Test-Path -LiteralPath $report -PathType Leaf)) {
+            Write-Host 'GLB_CHARACTER_TEST=FAIL - report missing'
             exit 1
           }
-          $r=Get-Content "dist\\ci-e2e-glb-character-test.json" -Raw | ConvertFrom-Json
-          Get-Content "dist\\ci-e2e-glb-character-test.json" -Raw | Write-Host
-          if (-not $r.pass) { Write-Host "GLB_CHARACTER_TEST=FAIL"; exit 1 }
-          Write-Host "GLB_CHARACTER_TEST=PASS"
+          $r = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+          Get-Content -LiteralPath $report -Raw | Write-Host
+          if (-not $r.pass) {
+            Write-Host 'GLB_CHARACTER_TEST=FAIL'
+            exit 1
+          }
+          Write-Host 'GLB_CHARACTER_TEST=PASS'
 
       - name: Final packaged E2E result gate — all suites
         if: always()
