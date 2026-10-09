@@ -15,6 +15,23 @@
 
 This document defines the authoritative architecture for the Saeed 3D Character Runtime.
 
+## Current implementation map (verified against the repository)
+
+This map records where the existing implementation currently lives; it supplements the requirements below and does not remove or weaken any requirement.
+
+- Three.js scene, camera, renderer, GLB parsing/loading, live model/skeleton state, and low-level bone/pose APIs: `src/character/CharacterEngine.js`.
+- Character command boundary and orchestration: `src/character/CharacterController.js`.
+- Humanoid bone aliases and logical rig-slot mapping: `src/character/AutoRigMapper.js`.
+- Rig binding: `src/character/CharacterRig.js`.
+- Motion playback and blending: `src/character/AnimationController.js`.
+- Animation retargeting: `src/character/CharacterRetargeter.js`.
+- Motion definition/editing: `src/character/MotionEditor.js` and the profile store used by `CharacterController`.
+- Character authoring UI for bone axes, Rest Pose, rig mapping, face/fingers, and animation editing: `src/character-studio.html`.
+- Main-process GLB selection/delivery and Character window commands: `src/main/character/character-host.js`.
+- Renderer-side Character API access and UI event handling: `src/character/client.js` through the namespaced `window.saeed.character` preload API.
+
+The source files above are the current names/paths. When a responsibility moves, update this map and the related contracts to match the actual imports and ownership; do not create parallel owners to match an outdated document.
+
 The character must be independent from the rest of the application in the same fundamental way as the Merlin architecture: the application Brain reports semantic meaning and events, while a dedicated CharacterController owns visual behavior, motion selection, scheduling, state, mood and animation execution.
 
 Saeed is not an animation clip library.
