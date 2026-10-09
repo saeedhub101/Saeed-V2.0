@@ -217,6 +217,12 @@ Cross-cutting security, lifecycle and verification are implemented with the feat
 - Verify animation clip discovery, playback, generation/editing workflow, retargeting, axis conventions, nested-parent stability, and recovery from invalid clips or rigs.
 - Each check must inspect the real runtime state and diagnostic report; static source assertions alone are not acceptance proof.
 
+#### Implementation added — 2026-10-09
+
+- Repaired a malformed ternary in the Character Studio motion-status handler that prevented the module from parsing.
+- Added a parser-backed CI script that syntax-checks inline JavaScript and local external scripts referenced by HTML pages; it is included in `npm test` and the manual verification workflow.
+- Source parsing was checked after the repair. Runtime acceptance still requires executing the regression suite and inspecting the actual Windows E2E reports.
+
 ### Email capability
 
 - Add an optional, permission-controlled email capability: IMAP for receiving/synchronizing and reading messages, POP3 as an alternative retrieval path, SMTP for sending.
