@@ -6,7 +6,7 @@ This document defines the authoritative architecture for Saeed V2.0 voice, speec
 
 It is intentionally separate from `Character_Architecture.md`.
 
-## Current implementation map
+### Current implementation map
 
 The current voice renderer is `src/renderer/voice/voice-client.js`; main-process voice lifecycle and provider orchestration are in `src/main/voice/voice-host.js` and `src/main/voice/voice-runtime.js`. The secure renderer-facing voice API is exposed by `src/preload.js` under `window.saeed.voice`, including `onRealtimeUserFinal`, local STT transcription, and microphone-mode controls.
 
