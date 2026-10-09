@@ -149,6 +149,8 @@ gate("GLB load path exposes character pose status",engine.includes("getCharacter
 gate("rig mapper and rig binder are present",exists("src/character/AutoRigMapper.js")&&exists("src/character/CharacterRig.js")&&mapper.length>100&&rig.length>100);
 gate("partial humanoid rigs remain valid",mapper.includes("const REQUIRED_RIG=[]")&&mapper.includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("Partial rig: missing")&&controller.includes("Object.keys(mapped).length>0"));
  gate("mesh-only GLB is accepted as a static character",engine.includes("candidateMeshCount<1")&&!engine.includes("candidateBoneCount<1")&&controller.includes("visible as a static mesh"));
+gate("static mesh still emits character-loaded event without bone-gated early return",engine.includes("const staticMesh=names.length===0")&&engine.includes('"saeed-character-loaded"')&&engine.includes("rigAvailable:mapped>0,staticMesh")&&!/if\(!names\.length\)\{if\(attempt<40\)setTimeout\(\(\)=>ensureControllerBinding/.test(engine));
+gate("partial/unusual skeleton retries mapping without hiding the rendered scene",engine.includes("Keep retrying rig binding for partial/unusual skeletons")&&engine.includes("display-success"));
 gate("rest-pose save and reset paths exist",controller.includes("saveRestPose")&&controller.includes("resetBoneToRest")&&engine.includes("setBoneEditorRotation"));
 gate("world-axis editor rotation is exposed end-to-end",studio.includes("setBoneEditorRotation")&&host.includes('"setBoneEditorRotation"')&&client.includes("setBoneEditorRotation"));
 gate("animation editing and playback are connected",studio.includes("defineMotion")&&studio.includes("loadMotion")&&controller.includes("defineMotion")&&controller.includes("play(")&&editor.length>100);
