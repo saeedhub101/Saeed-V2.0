@@ -9,7 +9,7 @@ A build that compiles is not a complete Saeed build.
 Acceptance requires architecture conformance, automated tests and installed-runtime verification.
 
 ## 2. Verification layers
-## Current mandatory character verification
+### Current mandatory character verification
 
 The current test pipeline includes static contracts plus packaged-runtime E2E. The following are required gates, not diagnostic-only suggestions:
 
