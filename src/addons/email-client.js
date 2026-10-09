@@ -65,8 +65,9 @@ async function pop3Auth(config){
   }
   if(!/^\+OK/.test(r)){socket.destroy();throw new Error(r)}return{socket,next};
 }
-async function pop3List(config){const c=await pop3Auth(config);c.socket.write("STAT\r\n");const r=await c.next();try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy();return r}
-async function pop3Fetch(config,index){const c=await pop3Auth(config);c.socket.write("RETR "+Number(index)+"\r\n");let lines=[];while(true){const line=await c.next();if(line===".")break;lines.push(line.replace(/^\.\./,"."))}try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy();return lines.join("\r\n")}
+async function pop3List(config){const c=await pop3Auth(config);try{c.socket.write("STAT\r\n");const r=await c.next();if(!/^\+OK/.test(r))throw new Error(r);return r}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
+async function pop3ListMessages(config){const c=await pop3Auth(config);try{c.socket.write("LIST\r\n");const status=await c.next();if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.map(line=>{const m=line.match(/^(\d+)\s+(\d+)$/);return m?{index:Number(m[1]),size:Number(m[2])}:null}).filter(Boolean)}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
+async function pop3Fetch(config,index){const n=Number(index);if(!Number.isSafeInteger(n)||n<1)throw new Error("POP3 message index must be a positive integer");const c=await pop3Auth(config);try{c.socket.write("RETR "+n+"\r\n");const status=await c.next();if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.join("\r\n")}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
 
 function imapSession(config){
   return connect(config,{tlsMode:true}).then(async socket=>{
@@ -121,4 +122,4 @@ async function imapFetch(config,{mailbox="INBOX",sequence=1,uid=true,headersOnly
     return r.filter(x=>/^\* \d+ FETCH /.test(x)).join("\n");
   }finally{s.close()}
 }
-module.exports={smtpSend,pop3List,pop3Fetch,imapProbe,imapLogin,imapListFolders,imapSelect,imapSearch,imapFetch};
+module.exports={smtpSend,pop3List,pop3ListMessages,pop3Fetch,imapProbe,imapLogin,imapListFolders,imapSelect,imapSearch,imapFetch};
