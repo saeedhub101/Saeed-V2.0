@@ -93,13 +93,19 @@ export class CharacterController{
    this.retargeter.bind(mapped,this.retargeter.status().calibration);
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
+   // Rehydrate persisted custom motion definitions before saving this profile again.
+   // Without this step, every fresh application process overwrites customMotions with an empty list.
+   const motionRestoreErrors=[];
+   for(const motion of Array.isArray(profile.customMotions)?profile.customMotions:[]){
+    try{this.editor.define(motion)}catch(error){motionRestoreErrors.push({id:motion?.id||null,error:String(error?.message||error)})}
+   }
    this.animation.stopAll();
    this.characterId=profileId;
    const missingRequired=missingRequiredSlots(mapped);
    this.rigReady=Object.keys(mapped).length>0;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
    this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
-   this.lastBindingResult={loaded:mappedBoneCount>0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,partial:missingRequired.length>0,reason:missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
+   this.lastBindingResult={loaded:mappedBoneCount>0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,partial:missingRequired.length>0,reason:missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),motionRestoreErrors};
    return this.lastBindingResult;
   }finally{this.binding=false;}
  }
