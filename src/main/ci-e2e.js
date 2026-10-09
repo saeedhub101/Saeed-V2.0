@@ -123,7 +123,12 @@ function createCiE2E(deps={}){
     if(!visible(w))return {pass:false,error:"Character window is not visible"};
     const source=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");
     if(!fs.existsSync(source))return {pass:false,error:"Authoritative asset missing",source};
-    const result=await execJs(w,'(()=>{const rt=window.saeedCharacterRuntime||{},e=rt.engine,engine=e?.get3DStatus?.(),scene=e?.getScene?.(),meshes=[];scene?.traverse?.(o=>{if((o?.isMesh||o?.isSkinnedMesh)&&o.visible){let p=o,shown=true;while(p){if(p.visible===false){shown=false;break}p=p.parent}if(shown)meshes.push({name:o.name||"",type:o.type})}});const pose=rt.controller?.status?.();return {bootstrap:window.saeed3DBootstrap,engine,sceneState:engine?.components?.sceneContent?.state,meshCount:meshes.length,meshes:meshes.slice(0,25),pose,bones:e?.getAvailableBoneNames?.()||[],mapped:e?.getBoneMap?.()||{}}})()',true).catch(e=>({error:String(e?.stack||e)}));
+    let result=null;const deadline=Date.now()+25000;
+    while(Date.now()<deadline){
+     result=await execJs(w,'(()=>{const rt=window.saeedCharacterRuntime||{},e=rt.engine,engine=e?.get3DStatus?.(),scene=e?.getScene?.(),meshes=[];scene?.traverse?.(o=>{if((o?.isMesh||o?.isSkinnedMesh)&&o.visible){let p=o,shown=true;while(p){if(p.visible===false){shown=false;break}p=p.parent}if(shown)meshes.push({name:o.name||"",type:o.type})}});const pose=rt.controller?.status?.();return {bootstrap:window.saeed3DBootstrap,engine,sceneState:engine?.components?.sceneContent?.state,meshCount:meshes.length,meshes:meshes.slice(0,25),pose,bones:e?.getAvailableBoneNames?.()||[],mapped:e?.getBoneMap?.()||{}}})()',true).catch(e=>({error:String(e?.stack||e)}));
+     if(!result?.error&&result?.sceneState==="rendered"&&Number(result?.meshCount)>0)break;
+     await wait(300);
+    }
     const valid=Boolean(!result?.error&&!result?.bootstrap?.error&&result?.sceneState==="rendered"&&result.meshCount>0);
     return {pass:valid,source,size:fs.statSync(source).size,meshOnly:valid&&(result.bones||[]).length===0,boneCount:(result.bones||[]).length,mappedCount:Object.keys(result.mapped||{}).length,result};
    });
