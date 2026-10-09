@@ -16,25 +16,40 @@ class ModelExecutor{
     if(typeof provider.chat==="function"){
      onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ADD-ON",message:"Using installed LLM add-on: "+addonLlm.name,meta:{id:addonLlm.id,provider:addonLlm.provider||addonLlm.id}});
      const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
-     const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Use the supplied tools when needed and do not claim success without evidence."+memoryContext()},...history.slice(-12),{role:"user",content:userContent}];
-     const result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
-     if(!current())return "";
-     const content=String(result?.content||result?.text||"");
-     const calls=Array.isArray(result?.tool_calls)?result.tool_calls:[];
-     if(calls.length){
-      for(const call of calls){
-       if(!current())return "";
-       let args={};try{args=typeof call.arguments==="string"?JSON.parse(call.arguments):call.arguments||{}}catch{}
-       const name=String(call.name||call.function?.name||"");if(!current())return "";const out=await registry.call(name,args,{isCurrent:current});if(!current())return "";
-       messages.push({role:"assistant",content:"",tool_calls:[{id:call.id||"addon-call",type:"function",function:{name,arguments:JSON.stringify(args)}}]});
-       messages.push({role:"tool",tool_call_id:call.id||"addon-call",content:JSON.stringify(out)});
-      }
-      const follow=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
+     const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Use supplied tools when needed, verify important actions, and never claim success without evidence."+memoryContext()},...history.slice(-12),{role:"user",content:userContent}];
+     const stepBudget=Math.max(1,Math.min(100,Number(s.maxSteps)||16));
+     let result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
+     for(let step=0;step<=stepBudget;step++){
       if(!current())return "";
-      const finalText=String(follow?.content||follow?.text||content);
-      history.push({role:"user",content:String(text)},{role:"assistant",content:finalText});saveHistory();onEvent({type:"answer",text:finalText,source:"addon-llm"});return finalText;
+      const contentText=String(result?.content||result?.text||"");
+      const calls=Array.isArray(result?.tool_calls)?result.tool_calls:[];
+      if(!calls.length){
+       history.push({role:"user",content:String(text)},{role:"assistant",content:contentText});saveHistory();onEvent({type:"answer",text:contentText,source:"addon-llm"});return contentText;
+      }
+      if(step>=stepBudget){
+       const answer="I reached the safe execution limit before completing the task. You can ask me to continue.";
+       history.push({role:"user",content:String(text)},{role:"assistant",content:answer});saveHistory();onEvent({type:"diagnostic",level:"WARN",stage:"AGENT STEP LIMIT",message:"Add-on LLM reached the execution step limit",meta:{stepBudget,provider:addonLlm.id}});onEvent({type:"answer",text:answer,source:"addon-step-limit"});return answer;
+      }
+      const normalized=calls.map((call,index)=>{
+       const fn=call.function||{};
+       const name=String(call.name||fn.name||"");
+       const raw=call.arguments??fn.arguments??{};
+       let args=raw;
+       try{if(typeof raw==="string")args=JSON.parse(raw)}catch{args=null}
+       return{id:String(call.id||("addon-call-"+step+"-"+index)),name,args};
+      });
+      messages.push({role:"assistant",content:contentText||"",tool_calls:normalized.map(call=>({id:call.id,type:"function",function:{name:call.name,arguments:JSON.stringify(call.args??{})}}))});
+      for(const call of normalized){
+       if(!current())return "";
+       let out;
+       if(!call.name||call.args===null||!call.args||typeof call.args!=="object"||Array.isArray(call.args))out={ok:false,error:"Invalid tool name or JSON arguments"};
+       else out=await registry.call(call.name,call.args,{isCurrent:current});
+       if(!current())return "";
+       messages.push({role:"tool",tool_call_id:call.id,content:JSON.stringify(out)});
+      }
+      if(!current())return "";
+      result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
      }
-     if(!current())return "";history.push({role:"user",content:String(text)},{role:"assistant",content:content});saveHistory();onEvent({type:"answer",text:content,source:"addon-llm"});return content;
     }
    }catch(e){onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN ADD-ON",message:e.message});if(addonPreference)throw e;}
   }
