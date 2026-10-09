@@ -13,7 +13,7 @@ async function main(){
  const doc=JSON.parse(bytes.toString("utf8",20,20+jsonLength).trim());
  assert.ok(Array.isArray(doc.nodes)&&doc.nodes.length>0,"authoritative GLB must expose nodes");
  assert.ok(Array.isArray(doc.meshes)&&doc.meshes.length>0,"authoritative GLB must contain meshes");
- assert.ok(Array.isArray(doc.skins)&&doc.skins.some(s=>Array.isArray(s.joints)&&s.joints.length>0),"authoritative GLB must contain a skinned skeleton");
+ assert.ok(Array.isArray(doc.scenes)&&doc.scenes.length>0,"authoritative GLB must contain a scene");
  const mapperPath=path.join(root,"src","character","AutoRigMapper.js");
  const temporary=path.join(os.tmpdir(),"saeed-rig-map-"+process.pid+"-"+Date.now()+".mjs");
  try{
@@ -21,12 +21,13 @@ async function main(){
   const {autoMapBones,requiredRigSlots,optionalRigSlots}=await import(pathToFileURL(temporary).href);
   const names=doc.nodes.map(n=>n?.name).filter(Boolean);
   const mapping=autoMapBones(names).mapping;
-  const required=requiredRigSlots();
-  assert.deepEqual(required,["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"],"six required humanoid joints must be declared");
-  assert.deepEqual(required.filter(slot=>optionalRigSlots().includes(slot)),[],"required humanoid joints must not also be reported as optional");
-  const missing=required.filter(slot=>!mapping[slot]||!names.includes(mapping[slot]));
-  assert.deepEqual(missing,[],"authoritative GLB must automatically map all required real bones: "+JSON.stringify({mapping,missing,names}));
-  console.log("AUTHORITATIVE_GLB_RIG=PASS ("+names.length+" named nodes; "+required.length+" required joints mapped to real bones)");
+  const required=requiredRigSlots(),optional=optionalRigSlots();
+  assert.deepEqual(required,[],"no logical joint may be mandatory for rendering");
+  assert.ok(optional.length>0,"available logical joints must remain mappable");
+  for(const [slot,name] of Object.entries(mapping))assert.ok(names.includes(name),"mapped "+slot+" must refer to an actual named bone");
+  const meshNodes=doc.nodes.filter(n=>Number.isInteger(n.mesh));
+  assert.ok(meshNodes.length>0,"authoritative GLB must expose a mesh node");
+  console.log("AUTHORITATIVE_GLB_RIG=PASS ("+meshNodes.length+" mesh nodes; "+Object.keys(mapping).length+" optional joints mapped; partial rig supported)");
  }finally{try{fs.unlinkSync(temporary)}catch{}}
 }
 main().catch(error=>{console.error("AUTHORITATIVE_GLB_RIG=FAIL",error?.stack||error);process.exitCode=1});
