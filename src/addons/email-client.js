@@ -2,16 +2,19 @@ const net=require("net"),tls=require("tls");
 
 function escapeQuote(v){const value=String(v??"");if(/[\r\n\0]/.test(value))throw new Error("Email protocol argument contains a forbidden line break");return value.replace(/\\/g,"\\\\").replace(/"/g,'\\"')}
 
-function connect(config,{tlsMode=config.tls}={}){
+function connect(config,{tlsMode=config.tls,isCurrent=config.isCurrent}={}){
   return new Promise((resolve,reject)=>{
     const opts={host:config.host,port:Number(config.port),servername:config.host,rejectUnauthorized:true};
     const socket=tlsMode?tls.connect(opts):net.connect(opts);
-    let settled=false;
-    const done=()=>{if(!settled){settled=true;resolve(socket)}};
-    socket.once("connect",done);socket.once("secureConnect",done);socket.once("error",reject);
+    let settled=false,connectTimer=null,cancelTimer=null;
+    const cleanup=()=>{if(connectTimer)clearTimeout(connectTimer);if(cancelTimer)clearInterval(cancelTimer);connectTimer=null;cancelTimer=null};
+    const fail=error=>{if(!settled){settled=true;cleanup();try{socket.destroy()}catch{}reject(error)}else{cleanup();try{socket.destroy()}catch{}}};
+    const done=()=>{if(!settled){settled=true;if(connectTimer)clearTimeout(connectTimer);connectTimer=null;resolve(socket)}};
+    connectTimer=setTimeout(()=>fail(new Error("Email connection timed out")),20000);
+    if(typeof isCurrent==="function")cancelTimer=setInterval(()=>{let current=true;try{current=Boolean(isCurrent())}catch{current=false}if(!current)fail(new Error("Email operation cancelled"))},100);
+    socket.once("connect",done);socket.once("secureConnect",done);socket.once("error",fail);socket.once("close",cleanup);
   });
 }
-
 function lineReader(socket){
   let buffer=Buffer.alloc(0),waiters=[];
   const next=()=>new Promise((resolve,reject)=>waiters.push({resolve,reject}));
