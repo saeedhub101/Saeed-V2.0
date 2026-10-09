@@ -10,7 +10,7 @@ async function main(){
  assert.equal(bytes.readUInt32LE(8),bytes.length,"authoritative GLB declared length must match the file");
  const jsonLength=bytes.readUInt32LE(12);
  assert.equal(bytes.readUInt32LE(16),0x4e4f534a,"authoritative GLB first chunk must be JSON");
- const doc=JSON.parse(bytes.toString("utf8",20,20+jsonLength).replace(/[\\u0000 ]+$/g,"").trim());
+ const doc=JSON.parse(bytes.toString("utf8",20,20+jsonLength).trim());
  assert.ok(Array.isArray(doc.nodes)&&doc.nodes.length>0,"authoritative GLB must expose nodes");
  assert.ok(Array.isArray(doc.meshes)&&doc.meshes.length>0,"authoritative GLB must contain meshes");
  assert.ok(Array.isArray(doc.skins)&&doc.skins.some(s=>Array.isArray(s.joints)&&s.joints.length>0),"authoritative GLB must contain a skinned skeleton");
