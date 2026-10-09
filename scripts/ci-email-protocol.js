@@ -1,6 +1,7 @@
 const assert=require("node:assert/strict");
-const net=require("node:net");
+const net=require("node:net"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
 const {pop3ListMessages,pop3Fetch,smtpSend}=require("../src/addons/email-client");
+const emailAccounts=require("../src/addons/email-account-store");
 
 async function runSmtpTests(){
  const commands=[];let cancelAfterAuth=false,current=true;const bodies=[];
@@ -43,6 +44,19 @@ async function runSmtpTests(){
   assert.equal(cancelled.some(line=>line.startsWith("MAIL FROM:")),false,"cancelled SMTP operation must not start the mail transaction");
  }finally{await new Promise(resolve=>server.close(()=>resolve()))}
 }
+function testEmailAccountStore(){
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-email-profile-"));
+ try{
+  emailAccounts.save(dir,{provider:"custom",account:"demo@example.com",protocol:"imap",host:"imap.demo.example",port:993,tls:true});
+  emailAccounts.save(dir,{provider:"custom",account:"demo@example.com",protocol:"smtp",host:"smtp.demo.example",port:587,tls:false,startTls:true});
+  const account=emailAccounts.get(dir,"custom","demo@example.com");
+  assert.equal(account.servers.imap.host,"imap.demo.example","IMAP settings must persist per account");
+  assert.equal(account.servers.smtp.startTls,true,"SMTP STARTTLS settings must persist independently");
+  assert.equal(Object.hasOwn(account,"password"),false,"email server profile must never contain account credentials");
+  assert.throws(()=>emailAccounts.save(dir,{provider:"custom",account:"demo@example.com",protocol:"pop3",host:"bad.example\r\nQUIT",port:995,tls:true}),/host/,"server host must reject line breaks");
+  assert.throws(()=>emailAccounts.save(dir,{provider:"custom",account:"demo@example.com",protocol:"pop3",host:"pop.demo.example",port:70000,tls:true}),/port/,"server port must be validated");
+ }finally{fs.rmSync(dir,{recursive:true,force:true})}
+}
 async function main(){
  const commands=[];let cancelOnUser=false,current=true;
  const server=net.createServer(socket=>{
@@ -78,7 +92,8 @@ async function main(){
   await assert.rejects(()=>pop3ListMessages({...config,isCurrent:()=>current}),/cancelled/,"POP3 operations must stop when the owning request is cancelled");
   assert.equal(commands.slice(beforeCancel).some(line=>line.startsWith("PASS ")),false,"cancelled POP3 authentication must not send the password");
   await runSmtpTests();
-  console.log("EMAIL_PROTOCOL=PASS (POP3 listing/retrieval, SMTP send, dot-stuffing, validation, command-injection guard, cancellation)");
+  testEmailAccountStore();
+  console.log("EMAIL_PROTOCOL=PASS (POP3 listing/retrieval, SMTP send, server-profile persistence, dot-stuffing, validation, command-injection guard, cancellation)");
  }finally{
   await new Promise(resolve=>server.close(()=>resolve()));
  }
