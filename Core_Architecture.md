@@ -4,6 +4,18 @@
 **Scope:** Application shell, Brain, routing, tools, capabilities and orchestration
 
 ## 1. Core principle
+## Current implementation map
+
+- Electron entry and lifecycle wiring: `src/main.js`, `src/main/runtime.js`.
+- Runtime/service composition: `src/main/application/runtime-composition.js`.
+- Brain routing: `src/main/brain/brain.js`; Brain lifecycle: `src/main/application/brain-host.js`.
+- Conversation: `src/main/conversation/conversation-agent.js`.
+- Tool execution and schemas: `src/tools/registry.js` and implementations under `src/tools/`.
+- Add-on management: the service under `src/addons/` and IPC under `src/main/ipc/addons-ipc.js`.
+- Secure renderer API: `src/preload.js`.
+
+These paths reflect the current code layout. Keep one owner for each responsibility and update this map only when a real implementation move occurs.
+
 
 Core is the application coordination layer. It owns application-level orchestration but does not become the owner of Character behavior, raw 3D bones, provider internals or UI presentation.
 
