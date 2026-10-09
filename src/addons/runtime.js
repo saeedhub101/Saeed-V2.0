@@ -20,11 +20,18 @@ function toolSchemas(userData){
  return out;
 }
 function resolveTool(userData,fullName){
- const m=String(fullName||"").match(/^addon_([a-z0-9][a-z0-9._-]{0,63})_(.+)$/i);
- if(!m)return null;
- const manifest=manager.describe(userData,m[1]);
- const tool=(manifest.tools||[]).find(x=>x.name===m[2]);
- return tool?{id:m[1],name:m[2],tool}:null;
+ const value=String(fullName||"");
+ if(!value.startsWith("addon_"))return null;
+ const ids=capabilities.list(userData).map(item=>String(item.id||"")).filter(Boolean).sort((a,b)=>b.length-a.length);
+ for(const id of ids){
+  const prefix="addon_"+id+"_";
+  if(!value.startsWith(prefix))continue;
+  const name=value.slice(prefix.length);
+  const manifest=manager.describe(userData,id);
+  const tool=(manifest.tools||[]).find(x=>x.name===name);
+  if(tool)return{id,name,tool};
+ }
+ return null;
 }
 async function callTool(userData,fullName,args={}){
  const resolved=resolveTool(userData,fullName);
