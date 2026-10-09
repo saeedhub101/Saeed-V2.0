@@ -75,6 +75,7 @@ jobs:
             "src/addons/email-account-store.js"
             "src/addons/email-client.js"
             "scripts/ci-email-protocol.js"
+            "scripts/ci-html-script-syntax.js"
             "src/main/brain/brain.js"
             "src/main/brain/model-executor.js"
             "src/main/ci-e2e.js"
