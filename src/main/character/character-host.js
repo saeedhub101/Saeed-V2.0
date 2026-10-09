@@ -26,7 +26,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
    if(!sendPendingCharacterDataToCharacterWindow(target)){clearTimeout(timer);loadWaiters.delete(generation);resolve({ok:false,generation,error:"Character GLB could not be delivered to the renderer"});return}
    sendPendingCharacterData();
   });
-  if(result?.ok!==true||Number(result?.boneCount)<1){
+  if(result?.ok!==true||Number(result?.boneCount)<1||Number(result?.meshCount)<1){
    pendingCharacterData=timeoutRestoredPending||previousPending;
    diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a real skeleton; previous character retained",{name,generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}});
    return{ok:false,error:result?.error||"Candidate did not expose a real skeleton; previous character retained",generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}};
