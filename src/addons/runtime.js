@@ -22,7 +22,7 @@ function toolSchemas(userData){
 function resolveTool(userData,fullName){
  const m=String(fullName||"").match(/^addon_([a-z0-9][a-z0-9._-]{0,63})_(.+)$/i);
  if(!m)return null;
- const manifest=manager.load(userData,m[1]);
+ const manifest=manager.describe(userData,m[1]);
  const tool=(manifest.tools||[]).find(x=>x.name===m[2]);
  return tool?{id:m[1],name:m[2],tool}:null;
 }
