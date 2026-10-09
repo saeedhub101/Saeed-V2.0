@@ -160,6 +160,7 @@ must(read("src/main/character/character-host.js").includes("characterLoadGenerat
 must(read("src/character/CharacterEngine.js").includes("boneRest.set"),"CharacterEngine does not capture GLB rest pose");
 const glbValidation=read("src/main/character/glb-validation.js");
 must(glbValidation.includes("GLB first chunk is not JSON")&&glbValidation.includes("asset.version"),"GLB candidate structural validation is missing");
+must(glbValidation.includes("sceneMeshCount<1")&&glbValidation.includes("sceneSkinnedMeshCount<1")&&read("scripts/ci-glb-candidate-validation.js").includes("no skinned character mesh"),"GLB validation must reject candidates without an active-scene skinned mesh");
 must(read("src/main/character/character-store.js").includes("validateGlbCandidate(data)")&&read("src/main/character/character-store.js").includes("fs.renameSync(temporary,file)"),"Persisted GLB is not validated and atomically replaced");
 must(read("src/main/character/character-host.js").includes("loadCandidateCharacter")&&read("src/main/character/character-host.js").includes("character:load-result"),"Character replacement does not wait for renderer-confirmed load and skeleton readiness");
 must(read("src/main/conversation/conversation-agent.js").includes("invalidateRequests()")&&read("src/main/conversation/conversation-agent.js").includes("if(!isCurrent()||result?.stale)return"),"Conversation changes do not invalidate stale replies");
