@@ -403,8 +403,10 @@ async function load(data,generation){
   traceGlb("parse-success",{generation,hasScene:Boolean(parsed?.scene),sceneName:parsed?.scene?.name||""});
   if(!parsed?.scene)throw new Error("GLB parsed without a renderable scene");
   const candidateBoneCount=getSceneBoneGroups(parsed.scene).size;
+  const candidateMeshCount=countSceneMeshes(parsed.scene);
   if(candidateBoneCount<1)throw new Error("GLB candidate has no actual THREE.Bone skeleton; current character preserved");
-  if(generation===loadGeneration){traceGlb("generation-accepted",{generation,boneCount:candidateBoneCount});display(parsed);return{ok:true,generation,boneCount:candidateBoneCount,meshCount:countSceneMeshes(parsed.scene)}}
+  if(candidateMeshCount<1)throw new Error("GLB candidate has no renderable mesh in its active scene; current character preserved");
+  if(generation===loadGeneration){traceGlb("generation-accepted",{generation,boneCount:candidateBoneCount,meshCount:candidateMeshCount});display(parsed);return{ok:true,generation,boneCount:candidateBoneCount,meshCount:candidateMeshCount}}
   traceGlb("generation-rejected",{generation,currentGeneration:loadGeneration});
   return{ok:false,stale:true,generation,error:"GLB load was superseded by a newer character generation"};
  }catch(error){
