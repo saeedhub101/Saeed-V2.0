@@ -191,3 +191,5 @@ $("characterSemanticRun")?.addEventListener("click",async()=>{const intent=$("ch
 
 $("testBrainApi")?.addEventListener("click",()=>testApi("brain"));
 $("realtimeProvider2")?.addEventListener("change",()=>{const p=$("realtimeProvider2").value,d=p==="gemini"?{model:"gemini-3.8-live",voice:"Puck"}:{model:"gpt-realtime-2.1",voice:"marin"};$("realtimeModel2").value=d.model;$("realtimeVoice2").value=d.voice;});
+
+window.addEventListener("focus",()=>{void loadAddonBrainProviders()});
