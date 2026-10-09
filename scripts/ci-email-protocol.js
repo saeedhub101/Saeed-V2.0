@@ -3,7 +3,7 @@ const net=require("node:net");
 const {pop3ListMessages,pop3Fetch}=require("../src/addons/email-client");
 
 async function main(){
- const commands=[];
+ const commands=[];let cancelOnUser=false,current=true;
  const server=net.createServer(socket=>{
   socket.write("+OK Saeed POP3 test server ready\r\n");
   let buffer="";
@@ -12,7 +12,7 @@ async function main(){
    let at;
    while((at=buffer.indexOf("\r\n"))>=0){
     const line=buffer.slice(0,at);buffer=buffer.slice(at+2);commands.push(line);
-    if(line.startsWith("USER "))socket.write("+OK user accepted\r\n");
+    if(line.startsWith("USER ")){if(cancelOnUser)current=false;socket.write("+OK user accepted\r\n")}
     else if(line.startsWith("PASS "))socket.write("+OK authenticated\r\n");
     else if(line==="STAT")socket.write("+OK 2 123\r\n");
     else if(line==="LIST")socket.write("+OK scan listing follows\r\n1 80\r\n2 43\r\n.\r\n");
@@ -33,7 +33,10 @@ async function main(){
   assert.ok(commands.includes("RETR 2"),"POP3 fetch must issue RETR for the selected message");
   await assert.rejects(()=>pop3Fetch(config,0),/positive integer/,"invalid POP3 indexes must be rejected before network access");
   await assert.rejects(()=>pop3ListMessages({...config,username:"bad\r\nQUIT"}),/forbidden line break/,"POP3 credentials must not permit command injection");
-  console.log("EMAIL_PROTOCOL=PASS (POP3 listing, retrieval, dot-stuffing, index validation, credential command-injection guard)");
+  const beforeCancel=commands.length;cancelOnUser=true;current=true;
+  await assert.rejects(()=>pop3ListMessages({...config,isCurrent:()=>current}),/cancelled/,"POP3 operations must stop when the owning request is cancelled");
+  assert.equal(commands.slice(beforeCancel).some(line=>line.startsWith("PASS ")),false,"cancelled POP3 authentication must not send the password");
+  console.log("EMAIL_PROTOCOL=PASS (POP3 listing, retrieval, dot-stuffing, index validation, command-injection guard, cancellation)");
  }finally{
   await new Promise(resolve=>server.close(()=>resolve()));
  }
