@@ -31,7 +31,7 @@ class Brain{
   if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};
   const learned=learning().match(this.getDir(),s);
   if(learned){
-   try{const result=await learning().run(this.getDir(),this.registry,learned);if(!current())return{handled:true,answer:"",source:"stale",stale:true};return{handled:true,answer:"Done — I followed the learned skill: "+learned.name+".",source:"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
+   try{const result=await learning().run(this.getDir(),this.registry,learned,{isCurrent:current});if(!current()||result?.stale)return{handled:true,answer:"",source:"stale",stale:true};return{handled:true,answer:"Done — I followed the learned skill: "+learned.name+".",source:"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
    catch(e){emit({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}})}
   }
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
