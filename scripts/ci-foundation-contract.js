@@ -22,12 +22,12 @@ must(trayControls.includes('label:"Learning / Teach Mode",click:showLearning'),"
 const studio=read("src/character-studio.html");
 const engine=read("src/character/CharacterEngine.js");
 const controller=read("src/character/CharacterController.js");
-const characterHost=read("src/main/character/character-host.js");
+const characterHostForChecks=read("src/main/character/character-host.js");
 for(const [name,src,tokens] of [
  ["GLB engine",engine,["GLTFLoader","getCharacterPoseStatus","getAvailableBoneNames","setBoneEditorRotation"]],
  ["Character controller",controller,["saveRestPose","defineMotion","play("]],
  ["Character Studio",studio,["setBoneEditorRotation","saveRestPose","resetBoneToRest","defineMotion","loadMotion"]],
- ["Character host",characterHost,['"setBoneEditorRotation"','"saveRestPose"','"resetBoneToRest"']]
+ ["Character host",characterHostForChecks,['"setBoneEditorRotation"','"saveRestPose"','"resetBoneToRest"']]
 ])for(const token of tokens)must(src.includes(token),name+" missing required GLB/rig/rest-pose/animation contract: "+token);
 must(read("src/main/ci-e2e.js").includes("character.studio-editor-world-axis-rotation"),"World-axis character editing E2E is missing");
 must(read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"),"Nested-axis stability E2E is missing");
