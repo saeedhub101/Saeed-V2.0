@@ -26,13 +26,13 @@ const glbBytesTest=read("scripts/ci-glb-bytes.js");
 const packageJson=read("package.json");
 must(engine.includes('import {normalizeGlbArrayBuffer} from "./glb-bytes.js"')&&engine.includes("normalizeGlbArrayBuffer(data)"),"CharacterEngine does not use the canonical GLB byte normalizer");
 must(engine.includes("candidateMeshCount=countSceneMeshes(parsed.scene)")&&engine.includes("no renderable mesh in its active scene"),"CharacterEngine must reject invisible GLB candidates before replacing the current character");
-must(!characterHostForChecks.includes("!(Number(result?.boneCount)>=1)")&&characterHostForChecks.includes("!(Number(result?.meshCount)>=1)"),"Character host must accept visible meshes without requiring a skeleton");
 must(glbBytes.includes("ArrayBuffer.isView(value)")&&glbBytes.includes("value.byteOffset")&&glbBytes.includes("missing glTF magic"),"GLB byte normalization does not protect typed-array offsets and binary headers");
 must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&packageJson.includes("node scripts/ci-glb-bytes.js"),"GLB byte normalization regression tests are not wired into npm test");
 must(exists("scripts/ci-authoritative-glb-rig.js")&&packageJson.includes("node scripts/ci-authoritative-glb-rig.js"),"Authoritative GLB rig mapping test is not wired into npm test");
 const controller=read("src/character/CharacterController.js");
 must(read("src/character/AutoRigMapper.js").includes("const REQUIRED_RIG=[]")&&read("src/character/AutoRigMapper.js").includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("missingRequiredSlots(mapped)"),"Rig mapping must allow partial skeletons without mandatory logical joints");
 const characterHostForChecks=read("src/main/character/character-host.js");
+must(!characterHostForChecks.includes("!(Number(result?.boneCount)>=1)")&&characterHostForChecks.includes("!(Number(result?.meshCount)>=1)"),"Character host must accept visible meshes without requiring a skeleton");
 for(const [name,src,tokens] of [
  ["GLB engine",engine,["GLTFLoader","getCharacterPoseStatus","getAvailableBoneNames","setBoneEditorRotation"]],
  ["Character controller",controller,["saveRestPose","defineMotion","play("]],
