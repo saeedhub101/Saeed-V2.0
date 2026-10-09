@@ -485,7 +485,8 @@ function setBoneEditorRotation(name,rotation={}){
  const parentQ=new THREE.Quaternion();
  const inverseParentQ=new THREE.Quaternion();
  for(const b of list){
-  b.parent?.getWorldQuaternion?.(parentQ.identity());
+  parentQ.identity();
+  b.parent?.getWorldQuaternion?.(parentQ);
   inverseParentQ.copy(parentQ).invert();
   // Compose against the immutable Rest Pose world orientation. This keeps the
   // editor's axes stable even after an ancestor bone has been edited.
