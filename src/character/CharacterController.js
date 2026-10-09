@@ -243,7 +243,7 @@ export class CharacterController{
    this.characterId=profileId;
    const missingRequired=missingRequiredSlots(mapped);
    this.rigReady=Object.keys(mapped).length>0;
-   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"Character rig is missing required joints: "+missingRequired.join(", "),missingRequired,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
+   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?(missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined):"No logical joints could be mapped",missingRequired,partial:missingRequired.length>0,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
    if(this.characterId){
     const restPose=savedRestPose||{
      normalization:this.engine?.getRestPoseNormalization?.()||null,
