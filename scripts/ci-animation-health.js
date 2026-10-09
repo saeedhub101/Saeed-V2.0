@@ -147,7 +147,8 @@ gate("GLB loader is present",exists("src/three/GLTFLoader.js")&&engine.includes(
 gate("authoritative GLB has valid binary structure and skinned joints",glbInspection.ok,glbInspection.error||JSON.stringify(glbInspection));
 gate("GLB load path exposes character pose status",engine.includes("getCharacterPoseStatus")&&engine.includes("getAvailableBoneNames"));
 gate("rig mapper and rig binder are present",exists("src/character/AutoRigMapper.js")&&exists("src/character/CharacterRig.js")&&mapper.length>100&&rig.length>100);
-gate("partial humanoid rigs remain valid",mapper.includes("const REQUIRED_RIG=[]")&&mapper.includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("missingRequiredSlots(mapped)"));
+gate("partial humanoid rigs remain valid",mapper.includes("const REQUIRED_RIG=[]")&&mapper.includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("Partial rig: missing")&&controller.includes("Object.keys(mapped).length>0"));
+ gate("mesh-only GLB is accepted as a static character",engine.includes("candidateMeshCount<1")&&!engine.includes("candidateBoneCount<1")&&controller.includes("visible as a static mesh"));
 gate("rest-pose save and reset paths exist",controller.includes("saveRestPose")&&controller.includes("resetBoneToRest")&&engine.includes("setBoneEditorRotation"));
 gate("world-axis editor rotation is exposed end-to-end",studio.includes("setBoneEditorRotation")&&host.includes('"setBoneEditorRotation"')&&client.includes("setBoneEditorRotation"));
 gate("animation editing and playback are connected",studio.includes("defineMotion")&&studio.includes("loadMotion")&&controller.includes("defineMotion")&&controller.includes("play(")&&editor.length>100);
