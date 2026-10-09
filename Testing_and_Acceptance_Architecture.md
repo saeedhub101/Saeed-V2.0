@@ -9,6 +9,19 @@ A build that compiles is not a complete Saeed build.
 Acceptance requires architecture conformance, automated tests and installed-runtime verification.
 
 ## 2. Verification layers
+## Current mandatory character verification
+
+The current test pipeline includes static contracts plus packaged-runtime E2E. The following are required gates, not diagnostic-only suggestions:
+
+- GLB loader and current bundled character path exist; GLB delivery is generation-guarded and invalid replacements must not silently displace a working character.
+- A loaded model exposes real skeleton/bone names and a usable rig mapping; an empty mapping or unavailable skeleton is a failed character test.
+- Character Studio opens in the packaged application and exposes bones, mapping status, Rest Pose controls, animation controls, and face/finger controls.
+- World-axis bone rotation and nested-parent axis stability are exercised by E2E checks against the live character and reset to Rest Pose afterward.
+- Rest Pose save/reset/normalization verify persisted state and runtime application, not merely button clicks or success-shaped responses.
+- Motion definitions are parsed and validated, saved through the character profile path, listed again, played on the live character, and safely stopped/deleted.
+- Add-ons and Learning windows open from the taskbar/tray menu and expose their actual page controls.
+- Optional microphone transcript-label state persists across restarts; realtime and local STT results reach the label only when enabled.
+
 
 ### Gate A — Architecture
 Verify ownership rules, duplicate-system prevention, semantic boundaries, lifecycle rules, security boundaries, Character independence and provider independence.
