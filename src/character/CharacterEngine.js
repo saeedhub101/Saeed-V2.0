@@ -365,18 +365,28 @@ function ensureControllerBinding(attempt=0){
  const controller=window.saeedCharacterRuntime?.controller;
  if(!model||!controller){if(attempt<40)setTimeout(()=>ensureControllerBinding(attempt+1),125);return false;}
  const names=getSceneBones().map(b=>b.name).filter(Boolean);
- if(!names.length){if(attempt<40)setTimeout(()=>ensureControllerBinding(attempt+1),125);return false;}
  try{
+  // A visible mesh is a successfully loaded character even when it has no rig.
+  // Always notify the controller so it can report static-mesh capability instead
+  // of silently returning before the character-loaded event is emitted.
   const status=controller.status?.();
-  if(status?.characterLoaded&&Object.keys(status?.autoRig||{}).length){
-   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:names.length,mapped:Object.keys(status.autoRig||{}).length}}));
+  if(names.length&&status?.characterLoaded&&Object.keys(status?.autoRig||{}).length){
+   const mapped=Object.keys(status.autoRig||{}).length;
+   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:names.length,mapped,rigAvailable:true,staticMesh:false}}));
    return true;
   }
   const result=controller.onCharacterLoaded?.();
-  const mapped=Object.keys(result?.mapping||result?.rig?.bones||{}).length;
-  traceGlb("controller-bind",{attempt,boneCount:names.length,mapped,loaded:Boolean(result?.loaded),reason:result?.reason||null});
-  if(result?.loaded){
-   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:names.length,mapped}}));
+  const mapped=Object.keys(result?.mapping||result?.rig?.bones||{}).length||Number(result?.mappedBoneCount)||0;
+  const staticMesh=names.length===0&&Boolean(result?.loaded&&result?.staticMesh);
+  traceGlb("controller-bind",{attempt,boneCount:names.length,mapped,loaded:Boolean(result?.loaded),staticMesh,reason:result?.reason||null});
+  if(result?.loaded&&(mapped>0||staticMesh)){
+   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:names.length,mapped,rigAvailable:mapped>0,staticMesh}}));
+   return true;
+  }
+  // Keep retrying rig binding for partial/unusual skeletons, but never suppress
+  // scene readiness: the GLB has already been parsed, displayed and rendered.
+  if(!names.length){
+   window.dispatchEvent(new CustomEvent("saeed-character-loaded",{detail:{generation:loadGeneration,boneCount:0,mapped:0,rigAvailable:false,staticMesh:true,reason:result?.reason||"Visible static mesh; no skeleton bones"}}));
    return true;
   }
  }catch(error){traceGlb("controller-bind-error",{attempt,error:error?.stack||error?.message||String(error)});}
