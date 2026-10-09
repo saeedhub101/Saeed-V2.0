@@ -385,18 +385,18 @@ function createCiE2E(deps={}){
     const [slot,bone]=slots.find(([s])=>/upperarm|forearm|hips|spine/i.test(s))||slots[0];
     const original=status.actualBones[bone].rotation;
     const target={x:Number(original.x||0)+.19,y:Number(original.y||0)-.12,z:Number(original.z||0)+.08};
+    const motionId="ciRestartPersistenceMotion";
+    fs.mkdirSync(path.dirname(statePath),{recursive:true});
+    fs.writeFileSync(statePath,JSON.stringify({version:1,bone,slot,target,original,motionId,preparedAt:new Date().toISOString()},null,2),"utf8");
     const set=await execJs(w,'(async()=>window.saeed.character.characterController({action:"setBoneRotation",bone:'+JSON.stringify(bone)+',rotation:'+JSON.stringify(target)+'}))()',true);
     const saved=await execJs(w,'(async()=>window.saeed.character.characterController({action:"saveRestPose"}))()',true);
     const after=await execJs(w,'(async()=>window.saeed.character.characterController({action:"status"}))()',true);
     const actual=after?.status?.actualBones?.[bone]?.rotation||{};
     save("rest-pose-saved-before-shutdown",Boolean(set?.ok&&saved?.ok&&saved?.persisted&&close(actual.x,target.x)&&close(actual.y,target.y)&&close(actual.z,target.z)),{bone,slot,target,actual,persisted:Boolean(saved?.persisted)});
-    const motionId="ciRestartPersistenceMotion";
     const motion={id:motionId,duration:1,layer:"arms",loop:false,keyframes:[{time:0,pose:{[slot]:{x:0,y:0,z:0}}},{time:.45,pose:{[slot]:{x:.35,y:.25,z:-.15}}},{time:1,pose:{[slot]:{x:0,y:0,z:0}}}]};
     const defined=await execJs(w,'(async()=>window.saeed.character.characterController({action:"defineMotion",motion:'+JSON.stringify(motion)+'}))()',true);
     const listed=await execJs(w,'(async()=>window.saeed.character.characterController({action:"listMotions"}))()',true);
     save("motion-saved-before-shutdown",Boolean(defined?.ok&&(listed?.motions||[]).some(x=>x.id===motionId)),{motionId,defined:defined?.ok===true,listed:(listed?.motions||[]).some(x=>x.id===motionId)});
-    fs.mkdirSync(path.dirname(statePath),{recursive:true});
-    fs.writeFileSync(statePath,JSON.stringify({version:1,bone,slot,target,original,motionId,preparedAt:new Date().toISOString()},null,2),"utf8");
     result.pass=Object.values(result.checks).every(x=>x.pass);result.statePath=statePath;
    }else if(phase==="verify"){
     if(!fs.existsSync(statePath))throw new Error("Prepare-phase state file is missing: "+statePath);
