@@ -19,7 +19,7 @@ class ToolRegistry{
   if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget","memory_add","memory_search","knowledge_add"].includes(name))return"tasksMemory";
   if(["mcp_list_servers","mcp_list_tools","mcp_call_tool"].includes(name))return"mcp";
   if(/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(name))return"addons";
-  if(["email_provider_info","email_test_connection","email_imap_folders","email_imap_search","email_imap_fetch"].includes(name))return"network";
+  if(["email_provider_info","email_test_connection","email_imap_folders","email_imap_search","email_imap_fetch","email_pop3_list","email_pop3_fetch"].includes(name))return"network";
   if(name==="email_send")return"credentials";
   if(name==="remove_task")return"destructive";
   return"system";
