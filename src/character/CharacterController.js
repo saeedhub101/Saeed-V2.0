@@ -99,7 +99,7 @@ export class CharacterController{
    this.rigReady=missingRequired.length===0;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
    this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
-   this.lastBindingResult={loaded:missingRequired.length===0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,reason:missingRequired.length?"Character rig is missing required joints: "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
+   this.lastBindingResult={loaded:mappedBoneCount>0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,partial:missingRequired.length>0,reason:missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
    return this.lastBindingResult;
   }finally{this.binding=false;}
  }
