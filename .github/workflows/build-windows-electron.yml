@@ -143,6 +143,11 @@ jobs:
         timeout-minutes: 18
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite current
 
+      - name: Verify Rest Pose and motion persistence across full application restart
+        shell: pwsh
+        timeout-minutes: 10
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-character-persistence.ps1 -Suite current
+
       - name: Verify installer, acceptance report and create update metadata
         shell: pwsh
         run: |
@@ -215,6 +220,12 @@ jobs:
             dist/ci-e2e-current-acceptance.json
             dist/ci-e2e-current-acceptance.json.startup.json
             dist/ci-e2e-current-acceptance.json.runner-failure.json
+            dist/ci-e2e-persistence-prepare.json
+            dist/ci-e2e-persistence-prepare.json.startup.json
+            dist/ci-e2e-persistence-verify.json
+            dist/ci-e2e-persistence-verify.json.startup.json
+            ${{ runner.temp }}/saeed-persistence-*.stdout.log
+            ${{ runner.temp }}/saeed-persistence-*.stderr.log
             dist/icons/*
             dist/addons/*.zip
             ci-reports/current-acceptance.json
