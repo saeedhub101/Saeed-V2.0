@@ -69,6 +69,6 @@ Establish the contracts required by later phases:
 
 ## Exit criteria
 
-Phase 1 is complete when the foundation is coherent and the application can enter Phase 2 without requiring a second architectural cleanup pass.
+Phase 1 is complete when the foundation is coherent enough to support the already-active runtime, intelligence, and product work without requiring a second architectural cleanup pass.
 
 A successful Phase 1 does **not** mean Saeed V2.0 is finished.
