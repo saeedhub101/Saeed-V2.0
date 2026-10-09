@@ -29,6 +29,8 @@ must(engine.includes("candidateMeshCount=countSceneMeshes(parsed.scene)")&&engin
 must(characterHostForChecks.includes("Number(result?.meshCount)<1"),"Character host must not persist a GLB without a visible mesh and real skeleton");
 must(glbBytes.includes("ArrayBuffer.isView(value)")&&glbBytes.includes("value.byteOffset")&&glbBytes.includes("missing glTF magic"),"GLB byte normalization does not protect typed-array offsets and binary headers");
 must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&packageJson.includes("node scripts/ci-glb-bytes.js"),"GLB byte normalization regression tests are not wired into npm test");
+must(exists("scripts/ci-authoritative-glb-rig.js")&&packageJson.includes("node scripts/ci-authoritative-glb-rig.js"),"Authoritative GLB rig mapping test is not wired into npm test");
+must(read("src/character/AutoRigMapper.js").includes('const REQUIRED_RIG=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"]')&&controller.includes("missingRequiredSlots(mapped)"),"Required humanoid joints are not enforced by the rig controller");
 const controller=read("src/character/CharacterController.js");
 const characterHostForChecks=read("src/main/character/character-host.js");
 for(const [name,src,tokens] of [
