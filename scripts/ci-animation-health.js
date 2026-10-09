@@ -10,7 +10,7 @@ const exists=p=>fs.existsSync(path.join(root,p));
 function check(name,ok,detail){checks.push({name,pass:!!ok,detail:detail||""});if(!ok)failures.push({name,detail:detail||""});}
 function warn(name,detail){warnings.push({name,detail});console.log("ANIMATION WARNING:",name,"-",detail);}
 function fileTokens(file,tokens){const s=read(file);for(const t of tokens)check(file+" contains "+t,s.includes(t),"missing token");return s;}
-console.log("=== SAeed AI ANIMATION HEALTH — DIAGNOSTIC ONLY ===");
+console.log("=== SAEED AI CHARACTER / GLB HEALTH ===");
 
 // 1. Required animation modules.
 const required=[
@@ -117,7 +117,34 @@ const host=exists("src/main/character/character-host.js")?read("src/main/charact
 const mapper=exists("src/character/AutoRigMapper.js")?read("src/character/AutoRigMapper.js"):"";
 const rig=exists("src/character/CharacterRig.js")?read("src/character/CharacterRig.js"):"";
 const editor=exists("src/character/MotionEditor.js")?read("src/character/MotionEditor.js"):"";
+// Inspect the actual bundled GLB binary, not just source-code names.
+let glbInspection={ok:false,error:"Authoritative GLB missing"};
+try{
+ const glbPath=path.join(root,"assets","Saeed_AI-3D.glb");
+ if(!fs.existsSync(glbPath))throw new Error("assets/Saeed_AI-3D.glb does not exist");
+ const bytes=fs.readFileSync(glbPath);
+ if(bytes.length<20)throw new Error("GLB is shorter than its minimum header and JSON chunk");
+ if(bytes.toString("ascii",0,4)!=="glTF")throw new Error("GLB magic header is invalid");
+ const version=bytes.readUInt32LE(4),declaredLength=bytes.readUInt32LE(8);
+ if(version!==2)throw new Error("Expected GLB version 2, got "+version);
+ if(declaredLength!==bytes.length)throw new Error("GLB declared length "+declaredLength+" differs from actual "+bytes.length);
+ const jsonLength=bytes.readUInt32LE(12),jsonType=bytes.readUInt32LE(16);
+ if(jsonType!==0x4E4F534A)throw new Error("First GLB chunk is not JSON");
+ if(jsonLength<2||20+jsonLength>bytes.length)throw new Error("GLB JSON chunk bounds are invalid");
+ const gltf=JSON.parse(bytes.toString("utf8",20,20+jsonLength).replace(/\\u0000+$/g,"").trim());
+ const nodes=Array.isArray(gltf.nodes)?gltf.nodes:[];
+ const skins=Array.isArray(gltf.skins)?gltf.skins:[];
+ const badJoints=skins.flatMap((skin,skinIndex)=>(skin.joints||[]).filter(j=>!Number.isInteger(j)||j<0||j>=nodes.length).map(j=>({skinIndex,joint:j})));
+ if(!nodes.length)throw new Error("GLB JSON contains no nodes");
+ if(!skins.length)throw new Error("GLB JSON contains no skinned rig");
+ if(!skins.some(s=>Array.isArray(s.joints)&&s.joints.length>0))throw new Error("GLB skins have no joints");
+ if(badJoints.length)throw new Error("GLB contains invalid skin joint references: "+JSON.stringify(badJoints.slice(0,8)));
+ glbInspection={ok:true,path:"assets/Saeed_AI-3D.glb",bytes:bytes.length,version,nodes:nodes.length,skins:skins.length,joints:skins.reduce((n,s)=>n+(s.joints?.length||0),0),animations:(gltf.animations||[]).length,sceneRoots:(gltf.scenes||[]).reduce((n,s)=>n+(s.nodes?.length||0),0)};
+}catch(error){glbInspection={ok:false,error:String(error?.message||error)}}
+checks.push({name:"authoritative GLB binary inspection",pass:glbInspection.ok,detail:glbInspection});
+if(!glbInspection.ok)failures.push({name:"authoritative GLB binary inspection",detail:glbInspection.error});
 gate("GLB loader is present",exists("src/three/GLTFLoader.js")&&engine.includes("GLTFLoader"));
+gate("authoritative GLB has valid binary structure and skinned joints",glbInspection.ok,glbInspection.error||JSON.stringify(glbInspection));
 gate("GLB load path exposes character pose status",engine.includes("getCharacterPoseStatus")&&engine.includes("getAvailableBoneNames"));
 gate("rig mapper and rig binder are present",exists("src/character/AutoRigMapper.js")&&exists("src/character/CharacterRig.js")&&mapper.length>100&&rig.length>100);
 gate("rest-pose save and reset paths exist",controller.includes("saveRestPose")&&controller.includes("resetBoneToRest")&&engine.includes("setBoneEditorRotation"));
