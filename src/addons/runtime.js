@@ -33,14 +33,15 @@ function resolveTool(userData,fullName){
  }
  return null;
 }
-async function callTool(userData,fullName,args={}){
+async function callTool(userData,fullName,args={},options={}){
  const resolved=resolveTool(userData,fullName);
  if(!resolved)throw new Error("Unknown add-on tool: "+fullName);
  const provider=load(userData,resolved.id);
  if(!provider)throw new Error("Add-on "+resolved.id+" has no runtime entry");
- if(typeof provider["tool_"+resolved.name]==="function")return provider["tool_"+resolved.name](args);
- if(typeof provider.callTool==="function")return provider.callTool(resolved.name,args);
- if(provider.tools&&typeof provider.tools[resolved.name]==="function")return provider.tools[resolved.name](args);
+ const context=Object.freeze({isCurrent:typeof options.isCurrent==="function"?options.isCurrent:()=>true,signal:options.signal||null,addonId:resolved.id,toolName:resolved.name});if(!context.isCurrent())return{ok:false,stale:true,error:"Stale conversation request cancelled"};
+ if(typeof provider["tool_"+resolved.name]==="function")return provider["tool_"+resolved.name](args,context);
+ if(typeof provider.callTool==="function")return provider.callTool(resolved.name,args,context);
+ if(provider.tools&&typeof provider.tools[resolved.name]==="function")return provider.tools[resolved.name](args,context);
  throw new Error("Add-on "+resolved.id+" does not implement tool "+resolved.name);
 }
 async function call(userData,capability,method,args={},preferred=null){const info=find(userData,capability,preferred);if(!info)return null;const provider=load(userData,info.id);if(!provider||typeof provider[method]!=="function")throw new Error("Add-on "+info.id+" does not provide "+method+"()");return provider[method](args)}
