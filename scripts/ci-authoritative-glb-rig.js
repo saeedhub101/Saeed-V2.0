@@ -24,6 +24,9 @@ async function main(){
   const required=requiredRigSlots(),optional=optionalRigSlots();
   assert.deepEqual(required,[],"no logical joint may be mandatory for rendering");
   assert.ok(optional.length>0,"available logical joints must remain mappable");
+  const singleBoneMapping=autoMapBones(["Hips"]).mapping;
+  assert.equal(singleBoneMapping.hips,"Hips","a one-bone partial skeleton must map its available hips joint");
+  assert.ok(Object.keys(singleBoneMapping).length>0,"partial rigs must expose their available mapped joints instead of being rejected");
   for(const [slot,name] of Object.entries(mapping))assert.ok(names.includes(name),"mapped "+slot+" must refer to an actual named bone");
   const meshNodes=doc.nodes.filter(n=>Number.isInteger(n.mesh));
   assert.ok(meshNodes.length>0,"authoritative GLB must expose a mesh node");
