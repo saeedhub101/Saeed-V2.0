@@ -110,7 +110,7 @@ Provide an optional, permission-controlled email capability using IMAP for mailb
 
 ## Source implementation updates — 2026-10-10
 
-- The central Tool Registry now validates declared tool argument schemas before permission prompts or execution, including required fields, types, enums, numeric/string bounds, and nested arrays/objects. Installed add-on tools are resolved and validated against their own manifest schemas through the same registry path.
+- The central Tool Registry now validates declared tool argument schemas before permission prompts or execution, including required fields, types, enums, numeric/string bounds, and nested arrays/objects. Installed add-on tools are discovered from metadata without loading their executable modules, then resolved and validated against their own manifest schemas through the same registry path; the runtime loads only after permission authorization.
 - Add-on LLM providers now support bounded multi-step tool loops instead of stopping after one tool batch. Calls still pass through the central Tool Registry, and stale requests are discarded between provider and tool steps.
 - Model API requests now have an explicit timeout and are aborted when the conversation request becomes stale, including while the response body is being read.
 - Email SMTP delivery now supplies a validated envelope sender; email confirmation displays the actual body field and defaults the consequential send prompt to Deny.
