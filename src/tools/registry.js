@@ -1,3 +1,4 @@
+const {redactToolArgs}=require("./redact");
 const path=require("path"),{Computer}=require("../main/automation/computer");
 const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./addons")];
 class ToolRegistry{
@@ -19,7 +20,7 @@ class ToolRegistry{
   if(["mcp_list_servers","mcp_list_tools","mcp_call_tool"].includes(name))return"mcp";
   if(/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(name))return"addons";
   if(["email_provider_info","email_test_connection","email_imap_folders","email_imap_search","email_imap_fetch"].includes(name))return"network";
-  if(["email_send","credential_store","credential_get"].includes(name))return"credentials";
+  if(name==="email_send")return"credentials";
   if(name==="remove_task")return"destructive";
   return"system";
  }
@@ -28,7 +29,7 @@ class ToolRegistry{
   try{policy=typeof this.permissionPolicy==="function"?await this.permissionPolicy(category,request):"ask"}catch{return false}
   if(policy==="deny")return false;
   const name=String(request?.name||"");
-  const alwaysConfirm=new Set(["email_send","mcp_call_tool","credential_store"]);
+  const alwaysConfirm=new Set(["email_send","mcp_call_tool"]);
   if(policy==="allow"&&!alwaysConfirm.has(name))return true;
   try{return Boolean(await this.confirm({...request,permissionCategory:category}))}catch{return false}
  }
@@ -45,6 +46,6 @@ class ToolRegistry{
    return{ok:false,error:"Unknown tool: "+toolName}
   }catch(e){return{ok:false,error:e.message}}
  }
- record(name,args){if(this.recordHook)try{this.recordHook(name,args)}catch{}}
+ record(name,args){if(this.recordHook)try{this.recordHook(name,redactToolArgs(name,args))}catch{}}
 }
 module.exports={ToolRegistry};
