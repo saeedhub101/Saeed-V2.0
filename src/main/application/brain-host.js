@@ -1,11 +1,12 @@
 function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setAgent,setVoiceMuted,recordLearningStep}){
  let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
- const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions"};
+ const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions",mcp:"External MCP tool",addons:"Add-on capability"};
  const confirm=async({name,args,permissionCategory})=>{
   const label=labels[permissionCategory]||permissionCategory||"Permission";
   if(dialog?.showMessageBox){
-   const detail=String(args?.path||args?.command||args?.url||"").trim();
-   const result=await dialog.showMessageBox({type:"question",buttons:["Allow","Deny"],defaultId:0,cancelId:1,title:"Saeed Permission",message:"Allow Saeed to perform this action?",detail:label+(detail?"\n"+detail:"")});
+   let detail=String(args?.path||args?.command||args?.url||"").trim();
+   if(name==="email_send"){const to=[].concat(args?.to||[]).map(x=>String(x)).join(", "),subject=String(args?.subject||"(no subject)"),body=String(args?.message||"");detail="To: "+to+"\nSubject: "+subject+"\n\n"+body.slice(0,2500)+(body.length>2500?"\n… (message preview truncated)":"")}
+   const result=await dialog.showMessageBox({type:"question",buttons:["Allow","Deny"],defaultId:0,cancelId:1,title:"Saeed Permission",message:name==="email_send"?"Confirm sending this email?":"Allow Saeed to perform this action?",detail:label+(detail?"\n"+detail:"")});
    return result.response===0;
   }
   diagnostic("WARN","PERMISSION","No native confirmation dialog is available; operation denied",{name,permissionCategory});
