@@ -8,7 +8,7 @@ function createCiE2E(deps={}){
  const started=Date.now();
 
 
- const suiteFor=name=>{if(suiteArg==="current")return String(name).startsWith("acceptance.");if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="0")return n==="performance.character-save-rest-pose";if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2"||suiteArg==="3")return false;if(suiteArg==="4")return n.startsWith("glbtest.");if(suiteArg==="5")return n.startsWith("character.studio-");if(suiteArg==="6")return n==="character.normalize-humanoid-rest-pose-window";return true};
+ const suiteFor=name=>String(name).startsWith("acceptance.");
  const {AsyncLocalStorage}=require("async_hooks");
  const checkContext=new AsyncLocalStorage();
  const trace=[];
