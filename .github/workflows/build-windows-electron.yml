@@ -114,19 +114,22 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $root = "dist\win-unpacked\resources\app"
+          $asarPath = "dist\win-unpacked\resources\app.asar"
+          if (!(Test-Path $asarPath -PathType Leaf)) { throw "Packaged Electron archive is missing: $asarPath" }
+          $entries = @(& npx --no-install asar list $asarPath)
+          if ($LASTEXITCODE -ne 0 -or $entries.Count -eq 0) { throw "Could not inspect packaged app.asar." }
+          $normalizedEntries = @($entries | ForEach-Object { (($_ -replace '\\','/').TrimStart('/')) })
           $required = @(
-            "assets\Saeed_AI-3D.glb",
-            "src\main.js",
-            "src\preload.js",
-            "src\character\CharacterEngine.js",
-            "src\character\CharacterController.js",
-            "src\three\GLTFLoader.js",
-            "src\main\ci-e2e.js"
+            "assets/Saeed_AI-3D.glb",
+            "src/main.js",
+            "src/preload.js",
+            "src/character/CharacterEngine.js",
+            "src/character/CharacterController.js",
+            "src/three/GLTFLoader.js",
+            "src/main/ci-e2e.js"
           )
           foreach ($rel in $required) {
-            $p = Join-Path $root $rel
-            if (!(Test-Path $p -PathType Leaf)) { throw "Packaged core asset missing: $p" }
+            if ($normalizedEntries -notcontains $rel) { throw "Packaged app.asar is missing required resource: $rel" }
           }
           $whisperRoot = "dist\win-unpacked\resources\whisper"
           foreach ($rel in @("whisper-cli.exe","ggml-base-q5_1.bin")) {
