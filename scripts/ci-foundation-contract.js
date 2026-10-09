@@ -149,6 +149,7 @@ must(read("src/addons/credentials.js").includes("child.stdin.end(JSON.stringify(
 must(read("src/performance.html").includes('id="emailCredentialPassword"')&&read("src/preload.js").includes("storeEmailCredential:"),"Secure email credential setup UI/IPC is missing");
 must(read("src/main/runtime.js").includes('ipcMain.handle("email:credential:store"'),"Secure email credential IPC handler is missing");
 must(read("src/main/application/brain-host.js").includes("Confirm sending this email?"),"Email send confirmation does not show a send-specific confirmation");
+must(read("src/main/application/brain-host.js").includes("Confirm access to this mailbox?")&&read("src/main/application/brain-host.js").includes('detail+="\\nMailbox: "+mailbox'),"Email read confirmation must identify the mailbox being accessed");
 must(read("src/character/CharacterController.js").includes("AutonomousBehaviorController"),"Character autonomy ownership missing");
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle lifecycle contract missing");
 must(read("src/main/character/character-host.js").includes("characterLoadGeneration"),"Character stale-load generation guard missing");
