@@ -23,6 +23,8 @@ The four phases are **product-development phases**. They are not four repair pha
 
 ## Phase 1 — Foundation
 
+**Status:** Active — foundation conformance and remaining Phase 1 work are in progress. 
+
 Phase 1 contains the **current repair/conformance work**, but it is not only repair.
 
 ### Build
@@ -41,6 +43,8 @@ Only repair defects that block a coherent foundation or create duplicate ownersh
 The foundation is internally coherent, statically verifiable and ready for feature development.
 
 ## Phase 2 — Character & Realtime Experience
+
+**Status:** Active — current character, GLB, rigging, Rest Pose, animation and realtime voice work is in progress. 
 
 This is the first major feature-development phase.
 
@@ -83,6 +87,8 @@ This is the first major feature-development phase.
 Saeed becomes a convincing interactive 3D character that can listen, speak, move and react without requiring the Brain to control physical animation directly.
 
 ## Phase 3 — Intelligence & Capabilities
+
+**Status:** Active — current Brain, conversation, tools, permissions, learning and capability work is in progress. 
 
 ### Brain
 - one Brain per conversation;
@@ -133,6 +139,8 @@ Saeed becomes a convincing interactive 3D character that can listen, speak, move
 Saeed can understand a request, decide what is needed, safely use capabilities, verify the result and communicate it through Chat or Voice.
 
 ## Phase 4 — Product & Release
+
+**Status:** Active — current UX, reliability, packaging and release-readiness work is in progress. 
 
 ### Product UX
 - polished character controls;
