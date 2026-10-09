@@ -14,49 +14,22 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   const previousPending=pendingCharacterData;
   const generation=++characterLoadGeneration;
   const candidate=new Uint8Array(Buffer.from(data));
+  let timeoutRestoredPending=null;
   pendingCharacterData={data:candidate,generation};
   const result=await new Promise(resolve=>{
-   const timer=setTimeout(()=>{loadWaiters.delete(generation);pendingCharacterData=previousPending;if(previousPending?.data)sendCharacterData(previousPending.data);resolve({ok:false,generation,error:"Character renderer did not confirm the GLB load within 15 seconds; previous character restored"})},15000);
+   const timer=setTimeout(()=>{
+    loadWaiters.delete(generation);
+    if(previousPending?.data){const restoreGeneration=++characterLoadGeneration;timeoutRestoredPending={data:previousPending.data,generation:restoreGeneration};pendingCharacterData=timeoutRestoredPending;sendPendingCharacterDataToCharacterWindow(target);sendPendingCharacterData()}else pendingCharacterData=null;
+    resolve({ok:false,generation,error:"Character renderer did not confirm the GLB load within 15 seconds; previous character restored"});
+   },15000);
    loadWaiters.set(generation,value=>{clearTimeout(timer);resolve(value)});
    if(!sendPendingCharacterDataToCharacterWindow(target)){clearTimeout(timer);loadWaiters.delete(generation);resolve({ok:false,generation,error:"Character GLB could not be delivered to the renderer"});return}
    sendPendingCharacterData();
   });
   if(result?.ok!==true||Number(result?.boneCount)<1){
-   pendingCharacterData=previousPending;
-   diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a real skeleton; previous character retained",{name,generation,validation,result});
-   return{ok:false,error:result?.error||"Candidate did not expose a real skeleton; previous character retained",generation,validation,result};
-  }
-  const persisted=persistSelectedCharacter(candidate);
-  if(!persisted){
-   pendingCharacterData=previousPending;
-   if(previousPending?.data)sendCharacterData(previousPending.data);
-   return{ok:false,error:"Character loaded in memory but could not be saved; previous saved asset was retained",generation,validation};
-  }
-  const agent=getAgent();
-  if(agent){agent.settings={...agent.settings,selectedCharacterName:path.basename(name)};agent.persistSettings()}
-  diagnostic("INFO","GLB SELECTED","Character candidate loaded, skeleton-verified and saved",{name:path.basename(name),size:candidate.byteLength,persistedPath:persisted,boneCount:result.boneCount,meshCount:result.meshCount});
-  return{ok:true,name:path.basename(name),size:candidate.byteLength,persistedPath:persisted,generation,validation,boneCount:result.boneCount,meshCount:result.meshCount};
- }
- async function loadCandidateCharacter(data,name="character.glb"){
-  let validation;
-  try{validation=validateGlbCandidate(data)}catch(error){return{ok:false,error:error?.message||String(error)}}
-  let target=getCharacterWindow();
-  if(!target||target.isDestroyed())target=await createCharacterWindow();
-  if(!target||target.isDestroyed())return{ok:false,error:"Character window is unavailable"};
-  const previousPending=pendingCharacterData;
-  const generation=++characterLoadGeneration;
-  const candidate=new Uint8Array(Buffer.from(data));
-  pendingCharacterData={data:candidate,generation};
-  const result=await new Promise(resolve=>{
-   const timer=setTimeout(()=>{loadWaiters.delete(generation);pendingCharacterData=previousPending;if(previousPending?.data)sendCharacterData(previousPending.data);resolve({ok:false,generation,error:"Character renderer did not confirm the GLB load within 15 seconds; previous character restored"})},15000);
-   loadWaiters.set(generation,value=>{clearTimeout(timer);resolve(value)});
-   if(!sendPendingCharacterDataToCharacterWindow(target)){clearTimeout(timer);loadWaiters.delete(generation);resolve({ok:false,generation,error:"Character GLB could not be delivered to the renderer"});return}
-   sendPendingCharacterData();
-  });
-  if(result?.ok!==true||Number(result?.boneCount)<1){
-   pendingCharacterData=previousPending;
-   diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a real skeleton; previous character retained",{name,generation,validation,result});
-   return{ok:false,error:result?.error||"Candidate did not expose a real skeleton; previous character retained",generation,validation,result};
+   pendingCharacterData=timeoutRestoredPending||previousPending;
+   diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a real skeleton; previous character retained",{name,generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}});
+   return{ok:false,error:result?.error||"Candidate did not expose a real skeleton; previous character retained",generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}};
   }
   const persisted=persistSelectedCharacter(candidate);
   if(!persisted){
