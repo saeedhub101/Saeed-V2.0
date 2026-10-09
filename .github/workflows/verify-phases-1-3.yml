@@ -50,6 +50,12 @@ jobs:
         continue-on-error: true
         run: node scripts/ci-intelligence-security.js
 
+      - name: POP3 email protocol regression
+        id: email_protocol
+        if: always() && steps.install.outcome == 'success'
+        continue-on-error: true
+        run: node scripts/ci-email-protocol.js
+
       - name: JavaScript syntax checks
         id: syntax
         if: always() && steps.install.outcome == 'success'
@@ -109,13 +115,14 @@ jobs:
           GLB_CANDIDATE: ${{ steps.glb_candidate.outcome }}
           GLB_RIG: ${{ steps.glb_rig.outcome }}
           INTELLIGENCE: ${{ steps.intelligence.outcome }}
+          EMAIL_PROTOCOL: ${{ steps.email_protocol.outcome }}
           SYNTAX: ${{ steps.syntax.outcome }}
           ANIMATION: ${{ steps.animation.outcome }}
           ARCHITECTURE: ${{ steps.architecture.outcome }}
           FOUNDATION: ${{ steps.foundation.outcome }}
         run: |
           failed=0
-          for check in INSTALL GLB_BYTES GLB_CANDIDATE GLB_RIG INTELLIGENCE SYNTAX ANIMATION ARCHITECTURE FOUNDATION; do
+          for check in INSTALL GLB_BYTES GLB_CANDIDATE GLB_RIG INTELLIGENCE EMAIL_PROTOCOL SYNTAX ANIMATION ARCHITECTURE FOUNDATION; do
             value="${!check}"
             echo "$check=$value"
             if [ "$value" != "success" ]; then failed=1; fi
