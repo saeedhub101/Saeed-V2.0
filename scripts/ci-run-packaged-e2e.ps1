@@ -71,7 +71,7 @@ try {
 
   $r = Get-Content $report -Raw | ConvertFrom-Json
   Get-Content $report -Raw | Write-Host
-  $missing = @($required | Where-Object { -not $r.checks.PSObject.Properties.Name.Contains($_) })
+  $missing = @($required | Where-Object { $null -eq $r.checks.PSObject.Properties[$_] })
   $failed = @($required | Where-Object { $id=$_; $p=$r.checks.PSObject.Properties[$id]; -not $p -or $p.Value.pass -ne $true })
   if ($missing.Count -gt 0 -or $failed.Count -gt 0 -or $r.pass -ne $true) {
     Write-Host "MISSING_ACCEPTANCE_CHECKS=$($missing -join ',')"
