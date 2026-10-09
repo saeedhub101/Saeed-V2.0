@@ -223,6 +223,16 @@ Cross-cutting security, lifecycle and verification are implemented with the feat
 - Store credentials only through the established secret/settings boundary; never expose credentials in renderer logs or diagnostics.
 - Add account setup, connection status, mailbox listing, message reading, send confirmation, cancellation, timeout/retry handling, and provider-independent tests.
 
+#### Implementation added — 2026-10-09
+
+- Added separate, non-secret per-account server profiles for IMAP, POP3, and SMTP, with validated host/port/TLS settings.
+- Added Settings UI controls to save server profiles and test protocol authentication without sending a message.
+- Added POP3 message listing and retrieval tools, with message-index validation and dot-stuffing handling.
+- Added SMTP authentication verification, socket cleanup, request-cancellation checks, and corrected OAuth SASL control-byte encoding.
+- Added local protocol regression coverage for POP3, SMTP, server-profile persistence, command-injection rejection, cancellation, and message redaction. The suite is included in `npm test` and the manual no-build Phase 1–3 verification workflow.
+
+**Acceptance status: pending execution.** Source-level parsing and contract checks are not substitutes for running the regression suite and inspecting its results. Do not mark the email capability or any product phase complete until the manual verification and Windows packaged E2E reports pass.
+
 ### Optional microphone transcript label
 
 - Add a tray/taskbar toggle for a small optional label/bubble beneath Saeed.
