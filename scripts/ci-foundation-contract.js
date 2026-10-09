@@ -69,6 +69,9 @@ const characterClient=read("src/character/client.js");
 must(characterHost.includes('"setBoneEditorRotation"'),"Rest-relative editor rotation is missing from the skeleton-ready command allowlist");
 must(characterClient.includes('action==="setBoneEditorRotation"'),"Rest-relative editor rotation is missing from the client skeleton-ready action list");
 must(read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"),"Nested world-axis rotation regression test is missing");
+must(read("src/main/ci-e2e.js").includes("startup.addons-window-opens"),"Packaged E2E for Add-ons window visibility is missing");
+must(read("src/main/ci-e2e.js").includes("startup.learning-window-opens"),"Packaged E2E for Learning window visibility is missing");
+
 
 const preload=read("src/preload.js");
 for(const ns of ["system","character","voice","chat","tools"])must(preload.includes("\n "+ns+":{"),"Missing preload namespace: "+ns);
