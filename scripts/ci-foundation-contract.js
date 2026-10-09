@@ -117,6 +117,17 @@ for(const p of [...new Set(rendererFiles)]){
  must(!privileged,"Privileged Electron API detected in renderer file: "+p);
 }
 must(!preload.includes("window.saeedAvatar"),"Legacy avatar API exposed by preload");
+const registrySource=read("src/tools/registry.js");
+const permissionManagerSource=read("src/main/application/permission-manager.js");
+const settingsStoreSource=read("src/main/services/settings-store.js");
+must(registrySource.includes('require("./memory-tasks"),require("./addons")'),"Tool Registry does not route declared memory/email/MCP capabilities through the canonical dispatcher");
+must(!registrySource.includes('permissionPolicy=permissionPolicy||(()=> "allow")'),"Tool Registry must not default unknown permission policies to allow");
+must(registrySource.includes('new Set(["email_send","mcp_call_tool","credential_store"])'),"Sensitive email/MCP/credential tools do not require explicit confirmation");
+must(permissionManagerSource.includes('DEFAULT_PERMISSIONS[category]||"ask"'),"Unknown permission categories must fail closed to Always ask");
+must(permissionManagerSource.includes("No live confirmation surface; operation denied"),"Permission confirmation must fail closed without a live UI");
+must(settingsStoreSource.includes('files:"ask"')&&settingsStoreSource.includes('addons:"ask"')&&settingsStoreSource.includes('mcp:"ask"'),"New installations must default side-effecting/external capabilities to Always ask");
+must(read("src/performance.js").includes('execution:"ask",mcp:"ask",addons:"ask"'),"Performance UI does not expose the new secure permission categories");
+must(read("src/performance.html").includes('id="permission-mcp"')&&read("src/performance.html").includes('id="permission-addons"'),"Performance UI is missing MCP/add-on permission controls");
 must(read("src/character/CharacterController.js").includes("AutonomousBehaviorController"),"Character autonomy ownership missing");
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle lifecycle contract missing");
 must(read("src/main/character/character-host.js").includes("characterLoadGeneration"),"Character stale-load generation guard missing");
