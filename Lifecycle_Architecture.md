@@ -4,6 +4,22 @@
 
 This document is the strict lifecycle contract for Saeed V2.0.
 
+## Current implementation map (verified against the repository)
+
+These are current code locations, not a replacement for the lifecycle requirements in this document.
+
+- Electron entry point: `src/main.js`, which loads `src/main/runtime.js`.
+- Runtime composition and lazy service/window ownership: `src/main/application/runtime-composition.js`.
+- Window creation and HTML page loading: `src/main/application/window-manager.js`.
+- Tray/taskbar menu construction: `src/main/application/system-controls.js`.
+- Renderer security boundary and namespaced IPC API: `src/preload.js` (`window.saeed`).
+- Character window lifecycle and GLB delivery: `src/main/character/character-host.js`.
+- Voice lifecycle and STT/TTS/Realtime coordination: `src/main/voice/voice-host.js` and `src/main/voice/voice-runtime.js`.
+- Runtime and packaged end-to-end reporting: `src/main/ci-e2e.js` and `.github/workflows/build-windows-electron.yml`.
+- Add-ons page: `src/addons/window.html`; Learning page: `src/learning/window.html`.
+
+A filename in this map must be verified against the current tree before any future relocation. All page-open failures must produce diagnostics and a failing E2E check rather than silently appearing successful.
+
 The central rule is:
 
 > If a resource is not used, destroy it. Do not hide it.
