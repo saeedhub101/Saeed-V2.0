@@ -19,13 +19,13 @@ function listFacts(u){return readFacts(u)}
 function forget(u,q){
  const query=String(q||"").trim().toLowerCase();
  if(!query)return{removed:0,removedVectors:0,removedFacts:0,removedKnowledge:0};
- const d=readVectors(u),before=d.items.length;
- d.items=d.items.filter(x=>!(String(x.id)===query||String(x.text||"").toLowerCase().includes(query)));
+ const d=readVectors(u),before=d.items.length,removedItems=d.items.filter(x=>String(x.id)===query||String(x.text||"").toLowerCase().includes(query)),removedTexts=new Set(removedItems.map(x=>String(x.text||"").toLowerCase()).filter(Boolean));
+ d.items=d.items.filter(x=>!removedItems.includes(x));
  if(d.items.length!==before)writeVectors(u,d);
- const facts=readFacts(u),kept=facts.filter(x=>String(x.key||"").toLowerCase()!==query&&String(x.text||"").toLowerCase().includes(query)===false),removedFacts=facts.length-kept.length;
+ const facts=readFacts(u),kept=facts.filter(x=>String(x.key||"").toLowerCase()!==query&&!removedTexts.has(String(x.text||"").toLowerCase())&&String(x.text||"").toLowerCase().includes(query)===false),removedFacts=facts.length-kept.length;
  if(removedFacts)writeFacts(u,kept);
  let removedKnowledge=0;
- try{const dir=path.join(root(u),"knowledge");for(const name of fs.readdirSync(dir)){if(name==="facts.json"||!name.endsWith(".json"))continue;const file=path.join(dir,name);try{const item=JSON.parse(fs.readFileSync(file,"utf8")),textValue=String(item.text||item.title||"");if(String(item.id||"").toLowerCase()===query||textValue.toLowerCase().includes(query)){fs.unlinkSync(file);removedKnowledge++}}catch{}}}catch{}
+ try{const dir=path.join(root(u),"knowledge");for(const name of fs.readdirSync(dir)){if(name==="facts.json"||!name.endsWith(".json"))continue;const file=path.join(dir,name);try{const item=JSON.parse(fs.readFileSync(file,"utf8")),textValue=String(item.text||item.title||""),normalized=textValue.toLowerCase();if(String(item.id||"").toLowerCase()===query||removedTexts.has(normalized)||normalized.includes(query)){fs.unlinkSync(file);removedKnowledge++}}catch{}}}catch{}
  return{removed:before-d.items.length+removedFacts+removedKnowledge,removedVectors:before-d.items.length,removedFacts,removedKnowledge};
 }
 module.exports={root,ensure,embed,cosine,add,search,rememberConversation,addKnowledge,rag,forget,factsFile,readFacts,writeFacts,migrateLegacyFacts,addFact,listFacts};
