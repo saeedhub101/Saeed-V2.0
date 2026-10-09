@@ -6,19 +6,31 @@ const {createPermissionManager}=require("../src/main/application/permission-mana
 
 async function main(){
  const confirmations=[];
+ const validArgs=name=>{
+  if(name==="memory_add")return{text:"test"};
+  if(name==="memory_search")return{query:"test"};
+  if(name==="knowledge_add")return{text:"test"};
+  if(name==="mcp_list_servers")return{};
+  if(name==="mcp_list_tools")return{server:"test"};
+  if(name==="mcp_call_tool")return{server:"test",tool:"test",arguments:{}};
+  if(name==="email_send")return{provider:"gmail",account:"person@gmail.com",to:["recipient@example.com"],subject:"Test",body:"Test body"};
+  if(name==="email_imap_search")return{provider:"gmail",account:"person@gmail.com",criteria:"ALL"};
+  if(name==="email_pop3_list"||name==="email_pop3_fetch")return{provider:"gmail",account:"person@gmail.com",index:1};
+  return{};
+ };
  const denied=new ToolRegistry({userDataPath:process.cwd(),permissionPolicy:()=> "deny",confirm:async request=>{confirmations.push(request);return true}});
  const names=denied.schemas().map(x=>x.function?.name).filter(Boolean);
  assert.equal(new Set(names).size,names.length,"tool schemas must not contain duplicate names");
  for(const name of ["memory_add","memory_search","knowledge_add","mcp_list_servers","mcp_list_tools","mcp_call_tool","email_send","email_imap_search","email_pop3_list","email_pop3_fetch"]){
   assert.ok(names.includes(name),"missing advertised capability schema: "+name);
-  const result=await denied.call(name,{text:"test",query:"test",server:"test",tool:"test",host:"localhost",port:993,from:"a@example.com",to:["b@example.com"],message:"test",provider:"test",account:"test",username:"test",password:"test"});
+  const result=await denied.call(name,validArgs(name));
   assert.equal(result.ok,false,"denied tool must not execute: "+name);
   assert.match(String(result.error||""),/Permission denied/,"declared capability must reach the canonical registry authorization: "+name);
  }
  assert.equal(confirmations.length,0,"Deny must not open confirmation or execute a tool");
  const allowedPolicy=new ToolRegistry({userDataPath:process.cwd(),permissionPolicy:()=> "allow",confirm:async request=>{confirmations.push(request);return false}});
  for(const name of ["email_send","mcp_call_tool"]){
-  const result=await allowedPolicy.call(name,{text:"test",query:"test",server:"test",tool:"test",host:"localhost",port:993,from:"a@example.com",to:["b@example.com"],message:"test",provider:"test",account:"test",username:"test",password:"test"});
+  const result=await allowedPolicy.call(name,validArgs(name));
   assert.equal(result.ok,false,"sensitive tool must require a fresh confirmation: "+name);
   assert.match(String(result.error||""),/Permission denied/,"sensitive tool must be denied when confirmation is rejected: "+name);
  }
