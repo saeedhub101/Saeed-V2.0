@@ -1,15 +1,15 @@
 # Saeed V2.0 — Phase 2: Character & Realtime Experience
 
-**Status:** Planned  
+**Status:** Active — current product-development phase  
 **Type:** Product-development phase
 
 ## Goal
 
-Turn the foundation into a convincing living 3D character with reliable realtime voice interaction.
+Continue bringing the current living 3D character and realtime voice implementation to verified acceptance. This phase is active; existing modules must be validated and completed, not blindly recreated.
 
 ## 1. Character runtime
 
-Build and integrate:
+Current runtime modules to validate and complete (do not create duplicate owners):
 - CharacterEngine;
 - CharacterController;
 - CharacterRig;
@@ -35,7 +35,7 @@ Required behavior:
 
 ## 3. Motion system
 
-Build:
+Validate and extend the existing motion system:
 - semantic motion intents;
 - motion generator;
 - priority;
@@ -110,3 +110,14 @@ A packaged build can repeatedly:
 8. use Realtime where configured;
 9. interrupt speech;
 10. preserve conversation continuity.
+
+## Current repository mapping
+
+- Three.js scene, renderer, camera, GLB load and live model state: `src/character/CharacterEngine.js`.
+- Character orchestration, animation, retargeting, autonomous behavior and rig binding: `src/character/CharacterController.js`.
+- Bone aliases and rig slots: `src/character/AutoRigMapper.js`.
+- Animation playback: `src/character/AnimationController.js`.
+- Character authoring / bones / rest pose / animation UI: `src/character-studio.html`.
+- Main-process character delivery and window ownership: `src/main/character/character-host.js`.
+
+Keep these paths synchronized with the actual imports and runtime ownership whenever implementation changes.
