@@ -128,10 +128,10 @@ function main() {
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
-  const e2e = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
-  const visibilityCheckStart = e2e.indexOf('check("acceptance.authoritative-glb-visible"');
-  const visibilityCheckEnd = e2e.indexOf('check("acceptance.repeat-load-preserves-visible-character"', visibilityCheckStart);
-  const visibilityProbe = visibilityCheckStart >= 0 && visibilityCheckEnd > visibilityCheckStart ? e2e.slice(visibilityCheckStart, visibilityCheckEnd) : "";
+  const visibilityE2e = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
+  const visibilityCheckStart = visibilityE2e.indexOf('check("acceptance.authoritative-glb-visible"');
+  const visibilityCheckEnd = visibilityE2e.indexOf('check("acceptance.repeat-load-preserves-visible-character"', visibilityCheckStart);
+  const visibilityProbe = visibilityCheckStart >= 0 && visibilityCheckEnd > visibilityCheckStart ? visibilityE2e.slice(visibilityCheckStart, visibilityCheckEnd) : "";
   const visibilityProbeIsCloneSafe = visibilityProbe.includes("boneNames=(e?.getAvailableBoneNames?.()||[]).map") && !visibilityProbe.includes("rt.controller?.status?.()");
   check("authoritative-glb-probe-returns-clone-safe-data", visibilityProbeIsCloneSafe,
     { visibilityProbeIsCloneSafe, unsafeControllerStatusReturn: visibilityProbe.includes("rt.controller?.status?.()"), note: "webContents.executeJavaScript results must contain only cloneable plain data, not raw controller/Three.js objects." });
