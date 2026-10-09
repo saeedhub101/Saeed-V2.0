@@ -94,15 +94,22 @@ class ModelExecutor{
     body={model:s.model||d.model||"llama3.2",messages,tools:toolSchemas,tool_choice:"auto"};
     url=base+"/chat/completions";
    }
+   let responseText="";
+   const requestController=new AbortController();
+   const requestTimeout=setTimeout(()=>requestController.abort(new Error("LLM API request timed out")),ciE2E?10000:30000);
+   const requestCancellationPoll=setInterval(()=>{if(!current())requestController.abort(new Error("Stale conversation request cancelled"))},100);
    try{
-    r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:AbortSignal.timeout(ciE2E?10000:30000)});
+    r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:requestController.signal});
+    responseText=await r.text();
    }catch(e){
-    const timedOut=e?.name==="TimeoutError"||e?.name==="AbortError"||/timeout|aborted/i.test(String(e?.message||""));
+    if(!current())return "";
+    const timedOut=requestController.signal.aborted||e?.name==="TimeoutError"||e?.name==="AbortError"||/timeout|aborted/i.test(String(e?.message||""));
     onEvent({type:"diagnostic",level:"ERROR",stage:timedOut?"LLM REQUEST TIMEOUT":"LLM REQUEST FAILURE",message:timedOut?"LLM API request timed out":e.message});
     const answer="I could not reach the API brain. Please check the provider, API key, and connection.";
     onEvent({type:"answer",text:answer,source:"api-error"});return answer;
+   }finally{
+    clearTimeout(requestTimeout);clearInterval(requestCancellationPoll);
    }
-   const responseText=await r.text();
    if(!current())return "";
    if(!r.ok){
     let detail="";try{const j=JSON.parse(responseText);detail=j?.error?.message||j?.error?.type||""}catch{}
