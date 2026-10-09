@@ -1,6 +1,6 @@
 const assert=require("node:assert/strict");
 const fs=require("node:fs"),path=require("node:path");
-const {redactToolArgs}=require("../src/tools/redact");
+const {redactToolArgs,redactToolResult}=require("../src/tools/redact");
 const {ToolRegistry}=require("../src/tools/registry");
 const {createPermissionManager}=require("../src/main/application/permission-manager");
 
@@ -30,6 +30,11 @@ async function main(){
  assert.equal(safe.password,"[REDACTED]","password must be redacted");
  assert.equal(safe.accessToken,"[REDACTED]","access token must be redacted");
  assert.equal(safe.headers.authorization,"[REDACTED]","nested authorization headers must be redacted");
+ const safeEmailResult=redactToolResult("email_imap_fetch",{body:"private email body",text:"private plain text",subject:"Allowed subject",headers:{authorization:"Bearer hidden"}});
+ assert.equal(safeEmailResult.body,"[REDACTED]","fetched email body must be redacted from events");
+ assert.equal(safeEmailResult.text,"[REDACTED]","fetched email text must be redacted from events");
+ assert.equal(safeEmailResult.subject,"Allowed subject","non-secret email metadata should remain visible");
+ assert.equal(safeEmailResult.headers.authorization,"[REDACTED]","result authorization headers must be redacted");
  const emailTools=require("../src/tools/addons").schemas();
  const sendSchema=emailTools.find(x=>x.function?.name==="email_send").function.parameters;
  assert.equal(Object.hasOwn(sendSchema.properties,"password"),false,"email schema must not expose passwords");
