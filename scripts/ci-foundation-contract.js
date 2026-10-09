@@ -30,7 +30,7 @@ must(glbBytes.includes("ArrayBuffer.isView(value)")&&glbBytes.includes("value.by
 must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&packageJson.includes("node scripts/ci-glb-bytes.js"),"GLB byte normalization regression tests are not wired into npm test");
 must(exists("scripts/ci-authoritative-glb-rig.js")&&packageJson.includes("node scripts/ci-authoritative-glb-rig.js"),"Authoritative GLB rig mapping test is not wired into npm test");
 const controller=read("src/character/CharacterController.js");
-must(read("src/character/AutoRigMapper.js").includes("const REQUIRED_RIG=[]")&&read("src/character/AutoRigMapper.js").includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("missingRequiredSlots(mapped)"),"Rig mapping must allow partial skeletons without mandatory logical joints");
+must(read("src/character/AutoRigMapper.js").includes("const REQUIRED_RIG=[]")&&read("src/character/AutoRigMapper.js").includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("Partial rig: missing")&&controller.includes("Object.keys(mapped).length>0"),"Rig mapping must allow partial skeletons and animate available mapped joints");
 const characterHostForChecks=read("src/main/character/character-host.js");
 must(!characterHostForChecks.includes("!(Number(result?.boneCount)>=1)")&&characterHostForChecks.includes("!(Number(result?.meshCount)>=1)"),"Character host must accept visible meshes without requiring a skeleton");
 for(const [name,src,tokens] of [
