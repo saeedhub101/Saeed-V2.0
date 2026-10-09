@@ -1,4 +1,4 @@
-const fs=require("fs"),path=require("path"),memoryService=require("../core/services/memory-service");
+const fs=require("fs"),path=require("path"),memoryService=require("../main/services/memory-service");
 function schemas(){return[
  {type:"function",function:{name:"add_task",description:"Persist a task.",parameters:{type:"object",properties:{title:{type:"string"}},required:["title"]}}},
  {type:"function",function:{name:"list_tasks",description:"List saved tasks.",parameters:{type:"object",properties:{},required:[]}}},
@@ -11,9 +11,9 @@ function schemas(){return[
 ]}
 function create(c){
  if(!c.memory)c.memory={
- add:text=>memoryService.add(c.userDataPath,text,{type:"memory"}),
- search:query=>memoryService.search(c.userDataPath,query).map(({id,text,metadata,createdAt,score})=>({id,text,metadata,createdAt,score})),
- list:limit=>memoryService.search(c.userDataPath,"",limit).map(({id,text,metadata,createdAt})=>({id,text,metadata,createdAt})),
+ add:text=>memoryService.addFact(c.userDataPath,text),
+ search:query=>memoryService.rag(c.userDataPath,query,20).map(({id,text,metadata,createdAt,score})=>({id,text,metadata,createdAt,score})),
+ list:limit=>memoryService.listFacts(c.userDataPath).slice(0,Math.max(1,Math.min(500,Number(limit)||50))),
  forget:query=>memoryService.forget(c.userDataPath,query)
 };
  if(!c.tasksFile)c.tasksFile=path.join(c.userDataPath,"tasks.json");
