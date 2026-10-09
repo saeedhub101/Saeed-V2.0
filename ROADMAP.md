@@ -40,13 +40,13 @@ Phase 1 contains the **current repair/conformance work**, but it is not only rep
 Only repair defects that block a coherent foundation or create duplicate ownership.
 
 ### Exit
-The foundation is internally coherent, statically verifiable and ready for feature development.
+The foundation is internally coherent and statically verifiable. This exit criterion improves confidence in the already-active Phases 2–4; it is not a gate that prevents their work from starting.
 
 ## Phase 2 — Character & Realtime Experience
 
 **Status:** Active — current character, GLB, rigging, Rest Pose, animation and realtime voice work is in progress. 
 
-This is the first major feature-development phase.
+This is the primary character/runtime feature phase and is already active alongside Phases 1, 3, and 4.
 
 ### Character
 - CharacterEngine;
@@ -204,7 +204,7 @@ Otherwise, keep moving forward and schedule the improvement with the feature tha
 
 ## Global dependency
 
-**Foundation → Character/Realtime → Intelligence/Capabilities → Product/Release**
+**Foundation → Character/Realtime → Intelligence/Capabilities → Product/Release** (dependency order, not a rule that later phases remain inactive until an earlier phase is fully closed).
 
 Cross-cutting security, lifecycle and verification are implemented with the feature that needs them, not postponed to the end.
 
