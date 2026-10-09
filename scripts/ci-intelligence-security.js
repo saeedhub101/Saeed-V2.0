@@ -47,6 +47,12 @@ async function main(){
  const noSurface=createPermissionManager({getAgent:()=>null,showChat:async()=>{},getChatWindow:()=>null,diagnostic:()=>{}});
  assert.equal(noSurface.permissionPolicy("unknown-capability"),"ask","unknown categories must fail closed");
  assert.equal(await noSurface.confirmPermission("files",{name:"write_file"}),false,"confirmation without a live chat surface must deny");
+ let permissionActive=true,releasePermission;const waitingPolicy=new Promise(resolve=>{releasePermission=resolve});let cancelledDispatches=0;
+ const cancellationRegistry=new ToolRegistry({userDataPath:process.cwd(),permissionPolicy:async()=>{await waitingPolicy;return"allow"},recordHook:()=>cancelledDispatches++});
+ const pendingCall=cancellationRegistry.call("memory_add",{text:"must not be stored"},{isCurrent:()=>permissionActive});
+ permissionActive=false;releasePermission();const cancelledCall=await pendingCall;
+ assert.equal(cancelledCall.stale,true,"a conversation cancelled during a permission wait must not execute the tool");
+ assert.equal(cancelledDispatches,0,"cancelled tool calls must not reach execution or learning records");
  const learning=require("../src/learning");
  let current=true,executed=0;
  const learned=await learning.run(process.cwd(),{call:async()=>{executed++;current=false;return{ok:true}}},{id:"cancel-test",steps:[{tool:"first"},{tool:"second"},{tool:"third"}]},{isCurrent:()=>current});
