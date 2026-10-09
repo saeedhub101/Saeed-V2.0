@@ -21,6 +21,12 @@ must(trayControls.includes('label:"Add-ons / Plug-ins",click:showAddons'),"Tray 
 must(trayControls.includes('label:"Learning / Teach Mode",click:showLearning'),"Tray menu cannot open Learning / Teach Mode");
 const studio=read("src/character-studio.html");
 const engine=read("src/character/CharacterEngine.js");
+const glbBytes=read("src/character/glb-bytes.js");
+const glbBytesTest=read("scripts/ci-glb-bytes.js");
+const packageJson=read("package.json");
+must(engine.includes('import {normalizeGlbArrayBuffer} from "./glb-bytes.js"')&&engine.includes("normalizeGlbArrayBuffer(data)"),"CharacterEngine does not use the canonical GLB byte normalizer");
+must(glbBytes.includes("ArrayBuffer.isView(value)")&&glbBytes.includes("value.byteOffset")&&glbBytes.includes("missing glTF magic"),"GLB byte normalization does not protect typed-array offsets and binary headers");
+must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&packageJson.includes("node scripts/ci-glb-bytes.js"),"GLB byte normalization regression tests are not wired into npm test");
 const controller=read("src/character/CharacterController.js");
 const characterHostForChecks=read("src/main/character/character-host.js");
 for(const [name,src,tokens] of [
