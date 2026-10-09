@@ -27,10 +27,22 @@ for(const [name,src,tokens] of [
  ["GLB engine",engine,["GLTFLoader","getCharacterPoseStatus","getAvailableBoneNames","setBoneEditorRotation"]],
  ["Character controller",controller,["saveRestPose","defineMotion","play("]],
  ["Character Studio",studio,["setBoneEditorRotation","saveRestPose","resetBoneToRest","defineMotion","loadMotion"]],
- ["Character host",characterHost,['"setBoneEditorRotation"','"saveRestPose"','"defineMotion"']]
+ ["Character host",characterHost,['"setBoneEditorRotation"','"saveRestPose"','"resetBoneToRest"']]
 ])for(const token of tokens)must(src.includes(token),name+" missing required GLB/rig/rest-pose/animation contract: "+token);
 must(read("src/main/ci-e2e.js").includes("character.studio-editor-world-axis-rotation"),"World-axis character editing E2E is missing");
 must(read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"),"Nested-axis stability E2E is missing");
+const transcriptUi=read("src/renderer/character.html");
+const transcriptCss=read("src/renderer/style.css");
+const voiceClient=read("src/renderer/voice/voice-client.js");
+const composition=read("src/main/application/runtime-composition.js");
+const preloadSource=read("src/preload.js");
+must(transcriptUi.includes("saeedTranscriptLabel")&&transcriptCss.includes("saeedTranscriptLabel"),"Optional microphone transcript label UI is missing");
+must(voiceClient.includes("saeedShowTranscript?.(clean)")&&voiceClient.includes("saeedShowTranscript?.(text)"),"Realtime/local STT results are not routed to the optional transcript label");
+must(composition.includes("transcript-label.json")&&composition.includes("toggleTranscriptLabel"),"Taskbar transcript label setting is not persisted");
+must(trayControls.includes("microphone transcript label"),"Taskbar has no microphone transcript label toggle");
+must(preloadSource.includes("onTranscriptLabel")&&preloadSource.includes("getTranscriptLabelEnabled"),"Transcript label renderer API is missing");
+must(read("src/main/runtime.js").includes('ipcMain.handle("transcript-label:get"'),"Transcript label preference IPC is missing");
+
 
 must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workflow is missing");
 
