@@ -149,7 +149,7 @@ jobs:
           $r = Get-Content $report -Raw | ConvertFrom-Json
           Get-Content $report -Raw | Write-Host
           $required = @("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate")
-          $missing = @($required | Where-Object { -not $r.checks.PSObject.Properties.Name.Contains($_) })
+          $missing = @($required | Where-Object { $null -eq $r.checks.PSObject.Properties[$_] })
           $failed = @($required | Where-Object { $id=$_; $p=$r.checks.PSObject.Properties[$id]; -not $p -or $p.Value.pass -ne $true })
           if ($missing.Count -or $failed.Count -or $r.pass -ne $true) { throw "Current EXE acceptance failed. Missing: $($missing -join ','); failed: $($failed -join ',')" }
           $version = (Get-Content VERSION -Raw).Trim() + ".0"
