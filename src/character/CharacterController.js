@@ -294,8 +294,9 @@ export class CharacterController{
    };
    this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
   }
-  this.rigReady=Object.keys(mapped).length>0;
-  this.lastBindingResult={loaded:this.rigReady,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:true};
+  const missingRequired=missingRequiredSlots(mapped);
+  this.rigReady=missingRequired.length===0;
+  this.lastBindingResult={loaded:this.rigReady,missingRequired,reason:this.rigReady?undefined:"Character rig is missing required joints: "+missingRequired.join(", "),mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:true};
   return this.rigReady;
 }
  
