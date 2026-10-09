@@ -39,7 +39,7 @@ async function smtpSend(config,msg){
   }
   if(!/^2/.test(eh))throw new Error(eh);
   if(config.accessToken){
-    r=await smtpCommand(socket,next,"AUTH XOAUTH2 "+Buffer.from("user="+config.username+"\\x01auth=Bearer "+config.accessToken+"\\x01\\x01").toString("base64"));
+    r=await smtpCommand(socket,next,"AUTH XOAUTH2 "+Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"));
   }else if(config.username){
     r=await smtpCommand(socket,next,"AUTH LOGIN");if(!/^3/.test(r))throw new Error(r);
     r=await smtpCommand(socket,next,Buffer.from(config.username).toString("base64"));if(!/^3/.test(r))throw new Error(r);
@@ -59,7 +59,7 @@ async function pop3Auth(config){
   const socket=await connect(config),next=lineReader(socket);let r=await next();if(!/^\+OK/.test(r))throw new Error(r);
   if(config.accessToken){
     socket.write("AUTH XOAUTH2\r\n");r=await next();if(!/^\+/.test(r))throw new Error(r);
-    socket.write(Buffer.from("user="+config.username+"\\x01auth=Bearer "+config.accessToken+"\\x01\\x01").toString("base64")+"\r\n");r=await next();
+    socket.write(Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64")+"\r\n");r=await next();
   }else{
     socket.write("USER "+config.username+"\r\n");r=await next();if(!/^\+OK/.test(r))throw new Error(r);
     socket.write("PASS "+config.password+"\r\n");r=await next();
@@ -97,7 +97,7 @@ function imapSession(config){
 async function imapLoginSession(config){
   const s=await imapSession(config);
   if(config.accessToken){
-    await s.command("AUTHENTICATE XOAUTH2",Buffer.from("user="+config.username+"\\x01auth=Bearer "+config.accessToken+"\\x01\\x01").toString("base64"));
+    await s.command("AUTHENTICATE XOAUTH2",Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"));
   }else{
     await s.command('LOGIN "'+escapeQuote(config.username)+'" "'+escapeQuote(config.password||"")+'"');
   }
