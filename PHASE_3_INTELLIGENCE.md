@@ -1,11 +1,11 @@
 # Saeed V2.0 — Phase 3: Intelligence & Capabilities
 
-**Status:** Planned  
+**Status:** Active — current product-development phase  
 **Type:** Product-development phase
 
 ## Goal
 
-Give Saeed useful intelligence and safe capabilities while preserving one Brain, one conversation and one execution boundary.
+Continue implementing and verifying useful intelligence and safe capabilities while preserving one Brain, one conversation and one execution boundary. This phase is active, not a future placeholder.
 
 ## 1. Brain
 
@@ -102,3 +102,7 @@ A real request can travel through:
 `Chat/Voice → Conversation → Brain → Tool Registry → Permission → Execute → Verify → Response → Character`
 
 without a second Brain, second history or second execution path.
+
+## Additional capability in the active roadmap: email
+
+Provide an optional, permission-controlled email capability using IMAP for mailbox synchronization and reading, POP3 as an alternative retrieval protocol, and SMTP for sending. Keep credentials in the existing secret/settings boundary, use explicit account setup and network permissions, and require user confirmation for consequential sends. Do not log passwords, tokens, or message bodies by default. Add provider-independent tests for connection failures, authentication failures, message listing/reading, sending confirmation, cancellation, and secret redaction.
