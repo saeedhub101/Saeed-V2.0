@@ -1,4 +1,4 @@
-const {redactToolArgs}=require("../../tools/redact");
+const {redactToolArgs,redactToolResult}=require("../../tools/redact");
 const {OpenAIRealtime,GeminiLive}=require("../../realtime");
 function createVoiceRuntime(deps={}){
  const getAgent=deps.getAgent||(()=>null), diagnostic=deps.diagnostic||(()=>{}), voiceBroadcast=deps.voiceBroadcast||(()=>{}), getToolSchemas=deps.getToolSchemas||(()=>[]), executeTool=deps.executeTool|| (async()=>({ok:false,error:"Tool execution gateway unavailable"}));
@@ -53,7 +53,7 @@ function startRealtime(options={}){
     let out;
     try{out=await executeTool(name,args)}catch(e){out={ok:false,error:e.message}};
     if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
-    else voiceBroadcast("agent:event",{type:"tool_result",name,result:out,source:"realtime"});
+    else voiceBroadcast("agent:event",{type:"tool_result",name,result:redactToolResult(name,out),source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
    }
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
