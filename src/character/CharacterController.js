@@ -356,7 +356,7 @@ export class CharacterController{
   const valid=Object.values(finalMap).length>0&&Object.values(finalMap).every(b=>available.has(String(b?.name||b)));
   if(!valid){this.rigReady=false;return{loaded:false,reason:"Character rig contains a bone outside the current skeleton",boneCount:sceneNames.length}}
   const missingRequired=missingRequiredSlots(finalMap);
-  if(missingRequired.length){this.rigReady=false;this.lastBindingResult={...x,loaded:false,missingRequired,reason:"Character rig is missing required joints: "+missingRequired.join(", ")};return{loaded:false,...this.lastBindingResult,boneCount:sceneNames.length}}
+  if(!Object.keys(finalMap).length){this.rigReady=false;this.lastBindingResult={...x,loaded:false,missingRequired,reason:"No logical joints could be mapped; character remains visible but skeletal animation is unavailable"};return{loaded:false,...this.lastBindingResult,boneCount:sceneNames.length}}
   this.retargeter.bind(finalMap,this.retargeter.status().calibration);
   this.animation.bindRig(finalMap,this.retargeter);
   this.animation.stopAll();
