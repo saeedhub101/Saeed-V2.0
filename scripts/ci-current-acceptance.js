@@ -1,6 +1,7 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
+const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
 const failures = [];
@@ -29,7 +30,7 @@ function inspectGlb(file) {
     if (end > b.length) throw new Error("GLB chunk exceeds file bounds");
     if (type === 0x4E4F534A) {
       if (json) throw new Error("Multiple JSON chunks found");
-      json = JSON.parse(b.toString("utf8", start, end).replace(/[\\u0000 ]+$/g, "").trim());
+      json = JSON.parse(b.toString("utf8", start, end).replace(/[\u0000 ]+$/g, "").trim());
     }
     offset = end;
     chunkCount++;
@@ -81,8 +82,8 @@ function inspectGlb(file) {
 function main() {
   check("package-and-version-identity", (() => {
     const pkg = JSON.parse(read("package.json"));
-    const version = read("VERSION").replace(/[\\uFEFF\\u200B\\r\\n ]/g, "");
-    return /^\\d+\\.\\d+$/.test(version) && pkg.version === version + ".0" && pkg.main === "src/main.js";
+    const version = read("VERSION").replace(/[\uFEFF\u200B\r\n ]/g, "");
+    return /^\d+\.\d+$/.test(version) && pkg.version === version + ".0" && pkg.main === "src/main.js";
   })(), { package: exists("package.json"), versionFile: exists("VERSION") });
 
   const required = [
@@ -104,6 +105,13 @@ function main() {
     check("rig-is-capability-based-not-mandatory", glb.rigCapability === "mesh-only-supported" || glb.jointCount > 0,
       { rigCapability: glb.rigCapability, jointCount: glb.jointCount, note: "A visible mesh is mandatory; a skeleton is optional; any provided joint indices must be valid." });
   }
+
+  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/ci-e2e.js", "src/main/character/character-host.js", "scripts/ci-current-acceptance.js"];
+  const syntaxResults = syntaxFiles.map(file => {
+    const result = spawnSync(process.execPath, ["--check", path.join(root, file)], { encoding: "utf8" });
+    return { file, pass: result.status === 0, error: result.status === 0 ? "" : String(result.stderr || result.stdout || result.error || "node --check failed") };
+  });
+  check("runtime-javascript-syntax", syntaxResults.every(x => x.pass), { files: syntaxResults });
 
   const e2e = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
   const runner = exists("scripts/ci-run-packaged-e2e.ps1") ? read("scripts/ci-run-packaged-e2e.ps1") : "";
