@@ -1,7 +1,10 @@
 name: Saeed AI — Windows Build
 
-# Windows builds are manual-only via workflow_dispatch.
+# Windows builds run automatically on pushes to main and remain manually runnable.
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       publish_release:
@@ -19,8 +22,6 @@ concurrency:
 
 jobs:
   build:
-    # Hard guard: only a deliberate manual workflow_dispatch may execute the Windows build.
-    if: ${{ github.event_name == 'workflow_dispatch' }}
     name: Test and build Windows
     runs-on: windows-latest
     timeout-minutes: 120
