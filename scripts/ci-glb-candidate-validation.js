@@ -23,7 +23,12 @@ for(const [label,mutate,pattern] of [
  const b=makeGlb(valid);mutate(b);assert.throws(()=>validateGlbCandidate(b),pattern,label);
 }
 assert.throws(()=>validateGlbCandidate(makeGlb({asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{children:[1]},{name:"Hips"}],meshes:[{primitives:[{attributes:{}}]}],skins:[{joints:[1]}]})),/no renderable mesh/,"must reject a scene with no reachable mesh");
-assert.throws(()=>validateGlbCandidate(makeGlb({asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],meshes:[{primitives:[{attributes:{}}]}]})),/no skinned character mesh/,"must reject an unskinned character candidate");
+const meshOnly=validateGlbCandidate(makeGlb({asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0}],meshes:[{primitives:[{attributes:{POSITION:0}}]}]}));
+assert.equal(meshOnly.ok,true,"must accept a visible static mesh without a skeleton");
+assert.equal(meshOnly.hasSkeleton,false,"must report missing skeleton separately from mesh validity");
+const partialRig=validateGlbCandidate(makeGlb({asset:{version:"2.0"},scene:0,scenes:[{nodes:[0]}],nodes:[{mesh:0,skin:0,children:[1]} ,{name:"Hips"}],meshes:[{primitives:[{attributes:{POSITION:0}}]}],skins:[{joints:[1]}]}));
+assert.equal(partialRig.ok,true,"must accept a character with a partial skeleton");
+assert.equal(partialRig.hasSkeleton,true,"must report available skeleton");
 assert.throws(()=>validateGlbCandidate(makeGlb({...valid,nodes:[{mesh:0,skin:1,children:[1]},{name:"Hips"}]})),/invalid skin index/,"must reject an invalid skin reference");
 assert.throws(()=>validateGlbCandidate(Buffer.alloc(10)),/too small/,"must reject truncated binary");
-console.log("GLB_CANDIDATE_VALIDATION=PASS (12 assertions)");
+console.log("GLB_CANDIDATE_VALIDATION=PASS (15 assertions)");
