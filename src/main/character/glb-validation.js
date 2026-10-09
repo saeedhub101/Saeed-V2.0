@@ -28,6 +28,12 @@ function validateGlbCandidate(value){
  if(!Array.isArray(document.meshes)||document.meshes.length===0)throw new Error("GLB character has no meshes");
  if(!Array.isArray(document.scenes)||document.scenes.length===0)throw new Error("GLB character has no scene");
  if(document.scene!==undefined&&(!Number.isInteger(document.scene)||document.scene<0||document.scene>=document.scenes.length))throw new Error("GLB default scene index is invalid");
- return{ok:true,byteLength:bytes.length,version,nodeCount:document.nodes.length,meshCount:document.meshes.length,skinCount:Array.isArray(document.skins)?document.skins.length:0};
+ const sceneIndex=Number.isInteger(document.scene)?document.scene:0,roots=document.scenes[sceneIndex]?.nodes;
+ if(!Array.isArray(roots)||!roots.length)throw new Error("GLB active scene has no root nodes");
+ const skins=Array.isArray(document.skins)?document.skins:[],visited=new Set(),stack=[...roots];let sceneMeshCount=0,sceneSkinnedMeshCount=0;
+ while(stack.length){const index=stack.pop();if(!Number.isInteger(index)||index<0||index>=document.nodes.length)throw new Error("GLB active scene references an invalid node index");if(visited.has(index))continue;visited.add(index);const node=document.nodes[index];if(!node||typeof node!=="object")throw new Error("GLB node is invalid");if(node.mesh!==undefined){if(!Number.isInteger(node.mesh)||node.mesh<0||node.mesh>=document.meshes.length)throw new Error("GLB node references an invalid mesh index");sceneMeshCount++;if(node.skin!==undefined){if(!Number.isInteger(node.skin)||node.skin<0||node.skin>=skins.length)throw new Error("GLB skinned mesh references an invalid skin index");const joints=skins[node.skin]?.joints;if(!Array.isArray(joints)||!joints.length||joints.some(j=>!Number.isInteger(j)||j<0||j>=document.nodes.length))throw new Error("GLB skinned mesh has invalid or missing joint references");sceneSkinnedMeshCount++;}}if(node.children!==undefined&&!Array.isArray(node.children))throw new Error("GLB node children must be an array");if(Array.isArray(node.children))stack.push(...node.children)}
+ if(sceneMeshCount<1)throw new Error("GLB active scene has no renderable mesh");
+ if(sceneSkinnedMeshCount<1)throw new Error("GLB active scene has no skinned character mesh");
+ return{ok:true,byteLength:bytes.length,version,nodeCount:document.nodes.length,meshCount:document.meshes.length,sceneMeshCount,sceneSkinnedMeshCount,skinCount:skins.length};
 }
 module.exports={validateGlbCandidate};
