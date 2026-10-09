@@ -8,7 +8,7 @@ class ModelExecutor{
   if(!current())return "";
   const s=settings||{};
     const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
-  const addonLlm=addonRuntime().find(dir,"llm",addonPreference);
+  const addonLlm=addonPreference?addonRuntime().find(dir,"llm",addonPreference):null;
   if(addonLlm){
    try{
     if(!current())return "";
