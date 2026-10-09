@@ -2,6 +2,7 @@ import { AnimationController } from "./AnimationController.js";
 import { CharacterRetargeter } from "./CharacterRetargeter.js";
 import { registerCoreMotions } from "./motions.js";
 import { autoMapBones,requiredRigSlots,optionalRigSlots } from "./AutoRigMapper.js";
+const missingRequiredSlots=mapping=>requiredRigSlots().filter(slot=>!mapping?.[slot]);
 import { FaceController } from "./FaceController.js";
 import { FingerController } from "./FingerController.js";
 import { MotionEditor } from "./MotionEditor.js";
@@ -54,9 +55,11 @@ export class CharacterController{
    }
   }
   const boneCount=Object.keys(mapped).length;
-  this.rigReady=true;
+  const missingRequired=missingRequiredSlots(mapped);
+  this.rigReady=missingRequired.length===0;
+  if(missingRequired.length&&!authoring)return{ok:false,error:"Character rig is missing required joints: "+missingRequired.join(", "),missingRequired,boneCount,sceneBoneCount:names.length};
   if(authoring)this.beginAuthoring();
-  return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount};
+  return{ok:true,mapping:this.engine?.getCharacterRigAutoMap?.()||{},boneCount,sceneBoneCount:names.length,missingRequired,rawBoneControl:missingRequired.length>0};
  }
  bindCurrentCharacter(){
   if(this.binding)return this.lastBindingResult||{loaded:false,reason:"Character rig binding already in progress"};
@@ -92,10 +95,11 @@ export class CharacterController{
    this.animation.bindRig(mapped,this.retargeter);
    this.animation.stopAll();
    this.characterId=profileId;
-   this.rigReady=true;
+   const missingRequired=missingRequiredSlots(mapped);
+   this.rigReady=missingRequired.length===0;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
    this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
-   this.lastBindingResult={loaded:true,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
+   this.lastBindingResult={loaded:missingRequired.length===0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,reason:missingRequired.length?"Character rig is missing required joints: "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
    return this.lastBindingResult;
   }finally{this.binding=false;}
  }
@@ -237,8 +241,9 @@ export class CharacterController{
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
    this.characterId=profileId;
-   this.rigReady=Object.keys(mapped).length>0;
-   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"No controllable bones after bindSlot",mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
+   const missingRequired=missingRequiredSlots(mapped);
+   this.rigReady=missingRequired.length===0;
+   this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"Character rig is missing required joints: "+missingRequired.join(", "),missingRequired,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
    if(this.characterId){
     const restPose=savedRestPose||{
      normalization:this.engine?.getRestPoseNormalization?.()||null,
@@ -349,6 +354,8 @@ export class CharacterController{
   const available=new Set(sceneNames.map(String));
   const valid=Object.values(finalMap).length>0&&Object.values(finalMap).every(b=>available.has(String(b?.name||b)));
   if(!valid){this.rigReady=false;return{loaded:false,reason:"Character rig contains a bone outside the current skeleton",boneCount:sceneNames.length}}
+  const missingRequired=missingRequiredSlots(finalMap);
+  if(missingRequired.length){this.rigReady=false;this.lastBindingResult={...x,loaded:false,missingRequired,reason:"Character rig is missing required joints: "+missingRequired.join(", ")};return{loaded:false,...this.lastBindingResult,boneCount:sceneNames.length}}
   this.retargeter.bind(finalMap,this.retargeter.status().calibration);
   this.animation.bindRig(finalMap,this.retargeter);
   this.animation.stopAll();
