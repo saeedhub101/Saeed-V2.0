@@ -2,6 +2,7 @@ import * as THREE from "../../node_modules/three/build/three.module.js";
 import {GLTFLoader} from "../three/GLTFLoader.js";
 import "./CharacterController.js";
 import {autoMapBones} from "./AutoRigMapper.js";
+import {normalizeGlbArrayBuffer} from "./glb-bytes.js";
 
 const canvas=document.getElementById("avatar");
 const scene=new THREE.Scene();
@@ -394,8 +395,7 @@ async function load(data,generation){
  activeLoad=true;loadError=null;
  traceGlb("load-start",{generation,dataType:data?.constructor?.name||typeof data,byteLength:data?.byteLength??data?.length??null});
  try{
-  const bytes=data instanceof ArrayBuffer?data:data instanceof Uint8Array?data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength):data?.buffer;
-  if(!bytes)throw new Error("Selected GLB data is invalid");
+  const bytes=normalizeGlbArrayBuffer(data);
   traceGlb("bytes-ready",{generation,byteLength:bytes.byteLength});
   traceGlb("parse-start",{generation,byteLength:bytes.byteLength});
   const parsed=await loader.parseAsync(bytes,"");
