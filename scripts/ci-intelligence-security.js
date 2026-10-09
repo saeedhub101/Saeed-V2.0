@@ -38,7 +38,7 @@ async function main(){
  assert.equal(safeEmailResult.text,"[REDACTED]","fetched email text must be redacted from events");
  assert.equal(safeEmailResult.subject,"Allowed subject","non-secret email metadata should remain visible");
  assert.equal(safeEmailResult.headers.authorization,"[REDACTED]","result authorization headers must be redacted");
- const emailTools=require("../src/tools/addons").schemas();
+ const emailTools=require("../src/tools/email").schemas();
  const sendSchema=emailTools.find(x=>x.function?.name==="email_send").function.parameters;
  assert.equal(Object.hasOwn(sendSchema.properties,"password"),false,"email schema must not expose passwords");
  assert.equal(Object.hasOwn(sendSchema.properties,"accessToken"),false,"email schema must not expose access tokens");
