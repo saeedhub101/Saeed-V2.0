@@ -11,7 +11,7 @@ function checkExternalScript(file,src,type){
  const clean=src.split(/[?#]/)[0];
  if(!clean||/^(?:https?:)?\/\//i.test(clean)||/^data:/i.test(clean))return;
  const target=path.resolve(path.dirname(file),decodeURIComponent(clean));
- if(target!==sourceRoot&&!target.startsWith(sourceRoot+path.sep)){failures.push({file:path.relative(root,file),error:"script source escapes src/: "+src});return}
+ if(target!==root&&!target.startsWith(root+path.sep)){failures.push({file:path.relative(root,file),error:"script source escapes repository root: "+src});return}
  if(!fs.existsSync(target)){failures.push({file:path.relative(root,file),error:"missing local script source: "+src});return}
  if(!fs.statSync(target).isFile())return;
  externalCount++;
