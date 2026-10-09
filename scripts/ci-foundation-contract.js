@@ -9,6 +9,29 @@ const canonical=["src/main","src/renderer","src/character","src/tools","src/addo
 for(const p of canonical)must(exists(p),"Missing canonical foundation path: "+p);
 
 must(!exists("src/avatar.js"),"Legacy src/avatar.js still exists");
+must(exists("src/addons/window.html")&&exists("src/addons/window.js"),"Add-ons / Plug-ins page assets are missing");
+must(exists("src/learning/window.html")&&exists("src/learning/window.js"),"Learning / Teach Mode page assets are missing");
+const windowManager=read("src/main/application/window-manager.js");
+const trayControls=read("src/main/application/system-controls.js");
+must(windowManager.includes('path.join(rootPath,"addons","window.html")'),"Add-ons page is not connected to the current window manager path");
+must(windowManager.includes('path.join(rootPath,"learning","window.html")'),"Learning page is not connected to the current window manager path");
+must(windowManager.includes('loadFileBounded(win,path.join(rootPath,"addons","window.html"))'),"Add-ons page does not use bounded, diagnosable loading");
+must(windowManager.includes('loadFileBounded(win,path.join(rootPath,"learning","window.html"))'),"Learning page does not use bounded, diagnosable loading");
+must(trayControls.includes('label:"Add-ons / Plug-ins",click:showAddons'),"Tray menu cannot open Add-ons / Plug-ins");
+must(trayControls.includes('label:"Learning / Teach Mode",click:showLearning'),"Tray menu cannot open Learning / Teach Mode");
+const studio=read("src/character-studio.html");
+const engine=read("src/character/CharacterEngine.js");
+const controller=read("src/character/CharacterController.js");
+const characterHost=read("src/main/character/character-host.js");
+for(const [name,src,tokens] of [
+ ["GLB engine",engine,["GLTFLoader","getCharacterPoseStatus","getAvailableBoneNames","setBoneEditorRotation"]],
+ ["Character controller",controller,["saveRestPose","defineMotion","play("]],
+ ["Character Studio",studio,["setBoneEditorRotation","saveRestPose","resetBoneToRest","defineMotion","loadMotion"]],
+ ["Character host",characterHost,['"setBoneEditorRotation"','"saveRestPose"','"defineMotion"']]
+])for(const token of tokens)must(src.includes(token),name+" missing required GLB/rig/rest-pose/animation contract: "+token);
+must(read("src/main/ci-e2e.js").includes("character.studio-editor-world-axis-rotation"),"World-axis character editing E2E is missing");
+must(read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"),"Nested-axis stability E2E is missing");
+
 must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workflow is missing");
 
 const workflow=read(".github/workflows/build-windows-electron.yml");
