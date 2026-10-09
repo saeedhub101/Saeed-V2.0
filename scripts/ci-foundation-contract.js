@@ -152,6 +152,12 @@ must(read("src/addons/credentials.js").includes("child.stdin.end(JSON.stringify(
 must(read("src/addons/credentials.js").includes("$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$t=[string]$d.target;")&&!read("src/addons/credentials.js").includes("CredRead('$t'"),"Credential Manager reads must not interpolate account text into PowerShell");
 must(read("src/performance.html").includes('id="emailCredentialPassword"')&&read("src/preload.js").includes("storeEmailCredential:"),"Secure email credential setup UI/IPC is missing");
 must(read("src/main/runtime.js").includes('ipcMain.handle("email:credential:store"'),"Secure email credential IPC handler is missing");
+must(read("src/addons/email-account-store.js").includes("function validateRecord")&&read("src/addons/email-account-store.js").includes("function save"),"Validated non-secret email server profile storage is missing");
+must(read("src/performance.html").includes('id="emailServerHost"')&&read("src/performance.html").includes('id="saveEmailServer"')&&read("src/performance.html").includes('id="testEmailConnection"'),"Email server setup and authentication-test controls are missing");
+must(read("src/preload.js").includes("saveEmailAccount:")&&read("src/preload.js").includes("testEmailConnection:"),"Email server profile/test IPC bridge is missing");
+must(read("src/main/runtime.js").includes('ipcMain.handle("email:account:save"')&&read("src/main/runtime.js").includes('ipcMain.handle("email:connection:test"'),"Email server profile/test IPC handlers are missing");
+must(read("src/addons/email-client.js").includes("smtpVerify")&&read("src/addons/email-client.js").includes("pop3ListMessages")&&read("src/addons/email-client.js").includes("pop3Fetch"),"SMTP authentication verification and POP3 read operations are missing");
+must(read("package.json").includes("scripts/ci-email-protocol.js")&&read("package.json").includes("scripts/ci-html-script-syntax.js"),"Protocol and inline HTML syntax regression suites are not part of npm test");
 must(read("src/main/application/brain-host.js").includes("Confirm sending this email?"),"Email send confirmation does not show a send-specific confirmation");
 must(read("src/main/application/brain-host.js").includes("Confirm access to this mailbox?")&&read("src/main/application/brain-host.js").includes('detail+="\\nMailbox: "+mailbox'),"Email read confirmation must identify the mailbox being accessed");
 must(read("src/character/CharacterController.js").includes("AutonomousBehaviorController"),"Character autonomy ownership missing");
