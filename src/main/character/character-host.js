@@ -28,7 +28,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   });
   if(result?.ok!==true||!(Number(result?.meshCount)>=1)){
    pendingCharacterData=timeoutRestoredPending||previousPending;
-   diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a real skeleton; previous character retained",{name,generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}});
+   diagnostic("ERROR","GLB CANDIDATE REJECTED",result?.error||"Candidate did not expose a visible mesh; previous character retained",{name,generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}});
    return{ok:false,error:result?.error||"Candidate did not expose a real skeleton; previous character retained",generation,validation,result:{ok:result?.ok,boneCount:result?.boneCount,error:result?.error}};
   }
   const persisted=persistSelectedCharacter(candidate);
