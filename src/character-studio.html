@@ -80,7 +80,7 @@ $("boneList").onchange=()=>select($("boneList").value);$("apply").onclick=setRot
 // Tab switching is installed by the early non-module UI bootstrap above. This keeps the UI usable even if the 3D module reports a runtime/import error.
 window.saeed.character.onCharacterSelected?.((data)=>load(data));
 window.saeed.character.getPendingCharacter?.().then(p=>{if(p?.data)load(p.data,p.generation)}).catch(()=>{});
-$("close").onclick=async()=>{try{await cmd({action:"endAuthoring"})}catch{}try{window.saeed?.character?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}setTimeout(()=>{try{window.saeed?.character?.closeWindow?.()}catch{}try{window.close()}catch{}},150);};
+$("close").onclick=()=>{void cmd({action:"endAuthoring"}).catch(error=>studioDiagnostic("ERROR","STUDIO AUTHORING SHUTDOWN",error?.stack||error?.message||String(error)));try{window.saeed?.character?.closeWindow?.()}catch(error){studioDiagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));}setTimeout(()=>{try{window.close()}catch{}},100);};
 fillSlots();
 $("applyFace").onclick=async()=>{const expression=$("faceExpression").value,intensity=Number($("faceIntensity").value)||0;const r=await cmd({action:"face",expression,intensity});msg("faceStatus",r?.ok===false?(r.error||"Expression failed"):"Expression applied to the live character.",r?.ok===false?"warn":"ok")};
 $("blinkFace").onclick=async()=>{const r=await cmd({action:"blink"});msg("faceStatus",r?.ok?"Blink command sent to the live character.":(r?.error||"Blink command failed"),r?.ok?"ok":"warn")};
