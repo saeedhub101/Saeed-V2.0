@@ -24,25 +24,31 @@ class ToolRegistry{
   if(name==="remove_task")return"destructive";
   return"system";
  }
- async authorize(category,request){
+ async authorize(category,request,isCurrent=()=>true){
+  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
+  if(!current())return false;
   let policy="ask";
   try{policy=typeof this.permissionPolicy==="function"?await this.permissionPolicy(category,request):"ask"}catch{return false}
-  if(policy==="deny")return false;
+  if(!current()||policy==="deny")return false;
   const name=String(request?.name||"");
   const alwaysConfirm=new Set(["email_send","mcp_call_tool"]);
-  if(policy==="allow"&&!alwaysConfirm.has(name))return true;
-  try{return Boolean(await this.confirm({...request,permissionCategory:category}))}catch{return false}
+  if(policy==="allow"&&!alwaysConfirm.has(name))return current();
+  try{return current()&&Boolean(await this.confirm({...request,permissionCategory:category}))&&current()}catch{return false}
  }
- async call(name,args={}){
+ async call(name,args={},options={}){
+  const isCurrent=typeof options?.isCurrent==="function"?options.isCurrent:()=>true;
+  const current=()=>{try{return Boolean(isCurrent())}catch{return false}};
+  const stale=()=>({ok:false,stale:true,error:"Stale conversation request cancelled"});
+  if(!current())return stale();
   try{
    const toolName=String(name||"");
    const requiredArgs={ocr_image:"filePath",extract_image_table:"filePath",inspect_image:"filePath",open_file:"filePath",reveal_file:"filePath",read_file:"filePath",open_application:"application"};
-   if(toolName==="character_motion"){if(!String(args?.intent||"").trim())return{ok:false,error:'Missing required argument "intent" for tool "character_motion".'};if(!(await this.authorize("system",{name:toolName,args})))return{ok:false,error:"Permission denied for system"};if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});this.record(toolName,args);return out}
+   if(toolName==="character_motion"){if(!String(args?.intent||"").trim())return{ok:false,error:'Missing required argument "intent" for tool "character_motion".'};if(!(await this.authorize("system",{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for system"}:stale();if(!current())return stale();if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});if(!current())return stale();this.record(toolName,args);return out}
    const required=requiredArgs[toolName];if(required&&!String(args?.[required]??"").trim())return{ok:false,error:'Missing required argument "'+required+'" for tool "'+toolName+'".'};
-   const known=domains.some(d=>d.schemas().some(s=>s?.function?.name===toolName));const addon=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);if(!known&&!addon)return{ok:false,error:"Unknown tool: "+toolName};const category=this.categoryFor(toolName);if(!(await this.authorize(category,{name:toolName,args})))return{ok:false,error:"Permission denied for "+category};
-   const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,requestPermission:(c,r)=>this.authorize(c,r),characterController:this.characterController};
-   for(const d of domains){const out=await d.call(toolName,args,context);if(out!==null){this.memory=context.memory;this.tasks=context.tasks;this.tasksFile=context.tasksFile;this.record(toolName,args);return out}}
-   if(addon){const out=await require("../addons/runtime").callTool(this.userDataPath,toolName,args);this.record(toolName,args);return out}
+   const known=domains.some(d=>d.schemas().some(s=>s?.function?.name===toolName));const addon=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);if(!known&&!addon)return{ok:false,error:"Unknown tool: "+toolName};const category=this.categoryFor(toolName);if(!(await this.authorize(category,{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for "+category}:stale();if(!current())return stale();
+   const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,requestPermission:(c,r)=>this.authorize(c,r,current),characterController:this.characterController};
+   for(const d of domains){if(!current())return stale();const out=await d.call(toolName,args,context);if(!current())return stale();if(out!==null){this.memory=context.memory;this.tasks=context.tasks;this.tasksFile=context.tasksFile;this.record(toolName,args);return out}}
+   if(addon){if(!current())return stale();const out=await require("../addons/runtime").callTool(this.userDataPath,toolName,args);if(!current())return stale();this.record(toolName,args);return out}
    return{ok:false,error:"Unknown tool: "+toolName}
   }catch(e){return{ok:false,error:e.message}}
  }
