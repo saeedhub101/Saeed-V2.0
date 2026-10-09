@@ -49,19 +49,22 @@ must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workf
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must be manual-only");
 must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
-const suiteNames=[1,2,3,4];
+const suiteNames=[0,1,4,5,6];
+const runner=read("scripts/ci-run-packaged-e2e.ps1");
 for(const n of suiteNames){
- const marker=n===4?"- name: GLB Character Test":`- name: Packaged EXE E2E Suite ${n} `;
+ const marker=n===0?"- name: FIRST PACKAGED EXE TEST":n===4?"- name: GLB Character Test":`- name: Packaged EXE E2E Suite ${n} `;
  const start=workflow.indexOf(marker);
  const end=start<0?-1:workflow.indexOf("\n      - name:",start+marker.length);
  const block=start<0?"":workflow.slice(start,end<0?workflow.length:end);
- must(start>=0,`Missing independent E2E Suite ${n} step`);
+ must(start>=0,`Missing independent packaged E2E Suite ${n} step`);
  must(block.includes("if: always()"),`E2E Suite ${n} is not forced to run`);
  must(block.includes("continue-on-error: true"),`E2E Suite ${n} can stop the workflow`);
- must(block.includes(`--ci-e2e-suite=${n}`),`E2E Suite ${n} does not launch its own suite`);
- must(block.includes(n===4?"ci-e2e-glb-character-test.json":`ci-e2e-suite-${n}.json`),`E2E Suite ${n} has no dedicated report`);
- must(block.includes("catch {"),`E2E Suite ${n} has no isolated PowerShell error boundary`);
+ must(block.includes("scripts/ci-run-packaged-e2e.ps1"),`E2E Suite ${n} does not use the shared packaged runner`);
+ must(block.includes(`-Suite ${n}`),`E2E Suite ${n} does not launch its actual runner suite`);
 }
+must(runner.includes("ci-e2e-glb-character-test.json")&&runner.includes("ci-e2e-performance-rest-pose.json")&&runner.includes("ci-e2e-suite-$Suite.json"),"Packaged E2E runner does not emit the required per-suite reports");
+must(runner.includes("--ci-e2e-suite=$Suite"),"Packaged E2E runner does not pass the suite identifier to the app");
+must(runner.includes("catch {"),"Packaged E2E runner has no isolated PowerShell error boundary");
 
 
 const characterHost=read("src/main/character/character-host.js");
