@@ -8,7 +8,7 @@ function createCiE2E(deps={}){
  const started=Date.now();
 
 
- const suiteFor=name=>{if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="0")return n==="performance.character-save-rest-pose";if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2"||suiteArg==="3")return false;if(suiteArg==="4")return n.startsWith("glbtest.");if(suiteArg==="5")return n.startsWith("character.studio-");if(suiteArg==="6")return n==="character.normalize-humanoid-rest-pose-window";return true};
+ const suiteFor=name=>{if(suiteArg==="current")return String(name).startsWith("acceptance.");if(suiteArg==="all")return true;const n=String(name);if(suiteArg==="0")return n==="performance.character-save-rest-pose";if(suiteArg==="1")return n.startsWith("startup.")||n.startsWith("performance.");if(suiteArg==="2"||suiteArg==="3")return false;if(suiteArg==="4")return n.startsWith("glbtest.");if(suiteArg==="5")return n.startsWith("character.studio-");if(suiteArg==="6")return n==="character.normalize-humanoid-rest-pose-window";return true};
  const {AsyncLocalStorage}=require("async_hooks");
  const checkContext=new AsyncLocalStorage();
  const trace=[];
@@ -111,6 +111,48 @@ function createCiE2E(deps={}){
   report.suite=suiteArg;
   try{
    report.phases.startup={};
+   await check("acceptance.app-startup",async()=>{
+    const w=getCharacterWindow?.(),tray=getTray?.();
+    if(!visible(w))return {pass:false,error:"Floating character window is not visible"};
+    if(!tray)return {pass:false,error:"System tray was not created"};
+    const runtime=await execJs(w,'(()=>({bootstrap:window.saeed3DBootstrap,engine:window.saeedCharacterRuntime?.engine?.get3DStatus?.()}))()',true).catch(e=>({error:String(e?.message||e)}));
+    return {pass:Boolean(!runtime?.error&&!runtime?.bootstrap?.error),characterVisible:true,tray:true,runtime};
+   });
+   await check("acceptance.authoritative-glb-visible",async()=>{
+    const w=getCharacterWindow?.();
+    if(!visible(w))return {pass:false,error:"Character window is not visible"};
+    const source=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");
+    if(!fs.existsSync(source))return {pass:false,error:"Authoritative asset missing",source};
+    const result=await execJs(w,'(()=>{const rt=window.saeedCharacterRuntime||{},e=rt.engine,engine=e?.get3DStatus?.(),scene=e?.getScene?.(),meshes=[];scene?.traverse?.(o=>{if((o?.isMesh||o?.isSkinnedMesh)&&o.visible){let p=o,shown=true;while(p){if(p.visible===false){shown=false;break}p=p.parent}if(shown)meshes.push({name:o.name||"",type:o.type})}});const pose=rt.controller?.status?.();return {bootstrap:window.saeed3DBootstrap,engine,sceneState:engine?.components?.sceneContent?.state,meshCount:meshes.length,meshes:meshes.slice(0,25),pose,bones:e?.getAvailableBoneNames?.()||[],mapped:e?.getBoneMap?.()||{}}})()',true).catch(e=>({error:String(e?.stack||e)}));
+    const valid=Boolean(!result?.error&&!result?.bootstrap?.error&&result?.sceneState==="rendered"&&result.meshCount>0);
+    return {pass:valid,source,size:fs.statSync(source).size,meshOnly:valid&&(result.bones||[]).length===0,boneCount:(result.bones||[]).length,mappedCount:Object.keys(result.mapped||{}).length,result};
+   });
+   await check("acceptance.repeat-load-preserves-visible-character",async()=>{
+    const w=getCharacterWindow?.(),source=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");
+    if(!visible(w)||!fs.existsSync(source)||typeof characterHost?.replaceCharacterForCi!=="function")return {pass:false,error:"Character window, authoritative GLB, or replacement API unavailable"};
+    const temp=path.join(app.getPath("temp"),"Saeed-current-acceptance.glb");
+    try{
+     fs.copyFileSync(source,temp);
+     const first=await characterHost.replaceCharacterForCi(temp);
+     await wait(500);
+     const second=await characterHost.replaceCharacterForCi(temp);
+     await wait(800);
+     const after=await execJs(w,'(()=>{const e=window.saeedCharacterRuntime?.engine,st=e?.get3DStatus?.(),scene=e?.getScene?.(),meshes=[];scene?.traverse?.(o=>{if((o?.isMesh||o?.isSkinnedMesh)&&o.visible)meshes.push(o.name||o.type)});return {bootstrap:window.saeed3DBootstrap,state:st?.components?.sceneContent?.state,meshCount:meshes.length,meshes:meshes.slice(0,20)}})()',true);
+     return {pass:Boolean(first?.ok&&second?.ok&&!after?.bootstrap?.error&&after?.state==="rendered"&&after?.meshCount>0),first,second,after};
+    }finally{try{fs.unlinkSync(temp)}catch{}}
+   },{timeoutMs:60000});
+   await check("acceptance.available-bones-animate",async()=>{
+    const w=getCharacterWindow?.();
+    if(!visible(w))return {pass:false,error:"Character window is not visible"};
+    const sceneData=await execJs(w,'(()=>{const e=window.saeedCharacterRuntime?.engine,scene=e?.getScene?.(),meshes=[];scene?.traverse?.(o=>{if((o?.isMesh||o?.isSkinnedMesh)&&o.visible)meshes.push(o.name||o.type)});return {state:e?.get3DStatus?.()?.components?.sceneContent?.state,meshCount:meshes.length,bones:e?.getAvailableBoneNames?.()||[]}})()',true);
+    if(sceneData?.state!=="rendered"||Number(sceneData?.meshCount)<1)return {pass:false,stage:"render",sceneData};
+    if(!sceneData.bones.length)return {pass:true,capabilityMode:"mesh-only",boneCount:0,animation:"not-applicable-no-bones",sceneData};
+    const opened=await depsShowPerformance?.();await wait(500);
+    const pw=getPerformanceWindow?.()||opened;
+    if(!visible(pw))return {pass:false,stage:"performance-window",error:"Could not open character controller window",boneCount:sceneData.bones.length};
+    const result=await execJs(pw,'(async()=>{const api=window.saeed;const before=await api.character.getCharacterController();const boneNames=await api.character.characterController({action:"boneNames"});const available=(boneNames?.bones||[]).filter(Boolean);if(!available.length)return {pass:false,stage:"bone-discovery",error:"Engine scene has bones but controller exposes none"};const mappedBefore=Object.keys(before?.autoRig||{});if(!mappedBefore.length)await api.character.characterController({action:"autoMap"}).catch(()=>{});const state=await api.character.getCharacterController();const slots=Object.keys(state?.autoRig||{}).filter(k=>state.autoRig[k]);if(!slots.length)return {pass:false,stage:"partial-rig-map",error:"Bones exist but no available logical bone was mapped",available,mapped:state?.autoRig||{}};const slot=slots[0],id="ciCurrentAcceptanceMotion";const motion={id,duration:1,layer:"special",loop:false,keyframes:[{time:0,pose:{[slot]:{x:0,y:0,z:0}}},{time:.35,pose:{[slot]:{x:.32,y:.41,z:.18}}},{time:.75,pose:{[slot]:{x:-.2,y:-.28,z:.12}}},{time:1,pose:{[slot]:{x:0,y:0,z:0}}}]};const saved=await api.character.characterController({action:"defineMotion",motion});if(!saved?.ok)return {pass:false,stage:"define-motion",saved,slot,available};await api.character.characterController({action:"play",motion:id,options:{duration:1,speed:1,intensity:1,loop:false}});await new Promise(r=>setTimeout(r,280));const during=await api.character.getCharacterController();const bone=state.autoRig[slot],a=state.actualBones?.[bone]?.rotation,b=during.actualBones?.[during.autoRig?.[slot]||bone]?.rotation;const changed=Boolean(a&&b&&(Math.abs((b.x||0)-(a.x||0))>.01||Math.abs((b.y||0)-(a.y||0))>.01||Math.abs((b.z||0)-(a.z||0))>.01));await api.character.characterController({action:"stopAll"}).catch(()=>{});await api.character.characterController({action:"deleteMotion",id}).catch(()=>{});return {pass:changed,stage:changed?"animated":"no-bone-change",slot,bone,available,mapped:state.autoRig,before:a,during:b,changed}})()',true);
+    return {...result,sceneData,boneCount:sceneData.bones.length};
+   },{timeoutMs:90000});
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
    await check("startup.tray",()=>Boolean(getTray?.()));
    await check("startup.mic-off",()=>String(getVoiceHost?.()?.getCurrentMicMode?.()||"off")==="off");
