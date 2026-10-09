@@ -15,7 +15,7 @@
 
 This document defines the authoritative architecture for the Saeed 3D Character Runtime.
 
-## Current implementation map (verified against the repository)
+### Current implementation map (verified against the repository)
 
 This map records where the existing implementation currently lives; it supplements the requirements below and does not remove or weaken any requirement.
 
