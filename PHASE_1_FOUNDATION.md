@@ -1,12 +1,12 @@
 # Saeed V2.0 — Phase 1: Foundation
 
-**Status:** Active  
+**Status:** Active — current product-development phase  
 **Type:** Product-development phase  
 **Repair scope:** Only the subset of existing defects that prevents a coherent foundation.
 
 ## Goal
 
-Create the clean technical foundation on which Phases 2–4 can be developed quickly without accumulating duplicate systems.
+Maintain and verify the foundation while Phase 2–4 work proceeds in parallel where dependencies permit. Phase 1 remains active for foundation conformance; it does not block all runtime, intelligence, or product work.
 
 ## Product work
 
@@ -65,7 +65,7 @@ Establish the contracts required by later phases:
 - no Brain → bone access;
 - no Tool Registry bypass;
 - no permanent render loop;
-- manual Windows build remains disabled until Phase 1 exit.
+- Windows builds remain manual-only through `workflow_dispatch`; automatic triggers stay disabled. A manual build may be run for verification while Phase 1 work continues.
 
 ## Exit criteria
 
