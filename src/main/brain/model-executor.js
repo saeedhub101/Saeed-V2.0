@@ -1,32 +1,40 @@
 const {redactToolArgs}=require("../../tools/redact");
 const addonRuntime=()=>require("../../addons/runtime");
 class ModelExecutor{
- async run({text,image=null,settings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults}){
+ async run({text,image=null,settings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults,isCurrent=()=>true}){
+  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
+  const emit=onEvent||(()=>{}),persist=saveHistory||(()=>{});
+  onEvent=event=>{if(current())emit(event)};saveHistory=()=>{if(current())persist()};
+  if(!current())return "";
   const s=settings||{};
     const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
   const addonLlm=addonRuntime().find(dir,"llm",addonPreference);
   if(addonLlm){
    try{
+    if(!current())return "";
     const provider=addonRuntime().load(dir,addonLlm.id);
     if(typeof provider.chat==="function"){
      onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN ADD-ON",message:"Using installed LLM add-on: "+addonLlm.name,meta:{id:addonLlm.id,provider:addonLlm.provider||addonLlm.id}});
      const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
      const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Use the supplied tools when needed and do not claim success without evidence."+memoryContext()},...history.slice(-12),{role:"user",content:userContent}];
      const result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
+     if(!current())return "";
      const content=String(result?.content||result?.text||"");
      const calls=Array.isArray(result?.tool_calls)?result.tool_calls:[];
      if(calls.length){
       for(const call of calls){
+       if(!current())return "";
        let args={};try{args=typeof call.arguments==="string"?JSON.parse(call.arguments):call.arguments||{}}catch{}
-       const name=String(call.name||call.function?.name||"");const out=await registry.call(name,args);
+       const name=String(call.name||call.function?.name||"");if(!current())return "";const out=await registry.call(name,args);if(!current())return "";
        messages.push({role:"assistant",content:"",tool_calls:[{id:call.id||"addon-call",type:"function",function:{name,arguments:JSON.stringify(args)}}]});
        messages.push({role:"tool",tool_call_id:call.id||"addon-call",content:JSON.stringify(out)});
       }
       const follow=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
+      if(!current())return "";
       const finalText=String(follow?.content||follow?.text||content);
       history.push({role:"user",content:String(text)},{role:"assistant",content:finalText});saveHistory();onEvent({type:"answer",text:finalText,source:"addon-llm"});return finalText;
      }
-     history.push({role:"user",content:String(text)},{role:"assistant",content:content});saveHistory();onEvent({type:"answer",text:content,source:"addon-llm"});return content;
+     if(!current())return "";history.push({role:"user",content:String(text)},{role:"assistant",content:content});saveHistory();onEvent({type:"answer",text:content,source:"addon-llm"});return content;
     }
    }catch(e){onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN ADD-ON",message:e.message});if(addonPreference)throw e;}
   }
@@ -92,6 +100,7 @@ class ModelExecutor{
     onEvent({type:"answer",text:answer,source:"api-error"});return answer;
    }
    const responseText=await r.text();
+   if(!current())return "";
    if(!r.ok){
     let detail="";try{const j=JSON.parse(responseText);detail=j?.error?.message||j?.error?.type||""}catch{}
     const transient=r.status===408||r.status===409||r.status===425||r.status===429||r.status>=500;
@@ -111,6 +120,7 @@ class ModelExecutor{
    if(isAnthropic)anthropicMessages.push({role:"assistant",content:m.content});
    else messages.push(parsed.choices[0].message);
    for(const c of m.tool_calls||[]){
+    if(!current())return "";
     let a={};try{a=JSON.parse(c.function.arguments||"{}")}catch{
      const invalid={ok:false,error:"Invalid tool arguments"};
      if(isAnthropic)anthropicMessages.push({role:"user",content:[{type:"tool_result",tool_use_id:c.id,content:JSON.stringify(invalid)}]});
@@ -121,7 +131,9 @@ class ModelExecutor{
     const actionText=actionName==="open_url"?"Okay, I’ll open that.":actionName==="open_application"?"Okay, I’ll open it.":actionName==="web_search"?"Okay, I’ll look that up.":actionName==="screenshot"?"Okay, I’ll check the screen.":actionName==="read_file"||actionName==="inspect_document"||actionName==="extract_pdf_text"||actionName==="read_excel"?"Okay, I’ll check that.":"Okay, I’ll do that.";
     onEvent({type:"speech-status",text:actionText});
     onEvent({type:"tool",name:c.function.name,args:redactToolArgs(c.function.name,a)});
+    if(!current())return "";
     let out=await runTool(c.function.name,a);
+    if(!current())return "";
     if(out?.ok===false&&["web_search","fetch_web_page","network_info","read_file","inspect_document","extract_pdf_text","read_excel"].includes(c.function.name)){onEvent({type:"diagnostic",level:"INFO",stage:"TOOL RETRY",message:"Retrying safe read/network tool after failure",meta:{tool:c.function.name}});try{const retry=await runTool(c.function.name,a);if(retry?.ok!==false)out=retry}catch{}}
     if(out?.ok===false)onEvent({type:"tool_error",name:c.function.name,error:out.error||"Tool failed"});
     else onEvent({type:"tool_result",name:c.function.name,result:out});
