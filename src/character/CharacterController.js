@@ -96,7 +96,7 @@ export class CharacterController{
    this.animation.stopAll();
    this.characterId=profileId;
    const missingRequired=missingRequiredSlots(mapped);
-   this.rigReady=missingRequired.length===0;
+   this.rigReady=Object.keys(mapped).length>0;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
    this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
    this.lastBindingResult={loaded:mappedBoneCount>0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,partial:missingRequired.length>0,reason:missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
@@ -242,7 +242,7 @@ export class CharacterController{
    this.animation.bindRig(mapped,this.retargeter);
    this.characterId=profileId;
    const missingRequired=missingRequiredSlots(mapped);
-   this.rigReady=missingRequired.length===0;
+   this.rigReady=Object.keys(mapped).length>0;
    this.lastBindingResult={loaded:this.rigReady,reason:this.rigReady?undefined:"Character rig is missing required joints: "+missingRequired.join(", "),missingRequired,mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length};
    if(this.characterId){
     const restPose=savedRestPose||{
@@ -295,7 +295,7 @@ export class CharacterController{
    this.profiles.save(this.characterId,{mapping,autoConfidence:{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
   }
   const missingRequired=missingRequiredSlots(mapped);
-  this.rigReady=missingRequired.length===0;
+  this.rigReady=Object.keys(mapped).length>0;
   this.lastBindingResult={loaded:this.rigReady,missingRequired,partial:missingRequired.length>0,reason:this.rigReady?(missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined):"No logical joints could be mapped",mappedBoneCount:Object.keys(mapped).length,sceneBoneCount:names.length,bound:true};
   return this.rigReady;
 }
