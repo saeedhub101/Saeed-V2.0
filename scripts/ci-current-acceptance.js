@@ -139,6 +139,22 @@ function main() {
   check("packaged-runner-startup-handshake-and-report-preservation", startupMarkerPresent && reportPreservedOnRunnerFailure,
     { startupMarkerPresent, reportPreservedOnRunnerFailure, note: "The packaged app must emit the exact runner handshake, and runner failures must not overwrite the detailed app acceptance report." });
 
+  const persistenceRunner = exists("scripts/ci-run-character-persistence.ps1") ? read("scripts/ci-run-character-persistence.ps1") : "";
+  const persistenceWorkflow = exists(".github/workflows/build-windows-electron.yml") ? read(".github/workflows/build-windows-electron.yml") : "";
+  const persistenceWired = e2e.includes("runPersistencePhase") &&
+    runtime.includes("--ci-e2e-persistence=") &&
+    persistenceRunner.includes("Invoke-PersistencePhase \"prepare\"") &&
+    persistenceRunner.includes("Invoke-PersistencePhase \"verify\"") &&
+    persistenceWorkflow.includes("ci-run-character-persistence.ps1") &&
+    persistenceWorkflow.includes("ci-e2e-persistence-verify.json");
+  check("full-process-character-persistence-acceptance-wired", persistenceWired, {
+    persistenceProbeImplemented: e2e.includes("runPersistencePhase"),
+    packagedRuntimeEntryPoint: runtime.includes("--ci-e2e-persistence="),
+    twoSeparateProcessPhases: persistenceRunner.includes("Invoke-PersistencePhase \"prepare\"") && persistenceRunner.includes("Invoke-PersistencePhase \"verify\""),
+    mandatoryWorkflowStep: persistenceWorkflow.includes("ci-run-character-persistence.ps1"),
+    diagnosticArtifactsConfigured: persistenceWorkflow.includes("ci-e2e-persistence-verify.json")
+  });
+
   const report = {
     suite: "current-product-preflight",
     createdAt: new Date().toISOString(),
