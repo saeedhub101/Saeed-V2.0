@@ -468,26 +468,8 @@ function getCharacterPoseStatus(){
  if(hips&&head){const hp=hips.getWorldPosition(new THREE.Vector3()),hd=head.getWorldPosition(new THREE.Vector3()),up=hd.clone().sub(hp),height=up.length(),vertical=Math.abs(up.y)/Math.max(height,.001);if(vertical>=.45){const direction=b=>{const child=b?.children?.find(x=>x.isBone);if(!child)return null;const p=b.getWorldPosition(new THREE.Vector3()),q=child.getWorldPosition(new THREE.Vector3());return q.sub(p).normalize()};const ld=direction(left),rd=direction(right);isTPose=Boolean(ld&&rd&&Math.abs(ld.y)<.5&&Math.abs(rd.y)<.5&&Math.abs(ld.x)>Math.abs(ld.z)*.65&&Math.abs(rd.x)>Math.abs(rd.z)*.65);detected=isTPose?"t-pose":"not-t-pose";}else detected="not-upright";}
  const rigValidation=validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name])));return {loaded:Boolean(model),requiredRig:rigValidation,capabilities:{...rigValidation.capabilities,blink:Boolean(morphs.has("blink")||morphs.has("eyeclose")||rigValidation.capabilities.blink),visemes:morphs.size>0,expressions:morphs.size>0},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,skeletonCount:boneGroups.size,duplicateBoneGroups:[...boneGroups.entries()].filter(([,list])=>list.length>1).map(([name,list])=>({name,count:list.length})),tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
-function getBoneRotation(name){
- getSceneBones();
- const key=String(name||"");
- const list=boneGroups.get(key)||[];
- const b=list[0],rest=boneRest.get(key);
- if(!b||!rest)return null;
- // Return editor angles as world-axis deltas from the captured rest orientation.
- // This avoids treating the GLB's native local Euler angles as the user's X/Y/Z controls.
- const baseQ=new THREE.Quaternion(
-  Number(rest.rotation.qx)||0,Number(rest.rotation.qy)||0,
-  Number(rest.rotation.qz)||0,Number.isFinite(Number(rest.rotation.qw))?Number(rest.rotation.qw):1
- );
- const parentQ=new THREE.Quaternion();
- b.parent?.getWorldQuaternion?.(parentQ);
- const worldBase=parentQ.clone().multiply(baseQ);
- const worldCurrent=parentQ.clone().multiply(b.quaternion);
- const deltaWorld=worldCurrent.multiply(worldBase.invert());
- const euler=new THREE.Euler().setFromQuaternion(deltaWorld,"XYZ");
- return{x:euler.x,y:euler.y,z:euler.z};
-}
+function getBoneRotation(name){getSceneBones();const b=(boneGroups.get(String(name||""))||[])[0];return b?{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}:null}
+function getBoneEditorRotation(name){getSceneBones();const key=String(name||""),b=(boneGroups.get(key)||[])[0],rest=boneRest.get(key);if(!b||!rest)return null;const baseQ=new THREE.Quaternion(Number(rest.rotation.qx)||0,Number(rest.rotation.qy)||0,Number(rest.rotation.qz)||0,Number.isFinite(Number(rest.rotation.qw))?Number(rest.rotation.qw):1),parentQ=new THREE.Quaternion();b.parent?.getWorldQuaternion?.(parentQ);const baseWorld=parentQ.clone().multiply(baseQ),currentWorld=parentQ.clone().multiply(b.quaternion),delta=currentWorld.multiply(baseWorld.invert()),e=new THREE.Euler().setFromQuaternion(delta,"XYZ");return{x:e.x,y:e.y,z:e.z}}
 function setBoneRotation(name,rotation={}){
  getSceneBones();
  const key=String(name||"");
@@ -618,7 +600,7 @@ window.saeedCharacterRuntime.engine={
   };
  },
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,autoMapRig,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
- getBoneRotation,setBoneRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
+ getBoneRotation,getBoneEditorRotation,setBoneRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
