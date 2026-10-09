@@ -1,6 +1,7 @@
 const {redactToolArgs}=require("./redact");
 const path=require("path"),{Computer}=require("../main/automation/computer");
 const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./addons"),require("./email")];
+const characterMotionToolSchema={type:"function",function:{name:"character_motion",description:"Control Saeed's character semantically. Use gestures such as wave, nod, think, talk, celebrate, clap or jump; never provide bone angles.",parameters:{type:"object",properties:{intent:{type:"string"},duration:{type:"number"},intensity:{type:"number"}},required:["intent"]}}};
 
 function schemaTypeMatches(value,type){
  if(type==="null")return value===null;
@@ -52,7 +53,7 @@ class ToolRegistry{
   this.confirm=confirm||(async()=>false);this.permissionPolicy=permissionPolicy||(()=> "ask");this.recordHook=typeof recordHook==="function"?recordHook:null;this.characterController=typeof characterController==="function"?characterController:null;this.tasksFile=path.join(this.userDataPath,"tasks.json");
  }
  setRecordHook(fn){this.recordHook=typeof fn==="function"?fn:null}
- schemas(){return domains.flatMap(d=>d.schemas()).concat([{type:"function",function:{name:"character_motion",description:"Control Saeed's character semantically. Use gestures such as wave, nod, think, talk, celebrate, clap or jump; never provide bone angles.",parameters:{type:"object",properties:{intent:{type:"string"},duration:{type:"number"},intensity:{type:"number"}},required:["intent"]}}}])}
+ schemas(){return domains.flatMap(d=>d.schemas()).concat([characterMotionToolSchema])}
  categoryFor(name){
   if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info"].includes(name))return"system";
   if(["list_directory","read_file","write_file","open_file","reveal_file","inspect_document","extract_pdf_text","read_excel","calculate_excel","write_excel"].includes(name))return"files";
@@ -88,7 +89,7 @@ class ToolRegistry{
   try{
    const toolName=String(name||"");
    const requiredArgs={ocr_image:"filePath",extract_image_table:"filePath",inspect_image:"filePath",open_file:"filePath",reveal_file:"filePath",read_file:"filePath",open_application:"application"};
-   if(toolName==="character_motion"){if(!String(args?.intent||"").trim())return{ok:false,error:'Missing required argument "intent" for tool "character_motion".'};if(!(await this.authorize("system",{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for system"}:stale();if(!current())return stale();if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});if(!current())return stale();this.record(toolName,args);return out}
+   if(toolName==="character_motion"){const validationError=validateToolArguments(args,characterMotionToolSchema.function.parameters,toolName);if(validationError)return{ok:false,error:validationError};if(!(await this.authorize("system",{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for system"}:stale();if(!current())return stale();if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});if(!current())return stale();this.record(toolName,args);return out}
    const required=requiredArgs[toolName];if(required&&!String(args?.[required]??"").trim())return{ok:false,error:'Missing required argument "'+required+'" for tool "'+toolName+'".'};
    const toolSchema=domains.flatMap(d=>d.schemas()).find(s=>s?.function?.name===toolName);const addon=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);const addonTool=addon?require("../addons/runtime").resolveTool(this.userDataPath,toolName):null;if(!toolSchema&&!addonTool)return{ok:false,error:"Unknown tool: "+toolName};const argumentSchema=toolSchema?.function?.parameters||addonTool?.tool?.parameters;const validationError=validateToolArguments(args,argumentSchema,toolName);if(validationError)return{ok:false,error:validationError};const category=this.categoryFor(toolName);if(!(await this.authorize(category,{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for "+category}:stale();if(!current())return stale();
    const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,isCurrent:current,requestPermission:(c,r)=>this.authorize(c,r,current),characterController:this.characterController};
