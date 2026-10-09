@@ -1,6 +1,6 @@
 const assert=require("node:assert/strict");
 const net=require("node:net"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
-const {pop3ListMessages,pop3Fetch,smtpSend}=require("../src/addons/email-client");
+const {pop3ListMessages,pop3Fetch,smtpSend,smtpVerify}=require("../src/addons/email-client");
 const emailAccounts=require("../src/addons/email-account-store");
 
 async function runSmtpTests(){
@@ -32,6 +32,12 @@ async function runSmtpTests(){
  const config={host:"127.0.0.1",port:server.address().port,tls:false,startTls:false,username:"smtp-user",password:"smtp-password",from:"sender@example.com",to:["recipient@example.com"]};
  try{
   const message="From: sender@example.com\r\nTo: recipient@example.com\r\nSubject: protocol test\r\n\r\nhello\r\n.leading dot";
+  const beforeVerify=commands.length;
+  assert.equal(await smtpVerify(config),true,"SMTP authentication test should complete without sending mail");
+  const verifyCommands=commands.slice(beforeVerify);
+  assert.ok(verifyCommands.includes("AUTH LOGIN"),"SMTP verification must authenticate the saved account");
+  assert.ok(verifyCommands.includes("QUIT"),"SMTP verification must close the session cleanly");
+  assert.equal(verifyCommands.some(line=>line.startsWith("MAIL FROM:")),false,"SMTP verification must not start a mail transaction");
   assert.equal(await smtpSend(config,message),true,"SMTP send should complete the protocol transaction");
   assert.ok(commands.includes("MAIL FROM:<sender@example.com>"),"SMTP must send the envelope sender");
   assert.ok(commands.includes("RCPT TO:<recipient@example.com>"),"SMTP must send the recipient");
@@ -93,7 +99,7 @@ async function main(){
   assert.equal(commands.slice(beforeCancel).some(line=>line.startsWith("PASS ")),false,"cancelled POP3 authentication must not send the password");
   await runSmtpTests();
   testEmailAccountStore();
-  console.log("EMAIL_PROTOCOL=PASS (POP3 listing/retrieval, SMTP send, server-profile persistence, dot-stuffing, validation, command-injection guard, cancellation)");
+  console.log("EMAIL_PROTOCOL=PASS (POP3 listing/retrieval, SMTP authentication/send, server-profile persistence, dot-stuffing, validation, command-injection guard, cancellation)");
  }finally{
   await new Promise(resolve=>server.close(()=>resolve()));
  }
