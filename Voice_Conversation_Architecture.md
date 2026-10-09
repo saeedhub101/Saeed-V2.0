@@ -6,6 +6,12 @@ This document defines the authoritative architecture for Saeed V2.0 voice, speec
 
 It is intentionally separate from `Character_Architecture.md`.
 
+## Current implementation map
+
+The current voice renderer is `src/renderer/voice/voice-client.js`; main-process voice lifecycle and provider orchestration are in `src/main/voice/voice-host.js` and `src/main/voice/voice-runtime.js`. The secure renderer-facing voice API is exposed by `src/preload.js` under `window.saeed.voice`, including `onRealtimeUserFinal`, local STT transcription, and microphone-mode controls.
+
+The user transcript must be surfaced from the actual STT result event (for example, `onRealtimeUserFinal` or the local transcription result) and must remain distinct from Saeed's assistant-response bubble. An optional transcript label is a user-controlled presentation feature: it is off unless enabled, does not start the microphone, and must show only recognized text/errors returned by the STT path.
+
 `Character_Architecture.md` defines how Saeed behaves as a living 3D character.
 
 This document defines how Saeed:
