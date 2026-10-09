@@ -116,7 +116,7 @@ Provide an optional, permission-controlled email capability using IMAP for mailb
 - Email SMTP delivery now supplies a validated envelope sender; email confirmation displays the actual body field and defaults the consequential send prompt to Deny.
 
 
-- First-party `remember`, `recall`, `list_memory`, and `forget` now use the same persistent memory service as ConversationAgent. Explicit facts are indexed for semantic retrieval, forgetting removes matching entries from both the vector index and fact store, and the legacy core memory module is a compatibility facade rather than a second independent store.
+- First-party `remember`, `recall`, `list_memory`, and `forget` now use the same persistent memory service as ConversationAgent. Explicit facts are indexed for semantic retrieval, forgetting removes matching entries from the vector index, fact store, and persisted knowledge documents, and the legacy core memory module is a compatibility facade rather than a second independent store.
 - Add-on tool handlers receive a cancellation context (`isCurrent` and optional `signal`) so long-running capabilities can stop work when their conversation is invalidated.
 
 **Verification status:** source changes only. No test suite or build was run for these updates; runtime and packaged acceptance remain pending.
