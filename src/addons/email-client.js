@@ -105,12 +105,15 @@ function imapSession(config){
 }
 async function imapLoginSession(config){
   const s=await imapSession(config);
-  if(config.accessToken){
-    await s.command("AUTHENTICATE XOAUTH2",Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"));
-  }else{
-    await s.command('LOGIN "'+escapeQuote(config.username)+'" "'+escapeQuote(config.password||"")+'"');
-  }
-  return s;
+  try{
+    assertCurrent(config);
+    if(config.accessToken){
+      await s.command("AUTHENTICATE XOAUTH2",Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"));
+    }else{
+      await s.command('LOGIN "'+escapeQuote(config.username)+'" "'+escapeQuote(config.password||"")+'"');
+    }
+    assertCurrent(config);return s;
+  }catch(error){s.close();throw error}
 }
 async function imapProbe(config){const s=await imapSession(config);try{const r=await s.command("CAPABILITY");return r.join("\n")}finally{s.close()}}
 async function imapLogin(config){const s=await imapLoginSession(config);s.close();return true}
