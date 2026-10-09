@@ -13,7 +13,7 @@ function toolSchemas(userData){
  const out=[];
  for(const item of capabilities.list(userData)){
   try{
-   const manifest=manager.load(userData,item.id);
+   const manifest=manager.describe(userData,item.id);
    for(const tool of (manifest.tools||[]))out.push({type:"function",function:{name:"addon_"+item.id+"_"+tool.name,description:tool.description+" [Add-on: "+item.name+"]",parameters:tool.parameters}});
   }catch{}
  }
