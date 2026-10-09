@@ -470,19 +470,50 @@ function getCharacterPoseStatus(){
 }
 function getBoneRotation(name){
  getSceneBones();
- const list=boneGroups.get(String(name||""))||[];
- const b=list[0];
- if(!b)return null;
- return{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z};
+ const key=String(name||"");
+ const list=boneGroups.get(key)||[];
+ const b=list[0],rest=boneRest.get(key);
+ if(!b||!rest)return null;
+ // Return editor angles as world-axis deltas from the captured rest orientation.
+ // This avoids treating the GLB's native local Euler angles as the user's X/Y/Z controls.
+ const baseQ=new THREE.Quaternion(
+  Number(rest.rotation.qx)||0,Number(rest.rotation.qy)||0,
+  Number(rest.rotation.qz)||0,Number.isFinite(Number(rest.rotation.qw))?Number(rest.rotation.qw):1
+ );
+ const parentQ=new THREE.Quaternion();
+ b.parent?.getWorldQuaternion?.(parentQ);
+ const worldBase=parentQ.clone().multiply(baseQ);
+ const worldCurrent=parentQ.clone().multiply(b.quaternion);
+ const deltaWorld=worldCurrent.multiply(worldBase.invert());
+ const euler=new THREE.Euler().setFromQuaternion(deltaWorld,"XYZ");
+ return{x:euler.x,y:euler.y,z:euler.z};
 }
 function setBoneRotation(name,rotation={}){
  getSceneBones();
- const list=boneGroups.get(String(name||""))||[];
- if(!list.length)return false;
+ const key=String(name||"");
+ const list=boneGroups.get(key)||[];
+ const rest=boneRest.get(key);
+ if(!list.length||!rest)return false;
  const source=rotation?.rotation&&typeof rotation.rotation==="object"?rotation.rotation:rotation;
  const x=Number(source.x),y=Number(source.y),z=Number(source.z);
  if(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))return false;
- for(const b of list)b.rotation.set(x,y,z);
+ const baseQ=new THREE.Quaternion(
+  Number(rest.rotation.qx)||0,Number(rest.rotation.qy)||0,
+  Number(rest.rotation.qz)||0,Number.isFinite(Number(rest.rotation.qw))?Number(rest.rotation.qw):1
+ );
+ const deltaQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z,"XYZ"));
+ const parentQ=new THREE.Quaternion();
+ const inverseParentQ=new THREE.Quaternion();
+ for(const b of list){
+  parentQ.identity();
+  b.parent?.getWorldQuaternion?.(parentQ);
+  inverseParentQ.copy(parentQ).invert();
+  // Apply the requested X/Y/Z turn around the character's world axes while
+  // retaining the original GLB local rest orientation.
+  const worldBase=parentQ.clone().multiply(baseQ);
+  const worldDelta=deltaQ.clone().multiply(worldBase);
+  b.quaternion.copy(inverseParentQ.multiply(worldDelta));
+ }
  render();
  return true;
 }
