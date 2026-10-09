@@ -1,8 +1,8 @@
-# Saeed AI — Architecture Contract
+# Saeed AI — Project Entry Point
 
 Saeed is a lightweight Windows desktop companion. **The character is the primary application surface. Chat and Mic are two optional input/output surfaces for the same Saeed brain.**
 
-This README is the **architecture contract** and contains the red lines that must not be crossed.
+This README is the concise project entry point and summarizes non-negotiable constraints. The domain architecture documents listed below remain authoritative for detailed behavior and implementation.
 
 ## 1. RED LINES — NON-NEGOTIABLE
 
@@ -17,7 +17,7 @@ This README is the **architecture contract** and contains the red lines that mus
 9. Add-ons are optional and lazy. Installed does not mean loaded.
 10. Exactly one authoritative Tool Registry/permission/dispatch path.
 11. Exactly one CharacterController is the character command boundary. It owns exactly one AutonomousBehaviorController for autonomous decisions; AnimationController remains the playback layer.
-12. CharacterEngine only renders. It does not decide behavior.
+12. `src/character/CharacterEngine.js` owns the Three.js scene, renderer, camera, GLB loading, current skeleton/model state, and low-level 3D execution. `CharacterController` and its owned subsystems decide semantic behavior, animation, autonomy, retargeting, and motion policy; the Brain never manipulates bones directly.
 13. Idle is intermittent and event-driven. No permanent idle animation loop.
 14. Recent idle motions are suppressed so Saeed does not mechanically repeat the same movement.
 15. Animation update/render activity exists only while a visual change is occurring.
@@ -478,7 +478,27 @@ The project architecture is documented as separate authoritative contracts. Plan
 
 When this README conflicts with an authoritative document, the authoritative document wins. Architecture changes must be made at the owning document first.
 
-## 19. Execution Planning Documents
+## 19. Current Implementation Map
+
+| Responsibility | Current implementation |
+|---|---|
+| Electron startup and app wiring | `src/main.js` → `src/main/runtime.js` |
+| Window creation and page loading | `src/main/application/window-manager.js` |
+| Tray commands | `src/main/application/system-controls.js` |
+| Safe renderer API | `src/preload.js` (`window.saeed`) |
+| GLB / Three.js runtime | `src/character/CharacterEngine.js` |
+| Character behavior and animation orchestration | `src/character/CharacterController.js` |
+| Humanoid bone mapping | `src/character/AutoRigMapper.js` |
+| Animation playback and retargeting | `src/character/AnimationController.js`, `src/character/CharacterRetargeter.js` |
+| Character authoring UI | `src/character-studio.html` |
+| Add-on management UI | `src/addons/window.html`, `src/addons/window.js` |
+| Learning / Teach Mode UI | `src/learning/window.html`, `src/learning/window.js` |
+| Voice renderer and transcript events | `src/renderer/voice/voice-client.js`, `src/main/voice/voice-host.js` |
+| E2E checks and report generation | `src/main/ci-e2e.js`, `.github/workflows/build-windows-electron.yml` |
+
+The map describes the current repository layout; it does not replace domain requirements or authorize removing required behavior.
+
+## 20. Execution Planning Documents
 
 The following documents define the implementation sequence, not the architecture itself:
 
