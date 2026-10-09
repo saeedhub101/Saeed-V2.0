@@ -173,12 +173,6 @@ must(read("src/renderer/character.html").includes("characterLoadResult")&&read("
 must(read("src/character/CharacterEngine.js").includes("candidateBoneCount<1")&&read("src/character/CharacterEngine.js").includes("current character preserved"),"Character engine does not reject skeleton-less GLB candidates before replacing the active model");
 must(read("src/character/CharacterEngine.js").includes("function getSceneBoneGroups(target=model)")&&read("src/character/CharacterEngine.js").includes("target?.traverse(o=>{if(o?.isBone)add(o)})"),"Candidate skeleton inspection must inspect the parsed candidate, not the currently displayed model");
 must(read("src/character/CharacterEngine.js").includes("load(p.data,p.generation).then(result=>p.resolve?.(result),error=>p.reject?.(error))"),"Queued initial GLB load does not resolve its renderer acknowledgement");
-const glbValidation=read("src/main/character/glb-validation.js");
-must(glbValidation.includes("GLB first chunk is not JSON")&&glbValidation.includes("asset.version"),"GLB candidate structural validation is missing");
-must(read("src/main/character/character-store.js").includes("validateGlbCandidate(data)")&&read("src/main/character/character-store.js").includes("fs.renameSync(temporary,file)"),"Persisted GLB is not validated and atomically replaced");
-must(read("src/main/character/character-host.js").includes("loadCandidateCharacter")&&read("src/main/character/character-host.js").includes("character:load-result"),"Character replacement does not wait for renderer-confirmed load and skeleton readiness");
-must(read("src/renderer/character.html").includes("characterLoadResult")&&read("src/preload.js").includes("characterLoadResult:"),"Character GLB load acknowledgement is missing from renderer/preload");
-must(read("src/character/CharacterEngine.js").includes("candidateBoneCount<1")&&read("src/character/CharacterEngine.js").includes("current character preserved"),"Character engine does not reject skeleton-less GLB candidates before replacing the active model");
 must(exists("assets/Saeed_AI-3D.glb"),"Authoritative Saeed GLB is missing");
 must(read("src/main/character/character-host.js").includes('path.join(__dirname,"..","..","..","assets","Saeed_AI-3D.glb")'),"Character startup does not reference authoritative bundled GLB");
 must(!read("src/main/character/character-host.js").includes("const saved=readPersistedCharacter()"),"Character startup must not replace authoritative bundled GLB with persisted/automatic GLB");
