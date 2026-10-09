@@ -28,31 +28,38 @@ function lineReader(socket){
   return next;
 }
 
+function assertCurrent(config){if(typeof config?.isCurrent==="function"&&!config.isCurrent())throw new Error("Email operation cancelled")}
 async function smtpSend(config,msg){
-  let socket=await connect(config,{tlsMode:Boolean(config.tls)}),next=lineReader(socket),r=await next();
-  if(!/^2/.test(r))throw new Error(r);
-  let eh=await smtpCommand(socket,next,"EHLO saeed");
+ let socket=await connect(config,{tlsMode:Boolean(config.tls)}),next=lineReader(socket);
+ try{
+  assertCurrent(config);let r=await next();assertCurrent(config);if(!/^2/.test(r))throw new Error(r);
+  let eh=await smtpCommand(socket,next,"EHLO saeed",config);
   if(config.startTls&&!config.tls){
-    if(!/^2/.test(eh))throw new Error(eh);
-    r=await smtpCommand(socket,next,"STARTTLS");if(!/^2/.test(r))throw new Error(r);
-    socket=tls.connect({socket,servername:config.host,rejectUnauthorized:true});next=lineReader(socket);await next();eh=await smtpCommand(socket,next,"EHLO saeed");
+   if(!/^2/.test(eh))throw new Error(eh);
+   r=await smtpCommand(socket,next,"STARTTLS",config);if(!/^2/.test(r))throw new Error(r);
+   socket=tls.connect({socket,servername:config.host,rejectUnauthorized:true});next=lineReader(socket);await next();assertCurrent(config);eh=await smtpCommand(socket,next,"EHLO saeed",config);
   }
   if(!/^2/.test(eh))throw new Error(eh);
   if(config.accessToken){
-    r=await smtpCommand(socket,next,"AUTH XOAUTH2 "+Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"));
+   r=await smtpCommand(socket,next,"AUTH XOAUTH2 "+Buffer.from("user="+config.username+"\x01auth=Bearer "+config.accessToken+"\x01\x01").toString("base64"),config);
   }else if(config.username){
-    r=await smtpCommand(socket,next,"AUTH LOGIN");if(!/^3/.test(r))throw new Error(r);
-    r=await smtpCommand(socket,next,Buffer.from(config.username).toString("base64"));if(!/^3/.test(r))throw new Error(r);
-    r=await smtpCommand(socket,next,Buffer.from(config.password||"").toString("base64"));
+   r=await smtpCommand(socket,next,"AUTH LOGIN",config);if(!/^3/.test(r))throw new Error(r);
+   r=await smtpCommand(socket,next,Buffer.from(config.username).toString("base64"),config);if(!/^3/.test(r))throw new Error(r);
+   r=await smtpCommand(socket,next,Buffer.from(config.password||"").toString("base64"),config);
   }else r="250";
   if(!/^2/.test(r))throw new Error(r);
-  r=await smtpCommand(socket,next,"MAIL FROM:<"+config.from+">");if(!/^2/.test(r))throw new Error(r);
-  for(const to of [].concat(config.to||[])){r=await smtpCommand(socket,next,"RCPT TO:<"+to+">");if(!/^2/.test(r))throw new Error(r)}
-  r=await smtpCommand(socket,next,"DATA");if(!/^3/.test(r))throw new Error(r);
-  socket.write(String(msg).replace(/^\./gm,"..")+"\r\n.\r\n");r=await next();
-  try{await smtpCommand(socket,next,"QUIT")}catch{}socket.destroy();if(!/^2/.test(r))throw new Error(r);return true;
+  r=await smtpCommand(socket,next,"MAIL FROM:<"+config.from+">",config);if(!/^2/.test(r))throw new Error(r);
+  for(const to of [].concat(config.to||[])){assertCurrent(config);r=await smtpCommand(socket,next,"RCPT TO:<"+to+">",config);if(!/^2/.test(r))throw new Error(r)}
+  assertCurrent(config);r=await smtpCommand(socket,next,"DATA",config);if(!/^3/.test(r))throw new Error(r);
+  assertCurrent(config);socket.write(String(msg).replace(/^\./gm,"..")+"\r\n.\r\n");r=await next();assertCurrent(config);
+  if(!/^2/.test(r))throw new Error(r);
+  try{await smtpCommand(socket,next,"QUIT",config)}catch{}return true;
+ }finally{try{socket.destroy()}catch{}}
 }
-async function smtpCommand(socket,next,cmd){socket.write(String(cmd)+"\r\n");let lines=[];while(true){const line=await next();lines.push(line);if(/^\d{3} /.test(line))return line}}
+async function smtpCommand(socket,next,cmd,config){
+ assertCurrent(config);socket.write(String(cmd)+"\r\n");const lines=[];
+ while(true){const line=await next();assertCurrent(config);lines.push(line);if(/^\d{3} /.test(line))return line}
+}
 
 async function pop3Auth(config){
   for(const [label,value] of [["username",config.username],["password",config.password]])if(/[\r\n\0]/.test(String(value??"")))throw new Error("POP3 "+label+" contains a forbidden line break");
