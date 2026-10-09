@@ -47,7 +47,7 @@ async function run(){
  }catch(e){report("animation runtime",false,e?.stack||e);}
  try{
   const avatar=fs.readFileSync(path.join(root,"src/character/CharacterEngine.js"),"utf8"),controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
-  report("T-pose correction",avatar.includes('detected:"t-pose"')&&avatar.includes("stillTPose"));
+  report("humanoid rest-pose classification",avatar.includes("function normalizeHumanoidRestPose()")&&avatar.includes('detected:"glb-rest-pose"')&&avatar.includes("stillTPose:false")&&avatar.includes("GLB rest pose preserved"));
   const displayStart=avatar.indexOf("function display(");
   const normalizationCall=avatar.indexOf("const normalization=normalizeHumanoidRestPose()",displayStart);
   const firstDisplayRender=avatar.indexOf("render();",displayStart);
