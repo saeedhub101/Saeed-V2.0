@@ -61,16 +61,19 @@ class ModelExecutor{
   }
   let stepBudget=ciE2E?Math.min(baseStepLimit(),4):baseStepLimit();
   const runTool=async(name,args)=>{
+   if(!current())return{ok:false,error:"Stale conversation request cancelled"};
    if(!ciE2E)return registry.call(name,args);
    try{return await Promise.race([registry.call(name,args),new Promise(resolve=>setTimeout(()=>resolve({ok:false,error:"CI E2E tool timeout"}),8000))])}
    catch(e){return{ok:false,error:e.message}}
   };
   for(let step=0;;step++){
+   if(!current())return "";
    if(step>=stepBudget){
     if(ciE2E){
      const answer="API brain route smoke test completed.";history.push({role:"user",content:String(text)},{role:"assistant",content:answer});saveHistory();onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"CI E2E execution limit reached without interactive step confirmation",meta:{sessionId,stepLimit:stepBudget}});onEvent({type:"answer",text:answer,source:"api-e2e-limit"});return answer;
     }
     const expanded=await askForMoreSteps(stepBudget,text);
+    if(!current())return "";
     if(expanded<=stepBudget){
      onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"Task stopped by user at the execution step limit",meta:{sessionId,stepLimit:stepBudget}});
      const answer="تم إيقاف المهمة عند حد خطوات التنفيذ الحالي. يمكنك زيادة الحد من Performance أو السماح بالمتابعة عند الطلب.";
