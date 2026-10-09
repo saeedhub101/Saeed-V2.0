@@ -367,6 +367,81 @@ function createCiE2E(deps={}){
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
   return report;
  }
- return{run};
+
+ async function runPersistencePhase(phase){
+  const result={suite:"character-persistence-restart",phase,startedAt:new Date().toISOString(),checks:{},pass:false};
+  const statePath=process.env.SAEED_CI_PERSISTENCE_STATE||path.join(app.getPath("temp"),"saeed-character-persistence-state.json");
+  const save=(name,pass,detail={})=>{result.checks[name]={pass,...detail};if(!pass)result.pass=false;};
+  try{
+   const opened=await depsShowRestPoseEditor?.();await wait(1800);
+   const w=getRestPoseEditorWindow?.()||opened;
+   if(!visible(w))throw new Error("Character Studio could not be opened in packaged runtime");
+   const waitForRig=async()=>{const end=Date.now()+45000;let s=null;while(Date.now()<end){s=await execJs(w,'(async()=>window.saeed.character.characterController({action:"status"}))()',true);const st=s?.status||s;if(st?.characterLoaded&&Object.keys(st.actualBones||{}).length&&Object.keys(st.autoRig||{}).some(k=>st.autoRig[k]))return st;await wait(350)}throw new Error("Character rig did not become ready: "+JSON.stringify(s));};
+   const status=await waitForRig();
+   const close=(a,b)=>Number.isFinite(Number(a))&&Math.abs(Number(a)-Number(b))<.04;
+   if(phase==="prepare"){
+    const slots=Object.entries(status.autoRig||{}).filter(([slot,bone])=>bone&&status.actualBones?.[bone]?.rotation);
+    if(!slots.length)throw new Error("No mapped bone with an actual rotation is available");
+    const [slot,bone]=slots.find(([s])=>/upperarm|forearm|hips|spine/i.test(s))||slots[0];
+    const original=status.actualBones[bone].rotation;
+    const target={x:Number(original.x||0)+.19,y:Number(original.y||0)-.12,z:Number(original.z||0)+.08};
+    const set=await execJs(w,'(async()=>window.saeed.character.characterController({action:"setBoneRotation",bone:'+JSON.stringify(bone)+',rotation:'+JSON.stringify(target)+'}))()',true);
+    const saved=await execJs(w,'(async()=>window.saeed.character.characterController({action:"saveRestPose"}))()',true);
+    const after=await execJs(w,'(async()=>window.saeed.character.characterController({action:"status"}))()',true);
+    const actual=after?.status?.actualBones?.[bone]?.rotation||{};
+    save("rest-pose-saved-before-shutdown",Boolean(set?.ok&&saved?.ok&&saved?.persisted&&close(actual.x,target.x)&&close(actual.y,target.y)&&close(actual.z,target.z)),{bone,slot,target,actual,persisted:Boolean(saved?.persisted)});
+    const motionId="ciRestartPersistenceMotion";
+    const motion={id:motionId,duration:1,layer:"arms",loop:false,keyframes:[{time:0,pose:{[slot]:{x:0,y:0,z:0}}},{time:.45,pose:{[slot]:{x:.35,y:.25,z:-.15}}},{time:1,pose:{[slot]:{x:0,y:0,z:0}}}]};
+    const defined=await execJs(w,'(async()=>window.saeed.character.characterController({action:"defineMotion",motion:'+JSON.stringify(motion)+'}))()',true);
+    const listed=await execJs(w,'(async()=>window.saeed.character.characterController({action:"listMotions"}))()',true);
+    save("motion-saved-before-shutdown",Boolean(defined?.ok&&(listed?.motions||[]).some(x=>x.id===motionId)),{motionId,defined:defined?.ok===true,listed:(listed?.motions||[]).some(x=>x.id===motionId)});
+    fs.mkdirSync(path.dirname(statePath),{recursive:true});
+    fs.writeFileSync(statePath,JSON.stringify({version:1,bone,slot,target,original,motionId,preparedAt:new Date().toISOString()},null,2),"utf8");
+    result.pass=Object.values(result.checks).every(x=>x.pass);result.statePath=statePath;
+   }else if(phase==="verify"){
+    if(!fs.existsSync(statePath))throw new Error("Prepare-phase state file is missing: "+statePath);
+    const state=JSON.parse(fs.readFileSync(statePath,"utf8"));
+    const loadedRotation=status.actualBones?.[state.bone]?.rotation||{};
+    save("rest-pose-survives-full-process-restart",Boolean(status.profileId&&status.actualBones?.[state.bone]&&close(loadedRotation.x,state.target.x)&&close(loadedRotation.y,state.target.y)&&close(loadedRotation.z,state.target.z)),{profileId:status.profileId,bone:state.bone,target:state.target,afterRestart:loadedRotation});
+    const reset=await execJs(w,'(async()=>window.saeed.character.characterController({action:"resetPose"}))()',true);await wait(250);
+    const resetStatus=await execJs(w,'(async()=>window.saeed.character.characterController({action:"status"}))()',true);
+    const resetRotation=resetStatus?.status?.actualBones?.[state.bone]?.rotation||{};
+    save("reset-uses-persisted-rest-pose",Boolean(reset?.ok&&close(resetRotation.x,state.target.x)&&close(resetRotation.y,state.target.y)&&close(resetRotation.z,state.target.z)),{reset:reset?.ok===true,expected:state.target,actual:resetRotation});
+    const listed=await execJs(w,'(async()=>window.saeed.character.characterController({action:"listMotions"}))()',true);
+    const loadedMotion=(listed?.motions||[]).find(x=>x.id===state.motionId);
+    save("custom-motion-survives-full-process-restart",Boolean(loadedMotion),{motionId:state.motionId,loadedMotion:loadedMotion||null});
+    if(loadedMotion){
+     const edit={...loadedMotion,keyframes:(loadedMotion.keyframes||[]).map((k,i)=>i===1?{...k,pose:{...(k.pose||{}),[state.slot]:{x:-.42,y:.31,z:.17}}}:k)};
+     const edited=await execJs(w,'(async()=>window.saeed.character.characterController({action:"defineMotion",motion:'+JSON.stringify(edit)+'}))()',true);
+     const listAfterEdit=await execJs(w,'(async()=>window.saeed.character.characterController({action:"listMotions"}))()',true);
+     const editedMotion=(listAfterEdit?.motions||[]).find(x=>x.id===state.motionId);
+     const editStored=Boolean(edited?.ok&&editedMotion?.keyframes?.some(k=>Math.abs(Number(k?.pose?.[state.slot]?.x)-(-.42))<.001));
+     save("existing-motion-edit-persists-in-registry",editStored,{edited:edited?.ok===true,expectedKeyframeX:-.42,actualKeyframe:editedMotion?.keyframes?.[1]||null});
+     const beforePlay=await execJs(w,'(async()=>window.saeed.character.characterController({action:"status"}))()',true);
+     const actualBone=status.autoRig?.[state.slot]||state.bone;
+     const beforeRotation=beforePlay?.status?.actualBones?.[actualBone]?.rotation||{};
+     const play=await execJs(w,'(async()=>window.saeed.character.characterController({action:"play",motion:'+JSON.stringify(state.motionId)+',options:{duration:1,speed:1,loop:false}}))()',true);
+     await wait(380);
+     const during=await execJs(w,'(async()=>window.saeed.character.characterController({action:"status"}))()',true);
+     const afterRotation=during?.status?.actualBones?.[actualBone]?.rotation||{};
+     const changed=["x","y","z"].some(k=>Math.abs(Number(afterRotation[k]||0)-Number(beforeRotation[k]||0))>.015);
+     save("edited-motion-changes-live-bone",Boolean(play?.ok&&changed),{play:play?.ok===true,bone:actualBone,before:beforeRotation,during:afterRotation,changed});
+     await execJs(w,'(async()=>window.saeed.character.characterController({action:"stopAll"}))()',true).catch(()=>{});
+    }else{
+     save("existing-motion-edit-persists-in-registry",false,{error:"Motion missing after restart"});
+     save("edited-motion-changes-live-bone",false,{error:"Motion missing after restart"});
+    }
+    await execJs(w,'(async()=>{const api=window.saeed.character;await api.characterController({action:"stopAll"}).catch(()=>{});await api.characterController({action:"setBoneRotation",bone:'+JSON.stringify(state.bone)+',rotation:'+JSON.stringify(state.original)+'});const restored=await api.characterController({action:"saveRestPose"});await api.characterController({action:"deleteMotion",id:'+JSON.stringify(state.motionId)+'}).catch(()=>{});return {restored:restored?.persisted===true}})()',true).catch(e=>{result.cleanupError=String(e?.message||e)});
+    try{fs.unlinkSync(statePath)}catch{}
+    result.pass=Object.values(result.checks).every(x=>x.pass);
+   }else throw new Error("Unsupported persistence phase: "+phase);
+  }catch(e){result.error=String(e?.stack||e);result.pass=false}
+  result.finishedAt=new Date().toISOString();
+  const reportPath=process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist","ci-e2e-persistence-"+phase+".json");
+  fs.mkdirSync(path.dirname(reportPath),{recursive:true});fs.writeFileSync(reportPath,JSON.stringify(result,null,2),"utf8");
+  console.log("SAEED_CI_PERSISTENCE",JSON.stringify(result));return result;
+ }
+
+ return{run,runPersistencePhase};
 }
 module.exports={createCiE2E};
