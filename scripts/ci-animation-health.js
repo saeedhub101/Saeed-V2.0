@@ -1,7 +1,7 @@
-// Comprehensive animation CI inspection. This test is diagnostic-only and NEVER gates the build.
+// Comprehensive animation CI inspection. Diagnostics remain advisory, but critical runtime/authoring contracts gate npm test.
 // It inspects animation architecture, registered motions, sequences, bone APIs, blending,
 // render scheduling, duplicate controllers and obvious invalid/static motion definitions.
-// Findings are written to animation-health-report.json and the process always exits 0.
+// Findings are written to animation-health-report.json; critical missing contracts fail the test.
 const fs=require("node:fs"),path=require("node:path");
 const root=process.cwd();
 const failures=[],warnings=[],checks=[];
@@ -108,13 +108,32 @@ for(const p of ["src/character/FingerController.js","src/character/FaceControlle
   if(exists(p)){const s=read(p);check(p+" parses as non-empty",s.length>100);}
 }
 
+// 9. Hard acceptance contracts for the current GLB / character-authoring workflow.
+// Keep broad quality warnings diagnostic, but fail when a required execution path disappears.
+const gateFailures=[];
+function gate(name,ok,detail){if(!ok)gateFailures.push({name,detail:detail||"required contract missing"});checks.push({name:"GATE: "+name,pass:!!ok,detail:detail||""});}
+const studio=exists("src/character-studio.html")?read("src/character-studio.html"):"";
+const host=exists("src/main/character/character-host.js")?read("src/main/character/character-host.js"):"";
+const mapper=exists("src/character/AutoRigMapper.js")?read("src/character/AutoRigMapper.js"):"";
+const rig=exists("src/character/CharacterRig.js")?read("src/character/CharacterRig.js"):"";
+const editor=exists("src/character/MotionEditor.js")?read("src/character/MotionEditor.js"):"";
+gate("GLB loader is present",exists("src/three/GLTFLoader.js")&&engine.includes("GLTFLoader"));
+gate("GLB load path exposes character pose status",engine.includes("getCharacterPoseStatus")&&engine.includes("getAvailableBoneNames"));
+gate("rig mapper and rig binder are present",exists("src/character/AutoRigMapper.js")&&exists("src/character/CharacterRig.js")&&mapper.length>100&&rig.length>100);
+gate("rest-pose save and reset paths exist",controller.includes("saveRestPose")&&controller.includes("resetBoneToRest")&&engine.includes("setBoneEditorRotation"));
+gate("world-axis editor rotation is exposed end-to-end",studio.includes("setBoneEditorRotation")&&host.includes('"setBoneEditorRotation"')&&client.includes("setBoneEditorRotation"));
+gate("animation editing and playback are connected",studio.includes("defineMotion")&&studio.includes("loadMotion")&&controller.includes("defineMotion")&&controller.includes("play(")&&editor.length>100);
+gate("Studio reports real skeleton and mapping status",studio.includes("Mapped slots:")&&studio.includes("boneNames")&&studio.includes("status"));
+gate("add-ons and learning pages exist",exists("src/addons/window.html")&&exists("src/learning/window.html"));
+gate("E2E includes world-axis and nested-axis regressions",exists("src/main/ci-e2e.js")&&read("src/main/ci-e2e.js").includes("character.studio-editor-world-axis-rotation")&&read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"));
+
 // 9. Report.
 const report={
   generatedAt:new Date().toISOString(),
-  diagnosticOnly:true,
-  gating:false,
-  summary:{checks:checks.length,failed:failures.length,warnings:warnings.length,motions:uniqueMotion.length,sequences:uniqueSequence.length},
-  checks,failures,warnings,
+  diagnosticOnly:false,
+  gating:true,
+  summary:{checks:checks.length,failed:failures.length,gateFailures:gateFailures.length,warnings:warnings.length,motions:uniqueMotion.length,sequences:uniqueSequence.length},
+  checks,failures,gateFailures,warnings,
   motionIds:uniqueMotion,sequenceIds:uniqueSequence,animationOwnerCandidates:ownerCandidates
 };
 fs.writeFileSync(path.join(root,"animation-health-report.json"),JSON.stringify(report,null,2),"utf8");
@@ -122,6 +141,6 @@ console.log("ANIMATION_HEALTH_REPORT=animation-health-report.json");
 console.log("ANIMATION_HEALTH_CHECKS="+checks.length);
 console.log("ANIMATION_HEALTH_FAILURES="+failures.length);
 console.log("ANIMATION_HEALTH_WARNINGS="+warnings.length);
-console.log("=== ANIMATION HEALTH COMPLETE — BUILD NOT BLOCKED ===");
-// Intentionally exit successfully: this file is a diagnostic report, not a release gate.
-process.exit(0);
+console.log("ANIMATION_HEALTH_GATE_FAILURES="+gateFailures.length);
+if(gateFailures.length){for(const f of gateFailures)console.error("ANIMATION GATE FAILED:",f.name,"-",f.detail);console.error("=== ANIMATION HEALTH FAILED — REQUIRED CHARACTER CONTRACT MISSING ===");process.exit(1);}
+console.log("=== ANIMATION HEALTH COMPLETE — REQUIRED CONTRACTS PASSED ===");
