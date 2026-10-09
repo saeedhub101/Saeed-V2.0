@@ -68,7 +68,7 @@ $("testEmailConnection").onclick=async()=>{
  const provider=$("emailCredentialProvider").value,account=$("emailCredentialAccount").value.trim(),protocol=$("emailServerProtocol").value,host=$("emailServerHost").value.trim(),port=Number($("emailServerPort").value),tls=$("emailServerTls").checked,startTls=$("emailServerStartTls").checked,state=$("emailServerState"),button=$("testEmailConnection");
  if(!account){state.textContent="Enter the account key before testing the server.";return}
  button.disabled=true;state.textContent="Testing server reachability…";
- try{const result=await window.saeed.system.testEmailConnection({provider,account,protocol,host,port,tls,startTls});if(!result?.ok||!result?.connected)throw new Error(result?.error||"Server connection failed");state.textContent=protocol.toUpperCase()+" endpoint reachable: "+result.host+":"+result.port+" ("+result.transport+"). Authentication and message operations were not tested."}
+ try{const result=await window.saeed.system.testEmailConnection({provider,account,protocol,host,port,tls,startTls});if(!result?.ok||!result?.connected)throw new Error(result?.error||"Server connection failed");state.textContent=protocol.toUpperCase()+" authentication succeeded: "+result.host+":"+result.port+" ("+result.transport+"). No email was sent."}
  catch(error){state.textContent="Connection test failed: "+String(error?.message||error)}
  finally{button.disabled=false}
 };
