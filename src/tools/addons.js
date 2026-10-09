@@ -10,7 +10,9 @@ const schemas=()=>[
  {type:"function",function:{name:"email_send",description:"Send an email using a credential saved in Windows Credential Manager. Sending always requires explicit confirmation. Message is the email body, not raw SMTP headers.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"},tls:{type:"boolean"},startTls:{type:"boolean"},from:{type:"string"},to:{type:"array",items:{type:"string"}},subject:{type:"string"},message:{type:"string"}},required:["provider","account","from","to","message"]}}},
  {type:"function",function:{name:"email_imap_folders",description:"List folders for an email account with credentials saved in Windows Credential Manager.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"}},required:["provider","account"]}}},
  {type:"function",function:{name:"email_imap_search",description:"Search messages in an IMAP mailbox using a saved Windows Credential Manager account.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"},mailbox:{type:"string"},criteria:{type:"string"},uid:{type:"boolean"}},required:["provider","account"]}}},
- {type:"function",function:{name:"email_imap_fetch",description:"Fetch an IMAP message or headers using a saved Windows Credential Manager account.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"},mailbox:{type:"string"},sequence:{type:"string"},uid:{type:"boolean"},headersOnly:{type:"boolean"}},required:["provider","account","sequence"]}}}
+ {type:"function",function:{name:"email_imap_fetch",description:"Fetch an IMAP message or headers using a saved Windows Credential Manager account.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"},mailbox:{type:"string"},sequence:{type:"string"},uid:{type:"boolean"},headersOnly:{type:"boolean"}},required:["provider","account","sequence"]}}},
+ {type:"function",function:{name:"email_pop3_list",description:"List message indexes and sizes from a POP3 mailbox using a saved Windows Credential Manager account.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"},tls:{type:"boolean"}},required:["provider","account"]}}},
+ {type:"function",function:{name:"email_pop3_fetch",description:"Retrieve one POP3 message by its positive message index using a saved Windows Credential Manager account.",parameters:{type:"object",properties:{provider:{type:"string"},account:{type:"string"},host:{type:"string"},port:{type:"number"},tls:{type:"boolean"},index:{type:"number"}},required:["provider","account","index"]}}}
 ];
 function safeHeader(value,label){
  const text=String(value??"").trim();
@@ -55,6 +57,8 @@ async function call(name,args,ctx){
    if(!/^\d+(?::\d+)?$/.test(sequence))throw new Error("IMAP sequence must be a number or numeric range");
    return{ok:true,message:await client.imapFetch(config,{...args,mailbox,sequence})};
   }
+  if(name==="email_pop3_list"){const config=await emailConfig(args,"pop3");return{ok:true,messages:await client.pop3ListMessages(config)}}
+  if(name==="email_pop3_fetch"){const config=await emailConfig(args,"pop3"),index=Number(args.index);if(!Number.isSafeInteger(index)||index<1)throw new Error("POP3 message index must be a positive integer");return{ok:true,message:await client.pop3Fetch(config,index)}}
  }
  return null;
 }
