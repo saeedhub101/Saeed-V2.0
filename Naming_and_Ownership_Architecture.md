@@ -1,6 +1,12 @@
 # Saeed V2.0 Naming and Ownership Contract
 
 ## Canonical Character Runtime
+## Current canonical file paths
+
+The verified implementation roots are `src/main/`, `src/renderer/`, `src/character/`, `src/tools/`, `src/addons/`, and `src/learning/`. The Electron entry is `src/main.js`, which loads `src/main/runtime.js`; the renderer-facing API is `src/preload.js`; character 3D execution is `src/character/CharacterEngine.js`; character orchestration is `src/character/CharacterController.js`; character authoring UI is `src/character-studio.html`; and the add-on and learning pages are `src/addons/window.html` and `src/learning/window.html`.
+
+Use the actual import graph and the foundation contract as the source of truth for future path changes. Do not rename or remove a required subsystem just to make it match a stale document.
+
 
 There is exactly one renderer-side character runtime namespace:
 
