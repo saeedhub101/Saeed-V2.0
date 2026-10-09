@@ -149,6 +149,7 @@ must(read("src/main/voice/voice-runtime.js").includes("result:redactToolResult(n
 must(read("src/tools/redact.js").includes("function redactToolResult(name,result)"),"Private tool-result redaction helper is missing");
 must(read("src/tools/addons.js").includes('credentials.get(provider,account)')&&!read("src/tools/addons.js").includes('password:{type:"string"}'),"Email tools must retrieve saved credentials without exposing passwords in model schemas");
 must(read("src/addons/credentials.js").includes("child.stdin.end(JSON.stringify({target:target(provider,account)")&&!read("src/addons/credentials.js").includes('"/pass:"'),"Windows Credential Manager writes must not expose passwords in process arguments");
+must(read("src/addons/credentials.js").includes("$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$t=[string]$d.target;")&&!read("src/addons/credentials.js").includes("CredRead('$t'"),"Credential Manager reads must not interpolate account text into PowerShell");
 must(read("src/performance.html").includes('id="emailCredentialPassword"')&&read("src/preload.js").includes("storeEmailCredential:"),"Secure email credential setup UI/IPC is missing");
 must(read("src/main/runtime.js").includes('ipcMain.handle("email:credential:store"'),"Secure email credential IPC handler is missing");
 must(read("src/main/application/brain-host.js").includes("Confirm sending this email?"),"Email send confirmation does not show a send-specific confirmation");
