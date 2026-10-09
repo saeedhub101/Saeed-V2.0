@@ -3,7 +3,7 @@ const APP_ALIASES={notepad:"notepad.exe",calculator:"calc.exe",calc:"calc.exe",p
 const WEBSITE_ALIASES={google:"https://www.google.com",youtube:"https://www.youtube.com",facebook:"https://www.facebook.com",github:"https://github.com",gmail:"https://mail.google.com",outlook:"https://outlook.live.com",whatsapp:"https://web.whatsapp.com",chatgpt:"https://chatgpt.com"};
 class LocalExecutor{
  constructor(registry,onEvent){this.registry=registry;this.onEvent=typeof onEvent==="function"?onEvent:()=>{}}
- async tool(name,args,answer,isCurrent=()=>true){if(!isCurrent())return null;this.onEvent({type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":"Okay, I’ll do that."});const out=await this.registry.call(name,args);if(!isCurrent())return null;if(out?.ok===false){this.onEvent({type:"diagnostic",level:"INFO",stage:"LOCAL TOOL FAILED",message:"Local capability failed",meta:{tool:name,error:out.error||"unknown"}});return null}return answer(out)}
+ async tool(name,args,answer,isCurrent=()=>true){if(!isCurrent())return null;this.onEvent({type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":"Okay, I’ll do that."});const out=await this.registry.call(name,args,{isCurrent});if(!isCurrent())return null;if(out?.ok===false){this.onEvent({type:"diagnostic",level:"INFO",stage:"LOCAL TOOL FAILED",message:"Local capability failed",meta:{tool:name,error:out.error||"unknown"}});return null}return answer(out)}
  cleanTarget(s){return String(s||"").trim().replace(/[.?!؟،]+$/,"").replace(/^(my|the|this)\s+/i,"").trim()}
  async tryExecute(text,{isCurrent=()=>true}={}){
   const runTool=(...args)=>this.tool(...args,isCurrent);
