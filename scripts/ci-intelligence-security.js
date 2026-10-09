@@ -9,7 +9,7 @@ async function main(){
  const denied=new ToolRegistry({userDataPath:process.cwd(),permissionPolicy:()=> "deny",confirm:async request=>{confirmations.push(request);return true}});
  const names=denied.schemas().map(x=>x.function?.name).filter(Boolean);
  assert.equal(new Set(names).size,names.length,"tool schemas must not contain duplicate names");
- for(const name of ["memory_add","memory_search","knowledge_add","mcp_list_servers","mcp_list_tools","mcp_call_tool","email_send","email_imap_search"]){
+ for(const name of ["memory_add","memory_search","knowledge_add","mcp_list_servers","mcp_list_tools","mcp_call_tool","email_send","email_imap_search","email_pop3_list","email_pop3_fetch"]){
   assert.ok(names.includes(name),"missing advertised capability schema: "+name);
   const result=await denied.call(name,{text:"test",query:"test",server:"test",tool:"test",host:"localhost",port:993,from:"a@example.com",to:["b@example.com"],message:"test",provider:"test",account:"test",username:"test",password:"test"});
   assert.equal(result.ok,false,"denied tool must not execute: "+name);
@@ -31,6 +31,9 @@ async function main(){
  assert.equal(safe.accessToken,"[REDACTED]","access token must be redacted");
  assert.equal(safe.headers.authorization,"[REDACTED]","nested authorization headers must be redacted");
  const safeEmailResult=redactToolResult("email_imap_fetch",{body:"private email body",text:"private plain text",subject:"Allowed subject",headers:{authorization:"Bearer hidden"}});
+ const safePop3Result=redactToolResult("email_pop3_fetch",{message:"private POP3 message",subject:"Allowed subject"});
+ assert.equal(safePop3Result.message,"[REDACTED]","POP3 message content must be redacted from events");
+ assert.equal(safePop3Result.subject,"Allowed subject","POP3 metadata should remain visible");
  assert.equal(safeEmailResult.body,"[REDACTED]","fetched email body must be redacted from events");
  assert.equal(safeEmailResult.text,"[REDACTED]","fetched email text must be redacted from events");
  assert.equal(safeEmailResult.subject,"Allowed subject","non-secret email metadata should remain visible");
