@@ -13,7 +13,7 @@ function create(c){
  if(!c.memory)c.memory={
  add:text=>memoryService.addFact(c.userDataPath,text),
  search:query=>memoryService.rag(c.userDataPath,query,20).map(({id,text,metadata,createdAt,score})=>({id,text,metadata,createdAt,score})),
- list:limit=>memoryService.listFacts(c.userDataPath).slice(0,Math.max(1,Math.min(500,Number(limit)||50))),
+ list:limit=>memoryService.search(c.userDataPath,"",Math.max(1,Math.min(500,Number(limit)||50))).map(({id,text,metadata,createdAt})=>({id,text,metadata,createdAt})),
  forget:query=>memoryService.forget(c.userDataPath,query)
 };
  if(!c.tasksFile)c.tasksFile=path.join(c.userDataPath,"tasks.json");
