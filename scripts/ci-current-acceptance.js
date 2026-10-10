@@ -161,6 +161,16 @@ function main() {
     characterControllerSource.includes('a.position&&b.position&&["x","y","z"].every'),
     { note: "Rest-pose capture, storage verification, reload and reset must preserve actual bone positions as well as rotations." });
 
+  const packagedRunner = exists("scripts/ci-run-packaged-e2e.ps1") ? read("scripts/ci-run-packaged-e2e.ps1") : "";
+  const e2eSource = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
+  check("rest-pose-restart-gate-uses-two-packaged-processes",
+    packagedRunner.includes('$env:SAEED_CI_E2E_RESTART_PHASE = "prepare"') &&
+    packagedRunner.includes('$env:SAEED_CI_E2E_RESTART_PHASE = "verify"') &&
+    packagedRunner.includes("$proc2 = Start-Process") &&
+    e2eSource.includes("ci-rest-pose-restart.json") &&
+    e2eSource.includes('restartPhase==="verify"'),
+    { note: "Release acceptance must save a real bone transform, exit the packaged app, relaunch it, and verify the persisted position and rotation in the new process." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
