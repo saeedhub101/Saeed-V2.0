@@ -142,10 +142,10 @@ export class CharacterController{
      return b&&Math.abs(Number(b.x)-Number(a.x))<1e-7&&Math.abs(Number(b.y)-Number(a.y))<1e-7&&Math.abs(Number(b.z)-Number(a.z))<1e-7&&(["qx","qy","qz","qw"].every(k=>Number.isFinite(Number(a[k]))&&Number.isFinite(Number(b[k]))?Math.abs(Number(b[k])-Number(a[k]))<1e-7:true));
     });
    };
-   persisted=verify(persistedProfile||this.profiles.load(this.characterId)||{});
+   persisted=verify(this.profiles.load(this.characterId)||{});
    if(!persisted){
     persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-    persisted=verify(persistedProfile||this.profiles.load(this.characterId)||{});
+    persisted=verify(this.profiles.load(this.characterId)||{});
    }
   }
   return {...restPose,persisted,profileId:this.characterId,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
