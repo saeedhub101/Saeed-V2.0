@@ -77,6 +77,10 @@ try {
   }
   if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
   if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
+  if ($proc.ExitCode -ne 0) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_FAILED";error="Packaged app exited nonzero after its E2E run";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
+    exit 1
+  }
   if (!(Test-Path $report -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;status="NO_REPORT";error="Packaged app exited without an acceptance report";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
     exit 1
@@ -135,6 +139,10 @@ try {
   }
   if (Test-Path $restartStdout) { Get-Content $restartStdout -Raw | Write-Host }
   if (Test-Path $restartStderr) { Get-Content $restartStderr -Raw | Write-Host }
+  if ($proc2.ExitCode -ne 0) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_FAILED";error="Second packaged process exited nonzero after restart verification";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
+    exit 1
+  }
   if (!(Test-Path $restartReport -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_NO_REPORT";error="Second packaged process exited without a rest-pose verification report";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
     exit 1

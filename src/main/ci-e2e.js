@@ -333,7 +333,7 @@ function createCiE2E(deps={}){
    });
    await check("voice.output-device-capability",async()=>{
     const w=getCharacterWindow?.();if(!w)return false;
-    const r=await execJs(w,'(()=>new Promise(async resolve=>{try{if(!navigator.mediaDevices?.enumerateDevices)return resolve({available:false,reason:"enumerateDevices unavailable"});const devices=await navigator.mediaDevices.enumerateDevices();const outputs=devices.filter(d=>d.kind==="audiooutput").map(d=>({kind:d.kind,label:d.label||"",deviceId:Boolean(d.deviceId)}));resolve({available:true,outputDeviceCount:outputs.length,outputs,defaultOutputPresent:outputs.some(d=>d.deviceId)});}catch(e){resolve({available:false,reason:String(e?.name||e?.message||e)})}}))()',true);
+    const r=await execJs(w,'(()=>new Promise(async resolve=>{try{if(!navigator.mediaDevices?.enumerateDevices)return resolve({available:false,reason:"enumerateDevices unavailable"});const devices=await navigator.mediaDevices.enumerateDevices();const allOutputs=devices.filter(d=>d.kind==="audiooutput").map(d=>({kind:d.kind,label:d.label||"",deviceId:Boolean(d.deviceId)}));const fakeOutputs=allOutputs.filter(d=>/^fake\b/i.test(d.label));const outputs=allOutputs.filter(d=>!/^fake\b/i.test(d.label));resolve({available:true,outputDeviceCount:outputs.length,outputs,fakeOutputDeviceCount:fakeOutputs.length,syntheticOnly:allOutputs.length>0&&outputs.length===0,defaultOutputPresent:outputs.some(d=>d.deviceId)});}catch(e){resolve({available:false,reason:String(e?.name||e?.message||e)})}}))()',true);
     return {pass:true,hardwareOutputAvailable:Boolean(r?.available&&r?.outputDeviceCount>0),environmentLimited:!(r?.available&&r?.outputDeviceCount>0),detail:r};
    },{required:false});
    await check("voice.tts-local-output",async()=>{
@@ -343,8 +343,9 @@ function createCiE2E(deps={}){
       if(!synth)return resolve({pass:false,audioStarted:false,error:"speechSynthesis unavailable"});
       const sleep=ms=>new Promise(r=>setTimeout(r,ms));
       const devices=await navigator.mediaDevices?.enumerateDevices?.().catch(()=>[]);
-      const outputs=(devices||[]).filter(d=>d.kind==="audiooutput");
-      if(!outputs.length)return resolve({pass:true,audioStarted:false,speaking:false,ended:false,voiceCount:synth.getVoices().length,environmentLimited:true,reason:"no audio output device available"});
+      const allOutputs=(devices||[]).filter(d=>d.kind==="audiooutput");
+      const outputs=allOutputs.filter(d=>!/^fake\b/i.test(String(d.label||"")));
+      if(!outputs.length)return resolve({pass:true,audioStarted:false,speaking:false,ended:false,voiceCount:synth.getVoices().length,environmentLimited:true,reason:allOutputs.length?"only synthetic CI audio outputs are available":"no audio output device available",fakeOutputDeviceCount:allOutputs.length});
       const waitForVoices=async()=>{let v=synth.getVoices();if(v.length)return v;await new Promise(r=>{let done=false;const f=()=>{if(done)return;done=true;synth.removeEventListener("voiceschanged",f);r()};synth.addEventListener("voiceschanged",f);setTimeout(f,1000)});return synth.getVoices()};
       let voices=await waitForVoices();
       if(!voices.length)return resolve({pass:true,audioStarted:false,speaking:false,ended:false,voiceCount:0,environmentLimited:true,reason:"no voices available"});
