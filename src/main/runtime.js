@@ -1,7 +1,9 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
-if(ciSmoke){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
+const ciE2E=process.argv.includes("--ci-e2e");
+const ciAutomation=ciSmoke||ciE2E;
+if(ciAutomation){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
 function ciWriteE2EStartup(stage,meta={}){
  if(!process.argv.includes("--ci-e2e"))return;
  try{
@@ -71,9 +73,9 @@ function trayIcon(){
  return nativeImage.createFromPath(windowsIconPath());
 }
 app.setAppUserModelId("ai.saeed.desktop");
-const singleInstanceLock=ciSmoke?true:app.requestSingleInstanceLock();
+const singleInstanceLock=ciAutomation?true:app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
-else if(!ciSmoke)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
+else if(!ciAutomation)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
 
