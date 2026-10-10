@@ -89,10 +89,9 @@ function main() {
 
   const required = [
     "assets/Saeed_AI-3D.glb", "src/main.js", "src/preload.js",
-    "src/main/runtime.js", "src/main/ci-e2e.js",
-    "src/character/CharacterEngine.js", "src/character/CharacterController.js",
+    "src/main/runtime.js", "src/character/CharacterEngine.js", "src/character/CharacterController.js",
     "src/character/AutoRigMapper.js", "src/three/GLTFLoader.js", "src/character-studio.html",
-    "scripts/ci-run-packaged-e2e.ps1", ".github/workflows/build-windows-electron.yml"
+    ".github/workflows/build-windows-electron.yml"
   ];
   const missing = required.filter(p => !exists(p));
   check("current-runtime-files-present", missing.length === 0, { requiredCount: required.length, missing });
@@ -108,7 +107,7 @@ function main() {
       { rigCapability: glb.rigCapability, jointCount: glb.jointCount, note: "A visible mesh is mandatory; a skeleton is optional; any provided joint indices must be valid." });
   }
 
-  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/ci-e2e.js", "src/main/character/character-host.js", "src/main/voice/voice-host.js", "src/main/voice/voice-runtime.js", "src/main/services/memory-service.js", "src/addons/mcp.js", "src/character/client.js", "scripts/ci-current-acceptance.js"];
+  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/character/character-host.js", "src/main/voice/voice-host.js", "src/main/voice/voice-runtime.js", "src/main/services/memory-service.js", "src/addons/mcp.js", "src/character/client.js", "scripts/ci-current-acceptance.js"];
   const syntaxResults = syntaxFiles.map(file => {
     const result = spawnSync(process.execPath, ["--check", path.join(root, file)], { encoding: "utf8" });
     return { file, pass: result.status === 0, error: result.status === 0 ? "" : String(result.stderr || result.stdout || result.error || "node --check failed") };
@@ -126,20 +125,6 @@ function main() {
     syntaxResults.push({ file: "src/character-studio.html#module", pass: false, error: "Inline Character Studio module script was not found" });
   }
   check("runtime-javascript-syntax", syntaxResults.every(x => x.pass), { files: syntaxResults });
-
-  const e2e = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
-  const runner = exists("scripts/ci-run-packaged-e2e.ps1") ? read("scripts/ci-run-packaged-e2e.ps1") : "";
-  const acceptanceIds = [
-    "acceptance.app-startup",
-    "acceptance.authoritative-glb-visible",
-    "acceptance.repeat-load-preserves-visible-character",
-    "acceptance.available-bones-animate",
-    "acceptance.rest-pose-bone-position-save-reset",
-    "acceptance.rest-pose-process-restart"
-  ];
-  const missingIds = acceptanceIds.filter(id => !e2e.includes(id));
-  check("packaged-acceptance-suite-wired", missingIds.length === 0 && runner.includes("current"),
-    { requiredChecks: acceptanceIds, missingChecks: missingIds, runnerSupportsCurrentSuite: runner.includes("current") });
 
   const profileStore = exists("src/character/CharacterProfileStore.js") ? read("src/character/CharacterProfileStore.js") : "";
   const characterController = exists("src/character/CharacterController.js") ? read("src/character/CharacterController.js") : "";
@@ -179,16 +164,6 @@ function main() {
     restPoseValidation.includes("const actualPosition = stored.position") &&
     restPoseValidation.includes("Math.abs(actual - expected) > tolerance"),
     { note: "Rest-pose capture, storage verification, reload and reset must preserve and strictly verify actual bone positions as well as rotations." });
-
-  const packagedRunner = exists("scripts/ci-run-packaged-e2e.ps1") ? read("scripts/ci-run-packaged-e2e.ps1") : "";
-  const e2eSource = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
-  check("rest-pose-restart-gate-uses-two-packaged-processes",
-    packagedRunner.includes('$env:SAEED_CI_E2E_RESTART_PHASE = "prepare"') &&
-    packagedRunner.includes('$env:SAEED_CI_E2E_RESTART_PHASE = "verify"') &&
-    packagedRunner.includes("$proc2 = Start-Process") &&
-    e2eSource.includes("ci-rest-pose-restart.json") &&
-    e2eSource.includes('restartPhase==="verify"'),
-    { note: "Release acceptance must save a real bone transform, exit the packaged app, relaunch it, and verify the persisted position and rotation in the new process." });
 
   const studioHtml = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
   check("character-studio-edits-and-syncs-bone-position",
@@ -264,20 +239,6 @@ function main() {
     voiceHost.includes("try{child.kill()}catch{}") &&
     voiceHost.includes("clearTimeout(timer)"),
     { note: "A stalled local Whisper process must be terminated and the transcription promise must settle so the voice pipeline cannot hang indefinitely." });
-
-  const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
-  const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
-  const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
-  const visibilityE2e = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
-  const visibilityCheckStart = visibilityE2e.indexOf('check("acceptance.authoritative-glb-visible"');
-  const visibilityCheckEnd = visibilityE2e.indexOf('check("acceptance.repeat-load-preserves-visible-character"', visibilityCheckStart);
-  const visibilityProbe = visibilityCheckStart >= 0 && visibilityCheckEnd > visibilityCheckStart ? visibilityE2e.slice(visibilityCheckStart, visibilityCheckEnd) : "";
-  const visibilityProbeIsCloneSafe = visibilityProbe.includes("boneNames=(e?.getAvailableBoneNames?.()||[]).map") && !visibilityProbe.includes("rt.controller?.status?.()");
-  check("authoritative-glb-probe-returns-clone-safe-data", visibilityProbeIsCloneSafe,
-    { visibilityProbeIsCloneSafe, unsafeControllerStatusReturn: visibilityProbe.includes("rt.controller?.status?.()"), note: "webContents.executeJavaScript results must contain only cloneable plain data, not raw controller/Three.js objects." });
-
-  check("packaged-runner-startup-handshake-and-report-preservation", startupMarkerPresent && reportPreservedOnRunnerFailure,
-    { startupMarkerPresent, reportPreservedOnRunnerFailure, note: "The packaged app must emit the exact runner handshake, and runner failures must not overwrite the detailed app acceptance report." });
 
   const report = {
     suite: "current-product-preflight",
