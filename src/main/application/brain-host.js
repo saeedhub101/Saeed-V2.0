@@ -46,7 +46,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
     captureScreen,
     userDataPath:app.getPath("userData"),
     characterController:({intent,duration,intensity}={})=>characterCommand({action:"semantic",intent,options:{duration,speed:1,intensity}}),
-    recordHook:step=>recordLearningStep?.(step),
+    recordHook:(name,args)=>recordLearningStep?.({tool:name,args}),
     permissionPolicy,
     confirm
    });
