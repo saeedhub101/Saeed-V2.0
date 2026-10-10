@@ -43,6 +43,7 @@ function validateSchemaValue(value,schema,pathName){
   if(schema.items)for(let i=0;i<value.length;i++){const error=validateSchemaValue(value[i],schema.items,pathName+"["+(i+1)+"]");if(error)return error}
  }
  if(value&&typeof value==="object"&&!Array.isArray(value)){
+  for(const key of Object.keys(value))if(["__proto__","prototype","constructor"].includes(key))return pathName+" contains a forbidden property name";
   if(Number.isInteger(schema.minProperties)&&Object.keys(value).length<schema.minProperties)return pathName+" needs at least "+schema.minProperties+" properties";
   if(Number.isInteger(schema.maxProperties)&&Object.keys(value).length>schema.maxProperties)return pathName+" supports at most "+schema.maxProperties+" properties";
   for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)return pathName+" is missing required field \""+key+"\"";
