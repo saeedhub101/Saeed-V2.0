@@ -147,3 +147,6 @@ No test suite or Windows build was manually launched during this work. The repos
 
 
 - Added the missing local Rest Pose renderer bootstrap module and connected it to the selected GLB delivery path. The editor now mirrors authoritative bone transforms from the main character window while preserving save operations through the central controller; renderer-load failure is surfaced instead of silently hiding the loading state. This fix has not been runtime-verified.
+
+
+- The window actually opened by the app is Character Studio (character-studio.html), so its rig panel has now also gained local X/Y/Z position controls. Its preview is synchronized from the authoritative live controller on GLB load, reset, normalization, and save; position edits are sent to the live controller and mirrored into the preview. This source repair has not been runtime-verified.
