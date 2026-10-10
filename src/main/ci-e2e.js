@@ -164,7 +164,7 @@ function createCiE2E(deps={}){
     const opened=await depsShowPerformance?.();await wait(350);
     const pw=getPerformanceWindow?.()||opened;
     if(!visible(pw))return {pass:false,stage:"performance-window",error:"Could not open character controller for rest-pose acceptance"};
-    const result=await execJs(pw,'(async()=>{
+    const result=await execJs(pw,`(async()=>{
      const api=window.saeed;
      const initial=await api.character.characterController({action:"status"});
      if(!initial?.status?.characterLoaded)return {pass:false,stage:"character-load",status:initial};
@@ -198,7 +198,7 @@ function createCiE2E(deps={}){
      let cleanup=null;
      if(movedOk&&saveCaptured){const reverse={rotation:{x:-delta.rotation.x,y:-delta.rotation.y,z:-delta.rotation.z},position:{x:-delta.position.x,y:-delta.position.y,z:-delta.position.z}};const undone=await api.character.characterController({action:"setBoneTransform",bone,transform:reverse});const originalSaved=await api.character.characterController({action:"saveRestPose"});const resetOriginal=await api.character.characterController({action:"resetPose"});cleanup={ok:Boolean(undone?.ok&&originalSaved?.ok&&originalSaved?.persisted&&resetOriginal?.ok)}}
      return {pass:Boolean(movedOk&&saveCaptured&&restoredOk&&cleanup?.ok),bone,original,target,actual,movedOk,saved:Boolean(saved?.persisted),savedRotation,savedPosition,saveCaptured,restoredRotation:restored.rotation,restoredPosition:restored.position,restoredOk,cleanup};
-    })()',true);
+    })()`,true);
     return result;
    },{timeoutMs:60000});
    await check("acceptance.rest-pose-process-restart",async()=>{
@@ -210,7 +210,7 @@ function createCiE2E(deps={}){
      const opened=await depsShowPerformance?.();await wait(350);
      const pw=getPerformanceWindow?.()||opened;
      if(!visible(pw))return {pass:false,stage:"prepare-performance",error:"Could not open controller for restart verification"};
-     const result=await execJs(pw,'(async()=>{
+     const result=await execJs(pw,`(async()=>{
       const api=window.saeed,near=(a,b,t)=>Math.abs((Number(a)||0)-(Number(b)||0))<t;
       await api.character.characterController({action:"autoMap"}).catch(()=>{});
       await api.character.characterController({action:"stopAll"}).catch(()=>{});
@@ -227,7 +227,7 @@ function createCiE2E(deps={}){
       const savedRotation=rest.rotation||{},savedPosition=rest.position||{};
       const ok=Boolean(moved?.ok&&saved?.ok&&saved?.persisted&&["x","y","z"].every(k=>near(actual.rotation?.[k],target.rotation[k],.035)&&near(actual.position?.[k],target.position[k],.015)&&near(savedRotation[k],target.rotation[k],.035)&&near(savedPosition[k],target.position[k],.015)));
       return {pass:ok,bone,original,target,actualRotation:actual.rotation,actualPosition:actual.position,saved:Boolean(saved?.persisted),ok,marker:{bone,original,target,delta}};
-     })()',true);
+     })()`,true);
      if(result?.notApplicable){fs.writeFileSync(marker,JSON.stringify({notApplicable:true},null,2),"utf8");return {pass:true,phase:restartPhase,notApplicable:true,reason:result.reason};}
      if(!result?.pass||!result?.marker) return {pass:false,phase:restartPhase,stage:"prepare-save",result};
      fs.writeFileSync(marker,JSON.stringify(result.marker,null,2),"utf8");
@@ -242,8 +242,8 @@ function createCiE2E(deps={}){
     const opened=await depsShowPerformance?.();await wait(350);
     const pw=getPerformanceWindow?.()||opened;
     if(!visible(pw))return {pass:false,phase:restartPhase,stage:"verify-performance",error:"Could not open controller after process restart"};
-    const result=await execJs(pw,'(async()=>{
-     const api=window.saeed,marker='+JSON.stringify(saved)+',near=(a,b,t)=>Math.abs((Number(a)||0)-(Number(b)||0))<t;
+    const result=await execJs(pw,`(async()=>{
+     const api=window.saeed,marker=${JSON.stringify(saved)},near=(a,b,t)=>Math.abs((Number(a)||0)-(Number(b)||0))<t;
      const deadline=Date.now()+25000;let s=null;
      while(Date.now()<deadline){s=await api.character.characterController({action:"status"});if(s?.status?.characterLoaded&&s?.status?.actualBones?.[marker.bone])break;await new Promise(r=>setTimeout(r,250))}
      const actual=s?.status?.actualBones?.[marker.bone]||{},rest=actual.restPose||{},restRotation=rest.rotation||{},restPosition=rest.position||{};
@@ -251,7 +251,7 @@ function createCiE2E(deps={}){
      let cleanup={ok:false};
      if(matches){const reverse={rotation:{x:marker.original.rotation.x-marker.target.rotation.x,y:marker.original.rotation.y-marker.target.rotation.y,z:marker.original.rotation.z-marker.target.rotation.z},position:{x:marker.original.position.x-marker.target.position.x,y:marker.original.position.y-marker.target.position.y,z:marker.original.position.z-marker.target.position.z}};const undone=await api.character.characterController({action:"setBoneTransform",bone:marker.bone,transform:reverse});const resaved=await api.character.characterController({action:"saveRestPose"});const reset=await api.character.characterController({action:"resetPose"});cleanup={ok:Boolean(undone?.ok&&resaved?.ok&&resaved?.persisted&&reset?.ok)}}
      return {pass:matches&&cleanup.ok,bone:marker.bone,expected:marker.target,actualRotation:actual.rotation,actualPosition:actual.position,restRotation,restPosition,matches,cleanup};
-    })()',true);
+    })()`,true);
     try{fs.unlinkSync(marker)}catch{}
     return {...result,phase:restartPhase};
    },{timeoutMs:60000});
