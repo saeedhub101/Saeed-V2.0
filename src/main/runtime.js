@@ -83,6 +83,8 @@ app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();
  try{await createWindow();if(characterWin&&!getVoiceMuted()&&!ciSmoke)ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
 try{const updateMode=agent?.settings?.updateMode||require("./services/settings-store").createSettingsStore(app.getPath("userData")).load().updateMode||"manual";if(app.isPackaged&&["notify","automatic"].includes(updateMode)){const updateTimer=setTimeout(()=>{if(!app.isQuitting)void ensureUpdateManager().check()},15000);updateTimer.unref?.()}}catch(error){diagnostic("WARN","UPDATE AUTO CHECK CONFIG",error?.message||String(error))}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
+ if(process.argv.includes("--ci-rest-pose-save")){void runCiRestPoseRestart("save");return}
+ if(process.argv.includes("--ci-rest-pose-verify")){void runCiRestPoseRestart("verify");return}
  if(process.argv.includes("--ci-acceptance")){void runCiProductAcceptance();return}
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-"))){handleLaunchArgs(process.argv.slice(1));}
 
@@ -121,6 +123,63 @@ app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceHost?.stopVoiceS
 
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
 
+async function runCiRestPoseRestart(mode){
+ const report={schemaVersion:1,mode,startedAt:new Date().toISOString(),passed:false,checks:[],error:null};
+ const check=(name,passed,details={})=>{report.checks.push({name,passed:Boolean(passed),details});if(!passed)console.error("REST_POSE_RESTART_FAIL="+name,JSON.stringify(details))};
+ const statePath=process.env.SAEED_CI_REST_POSE_STATE;
+ const output=process.env.SAEED_CI_REST_POSE_REPORT||path.join(process.cwd(),"dist","ci-rest-pose-"+mode+".json");
+ const near=(a,b,tolerance=0.02)=>Number.isFinite(Number(a))&&Number.isFinite(Number(b))&&Math.abs(Number(a)-Number(b))<=tolerance;
+ const actualFor=async bone=>{const result=await characterHost.command({action:"status"});return result?.status?.actualBones?.[String(bone||"")]||null};
+ try{
+  if(!statePath)throw new Error("SAEED_CI_REST_POSE_STATE is required");
+  const rig=await characterHost.command({action:"getRig"});
+  const bones=Array.isArray(rig?.bones)?rig.bones.map(String):[];
+  check("restart-character-rig-loaded",rig?.ok===true&&bones.length>0,{boneCount:bones.length,error:rig?.error||null});
+  if(rig?.ok!==true||!bones.length)throw new Error("The packaged character rig is unavailable");
+  if(mode==="save"){
+   const mappedHead=rig.mapping?.head;
+   const bone=String(typeof mappedHead==="string"&&mappedHead?mappedHead:bones.find(name=>/head/i.test(name))||bones[0]||"");
+   if(!bone)throw new Error("No actual bone is available for restart acceptance");
+   const before=await actualFor(bone);
+   if(!before||!before.rotation||!before.position)throw new Error("The selected bone did not expose real rotation and position transforms");
+   const expectedRotation={x:0.213,y:-0.119,z:0.077};
+   const expectedPosition={x:Number(before.position.x)+0.013,y:Number(before.position.y)+0.017,z:Number(before.position.z)-0.011};
+   const rotationSet=await characterHost.command({action:"setBoneRotation",bone,rotation:expectedRotation});
+   const positionSet=await characterHost.command({action:"setBonePosition",bone,position:expectedPosition});
+   const saved=await characterHost.command({action:"saveRestPose"});
+   const after=await actualFor(bone);
+   const rotationMatches=Boolean(after?.rotation)&&["x","y","z"].every(axis=>near(after.rotation[axis],expectedRotation[axis]));
+   const positionMatches=Boolean(after?.position)&&["x","y","z"].every(axis=>near(after.position[axis],expectedPosition[axis],0.005));
+   check("restart-real-bone-rotation-written",rotationSet?.ok===true&&rotationMatches,{bone,rotation:after?.rotation||null});
+   check("restart-real-bone-position-written",positionSet?.ok===true&&positionMatches,{bone,position:after?.position||null});
+   check("restart-rest-pose-persisted",saved?.ok===true&&saved?.persisted===true&&Boolean(saved?.restPose?.profileId),{persisted:Boolean(saved?.persisted),profileId:saved?.restPose?.profileId||null,error:saved?.restPose?.persistenceError||null});
+   if(!rotationMatches||!positionMatches||saved?.persisted!==true)throw new Error("Could not verify the real bone transform and rest pose before process exit");
+   fs.mkdirSync(path.dirname(statePath),{recursive:true});
+   fs.writeFileSync(statePath,JSON.stringify({schemaVersion:1,bone,expectedRotation:after.rotation,expectedPosition:after.position,profileId:saved.restPose.profileId,createdAt:new Date().toISOString()},null,2)+"\n","utf8");
+   check("restart-state-marker-written",fs.existsSync(statePath),{statePath,bone});
+  }else if(mode==="verify"){
+   const expected=JSON.parse(fs.readFileSync(statePath,"utf8"));
+   const bone=String(expected?.bone||"");
+   check("restart-state-marker-valid",expected?.schemaVersion===1&&bones.includes(bone)&&Boolean(expected?.expectedRotation)&&Boolean(expected?.expectedPosition),{bone,available:bones.includes(bone)});
+   if(expected?.schemaVersion!==1||!bones.includes(bone))throw new Error("Restart marker is invalid or references a missing bone");
+   const actual=await actualFor(bone);
+   const rotationMatches=Boolean(actual?.rotation)&&["x","y","z"].every(axis=>near(actual.rotation[axis],expected.expectedRotation[axis]));
+   const positionMatches=Boolean(actual?.position)&&["x","y","z"].every(axis=>near(actual.position[axis],expected.expectedPosition[axis],0.005));
+   const baseline=await characterHost.command({action:"boneRotation",bone});
+   const baselineMatches=baseline?.ok===true&&["x","y","z"].every(axis=>near(baseline?.rotation?.[axis],0,0.03));
+   check("restart-rotation-survives-fresh-process",rotationMatches,{bone,expected:expected.expectedRotation,actual:actual?.rotation||null});
+   check("restart-position-survives-fresh-process",positionMatches,{bone,expected:expected.expectedPosition,actual:actual?.position||null});
+   check("restart-rest-pose-baseline-reapplied",baselineMatches,{bone,editorDelta:baseline?.rotation||null});
+  }else throw new Error("Unsupported rest-pose restart mode: "+String(mode));
+ }catch(error){report.error=String(error?.stack||error);check("restart-acceptance-exception",false,{error:report.error})}
+ report.finishedAt=new Date().toISOString();
+ report.passed=report.checks.length>0&&report.checks.every(item=>item.passed);
+ try{fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+"\n","utf8")}catch(error){report.passed=false;report.error=String(error?.stack||error);console.error("Could not write rest-pose restart report:",report.error)}
+ console.log("REST_POSE_RESTART_"+String(mode).toUpperCase()+"="+(report.passed?"PASS":"FAIL"));
+ console.log(JSON.stringify(report,null,2));
+ setTimeout(()=>app.exit(report.passed?0:1),150);
+}
+
 async function runCiProductAcceptance(){
  const report={schemaVersion:1,startedAt:new Date().toISOString(),passed:false,checks:[],error:null};
  const check=(name,passed,details={})=>{report.checks.push({name,passed:Boolean(passed),details});if(!passed)console.error("PACKAGED_ACCEPTANCE_FAIL="+name,JSON.stringify(details))};
@@ -153,6 +212,46 @@ async function runCiProductAcceptance(){
   const restoredRotation=restoredBone?.rotation||{};
   const restPoseReloadPassed=restoredBone?.ok===true&&["x","y","z"].every(axis=>Number.isFinite(Number(restoredRotation[axis]))&&Math.abs(Number(restoredRotation[axis]))<0.03);
   check("rest-pose-reapplied-after-character-runtime-reload",restPoseReloadPassed,{bone:restPoseBone,editorDelta:restoredRotation,ok:Boolean(restoredBone?.ok)});
+  const invalidCandidatePath=path.join(app.getPath("userData"),"ci-invalid-character-candidate.glb");
+  try{
+   fs.writeFileSync(invalidCandidatePath,Buffer.from("not-a-valid-glb"));
+   const invalidCandidate=await characterHost.replaceCharacterForCi(invalidCandidatePath);
+   const rigAfterInvalid=await characterHost.command({action:"getRig"});
+   check("invalid-glb-rejected-preserves-current-character",invalidCandidate?.ok!==true&&rigAfterInvalid?.ok===true&&rigAfterInvalid?.bones?.length===rig.bones.length,{rejected:invalidCandidate?.ok!==true,error:invalidCandidate?.error||null,bonesBefore:rig.bones.length,bonesAfter:rigAfterInvalid?.bones?.length||0});
+  }catch(error){check("invalid-glb-rejected-preserves-current-character",false,{error:error?.message||String(error)})}
+  finally{try{fs.unlinkSync(invalidCandidatePath)}catch{}}
+  const motionSlot=typeof rig.mapping?.head==="string"&&rig.mapping.head?"head":Object.keys(rig.mapping||{}).find(slot=>typeof rig.mapping[slot]==="string"&&rig.bones.includes(rig.mapping[slot]));
+  const motionBone=String(motionSlot?rig.mapping[motionSlot]:"");
+  const motionId="ci-generated-motion-acceptance";
+  const motionStatus=await characterHost.command({action:"status"});
+  const initialMotionRotation=motionStatus?.status?.actualBones?.[motionBone]?.rotation||null;
+  const makeCiMotion=angle=>({id:motionId,duration:1,loop:false,layer:"body",keyframes:[{time:0,pose:{[motionSlot]:{x:0,y:0,z:0}}},{time:1,pose:{[motionSlot]:{x:angle,y:0,z:0}}}]});
+  let motionFirstRotation=null,motionEditedRotation=null;
+  try{
+   await characterHost.command({action:"stopAll"});
+   const defined=motionSlot?await characterHost.command({action:"defineMotion",motion:makeCiMotion(0.35)}):{ok:false,error:"No mapped logical slot"};
+   check("generated-motion-created",defined?.ok===true&&defined?.motion?.id===motionId,{slot:motionSlot||null,bone:motionBone,error:defined?.error||null});
+   const played=defined?.ok===true?await characterHost.command({action:"play",motion:motionId,options:{priority:100,blend:0.01}}):{ok:false};
+   await wait(300);
+   const afterFirst=await characterHost.command({action:"status"});
+   motionFirstRotation=afterFirst?.status?.actualBones?.[motionBone]?.rotation||null;
+   const firstMoved=played?.ok===true&&Boolean(initialMotionRotation&&motionFirstRotation)&&Math.abs(Number(motionFirstRotation.x)-Number(initialMotionRotation.x))>0.015;
+   check("generated-motion-changes-real-bone",firstMoved,{slot:motionSlot||null,bone:motionBone,before:initialMotionRotation,after:motionFirstRotation,played:Boolean(played?.ok)});
+   await characterHost.command({action:"stopAll"});
+   const edited=motionSlot?await characterHost.command({action:"defineMotion",motion:makeCiMotion(-0.55)}):{ok:false};
+   const playedEdited=edited?.ok===true?await characterHost.command({action:"play",motion:motionId,options:{priority:100,blend:0.01}}):{ok:false};
+   await wait(300);
+   const afterEdited=await characterHost.command({action:"status"});
+   motionEditedRotation=afterEdited?.status?.actualBones?.[motionBone]?.rotation||null;
+   const editedMoved=playedEdited?.ok===true&&Boolean(initialMotionRotation&&motionEditedRotation&&motionFirstRotation)&&Math.abs(Number(motionEditedRotation.x)-Number(initialMotionRotation.x))>0.015&&Math.abs(Number(motionEditedRotation.x)-Number(motionFirstRotation.x))>0.025;
+   check("edited-motion-changes-real-bone-differently",editedMoved,{slot:motionSlot||null,bone:motionBone,first:motionFirstRotation,edited:motionEditedRotation,played:Boolean(playedEdited?.ok)});
+  }catch(error){check("generated-motion-and-edit-playback",false,{error:error?.message||String(error)})}
+  finally{
+   try{await characterHost.command({action:"stopAll"})}catch{}
+   try{await characterHost.command({action:"deleteMotion",id:motionId})}catch{}
+  }
+  const motionList=await characterHost.command({action:"listMotions"});
+  check("generated-motion-cleaned-up",Array.isArray(motionList?.motions)&&!motionList.motions.some(m=>m?.id===motionId),{remaining:motionList?.motions?.filter(m=>m?.id===motionId).length||0});
   const voice=ensureVoiceHost();
   const whisper=voice.whisperRuntimePaths();
   check("packaged-whisper-runtime-present",Boolean(fs.existsSync(whisper.exe)&&fs.existsSync(whisper.model)),{executableExists:fs.existsSync(whisper.exe),modelExists:fs.existsSync(whisper.model)});

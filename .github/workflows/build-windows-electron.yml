@@ -154,6 +154,47 @@ jobs:
           Write-Host "PACKAGED_RUNTIME_ACCEPTANCE=PASS ($($acceptance.checks.Count) checks)"
           Write-Host (Get-Content $report -Raw)
 
+      - name: Verify rest pose survives a full application restart
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\\win-unpacked\\Saeed AI.exe"
+          $userData = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-restart-user-data"
+          $state = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-restart-state.json"
+          $saveReport = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-save.json"
+          $verifyReport = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-verify.json"
+          if (Test-Path $userData) { Remove-Item $userData -Recurse -Force }
+          if (Test-Path $state) { Remove-Item $state -Force }
+          New-Item -ItemType Directory -Force -Path $userData | Out-Null
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_USER_DATA = $userData
+          $env:SAEED_CI_REST_POSE_STATE = $state
+          function Invoke-RestPoseProcess($argument, $reportPath, $label) {
+            $stdout = Join-Path $env:RUNNER_TEMP ("saeed-rest-pose-" + $label + ".stdout.log")
+            $stderr = Join-Path $env:RUNNER_TEMP ("saeed-rest-pose-" + $label + ".stderr.log")
+            $env:SAEED_CI_REST_POSE_REPORT = $reportPath
+            $proc = Start-Process -FilePath $exe -ArgumentList $argument -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $deadline = (Get-Date).AddSeconds(120)
+            while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+            if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Rest-pose $label process timed out." }
+            $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+            $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+            if (!(Test-Path $reportPath)) { throw "Rest-pose $label report is missing. $outText $errText" }
+            $result = Get-Content $reportPath -Raw | ConvertFrom-Json
+            $failed = @($result.checks | Where-Object { !$_.passed })
+            if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0) {
+              Write-Host $outText
+              Write-Host $errText
+              Write-Host (Get-Content $reportPath -Raw)
+              throw "Rest-pose $label acceptance failed with exit code $($proc.ExitCode) and $($failed.Count) failed check(s)."
+            }
+            Copy-Item $reportPath ("dist\\ci-rest-pose-" + $label + ".json") -Force
+            Write-Host ("REST_POSE_RESTART_" + $label.ToUpper() + "=PASS (" + $result.checks.Count + " checks)")
+          }
+          Invoke-RestPoseProcess "--ci-rest-pose-save" $saveReport "save"
+          if (!(Test-Path $state)) { throw "The first process did not write the rest-pose state marker." }
+          Invoke-RestPoseProcess "--ci-rest-pose-verify" $verifyReport "verify"
+
       - name: Build optional add-on bundles
         shell: pwsh
         run: |
@@ -194,6 +235,8 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-product-acceptance.json
+            dist/ci-rest-pose-save.json
+            dist/ci-rest-pose-verify.json
             THIRD_PARTY_NOTICES.txt
             build/whisper-runtime/WHISPER-CPP-LICENSE.txt
             dist/icons/*

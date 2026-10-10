@@ -30,6 +30,13 @@ test("packaged acceptance covers GLB, rig, rendering, motion, rest pose, voice l
  for(const token of ["bundled-glb-loaded","humanoid-rig-mapped","three-renderer-active","semantic-motion-playback","rest-pose-real-bone-edit-applied","rest-pose-persistent-readback","rest-pose-reapplied-after-character-runtime-reload","packaged-whisper-runtime-present","packaged-whisper-transcription-runs","mute-is-output-only","unmute-restores-tts","unmute-while-hidden-keeps-tts-released","show-after-hidden-unmute-restores-tts","character-survives-repeated-visibility-cycles"])assert.ok(runtime.includes(token),"missing packaged acceptance check: "+token);
 });
 
+test("packaged acceptance exercises real motion edits, invalid-GLB preservation, and fresh-process rest-pose persistence",()=>{
+ for(const token of ["invalid-glb-rejected-preserves-current-character","generated-motion-created","generated-motion-changes-real-bone","edited-motion-changes-real-bone-differently","generated-motion-cleaned-up","runCiRestPoseRestart","restart-real-bone-rotation-written","restart-real-bone-position-written","restart-rotation-survives-fresh-process","restart-position-survives-fresh-process","--ci-rest-pose-save","--ci-rest-pose-verify"])assert.ok(runtime.includes(token),"missing real-runtime acceptance contract: "+token);
+ assert.match(workflow,/Verify rest pose survives a full application restart/);
+ assert.match(workflow,/dist\\ci-rest-pose-save\.json/);
+ assert.match(workflow,/dist\\ci-rest-pose-verify\.json/);
+});
+
 test("packaged acceptance opens Learning and Add-ons and verifies renderer IPC round trips",()=>{
  for(const token of ["verifyFeaturePage","window-and-ipc","learningAcceptanceWindow","addonsAcceptanceWindow","window.saeed.learning.list()","window.saeed.addons.catalog()"])assert.ok(runtime.includes(token),"missing feature-window acceptance wiring: "+token);
 });
