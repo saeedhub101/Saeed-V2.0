@@ -28,7 +28,7 @@ async function configFor(args,protocol,context){
 }
 function checkCurrent(context){if(typeof context.isCurrent==="function"&&!context.isCurrent())throw new Error("Email operation cancelled");}
 function headers(subject,from,to){return["From: "+from,"To: "+to.join(", "),"Subject: "+subject,"MIME-Version: 1.0",'Content-Type: text/plain; charset="UTF-8"',"Content-Transfer-Encoding: 8bit"].join("\r\n")}
-async function call(name,args={},context={}){
+async function callInternal(name,args={},context={}){
  if(!name.startsWith("email_"))return null;
  if(name==="email_provider_info"){
   const p=email.provider(args.provider);return{ok:true,provider:String(args.provider),name:p.name,protocols:Object.fromEntries(["imap","pop3","smtp"].map(k=>[k,p[k]||null]))};
@@ -74,4 +74,20 @@ async function call(name,args={},context={}){
  }
  return null;
 }
-module.exports={schemas,call};
+
+function sanitizeEmailError(error,args={},secret={}){
+ let message=String(error?.message||error||"Email operation failed");
+ const hidden=[secret.username,secret.password,secret.accessToken,args.account,args.password,args.accessToken,args.body,args.message,args.subject];
+ for(const value of hidden){if(value==null||String(value)==="")continue;const text=String(value);message=message.split(text).join("[REDACTED]");try{message=message.split(Buffer.from(text).toString("base64")).join("[REDACTED]")}catch{}}
+ if(secret.username&&secret.accessToken){try{const sasl=Buffer.from("user="+secret.username+"\x01auth=Bearer "+secret.accessToken+"\x01\x01").toString("base64");message=message.split(sasl).join("[REDACTED]")}catch{}}
+ message=message.replace(/[\r\n\0]+/g," ").slice(0,600).trim()||"Email operation failed";
+ const safe=new Error(message);safe.name=error?.name||"EmailOperationError";return safe;
+}
+async function call(name,args={},context={}){
+ try{return await callInternal(name,args,context)}catch(error){
+  let secret={};try{if(args?.provider&&args?.account)secret=await credentials.get(String(args.provider),String(args.account))||{}}catch{}
+  throw sanitizeEmailError(error,args,secret);
+ }
+}
+
+module.exports={schemas,call,sanitizeEmailError};

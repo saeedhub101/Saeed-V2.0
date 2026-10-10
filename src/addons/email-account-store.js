@@ -1,4 +1,5 @@
 const fs=require("node:fs"),path=require("node:path");
+const {writeJsonAtomic}=require("../main/services/atomic-json-store");
 const PROTOCOLS=new Set(["imap","pop3","smtp"]);
 const PROVIDERS=new Set(["gmail","yahoo","hotmail","custom"]);
 function accountId(provider,account){return String(provider||"").trim().toLowerCase()+":"+encodeURIComponent(String(account||"").trim().toLowerCase())}
@@ -18,7 +19,11 @@ function validateRecord(input={}){
 }
 function filePath(userDataPath){if(!userDataPath)throw new Error("User data path is required");return path.join(userDataPath,"email-accounts.json")}
 function read(userDataPath){
- try{const value=JSON.parse(fs.readFileSync(filePath(userDataPath),"utf8"));return value&&typeof value==="object"&&!Array.isArray(value)?value:{}}catch(error){if(error?.code==="ENOENT")return{};throw new Error("Email account settings could not be read")}
+ let raw;try{raw=fs.readFileSync(filePath(userDataPath),"utf8")}catch(error){if(error?.code==="ENOENT")return{};throw new Error("Email account settings could not be read")}
+ let value;try{value=JSON.parse(raw)}catch(error){throw new Error("Email account settings are invalid JSON; refusing to overwrite existing settings ("+error.message+")")}
+ if(!value||typeof value!=="object"||Array.isArray(value))throw new Error("Email account settings have an invalid structure; refusing to overwrite existing settings");
+ for(const [id,record] of Object.entries(value))if(!id||!record||typeof record!=="object"||Array.isArray(record))throw new Error("Email account settings contain an invalid record; refusing to overwrite existing settings");
+ return value;
 }
 function get(userDataPath,provider,account){const p=String(provider||"").trim().toLowerCase(),a=String(account||"").trim();if(!p||!a)return null;const record=read(userDataPath)[accountId(p,a)];return record&&typeof record==="object"?JSON.parse(JSON.stringify(record)):null}
 function save(userDataPath,input){
@@ -27,10 +32,9 @@ function save(userDataPath,input){
  const servers={...(previous.servers&&typeof previous.servers==="object"?previous.servers:{})};
  servers[valid.protocol]={host:valid.host,port:valid.port,tls:valid.tls,startTls:valid.startTls};
  all[id]={provider:valid.provider,account:valid.account,servers,updatedAt:new Date().toISOString()};
- fs.mkdirSync(path.dirname(file),{recursive:true});
- const temporary=file+"."+process.pid+".tmp";
- fs.writeFileSync(temporary,JSON.stringify(all,null,2)+"\n",{encoding:"utf8",mode:0o600});
- fs.renameSync(temporary,file);
- return JSON.parse(JSON.stringify(all[id]));
+ const result=writeJsonAtomic(file,all);if(!result.ok)throw new Error("Email account settings persistence failed: "+result.error);
+ const persisted=read(userDataPath)[id],stored=persisted?.servers?.[valid.protocol];
+ if(!stored||stored.host!==valid.host||Number(stored.port)!==valid.port||Boolean(stored.tls)!==valid.tls||Boolean(stored.startTls)!==valid.startTls)throw new Error("Email account settings failed read-back verification");
+ return JSON.parse(JSON.stringify(persisted));
 }
 module.exports={PROTOCOLS:[...PROTOCOLS],PROVIDERS:[...PROVIDERS],validateRecord,get,save};

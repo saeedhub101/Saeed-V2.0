@@ -114,7 +114,7 @@ async function pop3ListMessages(config){const c=await pop3Auth(config);try{asser
 async function pop3Fetch(config,index){const n=Number(index);if(!Number.isSafeInteger(n)||n<1)throw new Error("POP3 message index must be a positive integer");assertCurrent(config);const c=await pop3Auth(config);try{assertCurrent(config);c.socket.write("RETR "+n+"\r\n");const status=await c.next();assertCurrent(config);if(!/^\+OK/.test(status))throw new Error(status);const lines=[];while(true){const line=await c.next();assertCurrent(config);if(line===".")break;lines.push(line.replace(/^\.\./,"."))}return lines.join("\r\n")}finally{try{c.socket.write("QUIT\r\n")}catch{}c.socket.destroy()}}
 
 function imapSession(config){
-  return connect(config,{tlsMode:true}).then(async socket=>{
+  return connect(config,{tlsMode:config.tls!==false}).then(async socket=>{
     try{
       assertCurrent(config);const next=lineReader(socket),greeting=await next();assertCurrent(config);if(!/^\*/.test(greeting))throw new Error(greeting);
       let counter=0;
@@ -161,7 +161,9 @@ async function imapFetch(config,{mailbox="INBOX",sequence=1,uid=true,headersOnly
     const item=String(sequence).replace(/[^0-9:* ,]/g,"");
     const what=headersOnly?"BODY.PEEK[HEADER]":"BODY.PEEK[]";
     const r=await s.command((uid?"UID ":"")+"FETCH "+item+" ("+what+")");
-    return r.filter(x=>/^\* \d+ FETCH /.test(x)).join("\n");
+    const start=r.findIndex(x=>/^\* \d+ FETCH /.test(x));
+    if(start<0)return"";
+    return r.slice(start).filter(x=>!/^S[0-9A-Z]+ (?:OK|NO|BAD)\b/i.test(x)).join("\n");
   }finally{s.close()}
 }
 module.exports={smtpSend,smtpVerify,pop3List,pop3ListMessages,pop3Fetch,imapProbe,imapLogin,imapListFolders,imapSelect,imapSearch,imapFetch};
