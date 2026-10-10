@@ -135,6 +135,14 @@ function main() {
     (characterController.match(/persisted=verify\(this\.profiles\.load\(this\.characterId\)\|\|\{\}\);/g) || []).length >= 2,
     { note: "Rest-pose save and retry must verify actual profile read-back, not only the in-memory object returned by save." });
 
+  const mcpTransport = exists("src/addons/mcp.js") ? read("src/addons/mcp.js") : "";
+  check("mcp-transports-support-cancellation-and-timeouts",
+    mcpTransport.includes("signal:signal") &&
+    mcpTransport.includes("MCP stdio request timed out after") &&
+    mcpTransport.includes("MCP HTTP request timed out after") &&
+    mcpTransport.includes('child.on("close"'),
+    { note: "MCP requests must honor cancellation, have bounded transport lifetimes, and reject when a stdio server exits early." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
