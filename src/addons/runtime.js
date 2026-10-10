@@ -3,7 +3,13 @@ const manager=require("./manager");
 const capabilities=require("./capabilities");
 const active=new Map();
 function activeKey(userData,id){return path.resolve(String(userData||process.cwd()))+"::"+String(id)}
-function context(userData,manifest){return Object.freeze({userData,manifest,addonPath:manager.addonDir(userData,manifest.id),getPath:(p="")=>path.join(manager.addonDir(userData,manifest.id),p)})}
+function resolveAddonPath(userData,id,requestedPath=""){
+ const root=path.resolve(manager.addonDir(userData,id)),target=path.resolve(root,String(requestedPath||""));
+ const relative=path.relative(root,target);
+ if(relative===".."||relative.startsWith(".."+path.sep)||path.isAbsolute(relative))throw new Error("Add-on path escapes its isolated data directory");
+ return target;
+}
+function context(userData,manifest){const addonPath=manager.addonDir(userData,manifest.id);return Object.freeze({userData,manifest,addonPath,getPath:(p="")=>resolveAddonPath(userData,manifest.id,p)})}
 function load(userData,id){const idValue=String(id),key=activeKey(userData,idValue);if(active.has(key))return active.get(key).provider;const manifest=manager.load(userData,idValue);if(!manifest.entry)return null;const mod=manifest.module||{};const ctx=context(userData,manifest);const provider=typeof mod.createProvider==="function"?mod.createProvider(ctx):mod.default||mod.provider||mod;if(!provider||typeof provider!=="object")throw new Error("Add-on "+idValue+" does not export a provider");if(typeof provider.activate==="function")provider.activate(ctx);active.set(key,{provider,manifest,ctx,userDataPath:path.resolve(String(userData||process.cwd())),id:idValue});return provider}
 function unload(userData,id){const key=activeKey(userData,id),item=active.get(key);if(!item)return;try{if(typeof item.provider.deactivate==="function")item.provider.deactivate(item.ctx)}finally{active.delete(key)}}
 function register(userData,manifest){capabilities.register(userData,manifest);return manifest}
@@ -46,4 +52,4 @@ async function callTool(userData,fullName,args={},options={}){
  throw new Error("Add-on "+resolved.id+" does not implement tool "+resolved.name);
 }
 async function call(userData,capability,method,args={},preferred=null){const info=find(userData,capability,preferred);if(!info)return null;const provider=load(userData,info.id);if(!provider||typeof provider[method]!=="function")throw new Error("Add-on "+info.id+" does not provide "+method+"()");return provider[method](args)}
-module.exports={register,unregister,list,find,load,unload,call,toolSchemas,callTool,resolveTool};
+module.exports={register,unregister,list,find,load,unload,call,toolSchemas,callTool,resolveTool,resolveAddonPath};
