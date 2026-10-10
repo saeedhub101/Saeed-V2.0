@@ -66,7 +66,7 @@ class ModelExecutor{
   }
   const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
   const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Accomplish the user's actual goal, inspect first when needed, use tools, observe results, verify important actions, recover from failures, and continue until the goal is complete. You can inspect Windows, screen, processes, files and web, and control mouse/keyboard. Prefer native structured document/office tools (inspect_document, extract_pdf_text, read_excel, write_excel) before GUI automation whenever the task involves PDFs, spreadsheets, or document content. Use GUI automation only when a native tool cannot complete the requested action. Never claim success without evidence. Each chat is an independent conversation. Do not infer or continue tasks from other chats. Only use the Global user memory below for stable facts/preferences; do not treat it as prior conversation context. Follow the Permissions settings exactly: Allow executes, Deny blocks, and Always ask requests approval. The router knows installed learned skills and available tools; prefer an exact learned skill when matched. If a tool reports unknown, unsupported, unavailable, or wrong-route failure, reassess and choose a different valid tool instead of returning that routing error to the user. Do not impose any hidden permission rules. For GUI tasks, use screenshot/active_window/list_windows to establish state, then act, then inspect again to verify the result. For simple application launch commands such as \"open my computer\", \"open Excel\", or \"open File Explorer\", call open_application directly and never call screenshot, OCR, inspect_image, or extract_image_table unless the user explicitly asks for visual inspection or text extraction from an image. If a tool fails, diagnose the failure and try a safe alternative instead of pretending it worked. Keep a concise plan in your reasoning and make progress each step. Stay focused."+memoryContext()},...history.slice(-12),{role:"user",content:userContent}];
-  const sessionId=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);const ciE2E=process.argv.includes("--ci-e2e");onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION START",message:"Tool session started",meta:{sessionId}});
+  const sessionId=Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7);onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION START",message:"Tool session started",meta:{sessionId}});
   const isAnthropic=String(s.provider||"").toLowerCase()==="anthropic";
   const toolSchemas=registry.schemas();
   const anthropicSystem=messages[0]?.content||"";
@@ -79,19 +79,14 @@ class ModelExecutor{
     if(last?.role==="user"&&typeof last.content==="string"){last.content=[{type:"text",text:last.content},{type:"image",source:{type:"base64",media_type:match[1],data:match[2]}}]}
    }
   }
-  let stepBudget=ciE2E?Math.min(baseStepLimit(),4):baseStepLimit();
+  let stepBudget=baseStepLimit();
   const runTool=async(name,args)=>{
    if(!current())return{ok:false,error:"Stale conversation request cancelled"};
-   if(!ciE2E)return registry.call(name,args,{isCurrent:current});
-   try{return await Promise.race([registry.call(name,args,{isCurrent:current}),new Promise(resolve=>setTimeout(()=>resolve({ok:false,error:"CI E2E tool timeout"}),8000))])}
-   catch(e){return{ok:false,error:e.message}}
+   return registry.call(name,args,{isCurrent:current});
   };
   for(let step=0;;step++){
    if(!current())return "";
    if(step>=stepBudget){
-    if(ciE2E){
-     const answer="API brain route smoke test completed.";history.push({role:"user",content:String(text)},{role:"assistant",content:answer});saveHistory();onEvent({type:"diagnostic",level:"INFO",stage:"AGENT SESSION END",message:"CI E2E execution limit reached without interactive step confirmation",meta:{sessionId,stepLimit:stepBudget}});onEvent({type:"answer",text:answer,source:"api-e2e-limit"});return answer;
-    }
     const expanded=await askForMoreSteps(stepBudget,text);
     if(!current())return "";
     if(expanded<=stepBudget){
@@ -116,7 +111,7 @@ class ModelExecutor{
    }
    let responseText="";
    const requestController=new AbortController();
-   const requestTimeout=setTimeout(()=>requestController.abort(new Error("LLM API request timed out")),ciE2E?10000:30000);
+   const requestTimeout=setTimeout(()=>requestController.abort(new Error("LLM API request timed out")),30000);
    const requestCancellationPoll=setInterval(()=>{if(!current())requestController.abort(new Error("Stale conversation request cancelled"))},100);
    try{
     r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:requestController.signal});
