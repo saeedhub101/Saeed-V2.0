@@ -10,7 +10,9 @@ function ciWriteStartupReport(kind,error){
  }catch(writeError){console.error("CI startup report write failed:",writeError)}
 }
 process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e);
+});
 process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e);
+});
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
 
 // Startup contract: only Electron + the character surface are eager.
