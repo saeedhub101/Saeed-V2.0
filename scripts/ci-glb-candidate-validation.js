@@ -33,11 +33,11 @@ assert.throws(()=>validateGlbCandidate(makeGlb({...valid,nodes:[{mesh:0,skin:1,c
 assert.throws(()=>validateGlbCandidate(Buffer.alloc(10)),/too small/,"must reject truncated binary");
 const engineSource=require("node:fs").readFileSync(require("node:path").join(__dirname,"../src/character/CharacterEngine.js"),"utf8");
 const displayStart=engineSource.indexOf("function display(parsed){");
-const displayEnd=engineSource.indexOf("\\nfunction countSceneMeshes",displayStart);
+const displayEnd=engineSource.indexOf("\nfunction countSceneMeshes",displayStart);
 const displaySource=engineSource.slice(displayStart,displayEnd);
 assert.ok(displayStart>=0&&displayEnd>displayStart,"CharacterEngine display transaction must exist");
-assert.match(displaySource,/if\\(!fit\\(\\)\\)throw new Error\\("Candidate GLB could not be fitted/,"candidate fit failure must reject replacement");
-assert.match(displaySource,/camera\\.position\\.copy\\(cameraSnapshot\\.position\\);camera\\.quaternion\\.copy\\(cameraSnapshot\\.quaternion\\)/,"failed replacement must restore camera pose");
+assert.match(displaySource,/if\(!fit\(\)\)throw new Error\("Candidate GLB could not be fitted/,"candidate fit failure must reject replacement");
+assert.match(displaySource,/camera\.position\.copy\(cameraSnapshot\.position\);camera\.quaternion\.copy\(cameraSnapshot\.quaternion\)/,"failed replacement must restore camera pose");
 assert.match(displaySource,/model=previous;rig=previousRig;base=previousBase;boneGroups=previousGroups;boneRest=previousRest;morphs=previousMorphs/,"failed replacement must restore active character state");
-assert.match(displaySource,/dispose\\(next\\)/,"failed candidate resources must be disposed");
+assert.match(displaySource,/dispose\(next\)/,"failed candidate resources must be disposed");
 console.log("GLB_CANDIDATE_VALIDATION=PASS (14 assertions + transactional runtime contract)");
