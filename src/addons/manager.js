@@ -56,6 +56,7 @@ function validateManifest(manifest){
 function validateCatalogEntry(addon){
  if(!addon||!addon.id||!addon.name||!addon.version)throw new Error("Invalid add-on catalog entry");
  const id=safeId(addon.id);if(addon.downloadUrl){const u=new URL(addon.downloadUrl);if(u.protocol!=="https:")throw new Error("Add-on download URL must use HTTPS")}
+ if(addon.installable===true&&!/^[a-f0-9]{64}$/i.test(String(addon.sha256||"")))throw new Error("Installable add-on must declare a valid SHA-256 checksum");
  return {...addon,id};
 }
 function readJson(file){return JSON.parse(fs.readFileSync(file,"utf8"))}
@@ -82,10 +83,8 @@ async function install(userData,addon,onProgress){
   fs.mkdirSync(tempRoot,{recursive:true});
   onProgress?.({state:"downloading",percent:0});
   await download(catalogEntry.downloadUrl,zip,(percent,done,total)=>onProgress?.({state:"downloading",percent,done,total}));
-  if(catalogEntry.sha256){
-   const digest=await sha256(zip);
-   if(digest.toLowerCase()!==String(catalogEntry.sha256).toLowerCase())throw new Error("Add-on checksum verification failed");
-  }
+  const digest=await sha256(zip);
+  if(digest.toLowerCase()!==String(catalogEntry.sha256).toLowerCase())throw new Error("Add-on checksum verification failed");
   onProgress?.({state:"extracting",percent:100});
   await extractZip(zip,staging);
   const candidates=[
