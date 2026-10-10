@@ -87,8 +87,9 @@ function createCiE2E(deps={}){
    const v=await Promise.race([work,timeout]);
    clearTimeout(timer);
    const pass=v===true||v?.pass===true;
+   const effectiveRequired=v?.required===false?false:required;
    const detail=typeof v==="object"&&v&&!Array.isArray(v)?v:undefined;
-   report.checks[name]={pass,required,latencyMs:Date.now()-t,status:v?.status||undefined,detail};
+   report.checks[name]={pass,required:effectiveRequired,latencyMs:Date.now()-t,status:v?.status||undefined,detail};
    persistReport("check-complete");
    recordTrace(pass?"check-pass":"check-fail",{check:name,status:pass?"PASS":(v?.status||"FAILED"),error:v?.error,diagnostic:v?.diagnostic});
    if(v?.status==="TIMEOUT"){
