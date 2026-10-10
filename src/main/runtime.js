@@ -169,6 +169,21 @@ async function runCiProductAcceptance(){
    await showCharacter();await wait(120);
    check("show-character-"+i,target.isVisible(),{visible:target.isVisible()});
   }
+  const verifyFeaturePage=async(name,title,open,key,probe)=>{
+   try{
+    await open();await wait(180);
+    const win=getState()[key];
+    if(!win||win.isDestroyed())throw new Error("Feature window was not created");
+    const page=await win.webContents.executeJavaScript(probe);
+    const passed=win.isVisible()&&page?.readyState==="complete"&&page?.title===title&&page?.hasMain===true&&page?.apiAvailable===true&&page?.apiRoundTrip===true;
+    check(name+"-window-and-ipc",passed,{visible:win.isVisible(),readyState:page?.readyState||null,title:page?.title||null,hasMain:Boolean(page?.hasMain),apiAvailable:Boolean(page?.apiAvailable),apiRoundTrip:Boolean(page?.apiRoundTrip)});
+    return win;
+   }catch(error){check(name+"-window-and-ipc",false,{error:error?.message||String(error)});return null}
+  };
+  const learningAcceptanceWindow=await verifyFeaturePage("learning","Saeed Learning",showLearning,"learningWin","(async()=>{const api=typeof window.saeed?.learning?.list===\"function\";const result=api?await window.saeed.learning.list():null;return{readyState:document.readyState,title:document.title,hasMain:!!document.querySelector(\"main\"),apiAvailable:api,apiRoundTrip:Array.isArray(result)}})()");
+  const addonsAcceptanceWindow=await verifyFeaturePage("addons","Saeed Add-ons",showAddons,"addonsWin","(async()=>{const api=typeof window.saeed?.addons?.catalog===\"function\";const result=api?await window.saeed.addons.catalog():null;return{readyState:document.readyState,title:document.title,hasMain:!!document.querySelector(\"main\"),apiAvailable:api,apiRoundTrip:result!==null&&result!==undefined}})()");
+  try{learningAcceptanceWindow?.close()}catch{}
+  try{addonsAcceptanceWindow?.close()}catch{}
   const after=await characterHost.command({action:"getRig"});
   check("character-survives-repeated-visibility-cycles",after?.ok===true&&after?.bones?.length===rig.bones.length,{before:rig.bones.length,after:after?.bones?.length||0});
  }catch(error){report.error=String(error?.stack||error);check("runtime-acceptance-exception",false,{error:report.error})}
