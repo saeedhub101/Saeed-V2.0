@@ -1,18 +1,8 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
-const ciE2EProcess=process.argv.includes("--ci-e2e");
-const ciAutomation=ciSmoke||ciE2EProcess;
+const ciAutomation=ciSmoke;
 if(ciAutomation){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
-function ciWriteE2EStartup(stage,meta={}){
- if(!process.argv.includes("--ci-e2e"))return;
- try{
-  const reportBase=String(process.env.SAEED_CI_E2E_REPORT||path.join(process.cwd(),"dist","ci-e2e-report.json"));
-  const target=String(process.env.SAEED_CI_E2E_REPORT_STARTUP||(`${reportBase}.startup.json`));
-  fs.mkdirSync(path.dirname(target),{recursive:true});
-  fs.writeFileSync(target,JSON.stringify({stage,time:new Date().toISOString(),pid:process.pid,argv:process.argv,appReady:app.isReady(),appPath:app.isReady()?app.getAppPath():null,resourcesPath:process.resourcesPath,...meta},null,2),"utf8");
- }catch(e){console.error("CI E2E startup report write failed:",e)}
-}
 function ciWriteStartupReport(kind,error){
  if(!ciSmoke)return;
  try{
@@ -21,10 +11,10 @@ function ciWriteStartupReport(kind,error){
   fs.writeFileSync(target,JSON.stringify({kind,time:new Date().toISOString(),argv:process.argv,appPath:app.isReady()?app.getAppPath():null,resourcesPath:process.resourcesPath,error:error?String(error?.stack||error):null},null,2),"utf8");
  }catch(writeError){console.error("CI startup report write failed:",writeError)}
 }
-process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e);ciWriteE2EStartup("uncaughtException",{error:String(e?.stack||e)})});
-process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e);ciWriteE2EStartup("unhandledRejection",{error:String(e?.stack||e)})});
+process.on("uncaughtException",e=>{console.error("Saeed uncaught:",e);ciWriteStartupReport("uncaughtException",e);
+process.on("unhandledRejection",e=>{console.error("Saeed rejection:",e);ciWriteStartupReport("unhandledRejection",e);
 if(ciSmoke)ciWriteStartupReport("bootstrap-loaded");
-ciWriteE2EStartup("process-start");
+
 // Startup contract: only Electron + the character surface are eager.
 // Brain, voice runtime, chat, capture, updater and secondary feature modules are lazy.
 const lazy={};
@@ -49,7 +39,7 @@ function configureMediaPermissions(){
 
 let characterWin,performanceWin,settingsWin,addonsWin,learningWin,restPoseEditorWin,normalizeHumanoidRestPoseWin,agent,tray,statusWin,threeDStatusWin;
 let addonService,learning,learningRecorder,apiHealth,resourceService,autoUpdater;
-let chatHost=null,voiceHost=null,brainHost=null,screenCapture=null,windowManager=null,updateManager=null,characterHost,ciE2E=null;
+let chatHost=null,voiceHost=null,brainHost=null,screenCapture=null,windowManager=null,updateManager=null,characterHost;
 
 const compositionState={get addonService(){return addonService},set addonService(v){addonService=v},get learning(){return learning},set learning(v){learning=v},get learningRecorder(){return learningRecorder},set learningRecorder(v){learningRecorder=v},get apiHealth(){return apiHealth},set apiHealth(v){apiHealth=v},get resourceService(){return resourceService},set resourceService(v){resourceService=v},get autoUpdater(){return autoUpdater},set autoUpdater(v){autoUpdater=v},get chatHost(){return chatHost},set chatHost(v){chatHost=v},get voiceHost(){return voiceHost},set voiceHost(v){voiceHost=v},get brainHost(){return brainHost},set brainHost(v){brainHost=v},get screenCapture(){return screenCapture},set screenCapture(v){screenCapture=v},get windowManager(){return windowManager},set windowManager(v){windowManager=v},get updateManager(){return updateManager},set updateManager(v){updateManager=v}};
 const getState=()=>({characterWin,performanceWin,settingsWin,addonsWin,learningWin,restPoseEditorWin,normalizeHumanoidRestPoseWin,statusWin,threeDStatusWin,tray});
@@ -81,18 +71,17 @@ else if(!ciAutomation)app.on("second-instance",(event,commandLine)=>{setTimeout(
 function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
 
 let ciRuntime;
-function initCiE2E(suite="all"){const key=String(suite||"all");if(ciE2E&&ciE2E.suite===key)return ciE2E;const {createCiE2E}=require("./ci-e2e");ciE2E=createCiE2E({app,getCharacterWindow:()=>characterWin,getChatHost:ensureChatHost,getAgent:()=>agent,getTray:()=>tray,getBrainActive:()=>composition.ensureBrainHost?.().isActive?.(),ensureBrain,releaseBrainIfIdle,setMicMode,setVoiceMuted,getVoiceMuted,getVoiceHost:ensureVoiceHost,characterHost,getPerformanceWindow:()=>performanceWin,showPerformance,getSettingsWindow:()=>settingsWin,getAddonsWindow:()=>addonsWin,getLearningWindow:()=>learningWin,getStatusWindow:()=>statusWin,getRestPoseEditorWindow:()=>restPoseEditorWin,getNormalizeHumanoidRestPoseWindow:()=>normalizeHumanoidRestPoseWin,showSettings,showAddons,showLearning,showStatus,showRestPoseEditor:composition.showRestPoseEditor,showNormalizeHumanoidRestPose:composition.showNormalizeHumanoidRestPose});ciE2E.suite=key;return ciE2E;}
 function initCiRuntime(){if(ciRuntime)return ciRuntime;const {createCiRuntime}=require("./ci-runtime");ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>null,getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:ensureVoiceHost().getVoiceRuntime(),transcribeLocalWav:ensureVoiceHost().transcribeLocalWav,whisperRuntimePaths:ensureVoiceHost().whisperRuntimePaths,ensureBrain});return ciRuntime;}
 async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
 async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
 
 
 
-app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");ciWriteE2EStartup("app-ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
+app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
- try{ciWriteE2EStartup("create-window-start");await createWindow();ciWriteE2EStartup("create-window-complete");if(characterWin&&!getVoiceMuted()&&!ciSmoke&&!process.argv.includes("--ci-e2e"))ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);ciWriteE2EStartup("startup-failed",{error:String(e?.stack||e)});app.quit();return}
+ try{await createWindow();if(characterWin&&!getVoiceMuted()&&!ciSmoke)ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
- if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.includes("--ci-e2e")||process.argv.some(x=>x.startsWith("--size-"))){ciWriteE2EStartup("launch-args");handleLaunchArgs(process.argv.slice(1));}
+ if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-"))){handleLaunchArgs(process.argv.slice(1));}
 
  globalShortcut.register("CommandOrControl+Shift+M",()=>ensureChatHost().showChat());
  globalShortcut.register("CommandOrControl+Shift+S",async()=>{
@@ -126,5 +115,5 @@ app.on("window-all-closed",()=>{if(app.isQuitting)return;diagnostic("INFO","WIND
 app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQuitting=true;try{voiceHost?.stopVoiceServices?.("app quit")}catch{};try{learningRecorder?.stop?.()}catch{};for(const win of [getChatWindow(),performanceWin,settingsWin,addonsWin,learningWin,restPoseEditorWin,statusWin,threeDStatusWin,characterWin])try{if(win&&!win.isDestroyed())win.destroy()}catch{};try{if(tray){tray.destroy();tray=null}}catch{}});
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceHost?.stopVoiceServices?.("app quit")}catch{}});
 
-function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");if(a.includes("--ci-e2e")){const arg=a.find(x=>x.startsWith("--ci-e2e-suite="));const suite=arg?arg.split("=")[1]:(process.env.SAEED_CI_E2E_SUITE||"all");ciWriteE2EStartup("ci-e2e-start",{suite});return initCiE2E(suite).run().then(r=>{console.log("SAEED_CI_E2E",JSON.stringify({suite:r.suite,pass:r.pass,checks:Object.fromEntries(Object.entries(r.checks||{}).map(([k,v])=>[k,v?.pass]))}));ciWriteE2EStartup("ci-e2e-finished",{pass:r.pass});setTimeout(()=>app.quit(),750)});}return showCharacter()}
+function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
 async function createWindow(){await createCharacterWindow();if(ciSmoke)scheduleCiRuntimeSmoke()}
