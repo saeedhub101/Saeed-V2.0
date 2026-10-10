@@ -294,6 +294,17 @@ async function runCiProductAcceptance(){
   const addonsAcceptanceWindow=await verifyFeaturePage("addons","Saeed Add-ons",showAddons,"addonsWin","(async()=>{const api=typeof window.saeed?.addons?.catalog===\"function\";const result=api?await window.saeed.addons.catalog():null;return{readyState:document.readyState,title:document.title,hasMain:!!document.querySelector(\"main\"),apiAvailable:api,apiRoundTrip:result!==null&&result!==undefined}})()");
   try{learningAcceptanceWindow?.close()}catch{}
   try{addonsAcceptanceWindow?.close()}catch{}
+  const transcriptSettingBefore=composition.getTranscriptLabelEnabled();
+  try{
+   const enabled=composition.setTranscriptLabelEnabled(true);
+   await wait(100);
+   const rendered=await target.webContents.executeJavaScript("(()=>{window.saeedShowTranscript(\'CI recognized speech\');const e=document.getElementById(\'saeedTranscriptLabel\');return{text:e?.textContent||\'\',hidden:!!e?.hidden}})()");
+   check("microphone-transcript-label-toggle-and-render",enabled===true&&rendered?.text==="CI recognized speech"&&rendered?.hidden===false,{enabled:Boolean(enabled),text:rendered?.text||"",hidden:rendered?.hidden!==false});
+  }catch(error){check("microphone-transcript-label-toggle-and-render",false,{error:error?.message||String(error)})}
+  finally{
+   const restored=composition.setTranscriptLabelEnabled(transcriptSettingBefore);
+   check("microphone-transcript-label-setting-restored",restored===transcriptSettingBefore&&composition.getTranscriptLabelEnabled()===transcriptSettingBefore,{restored:Boolean(restored),expected:Boolean(transcriptSettingBefore)});
+  }
   const after=await characterHost.command({action:"getRig"});
   check("character-survives-repeated-visibility-cycles",after?.ok===true&&after?.bones?.length===rig.bones.length,{before:rig.bones.length,after:after?.bones?.length||0});
  }catch(error){report.error=String(error?.stack||error);check("runtime-acceptance-exception",false,{error:report.error})}

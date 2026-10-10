@@ -37,6 +37,10 @@ test("packaged acceptance exercises real motion edits, invalid-GLB preservation,
  assert.match(workflow,/dist\/ci-rest-pose-verify\.json/);
 });
 
+test("packaged acceptance verifies the transcript label toggle and actual recognized-text rendering",()=>{
+ for(const token of ["microphone-transcript-label-toggle-and-render","microphone-transcript-label-setting-restored","saeedTranscriptLabel","CI recognized speech"])assert.ok(runtime.includes(token),"missing transcript-label runtime acceptance: "+token);
+});
+
 test("packaged acceptance opens Learning and Add-ons and verifies renderer IPC round trips",()=>{
  for(const token of ["verifyFeaturePage","window-and-ipc","learningAcceptanceWindow","addonsAcceptanceWindow","window.saeed.learning.list()","window.saeed.addons.catalog()"])assert.ok(runtime.includes(token),"missing feature-window acceptance wiring: "+token);
 });
