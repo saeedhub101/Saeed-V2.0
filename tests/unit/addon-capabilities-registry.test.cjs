@@ -66,3 +66,22 @@ test("add-on path resolver rejects symlink escapes from an installed provider",(
   assert.throws(()=>runtime.resolveAddonPath(root,"provider","external/secret.txt"),/symlink/);
  }finally{fs.rmSync(root,{recursive:true,force:true});fs.rmSync(outside,{recursive:true,force:true})}
 });
+
+test("add-on manifests cannot declare executable entries outside their installation",()=>{
+ const manager=require("../../src/addons/manager");
+ const base={schemaVersion:1,id:"provider",name:"Provider",version:"1.0.0",capabilities:["email"]};
+ assert.throws(()=>manager.validateManifest({...base,entry:"../outside.js"}),/Invalid add-on entry/);
+ assert.throws(()=>manager.validateManifest({...base,entry:path.resolve("outside.js")}),/Invalid add-on entry/);
+ assert.equal(manager.validateManifest({...base,entry:"lib/provider.js"}).entry,"lib/provider.js");
+});
+
+test("resolved add-on entry paths must remain inside the installed package",()=>{
+ const manager=require("../../src/addons/manager");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-addon-entry-"));
+ const entry=path.join(root,"addons","provider","lib","entry.js");
+ try{
+  fs.mkdirSync(path.dirname(entry),{recursive:true});fs.writeFileSync(entry,"module.exports={}","utf8");
+  assert.equal(manager.resolveEntryPath(root,"provider","lib/entry.js"),entry);
+  assert.throws(()=>manager.resolveEntryPath(root,"provider","../outside.js"),/escapes its installation directory/);
+ }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
