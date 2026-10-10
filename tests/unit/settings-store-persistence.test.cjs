@@ -18,6 +18,7 @@ test("settings are atomically persisted and reload with normalized preferences",
  assert.equal(loaded.maxSteps,24);
  assert.equal(loaded.permissions.files,"deny");
  assert.equal(fs.existsSync(store.file),true);
+ assert.deepEqual(store.providerDefaults("ollama"),{baseUrl:"http://localhost:11434/v1",model:"llama3.2"});
  assert.deepEqual(fs.readdirSync(dir).filter(name=>name.includes(".tmp-")),[]);
 });
 

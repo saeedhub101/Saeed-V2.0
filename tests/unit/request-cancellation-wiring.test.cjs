@@ -53,3 +53,16 @@ test("an aborted provider fetch settles without publishing a stale answer",async
   assert.equal(events.some(event=>event.type==="answer"),false,"cancelled provider calls must not publish an answer");
  }finally{global.fetch=originalFetch}
 });
+
+test("Brain converts unexpected provider exceptions into a truthful recoverable result",async()=>{
+ const {Brain}=require("../../src/main/brain/brain");
+ const events=[];
+ const brain=new Brain({registry:{schemas:()=>[]},getSettings:()=>({brainMode:"api",provider:"broken-provider"}),getDir:()=>process.cwd(),onEvent:event=>events.push(event),providerDefaults:()=>({}),memoryContext:()=>"",saveHistory:()=>{},baseStepLimit:()=>1});
+ brain.api={run:async()=>{throw new Error("provider\r\nfailed")}};
+ const result=await brain.run({text:"test provider error",history:[]});
+ assert.equal(result.source,"api-provider-error");
+ assert.match(result.answer,/failed before completing/);
+ const diagnostic=events.find(event=>event.stage==="BRAIN PROVIDER FAILURE");
+ assert.ok(diagnostic,"unexpected provider failures must be diagnosed");
+ assert.equal(diagnostic.meta.error,"provider failed","diagnostics must normalize control characters without corrupting ordinary letters");
+});

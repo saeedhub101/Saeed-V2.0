@@ -49,7 +49,7 @@ class Brain{
    answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),memoryContext:this.memoryContext,saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
   }catch(error){
    if(!current())return{handled:true,answer:"",source:"stale",stale:true};
-   const detail=String(error?.message||error||"Unknown provider error").replace(/[\\r\\n\\t]+/g," ").slice(0,240);
+   const detail=String(error?.message||error||"Unknown provider error").replace(/[\r\n\t]+/g," ").slice(0,240);
    emit({type:"diagnostic",level:"ERROR",stage:"BRAIN PROVIDER FAILURE",message:"The selected AI provider failed before returning a result",meta:{provider:String(settings.provider||"unknown"),error:detail}});
    answer="The selected AI provider failed before completing the request. Check its configuration or choose another provider, then try again.";
    return{handled:false,answer,source:"api-provider-error"};
