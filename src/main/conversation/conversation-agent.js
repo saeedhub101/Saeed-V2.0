@@ -74,7 +74,7 @@ class ConversationAgent{
   if(!isCurrent()||result?.stale)return "";
   return this.commitBrainResult(input,result);
  }
- recordConversationExchange(user,assistant){const input=String(user||"").trim(),answer=String(assistant||"").trim();if(!input||!answer)return false;this.invalidateRequests();this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.saveHistory();return true}
+ recordConversationExchange(user,assistant){const input=String(user||"").trim(),answer=String(assistant||"").trim();if(!input||!answer)return false;this.invalidateRequests();this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.history=this.history.slice(-200);const persisted=this.saveHistory();if(persisted===false){this.onEvent({type:"diagnostic",level:"ERROR",stage:"CONVERSATION PERSISTENCE",message:"Realtime conversation exchange could not be verified in persistent storage"});return false}return true}
  async dispose(){this.invalidateRequests();try{await this.brain?.dispose?.()}catch{}try{await this.registry?.dispose?.()}catch{}this.brain=null;this.registry=null;this.memoryService=null;this.onEvent=()=>{};return true}
 }
 module.exports={ConversationAgent};
