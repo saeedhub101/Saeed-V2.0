@@ -25,3 +25,13 @@ test("an already-aborted request never opens a confirmation prompt",async()=>{
  assert.equal(await manager.confirmPermission("files",{name:"read_file",signal:controller.signal}),false);
  assert.equal(sent,0);
 });
+
+test("cancellation while opening Chat prevents a later confirmation prompt",async()=>{
+ const controller=new AbortController();let releaseShow;let sent=0;
+ const manager=createPermissionManager({getAgent:()=>({settings:{permissions:{files:"ask"}}}),showChat:()=>new Promise(resolve=>{releaseShow=resolve}),getChatWindow:()=>({isDestroyed:()=>false,webContents:{isDestroyed:()=>false,send:()=>sent++}}),diagnostic:()=>{}});
+ const pending=manager.confirmPermission("files",{name:"read_file",signal:controller.signal});
+ await new Promise(resolve=>setImmediate(resolve));
+ controller.abort();releaseShow();
+ assert.equal(await pending,false);
+ assert.equal(sent,0);
+});
