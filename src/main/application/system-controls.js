@@ -1,4 +1,4 @@
-function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showNormalizeHumanoidRestPose,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,getTranscriptLabelEnabled,toggleTranscriptLabel,updateNow}){
+function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showNormalizeHumanoidRestPose,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,getTranscriptLabelEnabled,toggleTranscriptLabel,updateNow,emergencyStop,resumeEmergencyStop,isEmergencyStopped}){
  let currentTray=null;
  function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
  function rebuildTray(tray){
@@ -6,8 +6,10 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
   currentTray=tray;
   const muted=Boolean(getVoiceMuted?.());
   const mic=getCurrentMicMode?.()||"off";
+  const stopped=Boolean(isEmergencyStopped?.());
+  const emergencyItems=[{label:"EMERGENCY STOP — Stop active actions",enabled:!stopped,click:()=>emergencyStop?.()},{label:"Resume agent actions",enabled:stopped,click:()=>resumeEmergencyStop?.()}];
   const menu=Menu.buildFromTemplate([
-   {label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter}]},
+   {label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter},...emergencyItems]},
    {label:muted?"Unmute":"Mute",type:"checkbox",checked:muted,click:()=>setVoiceMuted(!muted)},
    {label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:mic==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:mic==="off",click:()=>setMicMode("off")}]},
     {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Character Studio — Bones / Rest Pose / Animation",click:showRestPoseEditor},{label:"Normalize Humanoid Rest Pose",click:showNormalizeHumanoidRestPose},{label:"Size",submenu:characterSizeMenu()}]},
@@ -24,8 +26,11 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
  function contextMenu(){
   const win=getCharacterWindow?.();
   if(!win||win.isDestroyed())return;
+  const stopped=Boolean(isEmergencyStopped?.());
   Menu.buildFromTemplate([
    {label:"Chat Me",click:showChat},
+   {label:stopped?"Agent actions stopped":"EMERGENCY STOP — Stop active actions",enabled:!stopped,click:()=>emergencyStop?.()},
+   {label:"Resume agent actions",enabled:stopped,click:()=>resumeEmergencyStop?.()},
    {label:"Hide Saeed",click:hideCharacter},
    {label:"Add-ons / Plug-ins",click:showAddons},
    {label:"Learning / Teach Mode",click:showLearning},

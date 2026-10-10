@@ -50,9 +50,11 @@ function validateToolArguments(args,schema,name){
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy,recordHook,characterController}={}){
   this.computer=new Computer();this.memory=null;this.tasks=null;this.userDataPath=userDataPath||process.cwd();this.captureScreen=captureScreen||(()=>null);
-  this.confirm=confirm||(async()=>false);this.permissionPolicy=permissionPolicy||(()=> "ask");this.recordHook=typeof recordHook==="function"?recordHook:null;this.characterController=typeof characterController==="function"?characterController:null;this.tasksFile=path.join(this.userDataPath,"tasks.json");
+  this.confirm=confirm||(async()=>false);this.permissionPolicy=permissionPolicy||(()=> "ask");this.recordHook=typeof recordHook==="function"?recordHook:null;this.characterController=typeof characterController==="function"?characterController:null;this.tasksFile=path.join(this.userDataPath,"tasks.json");this.emergencyStopped=false;this.emergencyGeneration=0;
  }
  setRecordHook(fn){this.recordHook=typeof fn==="function"?fn:null}
+ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emergencyGeneration++;}return{stopped:true,generation:this.emergencyGeneration}}
+ resumeAfterEmergencyStop(){this.emergencyStopped=false;this.emergencyGeneration++;return{stopped:false,generation:this.emergencyGeneration}}
  schemas(){let addonSchemas=[];try{addonSchemas=require("../addons/runtime").toolSchemas(this.userDataPath)}catch{}return domains.flatMap(d=>d.schemas()).concat([characterMotionToolSchema],addonSchemas)}
  categoryFor(name){
   if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info"].includes(name))return"system";
@@ -83,7 +85,8 @@ class ToolRegistry{
  }
  async call(name,args={},options={}){
   const isCurrent=typeof options?.isCurrent==="function"?options.isCurrent:()=>true;
-  const current=()=>{try{return Boolean(isCurrent())}catch{return false}};
+  const generation=this.emergencyGeneration;
+  const current=()=>{try{return Boolean(isCurrent())&&!this.emergencyStopped&&generation===this.emergencyGeneration}catch{return false}};
   const stale=()=>({ok:false,stale:true,error:"Stale conversation request cancelled"});
   if(!current())return stale();
   try{
