@@ -486,10 +486,12 @@ function getCharacterPoseStatus(){
  const rigValidation=validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name])));return {loaded:Boolean(model),requiredRig:rigValidation,capabilities:{...rigValidation.capabilities,blink:Boolean(morphs.has("blink")||morphs.has("eyeclose")||rigValidation.capabilities.blink),visemes:morphs.size>0,expressions:morphs.size>0},controllable:Boolean(rig.size),controllableBoneCount:rig.size,boneCount:rig.size,bones,skeletonCount:boneGroups.size,duplicateBoneGroups:[...boneGroups.entries()].filter(([,list])=>list.length>1).map(([name,list])=>({name,count:list.length})),tPose:{isTPose,detected},restPose:{...lastRestPose}};
 }
 function getBoneRotation(name){getSceneBones();const b=(boneGroups.get(String(name||""))||[])[0];return b?{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z}:null}
+function getBonePosition(name){getSceneBones();const b=(boneGroups.get(String(name||""))||[])[0];return b?{x:b.position.x,y:b.position.y,z:b.position.z}:null}
 function restLocalQuaternion(object){const rest=object?.isBone?boneRest.get(String(object.name||"")):null;if(rest&&[rest.rotation?.qx,rest.rotation?.qy,rest.rotation?.qz,rest.rotation?.qw].every(Number.isFinite))return new THREE.Quaternion(rest.rotation.qx,rest.rotation.qy,rest.rotation.qz,rest.rotation.qw);return object?.quaternion?.clone?.()||new THREE.Quaternion()}
 function getRestWorldQuaternion(bone){const chain=[];for(let node=bone;node;node=node.parent)chain.unshift(node);const world=new THREE.Quaternion();for(const node of chain)world.multiply(restLocalQuaternion(node));return world}
 function getBoneEditorRotation(name){getSceneBones();const key=String(name||""),b=(boneGroups.get(key)||[])[0];if(!b||!boneRest.has(key))return null;const baseWorld=getRestWorldQuaternion(b),currentWorld=b.getWorldQuaternion(new THREE.Quaternion()),delta=currentWorld.multiply(baseWorld.invert()),e=new THREE.Euler().setFromQuaternion(delta,"XYZ");return{x:e.x,y:e.y,z:e.z}}
 function setBoneRotation(name,rotation={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const s=rotation?.rotation&&typeof rotation.rotation==="object"?rotation.rotation:rotation,x=Number(s.x),y=Number(s.y),z=Number(s.z);if(![x,y,z].every(Number.isFinite))return false;for(const b of list)b.rotation.set(x,y,z);render();return true}
+function setBonePosition(name,position={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const p=position?.position&&typeof position.position==="object"?position.position:position,x=Number(p.x),y=Number(p.y),z=Number(p.z);if(![x,y,z].every(Number.isFinite))return false;for(const b of list)b.position.set(x,y,z);render();return true}
 function setBoneEditorRotation(name,rotation={}){
  getSceneBones();
  const key=String(name||"");
@@ -615,7 +617,7 @@ window.saeedCharacterRuntime.engine={
   };
  },
  getBoneMap,getBones:getBoneMap,getAvailableBoneNames,autoMapRig,getScene:()=>scene,getCharacterModel:()=>model,getSceneBoneGroups:()=>getSceneBoneGroups(),bindRig,applyCharacterPose,resetCharacterPose,
- getBoneRotation,getBoneEditorRotation,setBoneRotation,setBoneEditorRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
+ getBoneRotation,getBonePosition,getBoneEditorRotation,setBoneRotation,setBonePosition,setBoneEditorRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
