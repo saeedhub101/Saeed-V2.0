@@ -329,6 +329,7 @@ function display(parsed){
  if(!parsed?.scene)throw new Error("Selected GLB contains no scene");
  const previous=model;
  const previousRig=rig,previousBase=base,previousGroups=boneGroups,previousRest=boneRest,previousMorphs=morphs;
+ const cameraSnapshot={position:camera.position.clone(),quaternion:camera.quaternion.clone(),near:camera.near,far:camera.far,fov:camera.fov,aspect:camera.aspect,zoom:camera.zoom};
  const next=parsed.scene;
  const nextGroups=getSceneBoneGroupsForModel(next);
  const nextRest=new Map();
@@ -344,12 +345,17 @@ function display(parsed){
   collectMorphs();
   const normalization=normalizeHumanoidRestPose();
   traceGlb("rest-pose-normalized-before-render",{generation:loadGeneration,...normalization});
-  fit();
+  if(!fit())throw new Error("Candidate GLB could not be fitted to a valid camera view; current character preserved");
   render();
  }catch(error){
-  traceGlb("display-error",{error:error?.stack||error?.message||String(error)});
+  traceGlb("display-error",{error:error?.stack||error?.message||String(error),candidateRejected:true,currentCharacterPreserved:Boolean(previous)});
   try{root.remove(next)}catch{}
   model=previous;rig=previousRig;base=previousBase;boneGroups=previousGroups;boneRest=previousRest;morphs=previousMorphs;
+  camera.position.copy(cameraSnapshot.position);camera.quaternion.copy(cameraSnapshot.quaternion);
+  camera.near=cameraSnapshot.near;camera.far=cameraSnapshot.far;camera.fov=cameraSnapshot.fov;camera.aspect=cameraSnapshot.aspect;camera.zoom=cameraSnapshot.zoom;camera.updateProjectionMatrix();
+  if(previous)previous.updateWorldMatrix?.(true,true);
+  try{dispose(next)}catch{}
+  try{render()}catch{}
   throw error;
  }
  if(previous){
