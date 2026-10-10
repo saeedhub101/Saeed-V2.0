@@ -47,3 +47,26 @@ test("supports allOf, anyOf, oneOf, and not schema composition", () => {
   assert.match(validateToolArguments({value:1}, {type:"object",properties:{value:{oneOf:[{type:"number"},{minimum:0}]}}}, "oneOf"), /match exactly one/);
   assert.match(validateToolArguments({value:"blocked"}, {type:"object",properties:{value:{not:{type:"string"}}}}, "not"), /forbidden schema/);
 });
+
+test("rejects invalid schema regexes rather than silently accepting input", () => {
+  assert.match(validateToolArguments({value:"abc"}, {type:"object",properties:{value:{type:"string",pattern:"["}}}, "bad-pattern"), /invalid schema pattern/);
+});
+
+test("supports URI/email formats, exclusive numeric bounds, unique arrays and object property bounds", () => {
+  assert.equal(validateToolArguments({email:"person@example.com",url:"https://example.com",count:2,tags:["a","b"]}, {
+    type:"object",properties:{
+      email:{type:"string",format:"email"},url:{type:"string",format:"uri"},
+      count:{type:"number",exclusiveMinimum:1,exclusiveMaximum:3},
+      tags:{type:"array",uniqueItems:true,items:{type:"string"}}
+    },minProperties:4,maxProperties:4
+  }, "advanced"), null);
+  assert.match(validateToolArguments({email:"bad",url:"https://example.com",count:2,tags:[]}, {
+    type:"object",properties:{email:{type:"string",format:"email"},url:{type:"string",format:"uri"},count:{type:"number"},tags:{type:"array"}}
+  }, "email"), /valid email/);
+  assert.match(validateToolArguments({email:"person@example.com",url:"file:///tmp/a",count:2,tags:[]}, {
+    type:"object",properties:{email:{type:"string",format:"email"},url:{type:"string",format:"uri"},count:{type:"number"},tags:{type:"array"}}
+  }, "url"), /HTTP\(S\) URL/);
+  assert.match(validateToolArguments({count:1}, {type:"object",properties:{count:{type:"number",exclusiveMinimum:1}}}, "exclusive"), /greater than 1/);
+  assert.match(validateToolArguments({tags:["x","x"]}, {type:"object",properties:{tags:{type:"array",uniqueItems:true}}}, "unique"), /unique items/);
+  assert.match(validateToolArguments({a:1,b:2}, {type:"object",maxProperties:1}, "maxProperties"), /at most 1 properties/);
+});
