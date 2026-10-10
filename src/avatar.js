@@ -19,6 +19,7 @@ function report(stage,error){const message=String(error?.stack||error?.message||
 function deliverCharacter(data,generation){
  const g=Number(generation)||lastCharacterGeneration+1;
  if(g<lastCharacterGeneration)return Promise.resolve({ok:false,stale:true,generation:g});
+ if(g===lastCharacterGeneration&&lastCharacterGeneration>0)return Promise.resolve({ok:true,duplicate:true,generation:g});
  lastCharacterGeneration=g;
  trace("character-selected-received",{generation:g,byteLength:data?.byteLength??data?.length??null});
  if(typeof runtime.load==="function"){
