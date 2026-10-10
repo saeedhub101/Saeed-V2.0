@@ -40,6 +40,14 @@ jobs:
       - name: Run current product preflight
         run: npm test
 
+      - name: Generate npm third-party license notices
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          node scripts/generate-third-party-notices.js
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path "dist\\THIRD_PARTY_NOTICES.txt")) { throw "Third-party notice report generation failed." }
+          Get-Content "dist\\THIRD_PARTY_NOTICES.txt" -TotalCount 8
+
       - name: Prepare native Windows icon
         shell: pwsh
         run: |
@@ -91,6 +99,8 @@ jobs:
           if (Test-Path "build\whisper-src") { Remove-Item "build\whisper-src" -Recurse -Force }
           git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git build\whisper-src
           if ($LASTEXITCODE -ne 0) { throw "Could not clone whisper.cpp." }
+          if (!(Test-Path "build\\whisper-src\\LICENSE")) { throw "whisper.cpp license file is missing." }
+          Copy-Item "build\\whisper-src\\LICENSE" (Join-Path $root "WHISPER-CPP-LICENSE.txt") -Force
           cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
           if ($LASTEXITCODE -ne 0) { throw "Whisper CMake configure failed." }
           cmake --build build\whisper-src\build --config Release --target whisper-cli
@@ -181,6 +191,8 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-product-acceptance.json
+            dist/THIRD_PARTY_NOTICES.txt
+            build/whisper-runtime/WHISPER-CPP-LICENSE.txt
             dist/icons/*
             dist/addons/*.zip
 
