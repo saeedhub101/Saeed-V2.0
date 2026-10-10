@@ -5,7 +5,7 @@ async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
  const lightweight=action==="status"||action==="listMotions";
- const needsBones=action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
+ const needsBones=action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
  const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
@@ -72,6 +72,8 @@ async function executeCharacterCommand(command={}){
   if(x.action==="bindSlot"){const ok=c.bindSlot?.(String(x.slot||""),String(x.bone||""));return{ok:Boolean(ok),mapping:c.engine?.getCharacterRigAutoMap?.()||{},status:c.status()}}
   if(x.action==="setBoneRotation"){const ok=c.setBoneRotation?.(String(x.bone||""),x.rotation||{})??engine?.setBoneRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneRotation?.(String(x.bone||""))||null}};
   if(x.action==="setBoneTransform"){const ok=engine?.setBoneTransform?.(String(x.bone||""),x.transform||{});return{ok:Boolean(ok),status:c.status(),transform:engine?.getCharacterPoseStatus?.()?.bones?.[String(x.bone||"")]||null}};
+  if(x.action==="bonePosition")return{ok:true,position:engine?.getBonePosition?.(String(x.bone||""))||null};
+  if(x.action==="setBonePosition"){const ok=engine?.setBonePosition?.(String(x.bone||""),x.position||{});return{ok:Boolean(ok),position:engine?.getBonePosition?.(String(x.bone||""))||null}};
   if(x.action==="setBoneEditorRotation"){const ok=engine?.setBoneEditorRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneEditorRotation?.(String(x.bone||""))||null}};
   if(x.action==="resetBoneToRest"){const bone=String(x.bone||"");const rotation=c.resetBoneToRest?.(bone);return{ok:Boolean(rotation),rotation:rotation||null,status:c.status()}};
   if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}}
