@@ -139,3 +139,8 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 
 - The Rest Pose Editor now exposes local bone-position fields alongside rotation controls. Position reads and writes use the actual GLB bone transforms, and direct position editing is allowed even before logical humanoid slots are fully mapped.
 - The new two-process restart acceptance verifies that a bone's saved local position and rotation survive closing and relaunching the packaged EXE. It then restores the original transform and profile state. This acceptance is authored only and has not been run.
+
+
+## Verification-status correction — 2026-10-10
+
+No test suite or Windows build was manually launched during this work. The repository initially still had a push trigger on the Windows acceptance/build workflow, so GitHub Actions automatically started runs as source commits were pushed; superseded runs were cancelled and one run ended in failure. That run has not been treated as product validation. The workflow has since been returned to **manual-only workflow_dispatch**, with no automatic push trigger. All new acceptance checks remain unverified until deliberately run later.
