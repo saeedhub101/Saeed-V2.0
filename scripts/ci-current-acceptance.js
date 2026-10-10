@@ -125,6 +125,16 @@ function main() {
   check("packaged-acceptance-suite-wired", missingIds.length === 0 && runner.includes("current"),
     { requiredChecks: acceptanceIds, missingChecks: missingIds, runnerSupportsCurrentSuite: runner.includes("current") });
 
+  const profileStore = exists("src/character/CharacterProfileStore.js") ? read("src/character/CharacterProfileStore.js") : "";
+  const characterController = exists("src/character/CharacterController.js") ? read("src/character/CharacterController.js") : "";
+  check("character-profile-write-is-read-back-verified",
+    profileStore.includes("const persisted=read()[key]") &&
+    profileStore.includes("could not be verified from persistent storage"),
+    { note: "A successful return requires the profile to be read back from persistent storage after writing." });
+  check("rest-pose-save-verifies-persisted-profile",
+    (characterController.match(/persisted=verify\\(this\\.profiles\\.load\\(this\\.characterId\\)\\|\\|\\{\\}\\);/g) || []).length >= 2,
+    { note: "Rest-pose save and retry must verify actual profile read-back, not only the in-memory object returned by save." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
