@@ -132,7 +132,7 @@ function main() {
     profileStore.includes("could not be verified from persistent storage"),
     { note: "A successful return requires the profile to be read back from persistent storage after writing." });
   check("rest-pose-save-verifies-persisted-profile",
-    (characterController.match(/persisted=verify\\(this\\.profiles\\.load\\(this\\.characterId\\)\\|\\|\\{\\}\\);/g) || []).length >= 2,
+    (characterController.match(/persisted=verify\(this\.profiles\.load\(this\.characterId\)\|\|\{\}\);/g) || []).length >= 2,
     { note: "Rest-pose save and retry must verify actual profile read-back, not only the in-memory object returned by save." });
 
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
