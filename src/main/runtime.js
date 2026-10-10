@@ -140,7 +140,7 @@ async function runCiProductAcceptance(){
   await wait(120);
   const stopped=await characterHost.command({action:"stopAll"});
   check("motion-stop",stopped?.ok===true,{ok:Boolean(stopped?.ok)});
-  const restPoseBone=String(rig.mapping?.head||rig.bones.find(name=>/head/i.test(String(name)))||rig.bones[0]||"");
+  const mappedHead=rig.mapping?.head;const restPoseBone=String(typeof mappedHead==="string"&&mappedHead?mappedHead:rig.bones.find(name=>/head/i.test(String(name)))||rig.bones[0]||"");
   const desiredRestRotation={x:0.123,y:0.087,z:-0.061};
   const editedBone=restPoseBone?await characterHost.command({action:"setBoneRotation",bone:restPoseBone,rotation:desiredRestRotation}):{ok:false,error:"No bone available"};
   const editRotation=editedBone?.rotation||{};
