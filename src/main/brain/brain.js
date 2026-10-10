@@ -23,8 +23,8 @@ class Brain{
   if(mode==="local")return{mode:"local",reason:"forced-local"};
   return{mode:"auto",reason:"local-first"};
  }
- async run({text,image=null,history=[],isCurrent=()=>true}={}){
-  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
+ async run({text,image=null,history=[],isCurrent=()=>true,signal=null}={}){
+  const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
   const emit=event=>{if(current())this.onEvent(event)};
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
@@ -44,7 +44,7 @@ class Brain{
   }
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
   if(settings.apiServices?.brain===false)return{handled:true,answer:"API Brain is disabled in Performance settings. Enable API Brain or switch Agent to Local only.",source:"api-disabled"};
-  const answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),memoryContext:this.memoryContext,saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current});
+  const answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),memoryContext:this.memoryContext,saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
   return{handled:false,answer,source:"api"};
  }
