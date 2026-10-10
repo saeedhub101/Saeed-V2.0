@@ -37,7 +37,7 @@ function validateSchemaValue(value,schema,pathName){
   for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)return pathName+" is missing required field \""+key+"\"";
   if(schema.additionalProperties===false){const allowed=new Set(Object.keys(schema.properties||{}));for(const key of Object.keys(value))if(!allowed.has(key))return pathName+" has unexpected field \""+key+"\"";}
   for(const [key,child] of Object.entries(schema.properties||{})){
-   if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined||value[key]===null)continue;
+   if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)continue;
    const error=validateSchemaValue(value[key],child,pathName+"."+key);if(error)return error;
   }
  }

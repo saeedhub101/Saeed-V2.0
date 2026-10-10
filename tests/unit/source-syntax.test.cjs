@@ -18,7 +18,7 @@ function collect(dir, out = []) {
       if (!excludedDirs.has(entry.name)) collect(file, out);
       continue;
     }
-    if (entry.isFile() && /\.(?:js|mjs|cjs)$/i.test(entry.name)) out.push({ file });
+    if (entry.isFile() && /\.(?:js|mjs|cjs)$/i.test(entry.name)) out.push({ file: path.relative(root, file) });
   }
   return out;
 }
