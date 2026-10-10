@@ -158,6 +158,47 @@ function createCiE2E(deps={}){
     const result=await execJs(pw,'(async()=>{const api=window.saeed;const before=await api.character.getCharacterController();const boneNames=await api.character.characterController({action:"boneNames"});const available=(boneNames?.bones||[]).filter(Boolean);if(!available.length)return {pass:false,stage:"bone-discovery",error:"Engine scene has bones but controller exposes none"};const mappedBefore=Object.keys(before?.autoRig||{});if(!mappedBefore.length)await api.character.characterController({action:"autoMap"}).catch(()=>{});const state=await api.character.getCharacterController();const slots=Object.keys(state?.autoRig||{}).filter(k=>state.autoRig[k]);if(!slots.length)return {pass:false,stage:"partial-rig-map",error:"Bones exist but no available logical bone was mapped",available,mapped:state?.autoRig||{}};const slot=slots[0],id="ciCurrentAcceptanceMotion";const motion={id,duration:1,layer:"special",loop:false,keyframes:[{time:0,pose:{[slot]:{x:0,y:0,z:0}}},{time:.35,pose:{[slot]:{x:.32,y:.41,z:.18}}},{time:.75,pose:{[slot]:{x:-.2,y:-.28,z:.12}}},{time:1,pose:{[slot]:{x:0,y:0,z:0}}}]};const saved=await api.character.characterController({action:"defineMotion",motion});if(!saved?.ok)return {pass:false,stage:"define-motion",saved,slot,available};await api.character.characterController({action:"play",motion:id,options:{duration:1,speed:1,intensity:1,loop:false}});await new Promise(r=>setTimeout(r,280));const during=await api.character.getCharacterController();const bone=state.autoRig[slot],a=state.actualBones?.[bone]?.rotation,b=during.actualBones?.[during.autoRig?.[slot]||bone]?.rotation;const changed=Boolean(a&&b&&(Math.abs((b.x||0)-(a.x||0))>.01||Math.abs((b.y||0)-(a.y||0))>.01||Math.abs((b.z||0)-(a.z||0))>.01));await api.character.characterController({action:"stopAll"}).catch(()=>{});await api.character.characterController({action:"deleteMotion",id}).catch(()=>{});return {pass:changed,stage:changed?"animated":"no-bone-change",slot,bone,available,mapped:state.autoRig,before:a,during:b,changed}})()',true);
     return {...result,sceneData,boneCount:sceneData.bones.length};
    },{timeoutMs:90000});
+   await check("acceptance.rest-pose-bone-position-save-reset",async()=>{
+    const opened=await depsShowPerformance?.();await wait(350);
+    const pw=getPerformanceWindow?.()||opened;
+    if(!visible(pw))return {pass:false,stage:"performance-window",error:"Could not open character controller for rest-pose acceptance"};
+    const result=await execJs(pw,'(async()=>{
+     const api=window.saeed;
+     const initial=await api.character.characterController({action:"status"});
+     if(!initial?.status?.characterLoaded)return {pass:false,stage:"character-load",status:initial};
+     let bones=initial.status.actualBones||{};
+     let bone=Object.keys(bones).find(n=>n&&bones[n]?.rotation&&bones[n]?.position&&bones[n]?.restPose?.position);
+     if(!bone){await api.character.characterController({action:"autoMap"}).catch(()=>{});await api.character.characterController({action:"resetPose"}).catch(()=>{});const refreshed=await api.character.characterController({action:"status"});bones=refreshed?.status?.actualBones||{};bone=Object.keys(bones).find(n=>n&&bones[n]?.rotation&&bones[n]?.position&&bones[n]?.restPose?.position)}
+     if(!bone)return {pass:false,stage:"bone-selection",error:"No actual GLB bone exposing position and rest-pose transforms"};
+     await api.character.characterController({action:"stopAll"}).catch(()=>{});
+     await api.character.characterController({action:"resetPose"});
+     const baselineStatus=await api.character.characterController({action:"status"});
+     const baseline=baselineStatus?.status?.actualBones?.[bone];
+     if(!baseline?.rotation||!baseline?.position)return {pass:false,stage:"baseline",bone,baseline};
+     const original={rotation:baseline.rotation,position:baseline.position};
+     const delta={rotation:{x:.17,y:-.11,z:.09},position:{x:.06,y:.025,z:-.035}};
+     const target={rotation:{x:original.rotation.x+delta.rotation.x,y:original.rotation.y+delta.rotation.y,z:original.rotation.z+delta.rotation.z},position:{x:original.position.x+delta.position.x,y:original.position.y+delta.position.y,z:original.position.z+delta.position.z}};
+     const moved=await api.character.characterController({action:"setBoneTransform",bone,transform:delta});
+     const movedStatus=await api.character.characterController({action:"status"});
+     const actual=movedStatus?.status?.actualBones?.[bone]||{},near=(a,b,t)=>Math.abs((Number(a)||0)-(Number(b)||0))<t;
+     const movedOk=Boolean(moved?.ok&&["x","y","z"].every(k=>near(actual.rotation?.[k],target.rotation[k],.035)&&near(actual.position?.[k],target.position[k],.015)));
+     const saved=await api.character.characterController({action:"saveRestPose"});
+     const afterSave=await api.character.characterController({action:"status"});
+     const rest=afterSave?.status?.actualBones?.[bone]?.restPose||{};
+     const savedRotation=rest.rotation||{},savedPosition=rest.position||{};
+     const saveCaptured=Boolean(saved?.ok&&saved?.persisted&&["x","y","z"].every(k=>near(savedRotation[k],target.rotation[k],.035)&&near(savedPosition[k],target.position[k],.015)));
+     const second={rotation:{x:.23,y:.12,z:-.14},position:{x:-.045,y:.055,z:.07}};
+     const altered=await api.character.characterController({action:"setBoneTransform",bone,transform:second});
+     const reset=await api.character.characterController({action:"resetPose"});
+     const restoredStatus=await api.character.characterController({action:"status"});
+     const restored=restoredStatus?.status?.actualBones?.[bone]||{};
+     const restoredOk=Boolean(altered?.ok&&reset?.ok&&["x","y","z"].every(k=>near(restored.rotation?.[k],target.rotation[k],.035)&&near(restored.position?.[k],target.position[k],.015)));
+     let cleanup=null;
+     if(movedOk&&saveCaptured){const reverse={rotation:{x:-delta.rotation.x,y:-delta.rotation.y,z:-delta.rotation.z},position:{x:-delta.position.x,y:-delta.position.y,z:-delta.position.z}};const undone=await api.character.characterController({action:"setBoneTransform",bone,transform:reverse});const originalSaved=await api.character.characterController({action:"saveRestPose"});const resetOriginal=await api.character.characterController({action:"resetPose"});cleanup={ok:Boolean(undone?.ok&&originalSaved?.ok&&originalSaved?.persisted&&resetOriginal?.ok)}}
+     return {pass:Boolean(movedOk&&saveCaptured&&restoredOk&&cleanup?.ok),bone,original,target,actual,movedOk,saved:Boolean(saved?.persisted),savedRotation,savedPosition,saveCaptured,restoredRotation:restored.rotation,restoredPosition:restored.position,restoredOk,cleanup};
+    })()',true);
+    return result;
+   },{timeoutMs:60000});
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
    await check("startup.tray",()=>Boolean(getTray?.()));
    await check("startup.mic-off",()=>String(getVoiceHost?.()?.getCurrentMicMode?.()||"off")==="off");
