@@ -7,7 +7,12 @@ const root = process.cwd();
 const lockPath = path.join(root, "package-lock.json");
 const lock = JSON.parse(fs.readFileSync(lockPath, "utf8"));
 const packages = lock.packages || {};
-const licenseNames = ["LICENSE", "LICENSE.txt", "LICENCE", "LICENCE.txt", "COPYING", "COPYING.txt"];
+const licenseNames = [
+  "LICENSE", "LICENSE.txt", "LICENSE.md", "LICENSE-MIT", "LICENSE-APACHE", "LICENSE-BSD",
+  "LICENCE", "LICENCE.txt", "LICENCE.md", "COPYING", "COPYING.txt", "NOTICE", "NOTICE.txt",
+  "NOTICE.md", "COPYRIGHT", "COPYRIGHT.txt", "UNLICENSE", "licenses/LICENSE", "licenses/LICENSE.txt",
+  "LICENSES/MIT.txt", "LICENSES/Apache-2.0.txt", "LICENSES/BSD-2-Clause.txt"
+];
 const entries = [];
 const missing = [];
 
@@ -28,6 +33,23 @@ for (const [packagePath, meta] of Object.entries(packages)) {
         if (licenseText) break;
       }
     } catch {}
+  }
+  // Package publishers do not consistently capitalize or suffix their license files.
+  // Check only the package root and common license folders; do not recursively scan dependencies.
+  if (!licenseText) {
+    const dirs = [fullPath, path.join(fullPath, "licenses"), path.join(fullPath, "LICENSES")];
+    for (const dir of dirs) {
+      let names = [];
+      try { names = fs.readdirSync(dir, { withFileTypes: true }).filter(x => x.isFile()).map(x => x.name); } catch {}
+      const candidateName = names.sort((a, b) => a.localeCompare(b)).find(filename =>
+        /^(license|licence|copying|notice|copyright|unlicense)(?:[._ -].*)?$/i.test(filename)
+      );
+      if (!candidateName) continue;
+      try {
+        const candidateText = fs.readFileSync(path.join(dir, candidateName), "utf8").trim();
+        if (candidateText) { licenseText = candidateText; break; }
+      } catch {}
+    }
   }
   entries.push({ name, version: meta.version || "unknown", license, licenseText });
   if (!licenseText) missing.push({ name, version: meta.version || "unknown", license });
