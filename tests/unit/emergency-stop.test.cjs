@@ -27,6 +27,7 @@ test("Emergency Stop invalidates in-flight tool calls and prevents their success
   const inFlight = registry.call("character_motion", { intent: "wave" });
   await started;
   assert.deepEqual(registry.emergencyStop().stopped, true);
+  assert.equal([...registry.activeControllers].some(controller => controller.signal.aborted), true);
   releaseFirst({ ok: true, motion: "wave" });
 
   assert.deepEqual(await inFlight, {
@@ -35,6 +36,7 @@ test("Emergency Stop invalidates in-flight tool calls and prevents their success
     error: "Stale conversation request cancelled"
   });
   assert.deepEqual(recorded, []);
+  assert.equal(registry.activeControllers.size, 0);
   assert.deepEqual(await registry.call("character_motion", { intent: "wave" }), {
     ok: false,
     stale: true,
