@@ -212,6 +212,19 @@ function main() {
     restPoseAvatar.includes("runtime.pendingLoad"),
     { note: "The Rest Pose Editor must load its actual local GLB renderer, accept selected-character data, and queue data that arrives before engine initialization." });
 
+  const voiceIpc = exists("src/main/ipc/voice-ipc.js") ? read("src/main/ipc/voice-ipc.js") : "";
+  const voiceClient = exists("src/renderer/voice/voice-client.js") ? read("src/renderer/voice/voice-client.js") : "";
+  check("stt-api-provider-contracts-match-provider-specifications",
+    voiceIpc.includes('form.append(c.p==="elevenlabs"?"model_id":"model",c.model)') &&
+    voiceIpc.includes('c.p==="elevenlabs"?"language_code":"language"') &&
+    voiceIpc.includes('base+"/audio/transcriptions"') &&
+    voiceIpc.includes('base+"/speech-to-text"') &&
+    voiceIpc.includes('replace(/\\/+$/,"")'),
+    { note: "STT API routing must use provider-specific multipart field names and normalize configured base URLs." });
+  check("local-stt-drains-audio-buffered-during-transcription",
+    voiceClient.includes('queueMicrotask(()=>{if(this.active&&!this.localTranscribing)void this.flushLocalChunk()})'),
+    { note: "Audio captured while an earlier local STT request is running must be drained after that request finishes." });
+
   const voiceRuntime = exists("src/main/voice/voice-runtime.js") ? read("src/main/voice/voice-runtime.js") : "";
   check("realtime-tool-execution-cancels-with-voice-session",
     voiceRuntime.includes("realtimeAbortController") &&
