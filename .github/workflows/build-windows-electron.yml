@@ -45,8 +45,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           node scripts/generate-third-party-notices.js
-          if ($LASTEXITCODE -ne 0 -or !(Test-Path "dist\\THIRD_PARTY_NOTICES.txt")) { throw "Third-party notice report generation failed." }
-          Get-Content "dist\\THIRD_PARTY_NOTICES.txt" -TotalCount 8
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path "THIRD_PARTY_NOTICES.txt")) { throw "Third-party notice report generation failed." }
+          Get-Content "THIRD_PARTY_NOTICES.txt" -TotalCount 8
 
       - name: Prepare native Windows icon
         shell: pwsh
@@ -191,7 +191,7 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-product-acceptance.json
-            dist/THIRD_PARTY_NOTICES.txt
+            THIRD_PARTY_NOTICES.txt
             build/whisper-runtime/WHISPER-CPP-LICENSE.txt
             dist/icons/*
             dist/addons/*.zip
