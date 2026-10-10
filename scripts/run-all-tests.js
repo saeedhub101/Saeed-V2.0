@@ -18,6 +18,7 @@ const suites = [
   { name: "rest-pose regression unit tests", args: ["--test", path.join(root, "tests", "unit", "rest-pose-validation.test.mjs")] },
   { name: "emergency-stop regression unit tests", args: ["--test", path.join(root, "tests", "unit", "emergency-stop.test.cjs")] },
   { name: "microphone lifecycle race unit tests", args: ["--test", path.join(root, "tests", "unit", "mic-mode-race.test.cjs")] },
+  { name: "local media permission security tests", args: ["--test", path.join(root, "tests", "unit", "media-permissions.test.cjs")] },
   { name: "project JavaScript syntax suite", args: ["--test", path.join(root, "tests", "unit", "source-syntax.test.cjs")] },
   { name: "tool argument schema regression tests", args: ["--test", path.join(root, "tests", "unit", "tool-schema-validation.test.cjs")] },
   { name: "microphone RMS settings wiring tests", args: ["--test", path.join(root, "tests", "unit", "microphone-rms-wiring.test.cjs")] },
