@@ -23,7 +23,7 @@ class ModelExecutor{
      const userContent=image?[{type:"text",text:String(text)},{type:"image_url",image_url:{url:image}}]:String(text);
      const messages=[{role:"system",content:"You are Saeed, a persistent desktop AI agent. Use supplied tools when needed, verify important actions, and never claim success without evidence."+memoryContext()},...history.slice(-12),{role:"user",content:userContent}];
      const stepBudget=Math.max(1,Math.min(100,Number(s.maxSteps)||16));
-     let result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
+     let result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null,signal,isCurrent:current});
      for(let step=0;step<=stepBudget;step++){
       if(!current())return "";
       const contentText=String(result?.content||result?.text||"");
@@ -53,7 +53,7 @@ class ModelExecutor{
        messages.push({role:"tool",tool_call_id:call.id,content:JSON.stringify(out)});
       }
       if(!current())return "";
-      result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null});
+      result=await provider.chat({messages,tools:registry.schemas(),settings:s,model:s.model||null,signal,isCurrent:current});
      }
     }
    }catch(e){onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN ADD-ON",message:e.message});if(addonPreference)throw e;}
