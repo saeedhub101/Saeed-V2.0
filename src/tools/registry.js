@@ -39,7 +39,7 @@ function validateSchemaValue(value,schema,pathName){
   if(Number.isInteger(schema.maxLength)&&value.length>schema.maxLength)return pathName+" is too long";
   if(schema.pattern){try{if(!(new RegExp(schema.pattern)).test(value))return pathName+" has an invalid format"}catch{return pathName+" uses an invalid schema pattern"}}
   if(schema.format==="email"&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))return pathName+" must be a valid email address";
-  if(schema.format==="uri"||schema.format==="url"){try{const parsed=new URL(value);if(!["http:","https:"].includes(parsed.protocol))return pathName+" must be an HTTP(S) URL"}catch{return pathName+" must be a valid URL"}}
+  if(schema.format==="uri"||schema.format==="url"){try{const parsed=new URL(value);if(schema.format==="url"&&!["http:","https:"].includes(parsed.protocol))return pathName+" must be an HTTP(S) URL"}catch{return pathName+" must be a valid URL"}}
  }
  if(typeof value==="number"){
   if(Number.isFinite(schema.minimum)&&value<schema.minimum)return pathName+" must be at least "+schema.minimum;
