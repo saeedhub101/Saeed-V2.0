@@ -1,8 +1,8 @@
 const {redactToolArgs,redactToolResult}=require("../../tools/redact");
 const addonRuntime=()=>require("../../addons/runtime");
 class ModelExecutor{
- async run({text,image=null,settings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults,isCurrent=()=>true}){
-  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
+ async run({text,image=null,settings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults,isCurrent=()=>true,signal=null}){
+  const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
   const emit=onEvent||(()=>{}),persist=saveHistory||(()=>{});
   onEvent=event=>{if(current())emit(event)};saveHistory=()=>{if(current())persist()};
   if(!current())return "";
@@ -111,8 +111,10 @@ class ModelExecutor{
    }
    let responseText="";
    const requestController=new AbortController();
+   const cancelRequest=()=>requestController.abort(new Error("Conversation request cancelled"));
+   if(signal?.aborted)cancelRequest();
+   else signal?.addEventListener?.("abort",cancelRequest,{once:true});
    const requestTimeout=setTimeout(()=>requestController.abort(new Error("LLM API request timed out")),30000);
-   const requestCancellationPoll=setInterval(()=>{if(!current())requestController.abort(new Error("Stale conversation request cancelled"))},100);
    try{
     r=await fetch(url,{method:"POST",headers,body:JSON.stringify(body),signal:requestController.signal});
     responseText=await r.text();
@@ -123,7 +125,7 @@ class ModelExecutor{
     const answer="I could not reach the API brain. Please check the provider, API key, and connection.";
     onEvent({type:"answer",text:answer,source:"api-error"});return answer;
    }finally{
-    clearTimeout(requestTimeout);clearInterval(requestCancellationPoll);
+    clearTimeout(requestTimeout);signal?.removeEventListener?.("abort",cancelRequest);
    }
    if(!current())return "";
    if(!r.ok){
