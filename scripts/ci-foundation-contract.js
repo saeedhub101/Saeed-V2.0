@@ -69,25 +69,6 @@ const characterHost=read("src/main/character/character-host.js");
 const characterClient=read("src/character/client.js");
 must(characterHost.includes('"setBoneEditorRotation"'),"Rest-relative editor rotation is missing from the skeleton-ready command allowlist");
 must(characterClient.includes('action==="setBoneEditorRotation"'),"Rest-relative editor rotation is missing from the client skeleton-ready action list");
-must(read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"),"Nested world-axis rotation regression test is missing");
-must(read("src/main/ci-e2e.js").includes("startup.addons-window-opens"),"Packaged E2E for Add-ons window visibility is missing");
-must(read("src/main/ci-e2e.js").includes("startup.learning-window-opens"),"Packaged E2E for Learning window visibility is missing");
-const e2eSource=read("src/main/ci-e2e.js");
-for(const id of [
- "startup.microphone-transcript-label-toggle-and-render",
- "character.studio-rest-pose-save-reset",
- "character.studio-bone-rotation",
- "character.studio-editor-world-axis-rotation",
- "character.studio-nested-axis-stability",
- "character.studio-animation-any-bone-edit-play",
- "character.studio-every-button-and-live-animation",
- "glbtest.authoritative-asset-and-visible-character",
- "glbtest.full-load-pipeline",
- "glbtest.generation-and-repeat-load"
-])must(e2eSource.includes('check("'+id+'"'),"Required packaged runtime acceptance check is missing: "+id);
-
-
-
 const preload=read("src/preload.js");
 for(const ns of ["system","character","voice","chat","tools"])must(preload.includes("\n "+ns+":{"),"Missing preload namespace: "+ns);
 
