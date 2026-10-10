@@ -91,6 +91,7 @@ jobs:
 
       - name: Build embedded Whisper runtime
         shell: pwsh
+        timeout-minutes: 15
         run: |
           $ErrorActionPreference = "Stop"
           $root = "build\whisper-runtime"
@@ -109,7 +110,9 @@ jobs:
           if (!$cli) { throw "whisper-cli.exe was not built." }
           Copy-Item $cli.FullName (Join-Path $root "whisper-cli.exe") -Force
           Get-ChildItem (Split-Path $cli.FullName -Parent) -Filter "*.dll" | ForEach-Object { Copy-Item $_.FullName $root -Force }
-          Invoke-WebRequest -Uri "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin" -OutFile (Join-Path $root "ggml-base-q5_1.bin")
+           $model = Join-Path $root "ggml-base-q5_1.bin"
+           & curl.exe --fail --location --retry 3 --retry-all-errors --connect-timeout 20 --max-time 300 --output $model "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin"
+           if ($LASTEXITCODE -ne 0 -or !(Test-Path $model)) { throw "Whisper model download failed or timed out." }
           $hash = (Get-FileHash (Join-Path $root "ggml-base-q5_1.bin") -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898") { throw "Whisper model SHA256 mismatch: $hash" }
           & (Join-Path $root "whisper-cli.exe") --help | Out-File (Join-Path $root "whisper-help.txt")
