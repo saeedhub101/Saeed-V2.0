@@ -51,3 +51,18 @@ test("add-on context path resolution cannot escape its own data directory",()=>{
   assert.throws(()=>runtime.resolveAddonPath(root,"mail-provider",path.resolve(root,"outside.txt")),/escapes its isolated data directory/);
  }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
+
+test("add-on path resolver rejects symlink escapes from an installed provider",()=>{
+ const runtime=require("../../src/addons/runtime");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-addon-symlink-"));
+ const outside=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-addon-outside-"));
+ const addon=path.join(root,"addons","provider");
+ try{
+  fs.mkdirSync(addon,{recursive:true});
+  try{fs.symlinkSync(outside,path.join(addon,"external"),process.platform==="win32"?"junction":"dir")}catch(error){
+   if(process.platform==="win32"&&["EPERM","EACCES","UNKNOWN"].includes(error.code))return;
+   throw error;
+  }
+  assert.throws(()=>runtime.resolveAddonPath(root,"provider","external/secret.txt"),/symlink/);
+ }finally{fs.rmSync(root,{recursive:true,force:true});fs.rmSync(outside,{recursive:true,force:true})}
+});
