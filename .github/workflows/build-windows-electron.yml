@@ -1,9 +1,6 @@
 name: Saeed AI — Current Product Acceptance and Windows Build
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       publish_release:
