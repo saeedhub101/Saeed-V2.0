@@ -26,6 +26,7 @@ const suites = [
 ,  { name: "persistent memory normalization tests", args: ["--test", path.join(root, "tests", "unit", "memory-stack.test.cjs")] }
 ,  { name: "Phase 2 character runtime regression tests", args: ["--test", path.join(root, "tests", "unit", "phase2-character-runtime.test.cjs")] }
 ,  { name: "Phase 3 shared conversation persistence tests", args: ["--test", path.join(root, "tests", "unit", "phase3-conversation-persistence.test.cjs")] }
+,  { name: "Phase 3 explicit memory capture tests", args: ["--test", path.join(root, "tests", "unit", "phase3-memory-capture.test.cjs")] }
 ];
 const results = [];
 

@@ -49,6 +49,7 @@ class ConversationAgent{
   // API-provider answers use handled:false by design; they are still final answers
   // from this Brain and must enter the exact same durable Chat/Voice history.
   if(!userText||result?.stale)return "";
+  try{this.rememberFromUserText(userText)}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"MEMORY CAPTURE",message:error?.message||String(error)})}
   this.history.push({role:"user",content:userText},{role:"assistant",content:answer});
   this.history=this.history.slice(-200);
   const persisted=this.saveHistory();
