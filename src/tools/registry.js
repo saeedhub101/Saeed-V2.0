@@ -34,9 +34,10 @@ function validateSchemaValue(value,schema,pathName){
   if(schema.items)for(let i=0;i<value.length;i++){const error=validateSchemaValue(value[i],schema.items,pathName+"["+(i+1)+"]");if(error)return error}
  }
  if(value&&typeof value==="object"&&!Array.isArray(value)){
-  for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined||value[key]===null)return pathName+" is missing required field \""+key+"\"";
+  for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)return pathName+" is missing required field \""+key+"\"";
+  if(schema.additionalProperties===false){const allowed=new Set(Object.keys(schema.properties||{}));for(const key of Object.keys(value))if(!allowed.has(key))return pathName+" has unexpected field \""+key+"\"";}
   for(const [key,child] of Object.entries(schema.properties||{})){
-   if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined||value[key]===null)continue;
+   if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)continue;
    const error=validateSchemaValue(value[key],child,pathName+"."+key);if(error)return error;
   }
  }
@@ -44,15 +45,17 @@ function validateSchemaValue(value,schema,pathName){
 }
 function validateToolArguments(args,schema,name){
  if(!schema)return null;
- const value=args&&typeof args==="object"&&!Array.isArray(args)?args:{};
+ const value=args===undefined?{}:args;
  return validateSchemaValue(value,schema,"Arguments for "+name);
 }
 class ToolRegistry{
  constructor({captureScreen,userDataPath,confirm,permissionPolicy,recordHook,characterController}={}){
   this.computer=new Computer();this.memory=null;this.tasks=null;this.userDataPath=userDataPath||process.cwd();this.captureScreen=captureScreen||(()=>null);
-  this.confirm=confirm||(async()=>false);this.permissionPolicy=permissionPolicy||(()=> "ask");this.recordHook=typeof recordHook==="function"?recordHook:null;this.characterController=typeof characterController==="function"?characterController:null;this.tasksFile=path.join(this.userDataPath,"tasks.json");
+  this.confirm=confirm||(async()=>false);this.permissionPolicy=permissionPolicy||(()=> "ask");this.recordHook=typeof recordHook==="function"?recordHook:null;this.characterController=typeof characterController==="function"?characterController:null;this.tasksFile=path.join(this.userDataPath,"tasks.json");this.emergencyStopped=false;this.emergencyGeneration=0;this.activeControllers=new Set();
  }
  setRecordHook(fn){this.recordHook=typeof fn==="function"?fn:null}
+emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emergencyGeneration++;}for(const controller of this.activeControllers){try{controller.abort(new Error("Emergency Stop activated"))}catch{}}return{stopped:true,generation:this.emergencyGeneration}}
+ resumeAfterEmergencyStop(){this.emergencyStopped=false;this.emergencyGeneration++;return{stopped:false,generation:this.emergencyGeneration}}
  schemas(){let addonSchemas=[];try{addonSchemas=require("../addons/runtime").toolSchemas(this.userDataPath)}catch{}return domains.flatMap(d=>d.schemas()).concat([characterMotionToolSchema],addonSchemas)}
  categoryFor(name){
   if(["system_info","diagnose_computer","active_window","list_windows","focus_window","process_list","disk_info"].includes(name))return"system";
@@ -83,21 +86,28 @@ class ToolRegistry{
  }
  async call(name,args={},options={}){
   const isCurrent=typeof options?.isCurrent==="function"?options.isCurrent:()=>true;
-  const current=()=>{try{return Boolean(isCurrent())}catch{return false}};
+  const generation=this.emergencyGeneration;
+  const controller=new AbortController();
+  const externalSignal=options?.signal||null;
+  const externalAbort=()=>{try{controller.abort(externalSignal?.reason instanceof Error?externalSignal.reason:new Error("Tool request cancelled"))}catch{}};
+  if(externalSignal?.aborted)externalAbort();else externalSignal?.addEventListener?.("abort",externalAbort,{once:true});
+  this.activeControllers.add(controller);
+  const current=()=>{try{return Boolean(isCurrent())&&!this.emergencyStopped&&generation===this.emergencyGeneration&&!controller.signal.aborted}catch{return false}};
   const stale=()=>({ok:false,stale:true,error:"Stale conversation request cancelled"});
-  if(!current())return stale();
   try{
+   if(!current())return stale();
    const toolName=String(name||"");
    const requiredArgs={ocr_image:"filePath",extract_image_table:"filePath",inspect_image:"filePath",open_file:"filePath",reveal_file:"filePath",read_file:"filePath",open_application:"application"};
    if(toolName==="character_motion"){const validationError=validateToolArguments(args,characterMotionToolSchema.function.parameters,toolName);if(validationError)return{ok:false,error:validationError};if(!(await this.authorize("system",{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for system"}:stale();if(!current())return stale();if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});if(!current())return stale();this.record(toolName,args);return out}
    const required=requiredArgs[toolName];if(required&&!String(args?.[required]??"").trim())return{ok:false,error:'Missing required argument "'+required+'" for tool "'+toolName+'".'};
    const toolSchema=domains.flatMap(d=>d.schemas()).find(s=>s?.function?.name===toolName);const addon=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);const addonTool=addon?require("../addons/runtime").resolveTool(this.userDataPath,toolName):null;if(!toolSchema&&!addonTool)return{ok:false,error:"Unknown tool: "+toolName};const argumentSchema=toolSchema?.function?.parameters||addonTool?.tool?.parameters;const validationError=validateToolArguments(args,argumentSchema,toolName);if(validationError)return{ok:false,error:validationError};const category=this.categoryFor(toolName);if(!(await this.authorize(category,{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for "+category}:stale();if(!current())return stale();
-   const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,isCurrent:current,requestPermission:(c,r)=>this.authorize(c,r,current),characterController:this.characterController};
+   const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,isCurrent:current,signal:controller.signal,requestPermission:(c,r)=>this.authorize(c,r,current),characterController:this.characterController};
    for(const d of domains){if(!current())return stale();const out=await d.call(toolName,args,context);if(!current())return stale();if(out!==null){this.memory=context.memory;this.tasks=context.tasks;this.tasksFile=context.tasksFile;this.record(toolName,args);return out}}
-   if(addon){if(!current())return stale();const out=await require("../addons/runtime").callTool(this.userDataPath,toolName,args,{isCurrent:current,signal:options?.signal||null});if(!current())return stale();this.record(toolName,args);return out}
+   if(addon){if(!current())return stale();const out=await require("../addons/runtime").callTool(this.userDataPath,toolName,args,{isCurrent:current,signal:controller.signal});if(!current())return stale();this.record(toolName,args);return out}
    return{ok:false,error:"Unknown tool: "+toolName}
-  }catch(e){return{ok:false,error:e.message}}
+  }catch(e){if(!current())return stale();return{ok:false,error:e?.message||String(e)}}
+  finally{this.activeControllers.delete(controller);externalSignal?.removeEventListener?.("abort",externalAbort)}
  }
  record(name,args){if(this.recordHook)try{this.recordHook(name,redactToolArgs(name,args))}catch{}}
 }
-module.exports={ToolRegistry};
+module.exports={ToolRegistry,validateSchemaValue,validateToolArguments,schemaTypeMatches};

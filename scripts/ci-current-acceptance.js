@@ -89,13 +89,14 @@ function main() {
 
   const required = [
     "assets/Saeed_AI-3D.glb", "src/main.js", "src/preload.js",
-    "src/main/runtime.js", "src/main/ci-e2e.js", "src/avatar.js",
+    "src/main/runtime.js", "src/main/ci-e2e.js",
     "src/character/CharacterEngine.js", "src/character/CharacterController.js",
     "src/character/AutoRigMapper.js", "src/three/GLTFLoader.js", "src/character-studio.html",
     "scripts/ci-run-packaged-e2e.ps1", ".github/workflows/build-windows-electron.yml"
   ];
   const missing = required.filter(p => !exists(p));
   check("current-runtime-files-present", missing.length === 0, { requiredCount: required.length, missing });
+  check("legacy-avatar-renderer-removed", !exists("src/avatar.js"), { note: "The authoritative CharacterEngine/CharacterController path must be the only renderer entry point." });
 
   let glb = null, glbError = null;
   try { glb = inspectGlb(path.join(root, "assets", "Saeed_AI-3D.glb")); }
@@ -107,7 +108,7 @@ function main() {
       { rigCapability: glb.rigCapability, jointCount: glb.jointCount, note: "A visible mesh is mandatory; a skeleton is optional; any provided joint indices must be valid." });
   }
 
-  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/ci-e2e.js", "src/main/character/character-host.js", "src/main/voice/voice-host.js", "src/main/voice/voice-runtime.js", "src/main/services/memory-service.js", "src/addons/mcp.js", "src/character/client.js", "src/rest-pose.js", "src/avatar.js", "scripts/ci-current-acceptance.js"];
+  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/ci-e2e.js", "src/main/character/character-host.js", "src/main/voice/voice-host.js", "src/main/voice/voice-runtime.js", "src/main/services/memory-service.js", "src/addons/mcp.js", "src/character/client.js", "scripts/ci-current-acceptance.js"];
   const syntaxResults = syntaxFiles.map(file => {
     const result = spawnSync(process.execPath, ["--check", path.join(root, file)], { encoding: "utf8" });
     return { file, pass: result.status === 0, error: result.status === 0 ? "" : String(result.stderr || result.stdout || result.error || "node --check failed") };
@@ -152,7 +153,8 @@ function main() {
 
   const mcpTransport = exists("src/addons/mcp.js") ? read("src/addons/mcp.js") : "";
   check("mcp-transports-support-cancellation-and-timeouts",
-    mcpTransport.includes("signal:signal") &&
+    mcpTransport.includes("const signal=controller.signal") &&
+    mcpTransport.includes(",signal});") &&
     mcpTransport.includes("MCP stdio request timed out after") &&
     mcpTransport.includes("MCP HTTP request timed out after") &&
     mcpTransport.includes('child.on("close"'),
@@ -167,12 +169,16 @@ function main() {
   const characterEngine = exists("src/character/CharacterEngine.js") ? read("src/character/CharacterEngine.js") : "";
   const characterControllerSource = exists("src/character/CharacterController.js") ? read("src/character/CharacterController.js") : "";
   const characterClient = exists("src/character/client.js") ? read("src/character/client.js") : "";
+  const restPoseValidation = exists("src/character/rest-pose-validation.mjs") ? read("src/character/rest-pose-validation.mjs") : "";
   check("rest-pose-persists-bone-positions-not-only-rotations",
     characterEngine.includes("position:{x:b.position.x,y:b.position.y,z:b.position.z}") &&
     characterEngine.includes("const p=r?.position,px=Number(p?.x),py=Number(p?.y),pz=Number(p?.z)") &&
     characterClient.includes('if(x.action==="setBoneTransform")') &&
-    characterControllerSource.includes('a.position&&b.position&&["x","y","z"].every'),
-    { note: "Rest-pose capture, storage verification, reload and reset must preserve actual bone positions as well as rotations." });
+    characterControllerSource.includes("verifyRestPoseSnapshot(bones,stored)") &&
+    restPoseValidation.includes("const expectedPosition = captured.position") &&
+    restPoseValidation.includes("const actualPosition = stored.position") &&
+    restPoseValidation.includes("Math.abs(actual - expected) > tolerance"),
+    { note: "Rest-pose capture, storage verification, reload and reset must preserve and strictly verify actual bone positions as well as rotations." });
 
   const packagedRunner = exists("scripts/ci-run-packaged-e2e.ps1") ? read("scripts/ci-run-packaged-e2e.ps1") : "";
   const e2eSource = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
@@ -192,25 +198,26 @@ function main() {
     studioHtml.includes('source.position)b.position.set'),
     { note: "The actual Character Studio window must edit local bone positions and synchronize its preview with the authoritative live controller." });
 
-  const restPoseHtml = exists("src/rest-pose.html") ? read("src/rest-pose.html") : "";
-  const restPoseEditor = exists("src/rest-pose.js") ? read("src/rest-pose.js") : "";
+  const characterStudioSource = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
   const characterHost = exists("src/main/character/character-host.js") ? read("src/main/character/character-host.js") : "";
   check("rest-pose-editor-can-edit-local-bone-position",
-    restPoseHtml.includes('id="px"') && restPoseHtml.includes('id="py"') && restPoseHtml.includes('id="pz"') &&
-    restPoseEditor.includes('command("bonePosition",{bone})') &&
-    restPoseEditor.includes('command("setBonePosition",{bone,position:') &&
-    characterClient.includes('action==="boneRotation"||action==="bonePosition"') &&
+    characterStudioSource.includes('id="px"') && characterStudioSource.includes('id="py"') && characterStudioSource.includes('id="pz"') &&
+    characterStudioSource.includes('action:"setBonePosition"') &&
+    characterStudioSource.includes('action:"setBoneEditorRotation"') &&
+    characterClient.includes('if(x.action==="setBoneTransform")') &&
     characterHost.includes('"setBonePosition","setBoneTransform","bonePosition"'),
-    { note: "The Rest Pose Editor must expose actual local bone-position editing, not rotation-only controls, even before logical rig mapping." });
+    { note: "The active Character Studio must expose actual local bone-position editing through the authoritative controller, not a legacy renderer." });
 
-  const restPoseHtmlSource = exists("src/rest-pose.html") ? read("src/rest-pose.html") : "";
-  const restPoseAvatar = exists("src/avatar.js") ? read("src/avatar.js") : "";
+  const characterEngineSource = exists("src/character/CharacterEngine.js") ? read("src/character/CharacterEngine.js") : "";
+  const windowManagerSource = exists("src/main/application/window-manager.js") ? read("src/main/application/window-manager.js") : "";
   check("rest-pose-editor-engine-bootstrap-is-present",
-    restPoseHtmlSource.includes('src="avatar.js"') &&
-    restPoseAvatar.includes('import("./character/CharacterEngine.js")') &&
-    restPoseAvatar.includes('onCharacterSelected') &&
-    restPoseAvatar.includes("runtime.pendingLoad"),
-    { note: "The Rest Pose Editor must load its actual local GLB renderer, accept selected-character data, and queue data that arrives before engine initialization." });
+    windowManagerSource.includes('path.join(rootPath,"character-studio.html")') &&
+    characterStudioSource.includes("window.__saeedStudioPendingCharacter=data") &&
+    characterStudioSource.includes("onCharacterSelected") &&
+    characterStudioSource.includes("getPendingCharacter") &&
+    characterStudioSource.includes("characterController") &&
+    characterEngineSource.includes("normalizeHumanoidRestPose"),
+    { note: "The active Character Studio must load through the window manager, receive queued character-selection data, and use the authoritative character controller and engine." });
 
   const voiceIpc = exists("src/main/ipc/voice-ipc.js") ? read("src/main/ipc/voice-ipc.js") : "";
   const voiceClient = exists("src/renderer/voice/voice-client.js") ? read("src/renderer/voice/voice-client.js") : "";
@@ -229,7 +236,7 @@ function main() {
   check("local-whisper-result-is-unwrapped-before-brain-routing",
     voiceClient.includes('sttProvider==="whisper"?await window.saeed.voice.transcribeLocalWav(encoded):await window.saeed.voice.sttTranscribe(encoded)') &&
     voiceClient.includes('const text=String(result?.text||"").trim()') &&
-    voiceClient.includes('micSpeechRms=Math.max(0.005,Math.min(0.025,Number(cfg?.micSpeechRms)||0.02))') &&
+    voiceClient.includes('micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.02))') &&
     !voiceClient.includes('{ok:true,text:await window.saeed.voice.transcribeLocalWav(encoded)}'),
     { note: "The local STT IPC response is an object; its text field must be extracted before calling the voice brain." });
 

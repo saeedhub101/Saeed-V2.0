@@ -140,6 +140,76 @@ jobs:
         timeout-minutes: 18
         run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite current
 
+      - name: FIRST PACKAGED EXE TEST
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        timeout-minutes: 18
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 0
+
+      - name: Packaged EXE E2E Suite 1 — Performance / Rest Pose
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        timeout-minutes: 18
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 1
+
+      - name: GLB Character Test
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        timeout-minutes: 18
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 4
+
+      - name: Packaged EXE E2E Suite 5 — Chat / Voice
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        timeout-minutes: 18
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 5
+
+      - name: Packaged EXE E2E Suite 6 — Windows / Character Studio
+        if: always()
+        continue-on-error: true
+        shell: pwsh
+        timeout-minutes: 18
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 6
+
+      - name: Verify every packaged E2E suite report
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $reports = @(
+            @{ name="current"; path="dist\ci-e2e-current-acceptance.json"; required=@("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate","acceptance.rest-pose-bone-position-save-reset","acceptance.rest-pose-process-restart") },
+            @{ name="0"; path="dist\ci-e2e-suite-0.json"; required=@("startup.character-visible","startup.tray","startup.mic-off","startup.brain-off","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final") },
+            @{ name="1"; path="dist\ci-e2e-performance-rest-pose.json"; required=@("performance.character-save-rest-pose","performance.open-character-controller","performance.all-tabs-functional","performance.control-real-bone","performance.procedural-motion-real-bone","performance.create-edit-delete-motion","performance.rig-auto-map","performance.all-registered-compatible-motions","performance.close","acceptance.rest-pose-process-restart") },
+            @{ name="4"; path="dist\ci-e2e-glb-character-test.json"; required=@("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate","glbtest.authoritative-asset-and-visible-character","glbtest.full-load-pipeline","glbtest.generation-and-repeat-load","glb.current-character-loaded") },
+            @{ name="5"; path="dist\ci-e2e-suite-5.json"; required=@("startup.mic-off","startup.brain-off","chat.open","chat.local-time","brain.intent-open-my-computer","brain.intent-api-escalation","chat.response-reaches-character-bubble","voice.chat-response-tts-chain","chat.ui-response-visible","voice.renderer-capabilities","voice.output-device-capability","voice.tts-local-output","voice.mic-device-capability","mute.text-still-visible","chat.close-keeps-brain-when-mic-on","mic-off-releases-brain-after-chat-closed") },
+            @{ name="6"; path="dist\ci-e2e-suite-6.json"; required=@("windows.settings","windows.addons","windows.learning","windows.status","character.normalize-humanoid-rest-pose-window","character.studio-open-and-controls","startup.addons-window-opens","startup.learning-window-opens","startup.microphone-transcript-label-toggle-and-render","character.studio-editor-world-axis-rotation","character.studio-nested-axis-stability","character.studio-rest-pose-save-reset","character.studio-bone-rotation","character.studio-animation-any-bone-edit-play","character.studio-every-button-and-live-animation","character.studio-close-button","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final") }
+          )
+          $failures = @()
+          foreach ($item in $reports) {
+            if (!(Test-Path $item.path -PathType Leaf)) { $failures += "$($item.name): missing report $($item.path)"; continue }
+            try { $r = Get-Content $item.path -Raw | ConvertFrom-Json } catch { $failures += "$($item.name): invalid JSON report"; continue }
+            if ($r.pass -ne $true) { $failures += "$($item.name): report pass flag is false" }
+            foreach ($id in $item.required) {
+              $p = $r.checks.PSObject.Properties[$id]
+              if (!$p -or $p.Value.pass -ne $true) { $failures += "$($item.name): missing or failed check $id" }
+            }
+          }
+          foreach ($restart in @(
+            @{path="dist\ci-e2e-current-acceptance.json.restart.json";name="current restart"},
+            @{path="dist\ci-e2e-performance-rest-pose.json.restart.json";name="suite 1 restart"}
+          )) {
+            if (!(Test-Path $restart.path -PathType Leaf)) { $failures += "$($restart.name): missing restart report"; continue }
+            try { $r = Get-Content $restart.path -Raw | ConvertFrom-Json } catch { $failures += "$($restart.name): invalid JSON report"; continue }
+            $p = $r.checks.PSObject.Properties["acceptance.rest-pose-process-restart"]
+            if ($r.pass -ne $true -or !$p -or $p.Value.pass -ne $true) { $failures += "$($restart.name): rest-pose process restart check failed" }
+          }
+          if ($failures.Count) { $failures | ForEach-Object { Write-Host "E2E_FAILURE=$_"}; throw "One or more packaged E2E suites failed." }
+          Write-Host "PACKAGED_E2E_ALL_SUITES=PASS"
+
       - name: Verify installer, acceptance report and create update metadata
         shell: pwsh
         run: |
@@ -209,14 +279,17 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
-            dist/ci-e2e-current-acceptance.json
-            dist/ci-e2e-current-acceptance.json.startup.json
-            dist/ci-e2e-current-acceptance.json.runner-failure.json
+            dist/ci-e2e-current-acceptance.json*
+            dist/ci-e2e-suite-0.json*
+            dist/ci-e2e-performance-rest-pose.json*
+            dist/ci-e2e-glb-character-test.json*
+            dist/ci-e2e-suite-5.json*
+            dist/ci-e2e-suite-6.json*
             dist/icons/*
             dist/addons/*.zip
             ci-reports/current-acceptance.json
-            ${{ runner.temp }}/saeed-e2e-current.stdout.log
-            ${{ runner.temp }}/saeed-e2e-current.stderr.log
+            ${{ runner.temp }}/saeed-e2e-*.stdout.log
+            ${{ runner.temp }}/saeed-e2e-*.stderr.log
 
       - name: Publish official release
         if: success() && inputs.publish_release == true

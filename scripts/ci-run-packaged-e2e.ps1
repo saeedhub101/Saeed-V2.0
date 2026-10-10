@@ -1,20 +1,25 @@
 param(
-  [Parameter(Mandatory=$true)][ValidateSet("current")][string]$Suite
+  [Parameter(Mandatory=$true)][ValidateSet("current","0","1","4","5","6")][string]$Suite
 )
 
 $ErrorActionPreference = "Stop"
-$report = Join-Path $PWD "dist\ci-e2e-current-acceptance.json"
-$stdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-current.stdout.log"
-$stderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-current.stderr.log"
+$report = switch ($Suite) {
+  "current" { Join-Path $PWD "dist\ci-e2e-current-acceptance.json"; break }
+  "1" { Join-Path $PWD "dist\ci-e2e-performance-rest-pose.json"; break }
+  "4" { Join-Path $PWD "dist\ci-e2e-glb-character-test.json"; break }
+  default { Join-Path $PWD "dist\ci-e2e-suite-$Suite.json"; break }
+}
+$stdout = Join-Path $env:RUNNER_TEMP ("saeed-e2e-" + $Suite + ".stdout.log")
+$stderr = Join-Path $env:RUNNER_TEMP ("saeed-e2e-" + $Suite + ".stderr.log")
 $exe = Join-Path $PWD "dist\win-unpacked\Saeed AI.exe"
-$required = @(
-  "acceptance.app-startup",
-  "acceptance.authoritative-glb-visible",
-  "acceptance.repeat-load-preserves-visible-character",
-  "acceptance.available-bones-animate",
-  "acceptance.rest-pose-bone-position-save-reset",
-  "acceptance.rest-pose-process-restart"
-)
+$required = switch ($Suite) {
+  "current" { @("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate","acceptance.rest-pose-bone-position-save-reset","acceptance.rest-pose-process-restart"); break }
+  "0" { @("startup.character-visible","startup.tray","startup.mic-off","startup.brain-off","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final"); break }
+  "1" { @("performance.character-save-rest-pose","performance.open-character-controller","performance.all-tabs-functional","performance.control-real-bone","performance.procedural-motion-real-bone","performance.create-edit-delete-motion","performance.rig-auto-map","performance.all-registered-compatible-motions","performance.close","acceptance.rest-pose-process-restart"); break }
+  "4" { @("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate","glbtest.authoritative-asset-and-visible-character","glbtest.full-load-pipeline","glbtest.generation-and-repeat-load","glb.current-character-loaded"); break }
+  "5" { @("startup.mic-off","startup.brain-off","chat.open","chat.local-time","brain.intent-open-my-computer","brain.intent-api-escalation","chat.response-reaches-character-bubble","voice.chat-response-tts-chain","chat.ui-response-visible","voice.renderer-capabilities","voice.output-device-capability","voice.tts-local-output","voice.mic-device-capability","mute.text-still-visible","chat.close-keeps-brain-when-mic-on","mic-off-releases-brain-after-chat-closed"); break }
+  "6" { @("windows.settings","windows.addons","windows.learning","windows.status","character.normalize-humanoid-rest-pose-window","character.studio-open-and-controls","startup.addons-window-opens","startup.learning-window-opens","startup.microphone-transcript-label-toggle-and-render","character.studio-editor-world-axis-rotation","character.studio-nested-axis-stability","character.studio-rest-pose-save-reset","character.studio-bone-rotation","character.studio-animation-any-bone-edit-play","character.studio-every-button-and-live-animation","character.studio-close-button","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final"); break }
+}
 
 function Write-Result([object]$Result) {
   $destination = $report
@@ -86,6 +91,11 @@ try {
     Write-Host "FAILED_ACCEPTANCE_CHECKS=$($failed -join ',')"
     exit 1
   }
+  if ($Suite -notin @("current","1")) {
+    Write-Host "PACKAGED_E2E_SUITE_$Suite=PASS"
+    exit 0
+  }
+
   # Relaunch the packaged EXE in a fresh process and verify that the saved bone
   # transform is restored from persistent character profile storage.
   $restartReport = "$report.restart.json"

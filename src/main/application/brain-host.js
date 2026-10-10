@@ -1,5 +1,5 @@
 function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterCommand,permissionPolicy,diagnostic,diagnosticFromAgent,voiceBroadcast,captureScreen,setAgent,setVoiceMuted,recordLearningStep}){
- let brainInitPromise=null,agent=null,idleTimer=null,lastActivity=0,activeRequests=0;
+ let brainInitPromise=null,agent=null,registry=null,idleTimer=null,lastActivity=0,activeRequests=0,emergencyStopped=false;
  const labels={files:"Files",applications:"Applications",system:"System information",network:"Network & web",screen:"Screen capture",mouseKeyboard:"Mouse & keyboard control",microphone:"Microphone & voice",tasksMemory:"Tasks & memory",credentials:"Credentials & secrets",destructive:"Destructive actions",mcp:"External MCP tool",addons:"Add-on capability"};
  const confirm=async({name,args,permissionCategory})=>{
   const label=labels[permissionCategory]||permissionCategory||"Permission";
@@ -42,7 +42,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
   brainInitPromise=(async()=>{
    const {ConversationAgent}=require("../conversation/conversation-agent");
    const {ToolRegistry}=require("../../tools");
-   const registry=new ToolRegistry({
+   registry=new ToolRegistry({
     captureScreen,
     userDataPath:app.getPath("userData"),
     characterController:({intent,duration,intensity}={})=>characterCommand({action:"semantic",intent,options:{duration,speed:1,intensity}}),
@@ -50,6 +50,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
     permissionPolicy,
     confirm
    });
+   if(emergencyStopped)registry.emergencyStop?.();
    agent=new ConversationAgent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease});
    setAgent(agent);
    setVoiceMuted(Boolean(agent.settings.voiceMuted));
@@ -65,12 +66,15 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
   const oldAgent=agent;
   agent=null;
   brainInitPromise=null;
+  registry=null;
   try{await oldAgent?.dispose?.()}catch(e){diagnostic("ERROR","BRAIN RELEASE",e.message)}
   setAgent(null);
   voiceBroadcast("character:behavior",{type:"brain-released"});
   diagnostic("INFO","BRAIN RELEASE","Brain runtime released because no active input surface is using it");
   return true;
  }
- return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,notifyLifecycle,evaluateLifecycle,isActive:()=>Boolean(agent)};
+ function emergencyStop(){emergencyStopped=true;registry?.emergencyStop?.();return{stopped:true,active:Boolean(agent)}}
+ function resumeEmergencyStop(){emergencyStopped=false;registry?.resumeAfterEmergencyStop?.();return{stopped:false,active:Boolean(agent)}}
+ return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,notifyLifecycle,evaluateLifecycle,emergencyStop,resumeEmergencyStop,isEmergencyStopped:()=>emergencyStopped,isActive:()=>Boolean(agent)};
 }
 module.exports={createBrainHost};

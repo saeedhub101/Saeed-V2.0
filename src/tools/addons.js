@@ -9,7 +9,7 @@ const schemas=()=>[
 async function call(name,args,ctx){
  const u=ctx.userDataPath;
  if(name==="memory_add"||name==="memory_search"||name==="knowledge_add"){const memory=require("../core/services/memory-service");if(name==="memory_add")return{ok:true,item:memory.add(u,args.text,args.metadata||{})};if(name==="memory_search")return{ok:true,items:memory.search(u,args.query,args.limit||5).map(x=>({id:x.id,text:x.text,score:x.score,metadata:x.metadata}))};return{ok:true,item:memory.addKnowledge(u,args.text,args.metadata||{})}}
- if(name==="mcp_list_servers"||name==="mcp_list_tools"||name==="mcp_call_tool"){const mcp=require("../addons/mcp");if(name==="mcp_list_servers")return{ok:true,servers:mcp.listServers(u)};if(name==="mcp_list_tools")return{ok:true,result:await mcp.listTools(u,args.server)};return{ok:true,result:await mcp.callTool(u,args.server,args.tool,args.arguments||{},ctx.requestPermission)}}
+ if(name==="mcp_list_servers"||name==="mcp_list_tools"||name==="mcp_call_tool"){const mcp=require("../addons/mcp");if(name==="mcp_list_servers")return{ok:true,servers:mcp.listServers(u)};if(name==="mcp_list_tools")return{ok:true,result:await mcp.listTools(u,args.server)};return{ok:true,result:await mcp.callTool(u,args.server,args.tool,args.arguments||{},ctx.requestPermission,{signal:ctx.signal})}}
  return null;
 }
 module.exports={schemas,call};

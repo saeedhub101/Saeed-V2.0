@@ -24,11 +24,14 @@ const engine=read("src/character/CharacterEngine.js");
 const glbBytes=read("src/character/glb-bytes.js");
 const glbBytesTest=read("scripts/ci-glb-bytes.js");
 const packageJson=read("package.json");
+const testRunner=read("scripts/run-all-tests.js");
+must(packageJson.includes('"test": "node scripts/run-all-tests.js"'),"npm test must invoke the complete test orchestrator");
+
 must(engine.includes('import {normalizeGlbArrayBuffer} from "./glb-bytes.js"')&&engine.includes("normalizeGlbArrayBuffer(data)"),"CharacterEngine does not use the canonical GLB byte normalizer");
 must(engine.includes("candidateMeshCount=countSceneMeshes(parsed.scene)")&&engine.includes("no renderable mesh in its active scene"),"CharacterEngine must reject invisible GLB candidates before replacing the current character");
 must(glbBytes.includes("ArrayBuffer.isView(value)")&&glbBytes.includes("value.byteOffset")&&glbBytes.includes("missing glTF magic"),"GLB byte normalization does not protect typed-array offsets and binary headers");
-must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&packageJson.includes("node scripts/ci-glb-bytes.js"),"GLB byte normalization regression tests are not wired into npm test");
-must(exists("scripts/ci-authoritative-glb-rig.js")&&packageJson.includes("node scripts/ci-authoritative-glb-rig.js"),"Authoritative GLB rig mapping test is not wired into npm test");
+must(glbBytesTest.includes("offset Uint8Array")&&glbBytesTest.includes("serialized Node Buffer")&&testRunner.includes('path.join(root, "scripts", "ci-glb-bytes.js")'),"GLB byte normalization regression tests are not wired into npm test");
+must(exists("scripts/ci-authoritative-glb-rig.js")&&testRunner.includes('path.join(root, "scripts", "ci-authoritative-glb-rig.js")'),"Authoritative GLB rig mapping test is not wired into npm test");
 const controller=read("src/character/CharacterController.js");
 must(read("src/character/AutoRigMapper.js").includes("const REQUIRED_RIG=[]")&&read("src/character/AutoRigMapper.js").includes("const OPTIONAL_RIG=Object.keys(aliases)")&&controller.includes("Partial rig: missing")&&controller.includes("Object.keys(mapped).length>0"),"Rig mapping must allow partial skeletons and animate available mapped joints");
 const characterHostForChecks=read("src/main/character/character-host.js");
@@ -157,7 +160,7 @@ must(read("src/performance.html").includes('id="emailServerHost"')&&read("src/pe
 must(read("src/preload.js").includes("saveEmailAccount:")&&read("src/preload.js").includes("testEmailConnection:"),"Email server profile/test IPC bridge is missing");
 must(read("src/main/runtime.js").includes('ipcMain.handle("email:account:save"')&&read("src/main/runtime.js").includes('ipcMain.handle("email:connection:test"'),"Email server profile/test IPC handlers are missing");
 must(read("src/addons/email-client.js").includes("smtpVerify")&&read("src/addons/email-client.js").includes("pop3ListMessages")&&read("src/addons/email-client.js").includes("pop3Fetch"),"SMTP authentication verification and POP3 read operations are missing");
-must(read("package.json").includes("scripts/ci-email-protocol.js")&&read("package.json").includes("scripts/ci-html-script-syntax.js"),"Protocol and inline HTML syntax regression suites are not part of npm test");
+must(testRunner.includes('path.join(root, "scripts", "ci-email-protocol.js")')&&testRunner.includes('path.join(root, "scripts", "ci-html-script-syntax.js")'),"Protocol and inline HTML syntax regression suites are not part of npm test");
 must(read("src/main/application/brain-host.js").includes("Confirm sending this email?"),"Email send confirmation does not show a send-specific confirmation");
 must(read("src/main/application/brain-host.js").includes("Confirm access to this mailbox?")&&read("src/main/application/brain-host.js").includes('detail+="\\nMailbox: "+mailbox'),"Email read confirmation must identify the mailbox being accessed");
 must(read("src/character/CharacterController.js").includes("AutonomousBehaviorController"),"Character autonomy ownership missing");
@@ -173,7 +176,7 @@ must(read("src/main/character/character-host.js").includes("loadCandidateCharact
 must(read("src/main/conversation/conversation-agent.js").includes("invalidateRequests()")&&read("src/main/conversation/conversation-agent.js").includes("if(!isCurrent()||result?.stale)return"),"Conversation changes do not invalidate stale replies");
 must(read("src/main/brain/brain.js").includes("isCurrent:current")&&read("src/main/brain/model-executor.js").includes("Stale conversation request cancelled"),"Conversation cancellation is not propagated through API and tool execution");
 must(read("src/main/automation/local-executor.js").includes("tryExecute(text,{isCurrent=()=>true}={})")&&read("src/main/automation/local-executor.js").includes("if(!isCurrent())return null"),"Local tool execution does not stop after its conversation becomes stale");
-must(registrySource.includes("options={}")&&registrySource.includes("const current=()=>{try{return Boolean(isCurrent())}catch{return false}}")&&registrySource.includes("Stale conversation request cancelled"),"Tool Registry does not guard dispatch against cancelled conversations");
+must(registrySource.includes("options={}")&&registrySource.includes("const current=()=>{try{return Boolean(isCurrent())&&!this.emergencyStopped&&generation===this.emergencyGeneration&&!controller.signal.aborted}catch{return false}}")&&registrySource.includes("Stale conversation request cancelled"),"Tool Registry does not guard dispatch against cancelled conversations");
 must(read("src/main/brain/model-executor.js").includes("registry.call(name,args,{isCurrent:current})"),"Model tool calls do not propagate conversation cancellation to the registry");
 must(read("src/main/voice/voice-host.js").includes("registry?.call?.(name,args,options)"),"Realtime tool calls do not propagate session cancellation to the registry");
 must(read("src/renderer/character.html").includes("characterLoadResult")&&read("src/preload.js").includes("characterLoadResult:"),"Character GLB load acknowledgement is missing from renderer/preload");

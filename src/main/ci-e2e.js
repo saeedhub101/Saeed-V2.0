@@ -8,7 +8,20 @@ function createCiE2E(deps={}){
  const started=Date.now();
 
 
- const suiteFor=name=>String(name).startsWith("acceptance.");
+ const suiteChecks={
+  current:name=>name.startsWith("acceptance."),
+  "0":name=>["startup.character-visible","startup.tray","startup.mic-off","startup.brain-off","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final"].includes(name),
+  "1":name=>name.startsWith("performance.")||name==="acceptance.rest-pose-process-restart",
+  "4":name=>name.startsWith("glb.")||name.startsWith("glbtest.")||["acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate"].includes(name),
+  "5":name=>name.startsWith("chat.")||name.startsWith("brain.")||name.startsWith("voice.")||name.startsWith("mute.")||name.startsWith("mic-off-")||["startup.mic-off","startup.brain-off"].includes(name),
+  "6":name=>name.startsWith("windows.")||name.startsWith("character.")||["startup.addons-window-opens","startup.learning-window-opens","startup.microphone-transcript-label-toggle-and-render","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final"].includes(name)
+ };
+ const suiteFor=name=>{
+  if(restartPhase==="verify")return name==="acceptance.rest-pose-process-restart";
+  if(suiteArg==="all")return true;
+  const predicate=suiteChecks[suiteArg];
+  return typeof predicate==="function"&&predicate(name);
+ };
  const restartPhase=String(process.env.SAEED_CI_E2E_RESTART_PHASE||"");
  const {AsyncLocalStorage}=require("async_hooks");
  const checkContext=new AsyncLocalStorage();
@@ -459,8 +472,8 @@ function createCiE2E(deps={}){
    await check("idle-final",async()=>{await wait(1000);return {pass:Boolean(getCharacterWindow?.())}});
    report.finishedAt=new Date().toISOString();
    report.durationMs=Date.now()-started;
-   report.diagnostics={runnerVersion:4,timeoutPolicy:"continue-after-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length};
-   report.pass=Object.values(report.checks).filter(x=>x.required!==false).every(x=>x.pass);
+   report.diagnostics={runnerVersion:4,timeoutPolicy:"continue-after-check-timeout",trace:trace.slice(),timeoutCount:Object.values(report.checks).filter(x=>x.status==="TIMEOUT").length,errorCount:Object.values(report.checks).filter(x=>x.status==="ERROR").length,suite: suiteArg,suiteCheckCount:Object.keys(report.checks).length};
+   const requiredChecks=Object.values(report.checks).filter(x=>x.required!==false);report.pass=Object.keys(report.checks).length>0&&requiredChecks.length>0&&requiredChecks.every(x=>x.pass);
   }catch(e){report.error=String(e?.stack||e);report.pass=false;report.finishedAt=new Date().toISOString()}
   try{fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out,JSON.stringify(report,null,2),"utf8")}catch(e){report.pass=false;report.error=String(e?.stack||e)}
   return report;
