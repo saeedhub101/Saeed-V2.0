@@ -89,13 +89,14 @@ function main() {
 
   const required = [
     "assets/Saeed_AI-3D.glb", "src/main.js", "src/preload.js",
-    "src/main/runtime.js", "src/main/ci-e2e.js", "src/avatar.js",
+    "src/main/runtime.js", "src/main/ci-e2e.js",
     "src/character/CharacterEngine.js", "src/character/CharacterController.js",
     "src/character/AutoRigMapper.js", "src/three/GLTFLoader.js", "src/character-studio.html",
     "scripts/ci-run-packaged-e2e.ps1", ".github/workflows/build-windows-electron.yml"
   ];
   const missing = required.filter(p => !exists(p));
   check("current-runtime-files-present", missing.length === 0, { requiredCount: required.length, missing });
+  check("legacy-avatar-renderer-removed", !exists("src/avatar.js"), { note: "The authoritative CharacterEngine/CharacterController path must be the only renderer entry point." });
 
   let glb = null, glbError = null;
   try { glb = inspectGlb(path.join(root, "assets", "Saeed_AI-3D.glb")); }
@@ -107,7 +108,7 @@ function main() {
       { rigCapability: glb.rigCapability, jointCount: glb.jointCount, note: "A visible mesh is mandatory; a skeleton is optional; any provided joint indices must be valid." });
   }
 
-  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/ci-e2e.js", "src/main/character/character-host.js", "src/main/voice/voice-host.js", "src/main/voice/voice-runtime.js", "src/main/services/memory-service.js", "src/addons/mcp.js", "src/character/client.js", "src/rest-pose.js", "src/avatar.js", "scripts/ci-current-acceptance.js"];
+  const syntaxFiles = ["src/main.js", "src/preload.js", "src/main/runtime.js", "src/main/ci-e2e.js", "src/main/character/character-host.js", "src/main/voice/voice-host.js", "src/main/voice/voice-runtime.js", "src/main/services/memory-service.js", "src/addons/mcp.js", "src/character/client.js", "src/rest-pose.js", "scripts/ci-current-acceptance.js"];
   const syntaxResults = syntaxFiles.map(file => {
     const result = spawnSync(process.execPath, ["--check", path.join(root, file)], { encoding: "utf8" });
     return { file, pass: result.status === 0, error: result.status === 0 ? "" : String(result.stderr || result.stdout || result.error || "node --check failed") };
