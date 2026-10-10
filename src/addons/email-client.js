@@ -6,6 +6,10 @@ function connect(config,{tlsMode=config.tls,isCurrent=config.isCurrent}={}){
   return new Promise((resolve,reject)=>{
     const opts={host:config.host,port:Number(config.port),servername:config.host,rejectUnauthorized:true};
     const socket=tlsMode?tls.connect(opts):net.connect(opts);
+    const earlyChunks=[];
+    const captureEarlyData=chunk=>earlyChunks.push(Buffer.from(chunk));
+    socket.on("data",captureEarlyData);
+    socket.__saeedEarlyData={chunks:earlyChunks,listener:captureEarlyData};
     let settled=false,connectTimer=null,cancelTimer=null;
     const cleanup=()=>{if(connectTimer)clearTimeout(connectTimer);if(cancelTimer)clearInterval(cancelTimer);connectTimer=null;cancelTimer=null};
     const fail=error=>{if(!settled){settled=true;cleanup();try{socket.destroy()}catch{}reject(error)}else{cleanup();try{socket.destroy()}catch{}}};
@@ -16,21 +20,24 @@ function connect(config,{tlsMode=config.tls,isCurrent=config.isCurrent}={}){
   });
 }
 function lineReader(socket){
-  let buffer=Buffer.alloc(0),waiters=[];
-  const next=()=>new Promise((resolve,reject)=>waiters.push({resolve,reject}));
-  socket.on("data",d=>{
-    buffer=Buffer.concat([buffer,Buffer.from(d)]);
+  const early=socket.__saeedEarlyData;
+  let buffer=early?.chunks?.length?Buffer.concat(early.chunks):Buffer.alloc(0),lines=[],waiters=[];
+  if(early){socket.removeListener("data",early.listener);delete socket.__saeedEarlyData;}
+  const drain=()=>{
     let i;
     while((i=buffer.indexOf("\r\n"))>=0){
-      const line=buffer.subarray(0,i).toString("utf8");buffer=buffer.subarray(i+2);
-      const w=waiters.shift();if(w)w.resolve(line);
+      lines.push(buffer.subarray(0,i).toString("utf8"));
+      buffer=buffer.subarray(i+2);
     }
-  });
+    while(lines.length&&waiters.length)waiters.shift().resolve(lines.shift());
+  };
+  const next=()=>new Promise((resolve,reject)=>{waiters.push({resolve,reject});drain()});
+  socket.on("data",d=>{buffer=Buffer.concat([buffer,Buffer.from(d)]);drain()});
   socket.on("error",e=>{for(const w of waiters.splice(0))w.reject(e)});
   socket.setTimeout(20000,()=>socket.destroy(new Error("Email connection timed out")));
+  drain();
   return next;
 }
-
 function assertCurrent(config){if(typeof config?.isCurrent==="function"&&!config.isCurrent())throw new Error("Email operation cancelled")}
 async function smtpVerify(config){
  let socket=await connect(config,{tlsMode:Boolean(config.tls)}),next=lineReader(socket);
