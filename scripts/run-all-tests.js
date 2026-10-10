@@ -33,6 +33,7 @@ const suites = [
 ,  { name: "Phase 2 autonomous energy behavior tests", args: ["--test", path.join(root, "tests", "unit", "phase2-autonomous-energy.test.cjs")] }
 ,  { name: "Phase 3 persistent memory integrity tests", args: ["--test", path.join(root, "tests", "unit", "phase3-memory-persistence.test.cjs")] }
 ,  { name: "Phase 3 learned-skill integrity tests", args: ["--test", path.join(root, "tests", "unit", "phase3-learning-integrity.test.cjs")] }
+,  { name: "Phase 2 character profile persistence tests", args: ["--test", path.join(root, "tests", "unit", "phase2-character-profile-store.test.cjs")] }
 ];
 const results = [];
 
