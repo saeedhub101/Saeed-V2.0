@@ -6,6 +6,7 @@ const emailAccounts=require("../src/addons/email-account-store");
 async function runSmtpTests(){
  const commands=[];let cancelAfterAuth=false,current=true;const bodies=[];
  const server=net.createServer(socket=>{
+  socket.on("error",()=>{});
   socket.write("220 Saeed SMTP test server ready\r\n");let buffer="",dataMode=false;
   socket.on("data",chunk=>{
    buffer+=chunk.toString("utf8");
@@ -66,6 +67,7 @@ function testEmailAccountStore(){
 async function main(){
  const commands=[];let cancelOnUser=false,current=true;
  const server=net.createServer(socket=>{
+  socket.on("error",()=>{});
   socket.write("+OK Saeed POP3 test server ready\r\n");
   let buffer="";
   socket.on("data",chunk=>{

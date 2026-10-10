@@ -196,6 +196,7 @@ jobs:
             if (!(Test-Path $item.path -PathType Leaf)) { $failures += "$($item.name): missing report $($item.path)"; continue }
             try { $r = Get-Content $item.path -Raw | ConvertFrom-Json } catch { $failures += "$($item.name): invalid JSON report"; continue }
             if ($r.pass -ne $true) { $failures += "$($item.name): report pass flag is false" }
+            if (!$r.checks) { $failures += "$($item.name): report has no checks object"; continue }
             foreach ($id in $item.required) {
               $p = $r.checks.PSObject.Properties[$id]
               if (!$p -or $p.Value.pass -ne $true) { $failures += "$($item.name): missing or failed check $id" }
@@ -207,6 +208,7 @@ jobs:
           )) {
             if (!(Test-Path $restart.path -PathType Leaf)) { $failures += "$($restart.name): missing restart report"; continue }
             try { $r = Get-Content $restart.path -Raw | ConvertFrom-Json } catch { $failures += "$($restart.name): invalid JSON report"; continue }
+            if (!$r.checks) { $failures += "$($restart.name): report has no checks object"; continue }
             $p = $r.checks.PSObject.Properties["acceptance.rest-pose-process-restart"]
             if ($r.pass -ne $true -or !$p -or $p.Value.pass -ne $true) { $failures += "$($restart.name): rest-pose process restart check failed" }
           }
