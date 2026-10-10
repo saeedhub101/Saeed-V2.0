@@ -40,10 +40,14 @@ class Computer{
   }
  }
  async keyPress(key){
-  const k=String(key).replace(/"/g,"").toUpperCase();
-  const map={ENTER:"{ENTER}",ESC:"{ESC}",ESCAPE:"{ESC}",TAB:"{TAB}",BACKSPACE:"{BACKSPACE}",DELETE:"{DELETE}",DEL:"{DELETE}",SPACE:" ",UP:"{UP}",DOWN:"{DOWN}",LEFT:"{LEFT}",RIGHT:"{RIGHT}",HOME:"{HOME}",END:"{END}",PGUP:"{PGUP}",PGDN:"{PGDN}",CTRL:"^",ALT:"%",SHIFT:"+",WIN:"^{ESC}",F1:"{F1}",F2:"{F2}",F3:"{F3}",F4:"{F4}",F5:"{F5}",F6:"{F6}",F7:"{F7}",F8:"{F8}",F9:"{F9}",F10:"{F10}",F11:"{F11}",F12:"{F12}"};
-  const seq=k.split("+").map(x=>map[x]||x).join("");
-  return this.powershell('$ws=New-Object -ComObject WScript.Shell;$ws.SendKeys("'+seq.replace(/"/g,'""')+'")');
+  const k=String(key||"").trim().toUpperCase();
+  if(!k||k.length>64)return{ok:false,error:"Key sequence is empty or too long"};
+  const map={ENTER:"{ENTER}",ESC:"{ESC}",ESCAPE:"{ESC}",TAB:"{TAB}",BACKSPACE:"{BACKSPACE}",DELETE:"{DELETE}",DEL:"{DELETE}",SPACE:" ",UP:"{UP}",DOWN:"{DOWN}",LEFT:"{LEFT}",RIGHT:"{RIGHT}",HOME:"{HOME}",END:"{END}",PGUP:"{PGUP}",PGDN:"{PGDN}",CTRL:"^",ALT:"%",SHIFT:"+",WIN:"^{ESC}",F1:"{F1}",F2:"{F2}",F3:"{F3}",F4:"{F4}",F5:"{F5}",F6:"{F6}",F7:"{F7}",F8:"{F8}",F9:"{F9}",F10:"{F10}",F11:"{F11}",F12:"{F12}",PLUS:"{+}"};
+  const tokens=k.split("+");
+  const invalid=tokens.find(token=>!Object.prototype.hasOwnProperty.call(map,token)&&!/^[A-Z0-9]$/.test(token));
+  if(invalid)return{ok:false,error:"Unsupported key token: "+invalid};
+  const seq=tokens.map(token=>Object.prototype.hasOwnProperty.call(map,token)?map[token]:token).join("");
+  return this.powershell('$ws=New-Object -ComObject WScript.Shell;$ws.SendKeys("'+seq+'")');
  }
  async activeWindow(){
   const code='using System;using System.Text;using System.Runtime.InteropServices;public static class W{[DllImport("user32.dll")]public static extern IntPtr GetForegroundWindow();[DllImport("user32.dll")]public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);[DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);}';
