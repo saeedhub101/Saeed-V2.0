@@ -48,7 +48,7 @@ for (const item of entries) {
 sections.push("=".repeat(78), "MANUAL REVIEW REQUIRED", "Packages without a discovered license text:");
 sections.push(...(missing.length ? missing.map(x => x.name + "@" + x.version + " — " + x.license) : ["None"]));
 sections.push("", "This file covers npm packages in package-lock.json only. It does not cover Electron notices, whisper.cpp, Whisper model weights, add-on bundles, fonts, icons, or other separately bundled assets.");
-const output = path.join(root, "dist", "THIRD_PARTY_NOTICES.txt");
+const output = path.join(root, "THIRD_PARTY_NOTICES.txt");
 fs.mkdirSync(path.dirname(output), { recursive: true });
 fs.writeFileSync(output, sections.join("\n") + "\n", "utf8");
 console.log("THIRD_PARTY_NOTICE_REPORT=PASS");
