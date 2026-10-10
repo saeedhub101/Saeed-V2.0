@@ -150,3 +150,6 @@ No test suite or Windows build was manually launched during this work. The repos
 
 
 - The window actually opened by the app is Character Studio (character-studio.html), so its rig panel has now also gained local X/Y/Z position controls. Its preview is synchronized from the authoritative live controller on GLB load, reset, normalization, and save; position edits are sent to the live controller and mirrored into the preview. This source repair has not been runtime-verified.
+
+
+- Read-only inspection of the already-triggered GitHub Actions log identified the preflight failure as an invalid multiline string in the newly added rest-pose acceptance script. The string delimiters have been corrected in source. No test or build was rerun after this correction.
