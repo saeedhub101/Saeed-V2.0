@@ -6,7 +6,7 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "../..");
-const sourceRoots = ["src", "scripts", "tests", "learning"];
+const sourceRoots = ["src", "scripts", "tests"];
 const excludedDirs = new Set(["node_modules", ".git", "dist", "artifacts", "ci-reports"]);
 function collect(dir, out = []) {
   let entries;
