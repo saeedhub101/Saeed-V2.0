@@ -5,6 +5,16 @@ const { spawnSync } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
 const suites = [
   { name: "current acceptance suite", args: [path.join(root, "scripts", "ci-current-acceptance.js")] },
+  { name: "foundation contract suite", args: [path.join(root, "scripts", "ci-foundation-contract.js")] },
+  { name: "architecture contract suite", args: [path.join(root, "scripts", "ci-architecture-contract.js")] },
+  { name: "authoritative GLB and rig suite", args: [path.join(root, "scripts", "ci-authoritative-glb-rig.js")] },
+  { name: "character diagnostics suite", args: [path.join(root, "scripts", "ci-character-diagnostics.js")] },
+  { name: "animation health suite", args: [path.join(root, "scripts", "ci-animation-health.js")] },
+  { name: "GLB byte handling suite", args: [path.join(root, "scripts", "ci-glb-bytes.js")] },
+  { name: "GLB candidate validation suite", args: [path.join(root, "scripts", "ci-glb-candidate-validation.js")] },
+  { name: "HTML module syntax suite", args: [path.join(root, "scripts", "ci-html-script-syntax.js")] },
+  { name: "email protocol suite", args: [path.join(root, "scripts", "ci-email-protocol.js")] },
+  { name: "intelligence and security suite", args: [path.join(root, "scripts", "ci-intelligence-security.js")] },
   { name: "rest-pose regression unit tests", args: ["--test", path.join(root, "tests", "unit", "rest-pose-validation.test.mjs")] },
   { name: "emergency-stop regression unit tests", args: ["--test", path.join(root, "tests", "unit", "emergency-stop.test.cjs")] },
   { name: "microphone lifecycle race unit tests", args: ["--test", path.join(root, "tests", "unit", "mic-mode-race.test.cjs")] },
