@@ -2,9 +2,13 @@ const {redactToolArgs,redactToolResult}=require("../../tools/redact");
 const {OpenAIRealtime,GeminiLive}=require("../../realtime");
 function createVoiceRuntime(deps={}){
  const getAgent=deps.getAgent||(()=>null), diagnostic=deps.diagnostic||(()=>{}), voiceBroadcast=deps.voiceBroadcast||(()=>{}), getToolSchemas=deps.getToolSchemas||(()=>[]), executeTool=deps.executeTool|| (async()=>({ok:false,error:"Tool execution gateway unavailable"}));
- let realtime=null,realtimeUserText="";
+ let realtime=null,realtimeUserText="",realtimeAbortController=null;
 function stopRealtime(){
- if(realtime){realtime.stop();realtime=null}
+ const active=realtime;realtime=null;
+ const aborter=realtimeAbortController;realtimeAbortController=null;
+ if(aborter&&!aborter.signal.aborted)aborter.abort(new Error("Realtime session stopped"));
+ if(active){try{active.stop()}catch(error){diagnostic("ERROR","REALTIME STOP",error?.message||String(error))}}
+ realtimeUserText="";
  diagnostic("INFO","STT DISCONNECTED","Realtime STT connection stopped");
  diagnostic("INFO","TTS DISCONNECTED","Realtime TTS connection stopped");
  voiceBroadcast("realtime:state","disconnected");
@@ -14,7 +18,7 @@ function startRealtime(options={}){
  const realtimeBrainMode=["saeed","api","auto"].includes(String(s.realtimeBrainMode||"auto"))?String(s.realtimeBrainMode):"auto";
  const provider=String(s.realtimeProvider||"openai"),key=s.realtimeApiKey||s.apiKey||"";
  if(!key || (provider==="openai"&&s.provider==="ollama")){diagnostic("ERROR","REALTIME API KEY","Realtime API key is missing");voiceBroadcast("realtime:state","not-configured","Realtime API key is not configured.");return false}
- diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime) realtime.stop();
+ diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime)stopRealtime();const sessionAbortController=new AbortController();realtimeAbortController=sessionAbortController;
  const realtimeTools=getToolSchemas().map(t=>({
   type:"function",
   name:t.function?.name,
@@ -22,7 +26,7 @@ function startRealtime(options={}){
   parameters:t.function?.parameters||{type:"object",properties:{},required:[]}
  })).filter(t=>t.name);
  const RealtimeClass=provider==="gemini"?GeminiLive:OpenAIRealtime; realtime=new RealtimeClass({
-  state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");voiceBroadcast("realtime:state",state,message)},
+  state:(state,message)=>{diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");if((state==="error"||state==="disconnected")&&realtimeAbortController===sessionAbortController&&!sessionAbortController.signal.aborted)sessionAbortController.abort(new Error(message||("Realtime "+state)));voiceBroadcast("realtime:state",state,message)},
   event:async(event)=>{
    if(event.type==="input_audio_buffer.speech_started"){voiceBroadcast("agent:event",{type:"speech-start",source:"realtime"});}
    else if(event.type==="input_audio_buffer.speech_stopped" && realtimeBrainMode==="api"){
@@ -52,7 +56,7 @@ function startRealtime(options={}){
     voiceBroadcast("agent:event",{type:"tool",name,args:redactToolArgs(name,args),source:"realtime"});
     const activeRealtime=realtime;
     let out;
-    try{out=await executeTool(name,args,{isCurrent:()=>Boolean(activeRealtime)&&realtime===activeRealtime})}catch(e){out={ok:false,error:e.message}};
+    try{out=await executeTool(name,args,{isCurrent:()=>Boolean(activeRealtime)&&realtime===activeRealtime&&!sessionAbortController.signal.aborted,signal:sessionAbortController.signal})}catch(e){out={ok:false,error:e?.message||String(e)}};
     if(!activeRealtime||realtime!==activeRealtime)return;
     if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
     else voiceBroadcast("agent:event",{type:"tool_result",name,result:redactToolResult(name,out),source:"realtime"});
