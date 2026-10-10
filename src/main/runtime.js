@@ -1,5 +1,6 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
+const {isTrustedLocalMediaRequest}=require("./application/media-permissions");
 if(process.env.SAEED_CI_USER_DATA){try{fs.mkdirSync(path.resolve(process.env.SAEED_CI_USER_DATA),{recursive:true});app.setPath("userData",path.resolve(process.env.SAEED_CI_USER_DATA))}catch(error){console.error("CI user-data path setup failed:",error)}}
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
 function ciWriteStartupReport(kind,error){
@@ -25,15 +26,23 @@ const load=(key,modulePath)=>lazy[key]||(lazy[key]=require(modulePath));
 // Explicit Electron microphone permission handling for the user-controlled microphone lifecycle.
 // Chromium must be allowed to request/use media audio before getUserMedia can open the device.
 function configureMediaPermissions(){
+ const appRoot=path.resolve(__dirname,"..");
+ const allowed=(webContents,permission,requestingOrigin,details={})=>isTrustedLocalMediaRequest({
+  webContents,permission,requestingOrigin,requestingUrl:details?.requestingUrl,
+  isMainFrame:details?.isMainFrame,mediaType:details?.mediaType,mediaTypes:details?.mediaTypes,appRoot
+ });
  try{
-  session.defaultSession.setPermissionCheckHandler((webContents,permission,origin,details)=>{
-   return permission==="media";
+  session.defaultSession.setPermissionCheckHandler((webContents,permission,requestingOrigin,details)=>{
+   return allowed(webContents,permission,requestingOrigin,details);
   });
-  session.defaultSession.setPermissionRequestHandler((webContents,permission,callback,details)=>{
-   if(permission==="media"){diagnostic("INFO","MIC PERMISSION","Electron granted media permission",details||{});callback(true);return;}
-   callback(false);
+  session.defaultSession.setPermissionRequestHandler((webContents,permission,callback,details={})=>{
+   const origin=details?.securityOrigin||details?.requestingUrl||"";
+   const granted=allowed(webContents,permission,origin,details);
+   if(granted)diagnostic("INFO","MIC PERMISSION","Trusted local renderer requested audio-only media access",{mediaTypes:details?.mediaTypes||[]});
+   else diagnostic("WARN","MIC PERMISSION","Denied untrusted, non-audio, or non-local media permission request",{permission,mediaTypes:details?.mediaTypes||[]});
+   callback(granted);
   });
-  diagnostic("INFO","MIC PERMISSION","Electron microphone/media permission handlers configured");
+  diagnostic("INFO","MIC PERMISSION","Restricted local audio permission handlers configured");
  }catch(e){diagnostic("ERROR","MIC PERMISSION",e.message)}
 }
 
