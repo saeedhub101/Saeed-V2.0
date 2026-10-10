@@ -171,6 +171,14 @@ function main() {
     e2eSource.includes('restartPhase==="verify"'),
     { note: "Release acceptance must save a real bone transform, exit the packaged app, relaunch it, and verify the persisted position and rotation in the new process." });
 
+  const studioHtml = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
+  check("character-studio-edits-and-syncs-bone-position",
+    studioHtml.includes('id="px"') && studioHtml.includes('id="py"') && studioHtml.includes('id="pz"') &&
+    studioHtml.includes('action:"setBonePosition"') &&
+    studioHtml.includes("syncPreviewFromController({captureRest:true,reset:true})") &&
+    studioHtml.includes('source.position)b.position.set'),
+    { note: "The actual Character Studio window must edit local bone positions and synchronize its preview with the authoritative live controller." });
+
   const restPoseHtml = exists("src/rest-pose.html") ? read("src/rest-pose.html") : "";
   const restPoseEditor = exists("src/rest-pose.js") ? read("src/rest-pose.js") : "";
   const characterHost = exists("src/main/character/character-host.js") ? read("src/main/character/character-host.js") : "";
