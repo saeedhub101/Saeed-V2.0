@@ -19,8 +19,9 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-word.zip",
-      "distribution": "github-release"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/download/v4.4/saeed-addon-word.zip",
+      "distribution": "github-release",
+      "sha256": "7ea2232ea8818cbcdb7deeee03961a3ec9f2adf145fa19e53097e74745db1f55"
     },
     {
       "id": "excel",
@@ -38,8 +39,9 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-excel.zip",
-      "distribution": "github-release"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/download/v4.4/saeed-addon-excel.zip",
+      "distribution": "github-release",
+      "sha256": "7f116a2c14743393fa95241b7219097b68f12296dc6b9e0c4e69c32581451556"
     },
     {
       "id": "pdf",
@@ -57,8 +59,9 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-pdf.zip",
-      "distribution": "github-release"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/download/v4.4/saeed-addon-pdf.zip",
+      "distribution": "github-release",
+      "sha256": "2fa9c4caa82996eef92fad1b5dc24e98706e5f2347e4bfd135469dd884a29f12"
     },
     {
       "id": "ocr",
@@ -76,8 +79,9 @@
       ],
       "dependencies": [],
       "installable": true,
-      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/latest/download/saeed-addon-ocr.zip",
-      "distribution": "github-release"
+      "downloadUrl": "https://github.com/saeedhub101/Saeed-V2.0/releases/download/v4.4/saeed-addon-ocr.zip",
+      "distribution": "github-release",
+      "sha256": "17927cb23f31ff72f5c634ce8cb0e8888cc50cae3e93ab5137a13b699c8e5dad"
     },
     {
       "id": "memory-core",
