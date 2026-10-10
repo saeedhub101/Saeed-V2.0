@@ -24,7 +24,8 @@ must(engine.includes("window.saeedCharacterRuntime.engine"),"3D engine is not ow
 must(voice.includes("ensureTts"),"Voice host has no TTS lifecycle owner");
 must(voice.includes('ttsReady=false'),"TTS lifecycle state is missing");
 must(read("src/main/application/brain-host.js").includes("2*60*1000"),"Brain idle timeout is not two minutes");
-must(workflow.includes("workflow_dispatch:"),"Windows build workflow is not manual-only");
+must(workflow.includes("workflow_dispatch:"),"Windows build workflow must retain a manual dispatch option");
+must(/^  push:\s*$/m.test(workflow)&&/^\s*branches:\s*$/m.test(workflow)&&/^\s*- main\s*$/m.test(workflow),"Phase 4 Windows build must automatically run on main pushes");
 for(const namespace of ["system","character","voice","chat","tools"]){must(preload.includes(`\n ${namespace}:{`),`preload namespace missing: ${namespace}`)}
 const topLevelPreloadKeys=[...preload.matchAll(/^ ([A-Za-z_$][\\w$]*):/gm)].map(match=>match[1]);
 for(const key of topLevelPreloadKeys){must(["isCiE2E","system","character","voice","chat","tools","learning","addons"].includes(key),`preload exposes unexpected flat API: ${key}`)}
