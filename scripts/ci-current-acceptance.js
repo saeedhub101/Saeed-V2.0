@@ -119,7 +119,8 @@ function main() {
     "acceptance.app-startup",
     "acceptance.authoritative-glb-visible",
     "acceptance.repeat-load-preserves-visible-character",
-    "acceptance.available-bones-animate"
+    "acceptance.available-bones-animate",
+    "acceptance.rest-pose-bone-position-save-reset"
   ];
   const missingIds = acceptanceIds.filter(id => !e2e.includes(id));
   check("packaged-acceptance-suite-wired", missingIds.length === 0 && runner.includes("current"),
