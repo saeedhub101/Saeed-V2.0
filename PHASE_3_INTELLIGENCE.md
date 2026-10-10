@@ -130,3 +130,6 @@ Provide an optional, permission-controlled email capability using IMAP for mailb
 
 
 - Updating an explicit memory fact now removes obsolete vector-index versions for that fact key while preserving the newly indexed version, preventing semantic recall from returning stale wording. A static acceptance contract was added; it has not been run.
+
+
+- Realtime voice tool calls now receive a session AbortSignal. Stopping or replacing the realtime session aborts pending tool work, disconnect/error states abort the current session, and stale results are prevented from being delivered. The source contract was added but not run.
