@@ -70,3 +70,8 @@ test("supports URI/email formats, exclusive numeric bounds, unique arrays and ob
   assert.match(validateToolArguments({tags:["x","x"]}, {type:"object",properties:{tags:{type:"array",uniqueItems:true}}}, "unique"), /unique items/);
   assert.match(validateToolArguments({a:1,b:2}, {type:"object",maxProperties:1}, "maxProperties"), /at most 1 properties/);
 });
+
+test("rejects prototype-sensitive keys in nested tool arguments", () => {
+  const args = JSON.parse('{"payload":{"__proto__":{"polluted":true}}}');
+  assert.match(validateToolArguments(args, {type:"object"}, "prototype-key"), /forbidden property name/);
+});
