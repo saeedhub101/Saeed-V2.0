@@ -8,11 +8,17 @@ function createPermissionManager({getAgent,showChat,getChatWindow,diagnostic}){
   try{await showChat()}catch(error){diagnostic?.("ERROR","AGENT CONFIRMATION","Could not open confirmation surface; operation denied",{category,error:String(error?.message||error)});return false}
   const chatWindow=getChatWindow?.();
   if(!chatWindow||chatWindow.isDestroyed?.()||!chatWindow.webContents||chatWindow.webContents.isDestroyed?.()){diagnostic?.("WARN","AGENT CONFIRMATION","No live confirmation surface; operation denied",{category,name:request.name||category});return false}
+  const signal=request.signal;if(signal?.aborted)return false;
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   return new Promise(resolve=>{
-   const timer=setTimeout(()=>{if(!confirmations.has(id))return;confirmations.delete(id);resolve(false);diagnostic?.("INFO","AGENT CONFIRMATION","Confirmation timed out; operation denied",{id,name:request.name||category});},120000);
-   confirmations.set(id,approved=>{clearTimeout(timer);resolve(Boolean(approved));});
-   try{chatWindow.webContents.send("agent:confirm",{id,name:request.name||category,args:request.args||{},permissionCategory:category,permissionLabel:LABELS[category]||category})}catch(error){clearTimeout(timer);confirmations.delete(id);resolve(false);diagnostic?.("ERROR","AGENT CONFIRMATION","Confirmation could not be delivered; operation denied",{id,category,error:String(error?.message||error)})}
+   let settled=false;
+   const settle=approved=>{if(settled)return;settled=true;clearTimeout(timer);confirmations.delete(id);signal?.removeEventListener?.("abort",abort);resolve(Boolean(approved))};
+   const abort=()=>{settle(false);diagnostic?.("INFO","AGENT CONFIRMATION","Confirmation cancelled with its originating request; operation denied",{id,name:request.name||category})};
+   const timer=setTimeout(()=>{if(!confirmations.has(id))return;settle(false);diagnostic?.("INFO","AGENT CONFIRMATION","Confirmation timed out; operation denied",{id,name:request.name||category});},120000);
+   confirmations.set(id,settle);
+   signal?.addEventListener?.("abort",abort,{once:true});
+   if(signal?.aborted){abort();return}
+   try{chatWindow.webContents.send("agent:confirm",{id,name:request.name||category,args:request.args||{},permissionCategory:category,permissionLabel:LABELS[category]||category})}catch(error){settle(false);diagnostic?.("ERROR","AGENT CONFIRMATION","Confirmation could not be delivered; operation denied",{id,category,error:String(error?.message||error)})}
   });
  }
  function resolve(id,approved){const fn=confirmations.get(String(id));if(!fn)return false;confirmations.delete(String(id));fn(Boolean(approved));return true;}
