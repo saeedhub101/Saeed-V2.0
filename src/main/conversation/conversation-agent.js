@@ -43,14 +43,26 @@ class ConversationAgent{
  deleteConversation(id){const target=String(id||"");const index=this.conversations.findIndex(x=>x.id===target);if(index<0)return null;const wasCurrent=this.currentConversationId===target;if(wasCurrent)this.invalidateRequests();this.conversations.splice(index,1);if(!this.conversations.length){const chat=this.newConversation();return{chat,history:[],deleted:target}}if(wasCurrent){const next=this.conversations[Math.max(0,index-1)]||this.conversations[0];this.currentConversationId=next.id;this.history=Array.isArray(next.messages)?next.messages.slice(-200):[];this.saveHistory()}else this.saveConversations();return{chat:this.getCurrentConversation(),history:this.history.slice(-200),deleted:target}}
  chatMeta(chat){return{id:chat.id,title:chat.title||"New Chat",createdAt:chat.createdAt,updatedAt:chat.updatedAt,messageCount:Array.isArray(chat.messages)?chat.messages.length:0}}
  listConversations(){return this.conversations.map(x=>this.chatMeta(x))}getCurrentConversation(){const x=this.conversations.find(c=>c.id===this.currentConversationId);return x?this.chatMeta(x):null}getGlobalMemory(){return this.getMemoryService().listFacts(this.dir)}
+ commitBrainResult(input,result,{emitAnswer=false}={}){
+  const userText=String(input||"").trim(),answer=String(result?.answer||"");
+  if(result?.event)this.onEvent(result.event);
+  // API-provider answers use handled:false by design; they are still final answers
+  // from this Brain and must enter the exact same durable Chat/Voice history.
+  if(!userText||result?.stale)return "";
+  this.history.push({role:"user",content:userText},{role:"assistant",content:answer});
+  this.history=this.history.slice(-200);
+  const persisted=this.saveHistory();
+  if(persisted===false)this.onEvent({type:"diagnostic",level:"ERROR",stage:"CONVERSATION PERSISTENCE",message:"The final Chat/Voice exchange could not be verified in persistent storage"});
+  if(emitAnswer)this.onEvent({type:"answer",text:answer,source:result?.source||"brain"});
+  return answer;
+ }
  async run(text,image=null){
+  const input=String(text||"").trim();if(!input)return "";
   const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history;
   const isCurrent=()=>this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
-  const result=await this.brain.run({text,image,history,isCurrent});
+  const result=await this.brain.run({text:input,image,history,isCurrent});
   if(!isCurrent()||result?.stale)return "";
-  if(result?.event)this.onEvent(result.event);
-  if(result?.handled){const answer=String(result.answer||"");this.history.push({role:"user",content:String(text)},{role:"assistant",content:answer});this.saveHistory();this.onEvent({type:"answer",text:answer,source:result.source});return answer}
-  return String(result?.answer||"");
+  return this.commitBrainResult(input,result,{emitAnswer:true});
  }
  async runVoice(text,image=null){
   this.ensureConversationState();
@@ -59,9 +71,7 @@ class ConversationAgent{
   const isCurrent=()=>this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
   const result=await this.brain.run({text:input,image,history,isCurrent});
   if(!isCurrent()||result?.stale)return "";
-  if(result?.event)this.onEvent(result.event);
-  if(result?.handled){const answer=String(result?.answer||"");this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.saveHistory();return answer}
-  return String(result?.answer||"");
+  return this.commitBrainResult(input,result);
  }
  recordConversationExchange(user,assistant){const input=String(user||"").trim(),answer=String(assistant||"").trim();if(!input||!answer)return false;this.invalidateRequests();this.history.push({role:"user",content:input},{role:"assistant",content:answer});this.saveHistory();return true}
  async dispose(){this.invalidateRequests();try{await this.brain?.dispose?.()}catch{}try{await this.registry?.dispose?.()}catch{}this.brain=null;this.registry=null;this.memoryService=null;this.onEvent=()=>{};return true}
