@@ -96,3 +96,13 @@ test("provider fallback does not retry authentication failures",async()=>{
   assert.equal(calls,1,"401/403 failures must not trigger fallback");
  }finally{global.fetch=originalFetch}
 });
+
+test("local OpenAI-compatible endpoints work without a cloud API key",async()=>{
+ const {ModelExecutor}=require("../../src/main/brain/model-executor");
+ const executor=new ModelExecutor(),originalFetch=global.fetch;
+ global.fetch=async(url,options)=>({ok:true,status:200,text:async()=>JSON.stringify({choices:[{message:{content:"local answer",tool_calls:[]}}]})});
+ try{
+  const answer=await executor.run({text:"local model test",settings:{provider:"openai-compatible",model:"local-model",baseUrl:"http://127.0.0.1:1234/v1",apiKey:""},history:[],registry:{schemas:()=>[],call:async()=>({ok:true})},onEvent:()=>{},dir:process.cwd(),memoryContext:()=>"",saveHistory:()=>{},baseStepLimit:()=>1,askForMoreSteps:async()=>1,providerDefaults:()=>{},isCurrent:()=>true});
+  assert.equal(answer,"local answer");
+ }finally{global.fetch=originalFetch}
+});

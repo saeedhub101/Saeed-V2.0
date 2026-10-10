@@ -27,7 +27,7 @@ function createApiHealth(deps={}){
    result.provider=s.realtimeProvider==="gemini"?"Google Gemini Live":"OpenAI Realtime";result.model=s.realtimeModel||(s.realtimeProvider==="gemini"?"gemini-3.8-live":"gpt-realtime-2.1");result.endpoint=s.realtimeProvider==="gemini"?"wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent":"wss://api.openai.com/v1/realtime";
    url="https://api.openai.com/v1/models";if(s.realtimeApiKey||s.apiKey)headers.Authorization="Bearer "+(s.realtimeApiKey||s.apiKey);
   }else return finish({detail:"Unknown API service"});
-  if(!s.apiKey&&service==="brain"&&s.provider!=="ollama")return finish({detail:"Brain API key is missing"});
+  const localCompatibleEndpoint=s.provider==="openai-compatible"&&/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(String(s.baseUrl||""));if(!s.apiKey&&service==="brain"&&s.provider!=="ollama"&&!localCompatibleEndpoint)return finish({detail:"Brain API key is missing"});
   if(service==="stt"&&s.sttProvider!=="whisper"&&!s.sttApiKey&&!((s.sttProvider==="openai")&&s.apiKey))return finish({detail:"STT API key is missing"});
   if(service==="tts"&&s.ttsProvider!=="local"&&!s.ttsApiKey&&!((s.ttsProvider==="openai")&&s.apiKey))return finish({detail:"TTS API key is missing"});
   if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});

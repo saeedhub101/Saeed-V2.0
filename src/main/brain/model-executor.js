@@ -12,7 +12,7 @@ class ModelExecutor{
    if(s.fallbackEnabled!==true||!fallbackProvider||fallbackProvider===String(s.provider||"")||!current())return null;
    const defaults=providerDefaults(fallbackProvider)||{};
    const fallbackSettings={...s,provider:fallbackProvider,baseUrl:String(s.fallbackBaseUrl||defaults.baseUrl||""),model:String(s.fallbackModel||defaults.model||""),apiKey:String(s.fallbackApiKey||""),fallbackEnabled:false,fallbackProvider:"",fallbackBaseUrl:"",fallbackModel:"",fallbackApiKey:""};
-   if(fallbackProvider!=="ollama"&&!fallbackSettings.apiKey){onEvent({type:"diagnostic",level:"WARN",stage:"AI PROVIDER FALLBACK",message:"Fallback was configured but its API key is missing",meta:{provider:fallbackProvider,reason}});return null;}
+   const localFallbackEndpoint=fallbackProvider==="openai-compatible"&&/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(fallbackSettings.baseUrl);if(fallbackProvider!=="ollama"&&!localFallbackEndpoint&&!fallbackSettings.apiKey){onEvent({type:"diagnostic",level:"WARN",stage:"AI PROVIDER FALLBACK",message:"Fallback was configured but its API key is missing",meta:{provider:fallbackProvider,reason}});return null;}
    onEvent({type:"diagnostic",level:"WARN",stage:"AI PROVIDER FALLBACK",message:"Primary provider failed before tool execution; retrying with configured fallback",meta:{primary:String(s.provider||"unknown"),fallback:fallbackProvider,reason}});
    return this.run({text,image,settings:fallbackSettings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults,isCurrent:current,signal});
   };
@@ -68,7 +68,7 @@ class ModelExecutor{
    }catch(e){onEvent({type:"diagnostic",level:"ERROR",stage:"BRAIN ADD-ON",message:e.message});if(addonPreference)throw e;}
   }
   onEvent({type:"diagnostic",level:"INFO",stage:"BRAIN API",message:"API brain selected: "+String(s.provider||"openai")+" / "+String(s.model||providerDefaults(s.provider).model||"unknown"),meta:{provider:String(s.provider||"openai"),model:String(s.model||providerDefaults(s.provider).model||"unknown"),endpoint:String(s.baseUrl||providerDefaults(s.provider).baseUrl||"")}});
-  if(!s.apiKey&&s.provider!=="ollama"){
+  const localCompatibleEndpoint=s.provider==="openai-compatible"&&/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(String(s.baseUrl||""));if(!s.apiKey&&s.provider!=="ollama"&&!localCompatibleEndpoint){
    onEvent({type:"diagnostic",level:"ERROR",stage:"AGENT NOT READY",message:"LLM API key is missing"});
    const answer="This request needs the API brain. Please connect an API key in Settings.";
    history.push({role:"user",content:String(text)},{role:"assistant",content:answer});saveHistory();onEvent({type:"answer",text:answer,source:"api-missing"});return answer;
