@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const source = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterController.js"), "utf8");
+const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterEngine.js"), "utf8");
 const playStart = source.indexOf(" play(id,options={}){");
 const playEnd = source.indexOf("\n stop(id)", playStart);
 const playBody = source.slice(playStart, playEnd);
@@ -37,4 +38,15 @@ test("rest-pose save reports persistence failure explicitly instead of throwing 
   assert.match(body, /persistenceError/);
   assert.match(body, /catch\(error\)\{persistenceError=error\?\.message\|\|String\(error\)\}/);
   assert.match(body, /persisted=verify\(this\.profiles\.load\(this\.characterId\)\|\|\{\}\)/);
+});
+
+test("destroying the Character Engine disposes the previous model before clearing scene ownership", () => {
+  const start = engineSource.indexOf("function destroyEngine()");
+  const end = engineSource.indexOf("\nwindow.saeedCharacterRuntime", start);
+  const body = engineSource.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(body, /const previous=model;model=null/);
+  assert.match(body, /dispose\(previous\)/);
+  assert.match(body, /renderer\.forceContextLoss\?\.\(\)/);
+  assert.ok(body.indexOf("dispose(previous)") < body.indexOf("root.clear()"));
 });
