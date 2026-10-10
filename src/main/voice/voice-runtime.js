@@ -15,10 +15,11 @@ function stopRealtime(){
 }
 function startRealtime(options={}){
  const s=getAgent()?.settings||{};
+ if(realtime)stopRealtime();
  const realtimeBrainMode=["saeed","api","auto"].includes(String(s.realtimeBrainMode||"auto"))?String(s.realtimeBrainMode):"auto";
  const provider=String(s.realtimeProvider||"openai"),key=s.realtimeApiKey||s.apiKey||"";
  if(!key || (provider==="openai"&&s.provider==="ollama")){diagnostic("ERROR","REALTIME API KEY","Realtime API key is missing");voiceBroadcast("realtime:state","not-configured","Realtime API key is not configured.");return false}
- diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");if(realtime)stopRealtime();const sessionAbortController=new AbortController();realtimeAbortController=sessionAbortController;
+ diagnostic("INFO","STT START","Starting Realtime STT");diagnostic("INFO","TTS START","Starting Realtime TTS");const sessionAbortController=new AbortController();realtimeAbortController=sessionAbortController;
  const realtimeTools=getToolSchemas().map(t=>({
   type:"function",
   name:t.function?.name,
