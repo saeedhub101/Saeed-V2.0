@@ -171,6 +171,14 @@ function main() {
     e2eSource.includes('restartPhase==="verify"'),
     { note: "Release acceptance must save a real bone transform, exit the packaged app, relaunch it, and verify the persisted position and rotation in the new process." });
 
+  const restPoseHtml = exists("src/rest-pose.html") ? read("src/rest-pose.html") : "";
+  const restPoseEditor = exists("src/rest-pose.js") ? read("src/rest-pose.js") : "";
+  check("rest-pose-editor-can-edit-local-bone-position",
+    restPoseHtml.includes('id="px"') && restPoseHtml.includes('id="py"') && restPoseHtml.includes('id="pz"') &&
+    restPoseEditor.includes('command("bonePosition",{bone})') &&
+    restPoseEditor.includes('command("setBonePosition",{bone,position:'),
+    { note: "The Rest Pose Editor must expose actual local bone-position editing, not rotation-only controls." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
