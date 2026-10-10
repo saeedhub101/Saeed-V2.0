@@ -140,7 +140,7 @@ export class AutonomousBehaviorController{
   if(type==="drag-end"){this.character.play("nod",{duration:.65,priority:30});return true}
   return false;
  }
- update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
+ update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
   return {running:this.running,visible:this.visible,intent:this.intent,energy:Math.round(this.energy),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction};

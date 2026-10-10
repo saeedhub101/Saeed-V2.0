@@ -201,12 +201,18 @@ export class CharacterController{
  }
  
  play(id,options={}){
-  if(this.authoring)this.endAuthoring();
-  if(!this.animationEnabled||this.animationPaused)return false;
+  const wasAuthoring=this.authoring;
+  this.authoring=false;
+  this.autonomous?.stop?.();
+  if(!this.animationEnabled||this.animationPaused){this.authoring=wasAuthoring;return false;}
   if(!this.characterId)this.bindCurrentCharacter();
+  // Binding can enter authoring mode while recovering an incomplete rig. Playback is
+  // an explicit transition out of authoring; resume autonomous behavior only after it ends.
+  this.authoring=false;
+  this.autonomous?.stop?.();
   const key=String(id||"idle");
   if(key==="idle"){
-   this.animation.stopAll();
+   this.animation.stopAll({reset:false});
    this.idleBusy=false;
    this.animation.setIdlePose(this.animation.idlePose||{});
    this.startIdleScheduler(7000);
@@ -214,11 +220,13 @@ export class CharacterController{
   }
   const ok=this.animation.play(key,options);
   if(ok)this.startFrameLoop();
+  else if(wasAuthoring){this.authoring=true;this.autonomous?.stop?.();}
+  else if(this.visible&&this.animationEnabled&&!this.animationPaused)this.autonomous?.start?.();
   return ok;
  }
  stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
- finishMotion(){this.idleBusy=false;this.autonomous?.schedule?.()}
+ finishMotion(){this.idleBusy=false;if(this.authoring||!this.visible||!this.animationEnabled||this.animationPaused)return false;this.autonomous?.start?.();return true}
  setPose(pose={}){if(this.authoring)this.beginAuthoring();if(!this.animationEnabled||this.animationPaused)return false;if(pose?.__captureRest){const rest=this.saveRestPose();this.startFrameLoop();return rest}const bones=pose?.__bones;if(bones){for(const [name,transform] of Object.entries(bones)){if(transform?.rotation||transform?.position)this.engine?.setBoneTransform?.(name,transform);else this.engine?.setBoneRotation?.(name,transform)}this.startFrameLoop();return bones}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
   
  bindSlot(slot,name){
@@ -367,7 +375,7 @@ export class CharacterController{
   if(this.animationEnabled&&!this.animationPaused)this.startIdleScheduler(7000);
   return {loaded:true,...x,mappedBoneCount:Object.keys(finalMap).length,rigReady:true};
  }
- update(dt){if(this.animationEnabled&&!this.animationPaused&&this.visible&&this.animation.active.length)this.animation.update(dt);this.autonomous?.update?.(dt)}
+ update(dt){const hadActive=Boolean(this.animation?.active?.length);if(this.animationEnabled&&!this.animationPaused&&this.visible&&hadActive)this.animation.update(dt);const hasActive=Boolean(this.animation?.active?.length);if(hadActive&&!hasActive)this.finishMotion();this.autonomous?.update?.(dt)}
  destroy(){this.rigReady=false;this.binding=false;this.lastBindingResult=null;this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
  status(){
   let a=this.engine?.getCharacterPoseStatus?.()||{},mapped=this.engine?.getBoneMap?.()||{};

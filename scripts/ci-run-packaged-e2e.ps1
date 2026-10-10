@@ -36,6 +36,9 @@ try {
   Remove-Item "$report.runner-failure.json" -Force -ErrorAction SilentlyContinue
   Remove-Item "$report.restart.json" -Force -ErrorAction SilentlyContinue
   Remove-Item "$report.restart.startup.json" -Force -ErrorAction SilentlyContinue
+  $launcher = Join-Path $env:RUNNER_TEMP ("saeed-e2e-" + $Suite + ".cmd")
+  $exitCodeFile = Join-Path $env:RUNNER_TEMP ("saeed-e2e-" + $Suite + ".exitcode.txt")
+  Remove-Item $exitCodeFile -Force -ErrorAction SilentlyContinue
   if (!(Test-Path $exe -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;error="Packaged EXE missing";requiredChecks=$required})
     exit 1
@@ -45,7 +48,9 @@ try {
   $env:SAEED_CI_E2E_RESTART_PHASE = "prepare"
   $env:SAEED_CI_E2E_REPORT = $report
   $env:SAEED_CI_E2E_REPORT_STARTUP = "$report.startup.json"
-  $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=$Suite" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+  $launcherContent = "@echo off`r`n`"$exe`" --ci-e2e --ci-e2e-suite=$Suite`r`necho %ERRORLEVEL% > `"$exitCodeFile`"`r`n"
+  Set-Content -Path $launcher -Value $launcherContent -Encoding ASCII
+  $proc = Start-Process -FilePath $env:ComSpec -ArgumentList @("/d","/c",("`"$launcher`"")) -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
   $startupReport = "$report.startup.json"
   $startupDeadline = (Get-Date).AddSeconds(120)
   $startupReady = $false
@@ -79,6 +84,8 @@ try {
   if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
   $proc.WaitForExit()
   $proc.Refresh()
+  $exitCode = $null
+  if (Test-Path $exitCodeFile -PathType Leaf) { try { $exitCode = [long]::Parse((Get-Content $exitCodeFile -Raw).Trim()) } catch {} }
   if (!(Test-Path $report -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;status="NO_REPORT";error="Packaged app exited without an acceptance report";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
     exit 1
@@ -86,12 +93,12 @@ try {
 
   $r = Get-Content $report -Raw | ConvertFrom-Json
   Get-Content $report -Raw | Write-Host
-  if ($null -eq $proc.ExitCode) {
-    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_UNKNOWN";error="Packaged process exit code remained unavailable after WaitForExit";stdoutLog=$stdout;stderrLog=$stderr})
+  if ($null -eq $exitCode) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_CODE_MISSING";error="Launcher did not capture the packaged process exit code";stdoutLog=$stdout;stderrLog=$stderr;exitCodeFile=$exitCodeFile})
     exit 1
   }
-  if ($proc.ExitCode -ne 0) {
-    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_FAILED";error="Packaged app exited nonzero after its E2E run";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
+  if ($exitCode -ne 0) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_FAILED";error="Packaged app exited nonzero after its E2E run";exitCode=$exitCode;stdoutLog=$stdout;stderrLog=$stderr})
     exit 1
   }
   $missing = @($required | Where-Object { $null -eq $r.checks.PSObject.Properties[$_] })
@@ -112,10 +119,15 @@ try {
   $restartStartup = "$report.restart.startup.json"
   $restartStdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-restart.stdout.log"
   $restartStderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-restart.stderr.log"
+  $restartLauncher = Join-Path $env:RUNNER_TEMP "saeed-e2e-restart.cmd"
+  $restartExitCodeFile = Join-Path $env:RUNNER_TEMP "saeed-e2e-restart.exitcode.txt"
+  Remove-Item $restartExitCodeFile -Force -ErrorAction SilentlyContinue
   $env:SAEED_CI_E2E_RESTART_PHASE = "verify"
   $env:SAEED_CI_E2E_REPORT = $restartReport
   $env:SAEED_CI_E2E_REPORT_STARTUP = $restartStartup
-  $proc2 = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=$Suite" -PassThru -RedirectStandardOutput $restartStdout -RedirectStandardError $restartStderr
+  $restartLauncherContent = "@echo off`r`n`"$exe`" --ci-e2e --ci-e2e-suite=$Suite`r`necho %ERRORLEVEL% > `"$restartExitCodeFile`"`r`n"
+  Set-Content -Path $restartLauncher -Value $restartLauncherContent -Encoding ASCII
+  $proc2 = Start-Process -FilePath $env:ComSpec -ArgumentList @("/d","/c",("`"$restartLauncher`"")) -PassThru -RedirectStandardOutput $restartStdout -RedirectStandardError $restartStderr
   $restartStartupDeadline = (Get-Date).AddSeconds(120)
   $restartStartupReady = $false
   while (!$proc2.HasExited -and (Get-Date) -lt $restartStartupDeadline) {
@@ -147,18 +159,20 @@ try {
   if (Test-Path $restartStderr) { Get-Content $restartStderr -Raw | Write-Host }
   $proc2.WaitForExit()
   $proc2.Refresh()
+  $restartExitCode = $null
+  if (Test-Path $restartExitCodeFile -PathType Leaf) { try { $restartExitCode = [long]::Parse((Get-Content $restartExitCodeFile -Raw).Trim()) } catch {} }
   if (!(Test-Path $restartReport -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_NO_REPORT";error="Second packaged process exited without a rest-pose verification report";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
     exit 1
   }
   $rr = Get-Content $restartReport -Raw | ConvertFrom-Json
   Get-Content $restartReport -Raw | Write-Host
-  if ($null -eq $proc2.ExitCode) {
-    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_UNKNOWN";error="Restart process exit code remained unavailable after WaitForExit";stdoutLog=$restartStdout;stderrLog=$restartStderr})
+  if ($null -eq $restartExitCode) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_EXIT_CODE_MISSING";error="Restart launcher did not capture the packaged process exit code";stdoutLog=$restartStdout;stderrLog=$restartStderr;exitCodeFile=$restartExitCodeFile})
     exit 1
   }
-  if ($proc2.ExitCode -ne 0) {
-    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_FAILED";error="Second packaged process exited nonzero after restart verification";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
+  if ($restartExitCode -ne 0) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_FAILED";error="Second packaged process exited nonzero after restart verification";exitCode=$restartExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
     exit 1
   }
   $restartCheck = $rr.checks.PSObject.Properties["acceptance.rest-pose-process-restart"]
