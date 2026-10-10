@@ -241,9 +241,9 @@ Cross-cutting security, lifecycle and verification are implemented with the feat
 
 ### Optional microphone transcript label
 
-- Add a tray/taskbar toggle for a small optional label/bubble beneath Saeed.
+- Provide a persistent toggle in Performance → Voice settings, the character right-click menu, and the tray for the optional transcript bubble beneath Saeed.
 - When enabled, show the recognized text from the user's microphone input so the user can verify speech-to-text accuracy.
-- Persist the toggle, display transcription failures/empty results clearly, and leave microphone capture OFF at startup.
+- Persist the toggle, display transcription failures/empty results clearly, and leave microphone capture OFF at startup. Source wiring is implemented; packaged runtime verification remains pending.
 
 ### Add-ons and Learning access
 
