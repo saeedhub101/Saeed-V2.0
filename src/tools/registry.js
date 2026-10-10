@@ -13,7 +13,15 @@ function schemaTypeMatches(value,type){
  if(type==="boolean")return typeof value==="boolean";
  return true;
 }
+function containsPrototypeSensitiveKey(value,seen=new Set()){
+ if(!value||typeof value!=="object"||seen.has(value))return false;
+ seen.add(value);
+ if(!Array.isArray(value))for(const key of Object.keys(value))if(["__proto__","prototype","constructor"].includes(key)||containsPrototypeSensitiveKey(value[key],seen))return true;
+ else for(const item of value)if(containsPrototypeSensitiveKey(item,seen))return true;
+ return false;
+}
 function validateSchemaValue(value,schema,pathName){
+ if(containsPrototypeSensitiveKey(value))return pathName+" contains a forbidden property name";
  if(!schema||typeof schema!=="object")return null;
  if(Array.isArray(schema.allOf))for(const child of schema.allOf){const error=validateSchemaValue(value,child,pathName);if(error)return error}
  if(Array.isArray(schema.anyOf)&&schema.anyOf.length&&!schema.anyOf.some(child=>validateSchemaValue(value,child,pathName)===null))return pathName+" does not match any allowed schema";
@@ -43,7 +51,6 @@ function validateSchemaValue(value,schema,pathName){
   if(schema.items)for(let i=0;i<value.length;i++){const error=validateSchemaValue(value[i],schema.items,pathName+"["+(i+1)+"]");if(error)return error}
  }
  if(value&&typeof value==="object"&&!Array.isArray(value)){
-  for(const key of Object.keys(value))if(["__proto__","prototype","constructor"].includes(key))return pathName+" contains a forbidden property name";
   if(Number.isInteger(schema.minProperties)&&Object.keys(value).length<schema.minProperties)return pathName+" needs at least "+schema.minProperties+" properties";
   if(Number.isInteger(schema.maxProperties)&&Object.keys(value).length>schema.maxProperties)return pathName+" supports at most "+schema.maxProperties+" properties";
   for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)return pathName+" is missing required field \""+key+"\"";
