@@ -106,7 +106,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   // Requiring Rig READY for autoMap/remap/bindSlot creates a circular deadlock:
   // those actions are precisely what establish the Rig mapping.
   const actionName=String(command?.action||"");
-  const skeletonOnlyActions=new Set(["boneNames","boneRotation","setBoneRotation","setBoneEditorRotation","resetBoneToRest","autoMap","remap","bindSlot","beginAuthoring","endAuthoring","saveRestPose","normalizeRestPose","snapshotRestPose","status","listMotions","setAnimationEnabled","setAnimationPaused","stop","stopAll","resetPose"]);
+  const skeletonOnlyActions=new Set(["boneNames","boneRotation","setBoneRotation","setBonePosition","setBoneTransform","bonePosition","setBoneEditorRotation","resetBoneToRest","autoMap","remap","bindSlot","beginAuthoring","endAuthoring","saveRestPose","normalizeRestPose","snapshotRestPose","status","listMotions","setAnimationEnabled","setAnimationPaused","stop","stopAll","resetPose"]);
   const directBonePose=actionName==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
   const requiresRig=!skeletonOnlyActions.has(actionName)&&!directBonePose;
   const readiness=actionName==="status"?{ready:true,stage:"status"}:await waitForCharacterReady(win,30000,{requireRig:requiresRig});
