@@ -25,3 +25,30 @@ test("provider request cancellation does not use a recurring polling timer",()=>
  assert.equal(/setInterval\s*\(/.test(executor),false);
  assert.match(executor,/signal\?\.removeEventListener\?\.\("abort",cancelRequest\)/);
 });
+test("an aborted provider fetch settles without publishing a stale answer",async()=>{
+ const {ModelExecutor}=require("../../src/main/brain/model-executor");
+ const executor=new ModelExecutor();
+ const controller=new AbortController();
+ const originalFetch=global.fetch;
+ let markFetchStarted;
+ const fetchStarted=new Promise(resolve=>{markFetchStarted=resolve});
+ const events=[];
+ global.fetch=(url,options)=>new Promise((resolve,reject)=>{
+  markFetchStarted();
+  if(options.signal.aborted){reject(options.signal.reason||new Error("aborted"));return}
+  options.signal.addEventListener("abort",()=>reject(options.signal.reason||new Error("aborted")),{once:true});
+ });
+ try{
+  const running=executor.run({
+   text:"test cancellation",settings:{provider:"openai",model:"test-model",baseUrl:"https://example.invalid/v1",apiKey:"test-key"},
+   history:[],registry:{schemas:()=>[],call:async()=>({ok:true})},onEvent:event=>events.push(event),dir:process.cwd(),
+   memoryContext:()=>"",saveHistory:()=>{},baseStepLimit:()=>1,askForMoreSteps:async()=>1,providerDefaults:()=>({}),
+   isCurrent:()=>!controller.signal.aborted,signal:controller.signal
+  });
+  await fetchStarted;
+  controller.abort(new Error("test cancellation"));
+  const result=await running;
+  assert.equal(result,"");
+  assert.equal(events.some(event=>event.type==="answer"),false,"cancelled provider calls must not publish an answer");
+ }finally{global.fetch=originalFetch}
+});
