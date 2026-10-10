@@ -28,3 +28,13 @@ test("semantic motion requests suppress recent repeats and report retry time", (
 test("unknown semantic intents do not silently select an idle animation", () => {
   assert.match(semanticBody, /reason:"unknown-intent"/);
 });
+
+test("rest-pose save reports persistence failure explicitly instead of throwing away diagnostics", () => {
+  const start = source.indexOf(" saveRestPose(){");
+  const end = source.indexOf("\n normalizeRestPose()", start);
+  const body = source.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(body, /persistenceError/);
+  assert.match(body, /catch\(error\)\{persistenceError=error\?\.message\|\|String\(error\)\}/);
+  assert.match(body, /persisted=verifyRestPoseSnapshot\(bones,this\.profiles\.load\(this\.characterId\)\|\|\{\}\)/);
+});
