@@ -12,6 +12,8 @@ const body = source.slice(start, end);
 test("unmuting restores the TTS ready/idle lifecycle", () => {
   assert.ok(start >= 0 && end > start, "setVoiceMuted must exist");
   assert.match(body, /if\(voiceMuted\)\{releaseTts\("mute"\)\}else\{ensureTts\(\)\}/);
+  assert.match(source, /function characterVisible\(\).*?isVisible\(\)/s);
+  assert.match(source, /if\(!characterVisible\(\)\)\{releaseTts\("character hidden"\);return false\}/);
 });
 
 test("mute changes output state without forcing microphone mode off", () => {

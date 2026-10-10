@@ -146,6 +146,12 @@ async function runCiProductAcceptance(){
   check("mute-is-output-only",voice.getVoiceMuted()===true&&voice.getCurrentMicMode()==="off"&&voice.getTtsReady()===false,{muted:voice.getVoiceMuted(),micMode:voice.getCurrentMicMode(),ttsReady:voice.getTtsReady()});
   voice.setVoiceMuted(false);
   check("unmute-restores-tts",voice.getVoiceMuted()===false&&voice.getTtsReady()===true&&voice.getCurrentMicMode()==="off",{muted:voice.getVoiceMuted(),micMode:voice.getCurrentMicMode(),ttsReady:voice.getTtsReady()});
+  await hideCharacter();await wait(80);
+  voice.setVoiceMuted(true);voice.setVoiceMuted(false);
+  check("unmute-while-hidden-keeps-tts-released",voice.getVoiceMuted()===false&&voice.getTtsReady()===false&&!target.isVisible(),{muted:voice.getVoiceMuted(),ttsReady:voice.getTtsReady(),visible:target.isVisible()});
+  await showCharacter();await wait(120);
+  check("show-after-hidden-unmute-restores-tts",target.isVisible()&&voice.getTtsReady()===true,{visible:target.isVisible(),ttsReady:voice.getTtsReady()});
+
   for(let i=1;i<=3;i++){
    await hideCharacter();await wait(80);
    check("hide-character-"+i,!target.isVisible(),{visible:target.isVisible()});
