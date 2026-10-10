@@ -129,3 +129,9 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 - Rest-pose snapshots now include each bone's local position in addition to Euler/quaternion rotation. Loading a saved profile and resetting to the saved rest pose restore those positions when present, while old profiles without position data remain readable.
 - Save verification now compares the persisted position components as well as rotation values.
 - A static acceptance contract now requires position capture, restore, and persistence verification. Runtime position-editing acceptance remains pending.
+
+
+## Source implementation updates — 2026-10-10 (continued)
+
+- The packaged release gate now includes a two-process rest-pose persistence scenario: the first EXE process saves a real bone's position and rotation, exits, and a fresh EXE process verifies the restored transform and persisted rest-pose baseline before cleanup.
+- The current acceptance runner requires both the in-process position save/reset scenario and the fresh-process restart scenario. These checks are implemented but remain unexecuted; no tests or builds were started.
