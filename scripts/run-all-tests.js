@@ -40,7 +40,8 @@ const suites = [
   { name: "Phase 3 permission-prompt cancellation tests", args: ["--test", path.join(root, "tests", "unit", "phase3-permission-cancellation.test.cjs")] },
   { name: "Phase 2 packaged-acceptance and IPC contract tests", args: ["--test", path.join(root, "tests", "unit", "phase2-packaged-acceptance.test.cjs")] },
   { name: "Phase 3 email secret-redaction tests", args: ["--test", path.join(root, "tests", "unit", "phase3-email-security.test.cjs")] },
-  { name: "Atomic settings persistence tests", args: ["--test", path.join(root, "tests", "unit", "settings-store-persistence.test.cjs")] }
+  { name: "Atomic settings persistence tests", args: ["--test", path.join(root, "tests", "unit", "settings-store-persistence.test.cjs")] },
+  { name: "Event-driven request cancellation wiring tests", args: ["--test", path.join(root, "tests", "unit", "request-cancellation-wiring.test.cjs")] }
 ];
 const results = [];
 
