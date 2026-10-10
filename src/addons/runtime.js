@@ -1,12 +1,18 @@
 const path=require("path");
+const fs=require("fs");
 const manager=require("./manager");
 const capabilities=require("./capabilities");
 const active=new Map();
 function activeKey(userData,id){return path.resolve(String(userData||process.cwd()))+"::"+String(id)}
 function resolveAddonPath(userData,id,requestedPath=""){
  const root=path.resolve(manager.addonDir(userData,id)),target=path.resolve(root,String(requestedPath||""));
- const relative=path.relative(root,target);
- if(relative===".."||relative.startsWith(".."+path.sep)||path.isAbsolute(relative))throw new Error("Add-on path escapes its isolated data directory");
+ const inside=(base,candidate)=>{const relative=path.relative(base,candidate);return relative===""||(relative!==".."&&!relative.startsWith(".."+path.sep)&&!path.isAbsolute(relative))};
+ if(!inside(root,target))throw new Error("Add-on path escapes its isolated data directory");
+ // Lexical containment alone is insufficient when an installed add-on contains a symlink.
+ // Resolve the nearest existing ancestor so a not-yet-created file cannot escape via one.
+ let realRoot;try{realRoot=fs.realpathSync(root)}catch(error){if(error?.code==="ENOENT")return target;throw error}
+ let ancestor=target;while(true){try{const realAncestor=fs.realpathSync(ancestor);if(!inside(realRoot,realAncestor))throw new Error("Add-on path escapes its isolated data directory through a symlink");break}catch(error){if(error?.code!=="ENOENT"&&error?.code!=="ENOTDIR")throw error;const parent=path.dirname(ancestor);if(parent===ancestor)throw error;ancestor=parent}}
+ try{const realTarget=fs.realpathSync(target);if(!inside(realRoot,realTarget))throw new Error("Add-on path escapes its isolated data directory through a symlink")}catch(error){if(error?.code!=="ENOENT"&&error?.code!=="ENOTDIR")throw error}
  return target;
 }
 function context(userData,manifest){const addonPath=manager.addonDir(userData,manifest.id);return Object.freeze({userData,manifest,addonPath,getPath:(p="")=>resolveAddonPath(userData,manifest.id,p)})}
