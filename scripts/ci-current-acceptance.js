@@ -113,7 +113,7 @@ function main() {
     return { file, pass: result.status === 0, error: result.status === 0 ? "" : String(result.stderr || result.stdout || result.error || "node --check failed") };
   });
   const studioHtmlForSyntax = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
-  const studioModuleMatch = studioHtmlForSyntax.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+  const studioModuleMatch = studioHtmlForSyntax.match(/<script type="module">([\s\S]*?)<\/script>/);
   if (studioModuleMatch) {
     const temporaryStudioModule = path.join(os.tmpdir(), "saeed-character-studio-" + process.pid + ".mjs");
     try {
