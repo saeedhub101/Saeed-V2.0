@@ -143,6 +143,12 @@ function main() {
     mcpTransport.includes('child.on("close"'),
     { note: "MCP requests must honor cancellation, have bounded transport lifetimes, and reject when a stdio server exits early." });
 
+  const memoryService = exists("src/main/services/memory-service.js") ? read("src/main/services/memory-service.js") : "";
+  check("memory-fact-update-removes-stale-vector-versions",
+    memoryService.includes('const indexed=add(u,value,{type:"fact",key})') &&
+    memoryService.includes('x.id===indexed.id||x.metadata?.type!=="fact"||x.metadata?.key!==key'),
+    { note: "Updating an explicit fact must keep the current indexed vector and remove obsolete vectors for the same fact key." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
