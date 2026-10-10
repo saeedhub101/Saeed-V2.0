@@ -199,6 +199,14 @@ function main() {
     restPoseAvatar.includes("runtime.pendingLoad"),
     { note: "The Rest Pose Editor must load its actual local GLB renderer, accept selected-character data, and queue data that arrives before engine initialization." });
 
+  const voiceRuntime = exists("src/main/voice/voice-runtime.js") ? read("src/main/voice/voice-runtime.js") : "";
+  check("realtime-tool-execution-cancels-with-voice-session",
+    voiceRuntime.includes("realtimeAbortController") &&
+    voiceRuntime.includes("sessionAbortController.abort") &&
+    voiceRuntime.includes("signal:sessionAbortController.signal") &&
+    voiceRuntime.includes("!sessionAbortController.signal.aborted"),
+    { note: "Stopping or disconnecting realtime voice must abort in-flight tool calls and prevent stale tool results from being delivered." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
