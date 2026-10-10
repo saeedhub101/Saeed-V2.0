@@ -149,6 +149,16 @@ function main() {
     memoryService.includes('x.id===indexed.id||x.metadata?.type!=="fact"||x.metadata?.key!==key'),
     { note: "Updating an explicit fact must keep the current indexed vector and remove obsolete vectors for the same fact key." });
 
+  const characterEngine = exists("src/character/CharacterEngine.js") ? read("src/character/CharacterEngine.js") : "";
+  const characterControllerSource = exists("src/character/CharacterController.js") ? read("src/character/CharacterController.js") : "";
+  const characterClient = exists("src/character/client.js") ? read("src/character/client.js") : "";
+  check("rest-pose-persists-bone-positions-not-only-rotations",
+    characterEngine.includes("position:{x:b.position.x,y:b.position.y,z:b.position.z}") &&
+    characterEngine.includes("const p=r?.position,px=Number(p?.x),py=Number(p?.y),pz=Number(p?.z)") &&
+    characterClient.includes('if(x.action==="setBoneTransform")') &&
+    characterControllerSource.includes('a.position&&b.position&&["x","y","z"].every'),
+    { note: "Rest-pose capture, storage verification, reload and reset must preserve actual bone positions as well as rotations." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
