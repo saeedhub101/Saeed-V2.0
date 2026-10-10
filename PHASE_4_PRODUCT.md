@@ -144,3 +144,6 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 ## Verification-status correction — 2026-10-10
 
 No test suite or Windows build was manually launched during this work. The repository initially still had a push trigger on the Windows acceptance/build workflow, so GitHub Actions automatically started runs as source commits were pushed; superseded runs were cancelled and one run ended in failure. That run has not been treated as product validation. The workflow has since been returned to **manual-only workflow_dispatch**, with no automatic push trigger. All new acceptance checks remain unverified until deliberately run later.
+
+
+- Added the missing local Rest Pose renderer bootstrap module and connected it to the selected GLB delivery path. The editor now mirrors authoritative bone transforms from the main character window while preserving save operations through the central controller; renderer-load failure is surfaced instead of silently hiding the loading state. This fix has not been runtime-verified.
