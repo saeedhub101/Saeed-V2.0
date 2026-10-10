@@ -40,3 +40,14 @@ test("registry writes leave a parseable complete JSON document with no temporary
   assert.deepEqual(fs.readdirSync(dir),["registry.json"]);
  }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
+
+test("add-on context path resolution cannot escape its own data directory",()=>{
+ const runtime=require("../../src/addons/runtime");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-addon-path-"));
+ try{
+  const expected=path.join(root,"addons","mail-provider","cache","entry.json");
+  assert.equal(runtime.resolveAddonPath(root,"mail-provider","cache/entry.json"),expected);
+  assert.throws(()=>runtime.resolveAddonPath(root,"mail-provider","../other/secret.json"),/escapes its isolated data directory/);
+  assert.throws(()=>runtime.resolveAddonPath(root,"mail-provider",path.resolve(root,"outside.txt")),/escapes its isolated data directory/);
+ }finally{fs.rmSync(root,{recursive:true,force:true})}
+});
