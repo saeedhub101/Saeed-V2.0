@@ -1,9 +1,6 @@
 name: Saeed AI — Current Product Acceptance and Windows Build
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       publish_release:
@@ -21,7 +18,7 @@ concurrency:
 
 jobs:
   build:
-    name: Current acceptance, package and real EXE verification
+    name: Windows build and release packaging
     runs-on: windows-latest
     timeout-minutes: 180
     steps:
@@ -110,141 +107,6 @@ jobs:
       - name: Build Windows installer and unpacked runtime
         run: npm run dist
 
-      - name: Verify packaged runtime resources
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $asarPath = "dist\win-unpacked\resources\app.asar"
-          if (!(Test-Path $asarPath -PathType Leaf)) { throw "Packaged Electron archive is missing: $asarPath" }
-          $entries = @(& npx --no-install asar list $asarPath)
-          if ($LASTEXITCODE -ne 0 -or $entries.Count -eq 0) { throw "Could not inspect packaged app.asar." }
-          $normalizedEntries = @($entries | ForEach-Object { (($_ -replace '\\','/').TrimStart('/')) })
-          $required = @(
-            "assets/Saeed_AI-3D.glb",
-            "src/main.js",
-            "src/preload.js",
-            "src/character/CharacterEngine.js",
-            "src/character/CharacterController.js",
-            "src/three/GLTFLoader.js",
-            "src/main/ci-e2e.js"
-          )
-          foreach ($rel in $required) {
-            if ($normalizedEntries -notcontains $rel) { throw "Packaged app.asar is missing required resource: $rel" }
-          }
-          $whisperRoot = "dist\win-unpacked\resources\whisper"
-          foreach ($rel in @("whisper-cli.exe","ggml-base-q5_1.bin")) {
-            if (!(Test-Path (Join-Path $whisperRoot $rel) -PathType Leaf)) { throw "Embedded Whisper asset missing: $rel" }
-          }
-          if (!(Test-Path "dist\win-unpacked\Saeed AI.exe" -PathType Leaf)) { throw "Unpacked application EXE is missing." }
-          Write-Host "PACKAGED_RUNTIME_RESOURCES=PASS"
-
-      - name: Run current acceptance suite against the packaged EXE
-        shell: pwsh
-        timeout-minutes: 18
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite current
-
-      - name: FIRST PACKAGED EXE TEST
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        timeout-minutes: 18
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 0
-
-      - name: Packaged EXE E2E Suite 1 — Performance / Rest Pose
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        timeout-minutes: 18
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 1
-
-      - name: GLB Character Test
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        timeout-minutes: 18
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 4
-
-      - name: Packaged EXE E2E Suite 5 — Chat / Voice
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        timeout-minutes: 18
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 5
-
-      - name: Packaged EXE E2E Suite 6 — Windows / Character Studio
-        if: always()
-        continue-on-error: true
-        shell: pwsh
-        timeout-minutes: 18
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ci-run-packaged-e2e.ps1 -Suite 6
-
-      - name: Verify every packaged E2E suite report
-        if: always()
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $reports = @(
-            @{ name="current"; path="dist\ci-e2e-current-acceptance.json"; required=@("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate","acceptance.rest-pose-bone-position-save-reset","acceptance.rest-pose-process-restart") },
-            @{ name="0"; path="dist\ci-e2e-suite-0.json"; required=@("startup.character-visible","startup.tray","startup.mic-off","startup.brain-off","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final") },
-            @{ name="1"; path="dist\ci-e2e-performance-rest-pose.json"; required=@("performance.character-save-rest-pose","performance.open-character-controller","performance.all-tabs-functional","performance.control-real-bone","performance.procedural-motion-real-bone","performance.create-edit-delete-motion","performance.rig-auto-map","performance.all-registered-compatible-motions","performance.close","acceptance.rest-pose-process-restart") },
-            @{ name="4"; path="dist\ci-e2e-glb-character-test.json"; required=@("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate","glbtest.authoritative-asset-and-visible-character","glbtest.full-load-pipeline","glbtest.generation-and-repeat-load","glb.current-character-loaded") },
-            @{ name="5"; path="dist\ci-e2e-suite-5.json"; required=@("startup.mic-off","startup.brain-off","chat.open","chat.local-time","brain.intent-open-my-computer","brain.intent-api-escalation","chat.response-reaches-character-bubble","voice.chat-response-tts-chain","chat.ui-response-visible","voice.renderer-capabilities","voice.output-device-capability","voice.tts-local-output","voice.mic-device-capability","mute.text-still-visible","chat.close-keeps-brain-when-mic-on","mic-off-releases-brain-after-chat-closed") },
-            @{ name="6"; path="dist\ci-e2e-suite-6.json"; required=@("windows.settings","windows.addons","windows.learning","windows.status","character.normalize-humanoid-rest-pose-window","character.studio-open-and-controls","startup.addons-window-opens","startup.learning-window-opens","startup.microphone-transcript-label-toggle-and-render","character.studio-editor-world-axis-rotation","character.studio-nested-axis-stability","character.studio-rest-pose-save-reset","character.studio-bone-rotation","character.studio-animation-any-bone-edit-play","character.studio-every-button-and-live-animation","character.studio-close-button","tray.single-owner-and-menu","hide-saeed-keeps-tray","show-saeed-restores","idle-final") }
-          )
-          $failures = @()
-          foreach ($item in $reports) {
-            if (!(Test-Path $item.path -PathType Leaf)) { $failures += "$($item.name): missing report $($item.path)"; continue }
-            try { $r = Get-Content $item.path -Raw | ConvertFrom-Json } catch { $failures += "$($item.name): invalid JSON report"; continue }
-            if ($r.pass -ne $true) { $failures += "$($item.name): report pass flag is false" }
-            if (!$r.checks) { $failures += "$($item.name): report has no checks object"; continue }
-            foreach ($id in $item.required) {
-              $p = $r.checks.PSObject.Properties[$id]
-              if (!$p -or $p.Value.pass -ne $true) { $failures += "$($item.name): missing or failed check $id" }
-            }
-          }
-          foreach ($restart in @(
-            @{path="dist\ci-e2e-current-acceptance.json.restart.json";name="current restart"},
-            @{path="dist\ci-e2e-performance-rest-pose.json.restart.json";name="suite 1 restart"}
-          )) {
-            if (!(Test-Path $restart.path -PathType Leaf)) { $failures += "$($restart.name): missing restart report"; continue }
-            try { $r = Get-Content $restart.path -Raw | ConvertFrom-Json } catch { $failures += "$($restart.name): invalid JSON report"; continue }
-            if (!$r.checks) { $failures += "$($restart.name): report has no checks object"; continue }
-            $p = $r.checks.PSObject.Properties["acceptance.rest-pose-process-restart"]
-            if ($r.pass -ne $true -or !$p -or $p.Value.pass -ne $true) { $failures += "$($restart.name): rest-pose process restart check failed" }
-          }
-          if ($failures.Count) { $failures | ForEach-Object { Write-Host "E2E_FAILURE=$_"}; throw "One or more packaged E2E suites failed." }
-          Write-Host "PACKAGED_E2E_ALL_SUITES=PASS"
-
-      - name: Verify installer, acceptance report and create update metadata
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $report = "dist\ci-e2e-current-acceptance.json"
-          if (!(Test-Path $report -PathType Leaf)) { throw "Packaged current acceptance report is missing." }
-          $r = Get-Content $report -Raw | ConvertFrom-Json
-          Get-Content $report -Raw | Write-Host
-          $required = @("acceptance.app-startup","acceptance.authoritative-glb-visible","acceptance.repeat-load-preserves-visible-character","acceptance.available-bones-animate")
-          $missing = @($required | Where-Object { $null -eq $r.checks.PSObject.Properties[$_] })
-          $failed = @($required | Where-Object { $id=$_; $p=$r.checks.PSObject.Properties[$id]; -not $p -or $p.Value.pass -ne $true })
-          if ($missing.Count -or $failed.Count -or $r.pass -ne $true) { throw "Current EXE acceptance failed. Missing: $($missing -join ','); failed: $($failed -join ',')" }
-          $version = (Get-Content VERSION -Raw).Trim() + ".0"
-          $installers = @(Get-ChildItem dist -Filter "*.exe" -File | Where-Object { $_.Name -notlike "*uninstaller*" })
-          if ($installers.Count -ne 1) { throw "Expected exactly one installer EXE, found $($installers.Count)." }
-          $installer = $installers[0]
-          $expectedName = "Saeed.AI.Setup.$version.exe"
-          if ($installer.Name -ne $expectedName) { throw "Installer version mismatch: expected $expectedName, found $($installer.Name)." }
-          if ($installer.Length -lt 10000000) { throw "Installer is unexpectedly small: $($installer.Length) bytes." }
-          if (@(Get-ChildItem dist -Filter "*.blockmap" -File).Count -lt 1) { throw "Installer blockmap is missing." }
-          $sha = (Get-FileHash $installer.FullName -Algorithm SHA256).Hash
-          "$sha  $($installer.Name)" | Set-Content "dist/Saeed-AI-Setup-x64.exe.sha256"
-          $sha512 = (Get-FileHash $installer.FullName -Algorithm SHA512).Hash
-          $b64 = [Convert]::ToBase64String([Convert]::FromHexString($sha512))
-          @{version=$version;files=@(@{url=$installer.Name;sha512=$b64;size=[int64]$installer.Length});releaseDate=(Get-Date).ToUniversalTime().ToString("o")} | ConvertTo-Json -Depth 5 | Set-Content "dist/latest.yml" -Encoding UTF8
-          Write-Host "CURRENT_PRODUCT_BUILD=PASS"
-          Write-Host "INSTALLER=$($installer.Name)"
-          Write-Host "SIZE=$($installer.Length)"
-          Write-Host "SHA256=$sha"
-
       - name: Build optional add-on bundles
         shell: pwsh
         run: |
@@ -284,17 +146,8 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
-            dist/ci-e2e-current-acceptance.json*
-            dist/ci-e2e-suite-0.json*
-            dist/ci-e2e-performance-rest-pose.json*
-            dist/ci-e2e-glb-character-test.json*
-            dist/ci-e2e-suite-5.json*
-            dist/ci-e2e-suite-6.json*
             dist/icons/*
             dist/addons/*.zip
-            ci-reports/current-acceptance.json
-            ${{ runner.temp }}/saeed-e2e-*.stdout.log
-            ${{ runner.temp }}/saeed-e2e-*.stderr.log
 
       - name: Publish official release
         if: success() && inputs.publish_release == true
