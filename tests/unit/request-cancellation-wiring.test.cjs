@@ -15,6 +15,7 @@ test("conversation cancellation is propagated as an AbortSignal through Brain to
  assert.match(brain,/signal=null/);
  assert.match(brain,/providerDefaults:this\.providerDefaults,isCurrent:current,signal/);
  assert.match(executor,/signal=null/);
+ assert.equal((executor.match(/provider\.chat\(\{messages,tools:registry\.schemas\(\),settings:s,model:s\.model\|\|null,signal,isCurrent:current\}\)/g)||[]).length,2,"add-on providers must receive the same cancellation signal and current-request guard");
  assert.match(executor,/signal\?\.addEventListener\?\.\("abort",cancelRequest/);
  assert.match(executor,/fetch\(url,\{method:"POST",headers,body:JSON\.stringify\(body\),signal:requestController\.signal\}\)/);
 });
