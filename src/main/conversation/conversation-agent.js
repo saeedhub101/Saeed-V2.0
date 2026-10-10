@@ -1,6 +1,7 @@
 const fs=require("fs"),path=require("path"),{app}=require("electron");
 const {Brain}=require("../brain/brain"),{createSettingsStore}=require("../services/settings-store");
 const conversationArchive=require("./archive");
+const {writeJsonAtomic:writeAtomicJson}=require("../services/atomic-json-store");
 class ConversationAgent{
  constructor({registry,onEvent,requestStepIncrease}){
     this.registry=registry;this.onEvent=onEvent||(()=>{});this.requestGeneration=0;this.memoryService=null;this.getMemoryService=()=>this.memoryService||(this.memoryService=require("../services/memory-service"));this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.dir=app.getPath("userData");this.settingsStore=createSettingsStore(this.dir);this.file=this.settingsStore.file;this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");fs.mkdirSync(this.dir,{recursive:true});this._settings=this.settingsStore.load();this.loadConversations();this.globalMemory={facts:[]};this.currentConversationId=this.currentConversationId||null;this.history=[];if(this.currentConversationId)this.ensureConversationState();else this.newConversation();this.brain=new Brain({registry,getSettings:()=>this.settings,memoryContext:()=>this.memoryContext(),saveHistory:()=>this.saveHistory(),baseStepLimit:()=>this.baseStepLimit(),getDir:()=>this.dir,onEvent:e=>this.onEvent(e),requestStepIncrease:o=>this.askForMoreSteps(o.current,o.task),providerDefaults:n=>this.providerDefaults(n)})}
@@ -19,9 +20,9 @@ class ConversationAgent{
  providerDefaults(name){return this.settingsStore.providerDefaults(name)}publicSettings(){return this.settingsStore.public(this._settings)}set settings(v){this._settings=this.settingsStore.apply(this._settings,v||{})}get settings(){return this._settings}persistSettings(){this.settingsStore.persist(this._settings)}
  newId(){return Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,9)}
  writeJsonAtomic(file,value){
-  const temp=file+".tmp-"+process.pid+"-"+Date.now();
-  try{const serialized=JSON.stringify(value,null,2);fs.writeFileSync(temp,serialized,{encoding:"utf8",flag:"wx"});const staged=JSON.parse(fs.readFileSync(temp,"utf8"));if(!staged||typeof staged!=="object")throw new Error("Persistence read-back validation failed");fs.renameSync(temp,file);const persisted=JSON.parse(fs.readFileSync(file,"utf8"));if(!persisted||typeof persisted!=="object")throw new Error("Persistence verification failed");return true}
-  catch(error){try{fs.unlinkSync(temp)}catch{}this.lastPersistenceError=String(error?.message||error);try{this.onEvent?.({type:"diagnostic",level:"ERROR",stage:"CONVERSATION PERSISTENCE",message:"Conversation data could not be written or verified",meta:{file:path.basename(file),error:this.lastPersistenceError}})}catch{}return false}
+  const result=writeAtomicJson(file,value);
+  if(!result.ok){this.lastPersistenceError=result.error;try{this.onEvent?.({type:"diagnostic",level:"ERROR",stage:"CONVERSATION PERSISTENCE",message:"Conversation data could not be written or verified",meta:{file:path.basename(file),error:this.lastPersistenceError}})}catch{}return false}
+  return true;
  }
  saveConversations(){return this.writeJsonAtomic(this.chatsFile,{currentConversationId:this.currentConversationId,conversations:this.conversations.map(x=>({...x,messages:(Array.isArray(x.messages)?x.messages:[]).slice(-200)}))})}
  exportConversationsArchive(){return conversationArchive.createArchive(this.conversations)}

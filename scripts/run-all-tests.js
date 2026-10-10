@@ -21,7 +21,8 @@ const suites = [
   { name: "project JavaScript syntax suite", args: ["--test", path.join(root, "tests", "unit", "source-syntax.test.cjs")] },
   { name: "tool argument schema regression tests", args: ["--test", path.join(root, "tests", "unit", "tool-schema-validation.test.cjs")] },
   { name: "microphone RMS settings wiring tests", args: ["--test", path.join(root, "tests", "unit", "microphone-rms-wiring.test.cjs")] },
-  { name: "conversation archive validation tests", args: ["--test", path.join(root, "tests", "unit", "conversation-archive.test.cjs")] }
+  { name: "conversation archive validation tests", args: ["--test", path.join(root, "tests", "unit", "conversation-archive.test.cjs")] },
+  { name: "atomic JSON persistence tests", args: ["--test", path.join(root, "tests", "unit", "atomic-json-store.test.cjs")] }
 ];
 const results = [];
 

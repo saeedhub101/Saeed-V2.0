@@ -1,0 +1,7 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs"),os=require("node:os"),path=require("node:path");
+const {writeJsonAtomic}=require("../../src/main/services/atomic-json-store");
+function withDir(fn){const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-json-store-"));try{return fn(dir)}finally{fs.rmSync(dir,{recursive:true,force:true})}}
+test("writes JSON atomically and verifies the persisted value",()=>withDir(dir=>{const file=path.join(dir,"state.json"),value={current:"abc",items:[1,2,{ok:true}]};const result=writeJsonAtomic(file,value);assert.equal(result.ok,true);assert.deepEqual(JSON.parse(fs.readFileSync(file,"utf8")),value);assert.ok(result.bytes>0);assert.deepEqual(fs.readdirSync(dir),["state.json"])}));
+test("serialization failure preserves existing data and leaves no temporary file",()=>withDir(dir=>{const file=path.join(dir,"state.json");fs.writeFileSync(file,'{"safe":true}');const circular={};circular.self=circular;const result=writeJsonAtomic(file,circular);assert.equal(result.ok,false);assert.deepEqual(JSON.parse(fs.readFileSync(file,"utf8")),{safe:true});assert.deepEqual(fs.readdirSync(dir),["state.json"])}));
+test("reports verification/write failures without claiming success",()=>withDir(dir=>{const file=path.join(dir,"missing","state.json");const result=writeJsonAtomic(file,{safe:true});assert.equal(result.ok,false);assert.match(result.error,/ENOENT/)}));
