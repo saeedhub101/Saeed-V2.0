@@ -88,7 +88,7 @@ function main() {
 
   const required = [
     "assets/Saeed_AI-3D.glb", "src/main.js", "src/preload.js",
-    "src/main/runtime.js", "src/main/ci-e2e.js",
+    "src/main/runtime.js", "src/main/ci-e2e.js", "src/avatar.js",
     "src/character/CharacterEngine.js", "src/character/CharacterController.js",
     "src/character/AutoRigMapper.js", "src/three/GLTFLoader.js",
     "scripts/ci-run-packaged-e2e.ps1", ".github/workflows/build-windows-electron.yml"
@@ -181,6 +181,15 @@ function main() {
     characterClient.includes('action==="boneRotation"||action==="bonePosition"') &&
     characterHost.includes('"setBonePosition","setBoneTransform","bonePosition"'),
     { note: "The Rest Pose Editor must expose actual local bone-position editing, not rotation-only controls, even before logical rig mapping." });
+
+  const restPoseHtmlSource = exists("src/rest-pose.html") ? read("src/rest-pose.html") : "";
+  const restPoseAvatar = exists("src/avatar.js") ? read("src/avatar.js") : "";
+  check("rest-pose-editor-engine-bootstrap-is-present",
+    restPoseHtmlSource.includes('src="avatar.js"') &&
+    restPoseAvatar.includes('import("./character/CharacterEngine.js")') &&
+    restPoseAvatar.includes('onCharacterSelected') &&
+    restPoseAvatar.includes("runtime.pendingLoad"),
+    { note: "The Rest Pose Editor must load its actual local GLB renderer, accept selected-character data, and queue data that arrives before engine initialization." });
 
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
