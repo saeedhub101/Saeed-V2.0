@@ -83,10 +83,14 @@ export class AutonomousBehaviorController{
   },Math.max(60000,Number(this.settings.sleepAfterMs)||SLEEP_AFTER_MS));
  }
  chooseIdle(){
-  const pool=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get(id));
-  if(!pool.length)return null;
-  const fresh=pool.filter(id=>!this.recent.includes(id));
-  const source=fresh.length?fresh:pool;
+  const available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get(id));
+  if(!available.length)return null;
+  const lowEnergy=this.energy<45;
+  const calm=new Set(["nod","think","yawn","stretch","lookCloser"]);
+  const pool=lowEnergy?available.filter(id=>calm.has(id)):available;
+  const choices=pool.length?pool:available;
+  const fresh=choices.filter(id=>!this.recent.includes(id));
+  const source=fresh.length?fresh:choices;
   const id=source[Math.floor(Math.random()*source.length)];
   this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);
   return id;
@@ -106,7 +110,8 @@ export class AutonomousBehaviorController{
   if(!id){this.schedule(DEFAULT_IDLE_DELAY);return false}
   this.intent="idle";
   this.lastMotionAt=performance.now();
-  const played=this.character.play(id,{priority:10});
+  const intensity=Math.max(.25,Math.min(1,this.energy/70));
+  const played=this.character.play(id,{priority:10,intensity});
   if(played&&this.settings.autonomousMovement!==false&&this.settings.eyeTracking!==false)this.lookAround();
   this.armSleepTimer();
   this.schedule(DEFAULT_IDLE_DELAY);
