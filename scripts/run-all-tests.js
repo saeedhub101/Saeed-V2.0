@@ -28,6 +28,7 @@ const suites = [
 ,  { name: "Phase 3 shared conversation persistence tests", args: ["--test", path.join(root, "tests", "unit", "phase3-conversation-persistence.test.cjs")] }
 ,  { name: "Phase 3 explicit memory capture tests", args: ["--test", path.join(root, "tests", "unit", "phase3-memory-capture.test.cjs")] }
 ,  { name: "Phase 2 voice mute lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "phase2-voice-mute-lifecycle.test.cjs")] }
+,  { name: "Add-on capability registry persistence tests", args: ["--test", path.join(root, "tests", "unit", "addon-capabilities-registry.test.cjs")] }
 ];
 const results = [];
 
