@@ -133,16 +133,15 @@ export class CharacterController{
   const restPose={normalization:authoritativeNormalization,bones};
   let persisted=false;
   let persistedProfile=null;
+  let persistenceError=null;
   if(this.characterId){
-   persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-   const verify=(stored={})=>verifyRestPoseSnapshot(bones,stored);
-   persisted=verify(this.profiles.load(this.characterId)||{});
-   if(!persisted){
+   try{
     persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-    persisted=verify(this.profiles.load(this.characterId)||{});
-   }
-  }
-  return {...restPose,persisted,profileId:this.characterId,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
+    persisted=verifyRestPoseSnapshot(bones,this.profiles.load(this.characterId)||{});
+    if(!persisted)persistenceError="Saved rest pose did not match the authoritative runtime snapshot after read-back";
+   }catch(error){persistenceError=error?.message||String(error)}
+  }else persistenceError="No character profile ID was available to persist the rest pose";
+  return {...restPose,persisted,profileId:this.characterId,persistenceError,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
  }
  normalizeRestPose(){
   const ready=this.ensureRigBound({authoring:true});
