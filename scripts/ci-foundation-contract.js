@@ -65,8 +65,9 @@ must(read("src/main/runtime.js").includes('ipcMain.handle("transcript-label:get"
 must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workflow is missing");
 
 const workflow=read(".github/workflows/build-windows-electron.yml");
-must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must be manual-only");
-must(!/^\s*(push|pull_request|schedule):/m.test(workflow),"Automatic build trigger detected in Windows workflow");
+must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must retain a manual dispatch option");
+must(/^  push:\s*$/m.test(workflow)&&/^\s*branches:\s*$/m.test(workflow)&&/^\s*- main\s*$/m.test(workflow),"Phase 4 Windows build must run automatically on pushes to main");
+must(!/^\s*(pull_request|schedule):/m.test(workflow),"Unexpected non-main automatic trigger detected in Windows workflow");
 must(exists(".github/workflows/verify-phases-1-3.yml"),"Manual no-build Phase 1–3 verification workflow is missing");
 const verifyWorkflow=read(".github/workflows/verify-phases-1-3.yml");
 must(/^on:\s*$/m.test(verifyWorkflow)&&/workflow_dispatch:/m.test(verifyWorkflow)&&!/\b(electron-builder|npm run build|npm run dist)\b/.test(verifyWorkflow),"Phase 1–3 verification workflow must be manual-only and must not build the application");
