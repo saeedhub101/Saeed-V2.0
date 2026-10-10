@@ -36,5 +36,5 @@ test("rest-pose save reports persistence failure explicitly instead of throwing 
   assert.ok(start >= 0 && end > start);
   assert.match(body, /persistenceError/);
   assert.match(body, /catch\(error\)\{persistenceError=error\?\.message\|\|String\(error\)\}/);
-  assert.match(body, /persisted=verifyRestPoseSnapshot\(bones,this\.profiles\.load\(this\.characterId\)\|\|\{\}\)/);
+  assert.match(body, /persisted=verify\(this\.profiles\.load\(this\.characterId\)\|\|\{\}\)/);
 });
