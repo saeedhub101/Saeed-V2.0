@@ -133,3 +133,6 @@ Provide an optional, permission-controlled email capability using IMAP for mailb
 
 
 - Realtime voice tool calls now receive a session AbortSignal. Stopping or replacing the realtime session aborts pending tool work, disconnect/error states abort the current session, and stale results are prevented from being delivered. The source contract was added but not run.
+
+
+- Local Whisper transcription now has a hard 120-second deadline. A hung CLI process is killed and the promise is settled with a clear timeout error; completion and spawn-error paths clear the timer. This change has not been executed.
