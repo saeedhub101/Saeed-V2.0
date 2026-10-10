@@ -114,14 +114,14 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 
 - The API Brain provider selector now lists enabled, installed LLM add-ons, so provider selection is explicit instead of silently replacing the configured API provider. A stale selection reports that the add-on is unavailable rather than falling through to a different provider.
 
-**Verification status:** these are source-level changes only. No test suite or build was run; Phase 4 release criteria remain pending.
+**Verification status:** these are source-level changes only. No test suite or build was manually run; Phase 4 release criteria remain pending. See the verification correction below for the automatically triggered workflow run.
 
 
 ## Source implementation updates — 2026-10-10 (continued)
 
 - Character profile writes now read the saved profile back from persistent storage and throw an explicit error if the write cannot be verified.
 - Rest-pose saving now verifies the persisted profile by loading it again from storage, including its retry path, instead of trusting only the object returned by the save call.
-- Added static acceptance contracts for both persistence guarantees. These contracts have been authored but have **not** been run; no tests or builds were started.
+- Added static acceptance contracts for both persistence guarantees. These contracts have been authored but have **not** been run after being added.
 
 
 ## Source implementation updates — 2026-10-10 (continued)
@@ -134,7 +134,7 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 ## Source implementation updates — 2026-10-10 (continued)
 
 - The packaged release gate now includes a two-process rest-pose persistence scenario: the first EXE process saves a real bone's position and rotation, exits, and a fresh EXE process verifies the restored transform and persisted rest-pose baseline before cleanup.
-- The current acceptance runner requires both the in-process position save/reset scenario and the fresh-process restart scenario. These checks are implemented but remain unexecuted; no tests or builds were started.
+- The current acceptance runner requires both the in-process position save/reset scenario and the fresh-process restart scenario. These checks are implemented but remain unexecuted.
 
 
 - The Rest Pose Editor now exposes local bone-position fields alongside rotation controls. Position reads and writes use the actual GLB bone transforms, and direct position editing is allowed even before logical humanoid slots are fully mapped.
