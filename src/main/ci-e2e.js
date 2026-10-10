@@ -9,6 +9,7 @@ function createCiE2E(deps={}){
 
 
  const suiteFor=name=>String(name).startsWith("acceptance.");
+ const restartPhase=String(process.env.SAEED_CI_E2E_RESTART_PHASE||"");
  const {AsyncLocalStorage}=require("async_hooks");
  const checkContext=new AsyncLocalStorage();
  const trace=[];
@@ -68,6 +69,7 @@ function createCiE2E(deps={}){
  };
  const check=async(name,fn,{required=true,timeoutMs=30000}={})=>{
   if(!suiteFor(name))return {pass:true,required,skipped:true};
+  if(restartPhase==="verify"&&name!=="acceptance.rest-pose-process-restart")return {pass:true,required:false,skipped:true,phase:restartPhase};
   const effectiveTimeoutMs=suite1Timeouts[name]||suite2Timeouts[name]||timeoutMs;
   const t=Date.now();
   const ctx={name,startedAt:t,operation:null,operationStartedAt:t,timedOut:false};
@@ -198,6 +200,60 @@ function createCiE2E(deps={}){
      return {pass:Boolean(movedOk&&saveCaptured&&restoredOk&&cleanup?.ok),bone,original,target,actual,movedOk,saved:Boolean(saved?.persisted),savedRotation,savedPosition,saveCaptured,restoredRotation:restored.rotation,restoredPosition:restored.position,restoredOk,cleanup};
     })()',true);
     return result;
+   },{timeoutMs:60000});
+   await check("acceptance.rest-pose-process-restart",async()=>{
+    const marker=path.join(app.getPath("userData"),"ci-rest-pose-restart.json");
+    if(restartPhase!=="prepare"&&restartPhase!=="verify")return {pass:true,required:false,skipped:true,reason:"Restart verification is driven by the packaged runner"};
+    if(restartPhase==="prepare"){
+     const w=getCharacterWindow?.();
+     if(!visible(w))return {pass:false,stage:"prepare-window",error:"Character window is not visible"};
+     const opened=await depsShowPerformance?.();await wait(350);
+     const pw=getPerformanceWindow?.()||opened;
+     if(!visible(pw))return {pass:false,stage:"prepare-performance",error:"Could not open controller for restart verification"};
+     const result=await execJs(pw,'(async()=>{
+      const api=window.saeed,near=(a,b,t)=>Math.abs((Number(a)||0)-(Number(b)||0))<t;
+      await api.character.characterController({action:"autoMap"}).catch(()=>{});
+      await api.character.characterController({action:"stopAll"}).catch(()=>{});
+      await api.character.characterController({action:"resetPose"}).catch(()=>{});
+      const s=await api.character.characterController({action:"status"}),bones=s?.status?.actualBones||{};
+      const bone=Object.keys(bones).find(n=>n&&bones[n]?.rotation&&bones[n]?.position&&bones[n]?.restPose?.position);
+      if(!bone)return {pass:true,notApplicable:true,reason:"This GLB has no controllable bone position",marker:{notApplicable:true}};
+      const original={rotation:{...bones[bone].rotation},position:{...bones[bone].position}};
+      const delta={rotation:{x:.13,y:-.08,z:.06},position:{x:.04,y:.025,z:-.03}};
+      const target={rotation:{x:original.rotation.x+delta.rotation.x,y:original.rotation.y+delta.rotation.y,z:original.rotation.z+delta.rotation.z},position:{x:original.position.x+delta.position.x,y:original.position.y+delta.position.y,z:original.position.z+delta.position.z}};
+      const moved=await api.character.characterController({action:"setBoneTransform",bone,transform:delta});
+      const saved=await api.character.characterController({action:"saveRestPose"});
+      const after=await api.character.characterController({action:"status"}),actual=after?.status?.actualBones?.[bone]||{},rest=actual.restPose||{};
+      const savedRotation=rest.rotation||{},savedPosition=rest.position||{};
+      const ok=Boolean(moved?.ok&&saved?.ok&&saved?.persisted&&["x","y","z"].every(k=>near(actual.rotation?.[k],target.rotation[k],.035)&&near(actual.position?.[k],target.position[k],.015)&&near(savedRotation[k],target.rotation[k],.035)&&near(savedPosition[k],target.position[k],.015)));
+      return {pass:ok,bone,original,target,actualRotation:actual.rotation,actualPosition:actual.position,saved:Boolean(saved?.persisted),ok,marker:{bone,original,target,delta}};
+     })()',true);
+     if(result?.notApplicable){fs.writeFileSync(marker,JSON.stringify({notApplicable:true},null,2),"utf8");return {pass:true,phase:restartPhase,notApplicable:true,reason:result.reason};}
+     if(!result?.pass||!result?.marker) return {pass:false,phase:restartPhase,stage:"prepare-save",result};
+     fs.writeFileSync(marker,JSON.stringify(result.marker,null,2),"utf8");
+     return {pass:true,phase:restartPhase,marker:result.marker,detail:result};
+    }
+    if(!fs.existsSync(marker))return {pass:false,phase:restartPhase,stage:"marker-missing",error:"First process did not leave a rest-pose restart marker"};
+    let saved;
+    try{saved=JSON.parse(fs.readFileSync(marker,"utf8"))}catch(error){return {pass:false,phase:restartPhase,stage:"marker-invalid",error:error?.message||String(error)}}
+    if(saved.notApplicable){try{fs.unlinkSync(marker)}catch{};return {pass:true,phase:restartPhase,notApplicable:true,reason:"The GLB has no bone positions to restore"}}
+    const w=getCharacterWindow?.();
+    if(!visible(w))return {pass:false,phase:restartPhase,stage:"verify-window",error:"Character window is not visible after process restart"};
+    const opened=await depsShowPerformance?.();await wait(350);
+    const pw=getPerformanceWindow?.()||opened;
+    if(!visible(pw))return {pass:false,phase:restartPhase,stage:"verify-performance",error:"Could not open controller after process restart"};
+    const result=await execJs(pw,'(async()=>{
+     const api=window.saeed,marker='+JSON.stringify(saved)+',near=(a,b,t)=>Math.abs((Number(a)||0)-(Number(b)||0))<t;
+     const deadline=Date.now()+25000;let s=null;
+     while(Date.now()<deadline){s=await api.character.characterController({action:"status"});if(s?.status?.characterLoaded&&s?.status?.actualBones?.[marker.bone])break;await new Promise(r=>setTimeout(r,250))}
+     const actual=s?.status?.actualBones?.[marker.bone]||{},rest=actual.restPose||{},restRotation=rest.rotation||{},restPosition=rest.position||{};
+     const matches=Boolean(actual.rotation&&actual.position&&["x","y","z"].every(k=>near(actual.rotation[k],marker.target.rotation[k],.035)&&near(actual.position[k],marker.target.position[k],.015)&&near(restRotation[k],marker.target.rotation[k],.035)&&near(restPosition[k],marker.target.position[k],.015)));
+     let cleanup={ok:false};
+     if(matches){const reverse={rotation:{x:marker.original.rotation.x-marker.target.rotation.x,y:marker.original.rotation.y-marker.target.rotation.y,z:marker.original.rotation.z-marker.target.rotation.z},position:{x:marker.original.position.x-marker.target.position.x,y:marker.original.position.y-marker.target.position.y,z:marker.original.position.z-marker.target.position.z}};const undone=await api.character.characterController({action:"setBoneTransform",bone:marker.bone,transform:reverse});const resaved=await api.character.characterController({action:"saveRestPose"});const reset=await api.character.characterController({action:"resetPose"});cleanup={ok:Boolean(undone?.ok&&resaved?.ok&&resaved?.persisted&&reset?.ok)}}
+     return {pass:matches&&cleanup.ok,bone:marker.bone,expected:marker.target,actualRotation:actual.rotation,actualPosition:actual.position,restRotation,restPosition,matches,cleanup};
+    })()',true);
+    try{fs.unlinkSync(marker)}catch{}
+    return {...result,phase:restartPhase};
    },{timeoutMs:60000});
    await check("startup.character-visible",()=>visible(getCharacterWindow?.()));
    await check("startup.tray",()=>Boolean(getTray?.()));
