@@ -31,5 +31,5 @@ test("packaged acceptance covers GLB, rig, rendering, motion, rest pose, voice l
 });
 
 test("packaged acceptance opens Learning and Add-ons and verifies renderer IPC round trips",()=>{
- for(const token of ["learning-window-and-ipc","addons-window-and-ipc","learningAcceptanceWindow","addonsAcceptanceWindow","window.saeed.learning.list()","window.saeed.addons.catalog()"])assert.ok(runtime.includes(token),"missing feature-window acceptance wiring: "+token);
+ for(const token of ["verifyFeaturePage","window-and-ipc","learningAcceptanceWindow","addonsAcceptanceWindow","window.saeed.learning.list()","window.saeed.addons.catalog()"])assert.ok(runtime.includes(token),"missing feature-window acceptance wiring: "+token);
 });
