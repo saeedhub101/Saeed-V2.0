@@ -3,7 +3,6 @@ const on=(channel,handler)=>ipcRenderer.on(channel,(_, ...args)=>handler(...args
 const send=(channel,...args)=>ipcRenderer.send(channel,...args);
 const invoke=(channel,...args)=>ipcRenderer.invoke(channel,...args);
 contextBridge.exposeInMainWorld("saeed",{
- isCiE2E:process.argv.includes("--ci-e2e"),
  system:{
   capture:()=>invoke("capture"),checkForUpdates:()=>invoke("update:check"),installUpdate:()=>invoke("update:install"),downloadUpdate:()=>invoke("update:download"),showUpdateStatus:()=>invoke("update:show-status"),closeUpdateToast:()=>invoke("update:toast-close"),getUpdateSnapshot:()=>invoke("update:snapshot"),
   getSettings:()=>invoke("settings:get"),getAppVersion:()=>invoke("app:version"),setSettings:s=>invoke("settings:set",s),clearAllApis:()=>invoke("api:clear-all"),storeEmailCredential:(provider,account,username,password)=>invoke("email:credential:store",provider,account,username,password),saveEmailAccount:record=>invoke("email:account:save",record),getEmailAccount:(provider,account)=>invoke("email:account:get",provider,account),testEmailConnection:record=>invoke("email:connection:test",record),reportDiagnostic:(level,stage,message,meta)=>invoke("diagnostic:report",level,stage,message,meta),getDiagnosticSnapshot:()=>invoke("diagnostic:snapshot"),testApiConnection:service=>invoke("api-status:test",service),testAllApiConnections:()=>invoke("api-status:test-all"),getCpuMetrics:()=>invoke("cpu:metrics"),getResourceSnapshot:()=>invoke("resource:snapshot"),onCpuMetrics:f=>on("cpu:metrics",f),
