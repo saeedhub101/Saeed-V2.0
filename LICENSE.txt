@@ -1,0 +1,19 @@
+SAEED AI — PROPRIETARY SOFTWARE NOTICE
+Copyright (c) 2026 Saeed O. Almansour. All rights reserved.
+
+This notice applies only to original Saeed AI project code and assets owned by the copyright holder. It does not replace or override the separate licenses of Electron, Three.js, Whisper, npm packages, model runtimes, fonts, or other third-party components distributed with or used by the application. Applicable third-party notices and license texts must be included with each commercial distribution.
+
+PURCHASED END-USER LICENSE
+After a purchase is accepted and payment is completed, the purchaser receives a personal, non-exclusive, non-transferable license to install and use one purchased copy of Saeed AI for the purchaser's own lawful use, subject to the terms presented at purchase.
+
+Unless separately authorized in writing, the purchaser may not resell, sublicense, publish, share installer files publicly, or redistribute the original Saeed AI code or assets. Nothing in this notice restricts rights that cannot lawfully be restricted under applicable law.
+
+No ownership of the software or intellectual property is transferred by purchase. The copyright holder retains all rights not expressly granted.
+
+WARRANTY AND SERVICE
+The software is provided as available, subject to any mandatory consumer rights and any written warranty expressly supplied at the point of sale. Compatibility, AI-provider availability, model/API costs, and third-party service terms may vary. Do not advertise a feature as supported until it has been verified in the released build.
+
+THIRD-PARTY SOFTWARE
+Third-party components remain subject to their own licenses. Their notices and license obligations must be reviewed and fulfilled before distributing a commercial installer.
+
+This file is a project-level notice, not a substitute for jurisdiction-specific legal advice or a complete commercial checkout agreement.
