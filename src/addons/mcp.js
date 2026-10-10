@@ -10,26 +10,18 @@ async function rpcStdio(server,requests,options={}){
  return new Promise((resolve,reject)=>{
   const child=spawn(server.command,server.args,{windowsHide:true,stdio:["pipe","pipe","pipe"]});
   const signal=options.signal||null,timeoutMs=Math.max(1000,Number(options.timeoutMs)||30000);
-  let buffer="",seq=0,settled=false;
+  let buffer="",seq=0,settled=false,timer=null;
   const responses=new Map();
-  let timer=null;
   const fail=error=>{
    if(settled)return;
-   settled=true;
-   if(timer)clearTimeout(timer);
-   signal?.removeEventListener("abort",abort);
+   settled=true;if(timer)clearTimeout(timer);signal?.removeEventListener("abort",abort);
    for(const pending of responses.values())pending.rej(error);
-   responses.clear();
-   try{child.kill()}catch{}
-   reject(error);
+   responses.clear();try{child.kill()}catch{}reject(error);
   };
   const succeed=value=>{
    if(settled)return;
-   settled=true;
-   if(timer)clearTimeout(timer);
-   signal?.removeEventListener("abort",abort);
-   try{child.kill()}catch{}
-   resolve(value);
+   settled=true;if(timer)clearTimeout(timer);signal?.removeEventListener("abort",abort);
+   try{child.kill()}catch{}resolve(value);
   };
   const abort=()=>fail(signal?.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
   if(signal?.aborted){abort();return}
@@ -38,62 +30,55 @@ async function rpcStdio(server,requests,options={}){
   const request=(method,params)=>new Promise((res,rej)=>{
    if(settled)return rej(new Error("MCP request is no longer active"));
    const id=++seq;responses.set(id,{res,rej});
-   try{child.stdin.write(JSON.stringify({jsonrpc:"2.0",id,method,params:params||{}})+"\\n",error=>{if(error){responses.delete(id);rej(error)}})}
+   try{child.stdin.write(JSON.stringify({jsonrpc:"2.0",id,method,params:params||{}})+"\n",error=>{if(error){responses.delete(id);rej(error)}})}
    catch(error){responses.delete(id);rej(error)}
   });
   child.stdout.on("data",d=>{
-   buffer+=String(d);
-   let i;
-   while((i=buffer.indexOf("\\n"))>=0){
-    const line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);
-    if(!line)continue;
-    try{
-     const msg=JSON.parse(line);
-     if(msg.id!==undefined&&responses.has(msg.id)){
-      const q=responses.get(msg.id);responses.delete(msg.id);
-      msg.error?q.rej(new Error(msg.error.message||"MCP error")):q.res(msg.result);
-     }
-    }catch{}
+   buffer+=String(d);let i;
+   while((i=buffer.indexOf("\n"))>=0){
+    const line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(!line)continue;
+    try{const msg=JSON.parse(line);if(msg.id!==undefined&&responses.has(msg.id)){const q=responses.get(msg.id);responses.delete(msg.id);msg.error?q.rej(new Error(msg.error.message||"MCP error")):q.res(msg.result)}}catch{}
    }
   });
   child.stderr.on("data",()=>{});
   child.on("error",fail);
   child.on("close",(code,signalName)=>{if(!settled)fail(new Error("MCP stdio process exited before completing requests (code="+code+", signal="+signalName+")"))});
-  (async()=>{
-   try{
-    await request("initialize",{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.2"}});
-    if(signal?.aborted)throw new Error("MCP request cancelled");
-    await request("notifications/initialized",{});
-    let out=null;
-    for(const item of requests){
-     if(signal?.aborted)throw new Error("MCP request cancelled");
-     out=await request(item.method,item.params);
-    }
-    succeed(out);
-   }catch(error){fail(error)}
-  })();
+  (async()=>{try{
+   await request("initialize",{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.2"}});
+   if(signal?.aborted)throw new Error("MCP request cancelled");
+   await request("notifications/initialized",{});
+   let out=null;
+   for(const item of requests){if(signal?.aborted)throw new Error("MCP request cancelled");out=await request(item.method,item.params)}
+   succeed(out);
+  }catch(error){fail(error)}})();
  });
 }
 async function rpcHttp(server,method,params={},options={}){
- const signal=options.signal||null;
- const headers={"Content-Type":"application/json","Accept":"application/json, text/event-stream",...(server.headers||{})};
- const post=async(body,extra={})=>{
-  if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
-  const r=await fetch(server.url,{method:"POST",headers:{...headers,...extra},body:JSON.stringify(body),signal:signal||undefined});
-  if(!r.ok)throw new Error("MCP HTTP "+r.status);
-  return r;
- };
- const parse=async r=>{
-  const text=await r.text();const line=text.split(/\\r?\\n/).find(x=>x.startsWith("data:"))||text;const clean=line.replace(/^data:\\s*/,"").trim();
-  if(!clean)return{};
-  const msg=JSON.parse(clean);if(msg.error)throw new Error(msg.error.message||"MCP error");return msg.result;
- };
- let id=Date.now();
- const init=await post({jsonrpc:"2.0",id:++id,method:"initialize",params:{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.2"}}});
- const session=init.headers.get("mcp-session-id");
- await post({jsonrpc:"2.0",method:"notifications/initialized",params:{}},session?{"MCP-Session-Id":session}:{});
- if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
- return parse(await post({jsonrpc:"2.0",id:++id,method,params},session?{"MCP-Session-Id":session}:{}));
+ const externalSignal=options.signal||null,timeoutMs=Math.max(1000,Number(options.timeoutMs)||30000),controller=new AbortController();
+ const abort=()=>controller.abort(externalSignal?.reason instanceof Error?externalSignal.reason:new Error("MCP request cancelled"));
+ if(externalSignal?.aborted)abort();else externalSignal?.addEventListener("abort",abort,{once:true});
+ const timer=setTimeout(()=>controller.abort(new Error("MCP HTTP request timed out after "+timeoutMs+"ms")),timeoutMs);
+ const signal=controller.signal;
+ try{
+  const headers={"Content-Type":"application/json","Accept":"application/json, text/event-stream",...(server.headers||{})};
+  const post=async(body,extra={})=>{
+   if(signal.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
+   const r=await fetch(server.url,{method:"POST",headers:{...headers,...extra},body:JSON.stringify(body),signal});
+   if(!r.ok)throw new Error("MCP HTTP "+r.status);
+   return r;
+  };
+  const parse=async r=>{
+   const text=await r.text();const line=text.split(/\r?\n/).find(x=>x.startsWith("data:"))||text;const clean=line.replace(/^data:\s*/,"").trim();
+   if(!clean)return{};
+   const msg=JSON.parse(clean);if(msg.error)throw new Error(msg.error.message||"MCP error");return msg.result;
+  };
+  let id=Date.now();
+  const init=await post({jsonrpc:"2.0",id:++id,method:"initialize",params:{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.2"}}});
+  const session=init.headers.get("mcp-session-id");
+  await post({jsonrpc:"2.0",method:"notifications/initialized",params:{}},session?{"MCP-Session-Id":session}:{});
+  if(signal.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
+  return await parse(await post({jsonrpc:"2.0",id:++id,method,params},session?{"MCP-Session-Id":session}:{}));
+ }finally{clearTimeout(timer);externalSignal?.removeEventListener("abort",abort)}
 }
 async function listTools(userData,id,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);return s.transport==="stdio"?rpcStdio(s,[{method:"tools/list",params:{}}],options):rpcHttp(s,"tools/list",{},options)}
 async function callTool(userData,id,name,args={},confirm=async()=>false,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);const signal=options.signal||null;if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const allowed=s.permissions?.tools;if(Array.isArray(allowed)&&!allowed.includes(name))throw new Error("MCP tool is not permitted: "+name);if(s.permissions?.alwaysAsk&&!await confirm({server:id,tool:name,args,signal}))throw new Error("MCP tool permission denied");if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const p={name,arguments:args};return s.transport==="stdio"?rpcStdio(s,[{method:"tools/call",params:p}],options):rpcHttp(s,"tools/call",p,options)}
