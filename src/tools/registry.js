@@ -15,6 +15,10 @@ function schemaTypeMatches(value,type){
 }
 function validateSchemaValue(value,schema,pathName){
  if(!schema||typeof schema!=="object")return null;
+ if(Array.isArray(schema.allOf))for(const child of schema.allOf){const error=validateSchemaValue(value,child,pathName);if(error)return error}
+ if(Array.isArray(schema.anyOf)&&schema.anyOf.length&&!schema.anyOf.some(child=>validateSchemaValue(value,child,pathName)===null))return pathName+" does not match any allowed schema";
+ if(Array.isArray(schema.oneOf)&&schema.oneOf.length&&schema.oneOf.filter(child=>validateSchemaValue(value,child,pathName)===null).length!==1)return pathName+" must match exactly one allowed schema";
+ if(schema.not&&validateSchemaValue(value,schema.not,pathName)===null)return pathName+" matches a forbidden schema";
  if(Array.isArray(schema.type)?!schema.type.some(t=>schemaTypeMatches(value,t)):schema.type&&!schemaTypeMatches(value,schema.type)){
   return pathName+" must be "+(Array.isArray(schema.type)?schema.type.join(" or "):schema.type);
  }

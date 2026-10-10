@@ -38,3 +38,12 @@ test("enforces numeric bounds and string length", () => {
   assert.match(validateToolArguments({ intent: "wave", duration: 11 }, schema, "motion"), /must be at most 10/);
   assert.match(validateToolArguments({ intent: "" }, schema, "motion"), /is too short/);
 });
+
+test("supports allOf, anyOf, oneOf, and not schema composition", () => {
+  assert.equal(validateToolArguments({value: 3}, {type:"object",allOf:[{required:["value"]},{properties:{value:{type:"number",minimum:1}}]},properties:{value:{type:"number"}}}, "composed"), null);
+  assert.equal(validateToolArguments({value:"ok"}, {type:"object",properties:{value:{anyOf:[{type:"string"},{type:"number"}]}}}, "anyOf"), null);
+  assert.match(validateToolArguments({value:true}, {type:"object",properties:{value:{anyOf:[{type:"string"},{type:"number"}]}}}, "anyOf"), /does not match any allowed schema/);
+  assert.equal(validateToolArguments({value:"text"}, {type:"object",properties:{value:{oneOf:[{type:"string"},{type:"number"}]}}}, "oneOf"), null);
+  assert.match(validateToolArguments({value:1}, {type:"object",properties:{value:{oneOf:[{type:"number"},{minimum:0}]}}}, "oneOf"), /match exactly one/);
+  assert.match(validateToolArguments({value:"blocked"}, {type:"object",properties:{value:{not:{type:"string"}}}}, "not"), /forbidden schema/);
+});

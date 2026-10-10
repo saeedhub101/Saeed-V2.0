@@ -12,7 +12,7 @@ import { verifyRestPoseSnapshot } from "./rest-pose-validation.mjs";
 
 export class CharacterController{
  constructor(engine){
-  this.engine=engine;this.rigReady=false;this.binding=false;this.lastBindingResult=null;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.behavior={idle:true,breathing:false,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:60*60*1000};this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.authoring=false;this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.idleBusy=false;this.lastInteraction=performance.now();
+  this.engine=engine;this.rigReady=false;this.binding=false;this.lastBindingResult=null;this.animation=new AnimationController(engine);this.autonomous=new AutonomousBehaviorController(this);this.lastTickAt=0;this.engine?.setAnimationTick?.((now)=>{const t=Number(now)||performance.now();const dt=this.lastTickAt?Math.min(.25,Math.max(0,(t-this.lastTickAt)/1000)):.0166667;this.lastTickAt=t;this.update(dt);return Boolean(this.visible&&!this.animationPaused&&this.animationEnabled&&this.animation.active.length)});this.retargeter=new CharacterRetargeter();this.behavior={idle:true,breathing:false,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:60*60*1000};this.face=new FaceController(engine);this.fingers=new FingerController(engine);this.editor=new MotionEditor(this.animation.registry);this.profiles=new CharacterProfileStore();this.characterId=null;this.mood="cheerful";this.authoring=false;this.visible=true;this.animationEnabled=this.readAnimationEnabled();this.animationPaused=false;this.idleTimer=null;this.frame=null;this.recentIdle=[];this.semanticMotionHistory=[];this.idleBusy=false;this.lastInteraction=performance.now();
   this.autonomous.configure(this.behavior);registerCoreMotions(this.animation);
   this.idlePool=[{id:"nod",weight:5},{id:"think",weight:4},{id:"stretch",weight:3},{id:"lookCloser",weight:2},{id:"yawn",weight:1},{id:"crackBack",weight:2},{id:"crackFingers",weight:2},{id:"wave",weight:2}];
  }
@@ -203,13 +203,14 @@ export class CharacterController{
  play(id,options={}){
   const wasAuthoring=this.authoring;
   this.authoring=false;
-  this.autonomous?.stop?.();
+  // Keep the autonomous scheduler alive during explicit motion. Its evaluator
+  // observes active animation layers and defers idle motion instead of losing its
+  // timer permanently after the first user/Brain gesture.
   if(!this.animationEnabled||this.animationPaused){this.authoring=wasAuthoring;return false;}
   if(!this.characterId)this.bindCurrentCharacter();
   // Binding can enter authoring mode while recovering an incomplete rig. Playback is
-  // an explicit transition out of authoring; resume autonomous behavior only after it ends.
+  // an explicit transition out of authoring; resume autonomous behavior after it ends.
   this.authoring=false;
-  this.autonomous?.stop?.();
   const key=String(id||"idle");
   if(key==="idle"){
    this.animation.stopAll({reset:false});
@@ -388,8 +389,15 @@ export class CharacterController{
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
   const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
-  if(key==="idle"){this.stopAll();return{intent:key,motion:"idle",played:true}}
-  const motion=map[key]||"idle";return{intent:key,motion,played:motion==="idle"?false:this.play(motion,options)};
+  if(key==="idle"){this.semanticMotionHistory=[];this.stopAll();return{intent:key,motion:"idle",played:true}}
+  const motion=map[key]||"idle";
+  if(motion==="idle")return{intent:key,motion,played:false,reason:"unknown-intent"};
+  const now=Date.now(),cooldown=Math.max(0,Number(options.cooldownMs??this.behavior?.eventCooldownMs??2500)||0);
+  const last=this.semanticMotionHistory.findLast?.(x=>x.motion===motion)||[...this.semanticMotionHistory].reverse().find(x=>x.motion===motion);
+  if(last&&now-last.at<cooldown)return{intent:key,motion,played:false,suppressed:true,reason:"recent-motion-cooldown",retryAfterMs:cooldown-(now-last.at)};
+  const played=this.play(motion,options);
+  if(played){this.semanticMotionHistory.push({motion,at:now,intent:key});this.semanticMotionHistory=this.semanticMotionHistory.slice(-8)}
+  return{intent:key,motion,played};
  }
 }
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};

@@ -24,6 +24,7 @@ const suites = [
   { name: "conversation archive validation tests", args: ["--test", path.join(root, "tests", "unit", "conversation-archive.test.cjs")] },
   { name: "atomic JSON persistence tests", args: ["--test", path.join(root, "tests", "unit", "atomic-json-store.test.cjs")] }
 ,  { name: "persistent memory normalization tests", args: ["--test", path.join(root, "tests", "unit", "memory-stack.test.cjs")] }
+,  { name: "Phase 2 character runtime regression tests", args: ["--test", path.join(root, "tests", "unit", "phase2-character-runtime.test.cjs")] }
 ];
 const results = [];
 
