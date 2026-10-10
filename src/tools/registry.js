@@ -34,7 +34,8 @@ function validateSchemaValue(value,schema,pathName){
   if(schema.items)for(let i=0;i<value.length;i++){const error=validateSchemaValue(value[i],schema.items,pathName+"["+(i+1)+"]");if(error)return error}
  }
  if(value&&typeof value==="object"&&!Array.isArray(value)){
-  for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined||value[key]===null)return pathName+" is missing required field \""+key+"\"";
+  for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)return pathName+" is missing required field \""+key+"\"";
+  if(schema.additionalProperties===false){const allowed=new Set(Object.keys(schema.properties||{}));for(const key of Object.keys(value))if(!allowed.has(key))return pathName+" has unexpected field \""+key+"\"";}
   for(const [key,child] of Object.entries(schema.properties||{})){
    if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined||value[key]===null)continue;
    const error=validateSchemaValue(value[key],child,pathName+"."+key);if(error)return error;
@@ -44,7 +45,7 @@ function validateSchemaValue(value,schema,pathName){
 }
 function validateToolArguments(args,schema,name){
  if(!schema)return null;
- const value=args&&typeof args==="object"&&!Array.isArray(args)?args:{};
+ const value=args===undefined?{}:args;
  return validateSchemaValue(value,schema,"Arguments for "+name);
 }
 class ToolRegistry{
@@ -109,4 +110,4 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
  }
  record(name,args){if(this.recordHook)try{this.recordHook(name,redactToolArgs(name,args))}catch{}}
 }
-module.exports={ToolRegistry};
+module.exports={ToolRegistry,validateSchemaValue,validateToolArguments,schemaTypeMatches};
