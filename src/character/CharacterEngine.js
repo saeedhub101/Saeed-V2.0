@@ -250,15 +250,20 @@ function lookAt(x=0,y=1.5,z=1){
  return true;
 }
 function dispose(o){
+ const textures=new Set();
+ const collectTextures=(value,seen=new Set())=>{
+  if(!value||typeof value!=="object"||seen.has(value))return;
+  seen.add(value);
+  if(value.isTexture){textures.add(value);return;}
+  if(Array.isArray(value)){for(const item of value)collectTextures(item,seen);return;}
+  for(const child of Object.values(value))collectTextures(child,seen);
+ };
  o?.traverse?.(x=>{
   x.geometry?.dispose?.();
   const ms=Array.isArray(x.material)?x.material:[x.material];
-  for(const m of ms){
-   if(!m)continue;
-   for(const k of ["map","normalMap","roughnessMap","metalnessMap","emissiveMap","aoMap","alphaMap"])m[k]?.dispose?.();
-   m.dispose?.();
-  }
+  for(const m of ms){if(!m)continue;collectTextures(m);m.dispose?.();}
  });
+ for(const texture of textures)try{texture.dispose?.()}catch{}
 }
 function fit(){
  if(!model)return false;
