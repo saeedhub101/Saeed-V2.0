@@ -437,7 +437,7 @@ Old GLB names must not return as alternate runtime defaults.
 ### Current runtime additions
 
 - Add-ons / Plug-ins and Learning / Teach Mode are opened through the current window manager and exposed in the tray menu and character context menu.
-- An optional microphone-transcript label can be toggled from the tray. When enabled, it shows text returned by the active STT path so the user can check recognition accuracy. It does not turn on the microphone; Mic remains OFF at startup.
+- An optional microphone-transcript bubble can be toggled from Performance → Voice settings, the character right-click menu, or the tray. It shows text returned by the active STT path so the user can check recognition accuracy. It does not turn on the microphone; Mic remains OFF at startup.
 - Email account profiles, IMAP/POP3 reading, SMTP sending, and authentication checks are implemented behind the permission-controlled Tool Registry. Protocol regression coverage is included in `npm test`; acceptance remains pending execution of the manual verification workflow and review of its actual reports.
 
 ## 17. Final user experience
