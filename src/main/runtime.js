@@ -1,8 +1,8 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
-const ciE2E=process.argv.includes("--ci-e2e");
-const ciAutomation=ciSmoke||ciE2E;
+const ciE2EProcess=process.argv.includes("--ci-e2e");
+const ciAutomation=ciSmoke||ciE2EProcess;
 if(ciAutomation){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
 function ciWriteE2EStartup(stage,meta={}){
  if(!process.argv.includes("--ci-e2e"))return;

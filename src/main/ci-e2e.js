@@ -308,14 +308,6 @@ function createCiE2E(deps={}){
        return Boolean(String(result||"").trim())&&String(route?.message||"").includes("local");
      }finally{if(agent.registry)agent.registry.permissionPolicy=oldPermissionPolicy;agent.onEvent=old}
     });
-    const agent=await operation("ensureBrain",()=>ensureBrain?.());if(!agent)return false;
-    const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
-    try{
-      const result=await operation("agent.run",()=>agent.run("Open my computer"),{prompt:"Open my computer"});
-      const route=events.find(e=>String(e?.stage||"").toUpperCase()==="BRAIN ROUTE");
-      return Boolean(String(result||"").trim())&&String(route?.message||"").includes("local");
-    }finally{agent.onEvent=old}
-   });
    await check("brain.intent-api-escalation",async()=>{
     const agent=await ensureBrain?.();if(!agent)return false;
     const events=[];const old=agent.onEvent;agent.onEvent=e=>{events.push(e);old?.(e)};
@@ -402,18 +394,6 @@ function createCiE2E(deps={}){
       return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode,hardwareAvailable};
      }finally{agent.settings=originalSettings}
     });
-    const w=getCharacterWindow?.();let hardwareAvailable=false;if(w){try{hardwareAvailable=Boolean(await execJs(w,"Boolean(navigator.mediaDevices?.getUserMedia)",true));}catch{}}
-    if(hardwareAvailable){try{hardwareAvailable=Boolean(await execJs(w,"navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{s.getTracks().forEach(t=>t.stop());return true}).catch(()=>false)",true));}catch{hardwareAvailable=false}}
-    await setMicMode("on");
-    await wait(1200);
-    const before=Boolean(getBrainActive?.());
-    await getChatHost().closeChat();await wait(1200);
-    const after=Boolean(getBrainActive?.());
-    const mode=String(getVoiceHost?.()?.getCurrentMicMode?.()||"off");
-    if(!hardwareAvailable&&mode==="off")return {pass:!chatWindow(),environmentLimited:true,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode,reason:"microphone unavailable; lifecycle check skipped"};
-    return {pass:!chatWindow()&&after,chatClosed:!chatWindow(),brainBefore:before,brainAfter:after,micMode:mode};
-   });
-
    await check("mic-off-releases-brain-after-chat-closed",async()=>{
     await setMicMode("off");await wait(1500);
     const active=Boolean(getBrainActive?.());
