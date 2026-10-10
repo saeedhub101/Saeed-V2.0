@@ -111,7 +111,7 @@ function bindRig(mapping={},savedRestPose=null){
    const hasQuaternion=[qx,qy,qz,qw].every(Number.isFinite);
    const x=Number(r?.x),y=Number(r?.y),z=Number(r?.z);
    if(!list.length||(!hasQuaternion&&(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))))continue;
-   for(const target of list){if(hasQuaternion)target.quaternion.set(qx,qy,qz,qw);else target.rotation.set(x,y,z);}
+   for(const target of list){if(hasQuaternion)target.quaternion.set(qx,qy,qz,qw);else target.rotation.set(x,y,z);const p=r?.position,px=Number(p?.x),py=Number(p?.y),pz=Number(p?.z);if([px,py,pz].every(Number.isFinite))target.position.set(px,py,pz);}
   }
   lastRestPose=savedRestPose.normalization||{detected:"saved",normalized:true,corrected:false,stillTPose:false};
  }else lastRestPose=normalizeHumanoidRestPose();
@@ -544,7 +544,7 @@ function applyRestPoseSnapshot(snapshot={},normalization=null){
   const hasQuaternion=[qx,qy,qz,qw].every(Number.isFinite);
   const x=Number(r?.x),y=Number(r?.y),z=Number(r?.z);
   if(!list.length||(!hasQuaternion&&(!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(z))))continue;
-  for(const b of list){if(hasQuaternion)b.quaternion.set(qx,qy,qz,qw);else b.rotation.set(x,y,z);}
+  for(const b of list){if(hasQuaternion)b.quaternion.set(qx,qy,qz,qw);else b.rotation.set(x,y,z);const p=r?.position,px=Number(p?.x),py=Number(p?.y),pz=Number(p?.z);if([px,py,pz].every(Number.isFinite))b.position.set(px,py,pz);}
  }
  for(const [slot,b] of rig){
   const list=boneGroups.get(String(b.name))||[b];
@@ -572,7 +572,7 @@ function snapshotLogicalPose(){
 function snapshotBoneRotations(){
  getSceneBones();
  const out={};
- for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w};
+ for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w,position:{x:b.position.x,y:b.position.y,z:b.position.z}};
  return out;
 }
 function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}model=null;rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}renderQueued=false;return true}
