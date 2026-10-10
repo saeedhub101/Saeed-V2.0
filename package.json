@@ -21,6 +21,7 @@
   "build": {
     "files": [
       "**/*",
+      "!build/whisper-runtime/**",
       "!artifacts/**",
       "!dist/**",
       "!animation-health-report.json"
