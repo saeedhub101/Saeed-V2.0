@@ -9,7 +9,7 @@ const client=fs.readFileSync(path.join(root,"src/character/client.js"),"utf8");
 const workflow=fs.readFileSync(path.join(root,".github/workflows/build-windows-electron.yml"),"utf8");
 
 test("packaged acceptance launches after startup and exits from a machine-readable result",()=>{
- assert.match(runtime,/process\.argv\.includes\("--ci-acceptance"\)\{void runCiProductAcceptance\(\);return\}/);
+ assert.match(runtime,/process\.argv\.includes\("--ci-acceptance"\)\)\{void runCiProductAcceptance\(\);return\}/);
  assert.match(runtime,/PACKAGED_RUNTIME_ACCEPTANCE=/);
  assert.match(runtime,/SAEED_CI_ACCEPTANCE_REPORT/);
  assert.match(workflow,/Verify packaged runtime acceptance/);
