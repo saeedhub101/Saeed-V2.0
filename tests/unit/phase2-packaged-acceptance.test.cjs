@@ -29,3 +29,7 @@ test("Character IPC serializes logical rig names instead of cyclic THREE.Bone ob
 test("packaged acceptance covers GLB, rig, rendering, motion, rest pose, voice lifecycle and repeated show/hide",()=>{
  for(const token of ["bundled-glb-loaded","humanoid-rig-mapped","three-renderer-active","semantic-motion-playback","rest-pose-persistent-readback","packaged-whisper-runtime-present","packaged-whisper-transcription-runs","mute-is-output-only","unmute-restores-tts","unmute-while-hidden-keeps-tts-released","show-after-hidden-unmute-restores-tts","character-survives-repeated-visibility-cycles"])assert.ok(runtime.includes(token),"missing packaged acceptance check: "+token);
 });
+
+test("packaged acceptance opens Learning and Add-ons and verifies renderer IPC round trips",()=>{
+ for(const token of ["learning-window-and-ipc","addons-window-and-ipc","learningAcceptanceWindow","addonsAcceptanceWindow","window.saeed.learning.list()","window.saeed.addons.catalog()"])assert.ok(runtime.includes(token),"missing feature-window acceptance wiring: "+token);
+});
