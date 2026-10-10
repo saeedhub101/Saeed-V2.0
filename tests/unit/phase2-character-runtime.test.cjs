@@ -50,3 +50,14 @@ test("destroying the Character Engine disposes the previous model before clearin
   assert.match(body, /renderer\.forceContextLoss\?\.\(\)/);
   assert.ok(body.indexOf("dispose(previous)") < body.indexOf("root.clear()"));
 });
+
+test("model disposal includes custom material and shader-uniform textures", () => {
+  const start = engineSource.indexOf("function dispose(o)");
+  const end = engineSource.indexOf("\nfunction fit()", start);
+  const body = engineSource.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(body, /const textures=new Set\(\)/);
+  assert.match(body, /if\(value\.isTexture\)\{textures\.add\(value\);return;\}/);
+  assert.match(body, /for\(const child of Object\.values\(value\)\)collectTextures\(child,seen\)/);
+  assert.match(body, /texture\.dispose\?\.\(\)/);
+});
