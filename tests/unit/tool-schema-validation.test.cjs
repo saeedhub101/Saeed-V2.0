@@ -64,7 +64,7 @@ test("supports URI/email formats, exclusive numeric bounds, unique arrays and ob
     type:"object",properties:{email:{type:"string",format:"email"},url:{type:"string",format:"uri"},count:{type:"number"},tags:{type:"array"}}
   }, "email"), /valid email/);
   assert.match(validateToolArguments({email:"person@example.com",url:"file:///tmp/a",count:2,tags:[]}, {
-    type:"object",properties:{email:{type:"string",format:"email"},url:{type:"string",format:"uri"},count:{type:"number"},tags:{type:"array"}}
+    type:"object",properties:{email:{type:"string",format:"email"},url:{type:"string",format:"url"},count:{type:"number"},tags:{type:"array"}}
   }, "url"), /HTTP\(S\) URL/);
   assert.match(validateToolArguments({count:1}, {type:"object",properties:{count:{type:"number",exclusiveMinimum:1}}}, "exclusive"), /greater than 1/);
   assert.match(validateToolArguments({tags:["x","x"]}, {type:"object",properties:{tags:{type:"array",uniqueItems:true}}}, "unique"), /unique items/);
