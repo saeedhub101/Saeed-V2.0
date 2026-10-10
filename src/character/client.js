@@ -64,7 +64,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="lookAt")return{ok:Boolean(c.face?.lookAt?.(x.x,x.y,x.z))};
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
-  if(x.action==="getRig"){const bones=engine?.getAvailableBoneNames?.()||[];const mapping=engine?.getBoneMap?.()||{};return{ok:Boolean(bones.length),bones,mapping,status:c.status()};}
+  if(x.action==="getRig"){const bones=engine?.getAvailableBoneNames?.()||[];const mapping=engine?.getCharacterRigAutoMap?.()||{};return{ok:Boolean(bones.length),bones,mapping,status:c.status()};}
   if(x.action==="boneNames"){const bones=engine?.getAvailableBoneNames?.()||[];if(!bones.length)return characterFailure(action,"No actual skeleton bone names exposed",{reason:"empty-skeleton"});return{ok:true,bones}};
   if(x.action==="saveRestPose"){const rest=c.saveRestPose?.();return{ok:Boolean(rest?.persisted),restPose:rest||null,persisted:Boolean(rest?.persisted),status:c.status()}}
   if(x.action==="normalizeRestPose"){const normalization=c.normalizeRestPose?.();return{ok:Boolean(normalization?.normalized&&normalization?.persisted),normalization:normalization||null,status:c.status()}}

@@ -1,5 +1,6 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
+if(process.env.SAEED_CI_USER_DATA){try{fs.mkdirSync(path.resolve(process.env.SAEED_CI_USER_DATA),{recursive:true});app.setPath("userData",path.resolve(process.env.SAEED_CI_USER_DATA))}catch(error){console.error("CI user-data path setup failed:",error)}}
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
 function ciWriteStartupReport(kind,error){
  if(!ciSmoke)return;
@@ -72,6 +73,7 @@ app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
  try{await createWindow();if(characterWin&&!getVoiceMuted()&&!ciSmoke)ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
+ if(process.argv.includes("--ci-acceptance")){void runCiProductAcceptance();return}
  if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-"))){handleLaunchArgs(process.argv.slice(1));}
 
  globalShortcut.register("CommandOrControl+Shift+M",()=>ensureChatHost().showChat());
@@ -107,4 +109,55 @@ app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQ
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceHost?.stopVoiceServices?.("app quit")}catch{}});
 
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
+
+async function runCiProductAcceptance(){
+ const report={schemaVersion:1,startedAt:new Date().toISOString(),passed:false,checks:[],error:null};
+ const check=(name,passed,details={})=>{report.checks.push({name,passed:Boolean(passed),details});if(!passed)console.error("PACKAGED_ACCEPTANCE_FAIL="+name,JSON.stringify(details))};
+ const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ try{
+  const target=getState().characterWin;
+  check("character-window-created",Boolean(target&&!target.isDestroyed()));
+  if(!target||target.isDestroyed())throw new Error("Character window was not created");
+  const rig=await characterHost.command({action:"getRig"});
+  check("bundled-glb-loaded",rig?.ok===true&&Array.isArray(rig.bones)&&rig.bones.length>0,{boneCount:rig?.bones?.length||0,error:rig?.error||null});
+  const mapping=rig?.mapping&&typeof rig.mapping==="object"?rig.mapping:{};
+  check("humanoid-rig-mapped",Object.keys(mapping).length>0,{mappedSlots:Object.keys(mapping).length});
+  const engineStatus=await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.get3DStatus?.()");
+  check("three-renderer-active",Boolean(engineStatus?.character?.loaded&&Number(engineStatus?.metrics?.renderCount)>0),{loaded:Boolean(engineStatus?.character?.loaded),renderCount:engineStatus?.metrics?.renderCount||0});
+  const motion=await characterHost.command({action:"play",motion:"think",options:{priority:100}});
+  check("semantic-motion-playback",motion?.ok===true,{ok:Boolean(motion?.ok),error:motion?.error||null});
+  await wait(120);
+  const stopped=await characterHost.command({action:"stopAll"});
+  check("motion-stop",stopped?.ok===true,{ok:Boolean(stopped?.ok)});
+  const rest=await characterHost.command({action:"saveRestPose"});
+  check("rest-pose-persistent-readback",rest?.ok===true&&rest?.persisted===true&&rest?.restPose?.persisted===true,{persisted:Boolean(rest?.persisted),profileId:rest?.restPose?.profileId||null,error:rest?.restPose?.persistenceError||null});
+  const voice=ensureVoiceHost();
+  const whisper=voice.whisperRuntimePaths();
+  check("packaged-whisper-runtime-present",Boolean(fs.existsSync(whisper.exe)&&fs.existsSync(whisper.model)),{executableExists:fs.existsSync(whisper.exe),modelExists:fs.existsSync(whisper.model)});
+  const micOff=await voice.setMicMode("off");
+  check("microphone-off-lifecycle",micOff===true&&voice.getCurrentMicMode()==="off",{mode:voice.getCurrentMicMode()});
+  voice.ensureTts();
+  check("tts-ready-when-unmuted",voice.getTtsReady()===true&&voice.getVoiceMuted()===false,{ready:voice.getTtsReady(),muted:voice.getVoiceMuted()});
+  voice.setVoiceMuted(true);
+  check("mute-is-output-only",voice.getVoiceMuted()===true&&voice.getCurrentMicMode()==="off"&&voice.getTtsReady()===false,{muted:voice.getVoiceMuted(),micMode:voice.getCurrentMicMode(),ttsReady:voice.getTtsReady()});
+  voice.setVoiceMuted(false);
+  check("unmute-restores-tts",voice.getVoiceMuted()===false&&voice.getTtsReady()===true&&voice.getCurrentMicMode()==="off",{muted:voice.getVoiceMuted(),micMode:voice.getCurrentMicMode(),ttsReady:voice.getTtsReady()});
+  for(let i=1;i<=3;i++){
+   await hideCharacter();await wait(80);
+   check("hide-character-"+i,!target.isVisible(),{visible:target.isVisible()});
+   await showCharacter();await wait(120);
+   check("show-character-"+i,target.isVisible(),{visible:target.isVisible()});
+  }
+  const after=await characterHost.command({action:"getRig"});
+  check("character-survives-repeated-visibility-cycles",after?.ok===true&&after?.bones?.length===rig.bones.length,{before:rig.bones.length,after:after?.bones?.length||0});
+ }catch(error){report.error=String(error?.stack||error);check("runtime-acceptance-exception",false,{error:report.error})}
+ report.finishedAt=new Date().toISOString();
+ report.passed=report.checks.length>0&&report.checks.every(item=>item.passed);
+ const output=process.env.SAEED_CI_ACCEPTANCE_REPORT||path.join(process.cwd(),"dist","ci-product-acceptance.json");
+ try{fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+"\n","utf8")}catch(error){report.passed=false;report.error=String(error?.stack||error);console.error("Could not write packaged acceptance report:",report.error)}
+ console.log("PACKAGED_RUNTIME_ACCEPTANCE="+(report.passed?"PASS":"FAIL"));
+ console.log(JSON.stringify(report,null,2));
+ setTimeout(()=>app.exit(report.passed?0:1),150);
+}
+
 async function createWindow(){await createCharacterWindow()}

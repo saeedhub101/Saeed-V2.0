@@ -35,7 +35,8 @@ const suites = [
 ,  { name: "Phase 3 learned-skill integrity tests", args: ["--test", path.join(root, "tests", "unit", "phase3-learning-integrity.test.cjs")] }
 ,  { name: "Phase 2 character profile persistence tests", args: ["--test", path.join(root, "tests", "unit", "phase2-character-profile-store.test.cjs")] }
 ,  { name: "Phase 3 web security and cancellation tests", args: ["--test", path.join(root, "tests", "unit", "phase3-web-security.test.cjs")] },
-  { name: "Phase 3 permission-prompt cancellation tests", args: ["--test", path.join(root, "tests", "unit", "phase3-permission-cancellation.test.cjs")] }
+  { name: "Phase 3 permission-prompt cancellation tests", args: ["--test", path.join(root, "tests", "unit", "phase3-permission-cancellation.test.cjs")] },
+  { name: "Phase 2 packaged-acceptance and IPC contract tests", args: ["--test", path.join(root, "tests", "unit", "phase2-packaged-acceptance.test.cjs")] }
 ];
 const results = [];
 

@@ -109,6 +109,37 @@ jobs:
 
       - name: Build Windows installer and unpacked runtime
         run: npm run dist
+      - name: Verify packaged runtime acceptance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Packaged executable is missing: $exe" }
+          $report = Join-Path $env:RUNNER_TEMP "saeed-packaged-acceptance.json"
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-packaged-acceptance.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-packaged-acceptance.stderr.log"
+          $userData = Join-Path $env:RUNNER_TEMP "saeed-packaged-user-data"
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_ACCEPTANCE_REPORT = $report
+          $env:SAEED_CI_USER_DATA = $userData
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-acceptance" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline = (Get-Date).AddSeconds(120)
+          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Packaged runtime acceptance timed out." }
+          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+          if (!(Test-Path $report)) { throw "Packaged runtime acceptance report is missing. $outText $errText" }
+          Copy-Item $report "dist\ci-product-acceptance.json" -Force
+          $acceptance = Get-Content $report -Raw | ConvertFrom-Json
+          $failed = @($acceptance.checks | Where-Object { !$_.passed })
+          if ($proc.ExitCode -ne 0 -or !$acceptance.passed -or $failed.Count -gt 0) {
+            Write-Host $outText
+            Write-Host $errText
+            Write-Host (Get-Content $report -Raw)
+            throw "Packaged runtime acceptance failed with exit code $($proc.ExitCode) and $($failed.Count) failed check(s)."
+          }
+          Write-Host "PACKAGED_RUNTIME_ACCEPTANCE=PASS ($($acceptance.checks.Count) checks)"
+          Write-Host (Get-Content $report -Raw)
 
       - name: Build optional add-on bundles
         shell: pwsh
@@ -149,6 +180,7 @@ jobs:
             dist/*.blockmap
             dist/*.sha256
             dist/latest.yml
+            dist/ci-product-acceptance.json
             dist/icons/*
             dist/addons/*.zip
 
