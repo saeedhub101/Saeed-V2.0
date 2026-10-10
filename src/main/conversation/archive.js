@@ -12,7 +12,7 @@ function validateArchive(input){
  const now=new Date().toISOString(),seen=new Set(),conversations=[];
  for(let i=0;i<parsed.conversations.length;i++){
   const item=parsed.conversations[i];if(!item||typeof item!=="object"||Array.isArray(item))fail("conversation "+i+" must be an object");
-  const title=String(item.title||"New Chat").trim();if(!title||title.length>160)fail("conversation "+i+" has an invalid title");
+  if(typeof item.title!=="string"||!item.title.trim()||item.title.length>160)fail("conversation "+i+" has an invalid title");const title=item.title.trim();
   if(!Array.isArray(item.messages)||item.messages.length>MAX_MESSAGES_PER_CONVERSATION)fail("conversation "+i+" has an invalid message list");
   const messages=item.messages.map((message,j)=>{if(!message||typeof message!=="object"||Array.isArray(message)||!ROLES.has(message.role))fail("message "+i+":"+j+" has an unsupported role");if(typeof message.content!=="string"||message.content.length>MAX_MESSAGE_LENGTH)fail("message "+i+":"+j+" has invalid content");return{role:message.role,content:message.content}});
   const sourceId=String(item.id||"").slice(0,120);if(sourceId&&seen.has(sourceId))fail("duplicate conversation id");if(sourceId)seen.add(sourceId);
