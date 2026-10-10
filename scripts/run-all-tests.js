@@ -42,7 +42,8 @@ const suites = [
   { name: "Phase 3 email secret-redaction tests", args: ["--test", path.join(root, "tests", "unit", "phase3-email-security.test.cjs")] },
   { name: "Atomic settings persistence tests", args: ["--test", path.join(root, "tests", "unit", "settings-store-persistence.test.cjs")] },
   { name: "Event-driven request cancellation wiring tests", args: ["--test", path.join(root, "tests", "unit", "request-cancellation-wiring.test.cjs")] },
-  { name: "Backup and restore integrity tests", args: ["--test", path.join(root, "tests", "unit", "backup-service.test.cjs")] }
+  { name: "Backup and restore integrity tests", args: ["--test", path.join(root, "tests", "unit", "backup-service.test.cjs")] },
+  { name: "Update policy lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "update-manager.test.cjs")] }
 ];
 const results = [];
 

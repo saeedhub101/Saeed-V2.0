@@ -15,7 +15,7 @@ function registerBackupIpc({ipcMain,dialog,app,ensureBrain,getAgent,diagnostic})
  ipcMain.handle("backup:restore",async()=>{
   await ensureBrain();const agent=getAgent();if(!agent)throw new Error("The Saeed agent is not available");
   const picked=await dialog.showOpenDialog({title:"Restore Saeed AI Backup",properties:["openFile"],filters:[{name:"Saeed AI Backup",extensions:["json"]}]});if(picked.canceled||!picked.filePaths?.[0])return{ok:false,cancelled:true};
-  const filePath=picked.filePaths[0],raw=fs.readFileSync(filePath,"utf8");const backup=backupService.validateBackup(raw,Object.keys(agent.settings||{}));
+  const filePath=picked.filePaths[0],stat=fs.statSync(filePath);if(!stat.isFile()||stat.size>backupService.MAX_BACKUP_BYTES)throw new Error("Selected backup is not a regular file or exceeds the 15 MB limit");const raw=fs.readFileSync(filePath,"utf8");const backup=backupService.validateBackup(raw,Object.keys(agent.settings||{}));
   const confirmation=await dialog.showMessageBox({type:"warning",title:"Restore Saeed AI Backup",message:"Restore this Saeed backup?",detail:"Conversation history and saved memory facts will be replaced. Existing API keys and credentials on this computer are preserved; secrets are not included in backups.",buttons:["Restore backup","Cancel"],defaultId:1,cancelId:1,noLink:true});
   if(confirmation.response!==0)return{ok:false,cancelled:true};
   const restored=backupService.restoreBackup({backup,agent,userDataPath:app.getPath("userData")});

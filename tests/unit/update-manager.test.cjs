@@ -1,0 +1,9 @@
+"use strict";
+const test=require("node:test");
+const assert=require("node:assert/strict");
+const {EventEmitter}=require("node:events");
+const {createUpdateManager}=require("../../src/main/application/update-manager");
+function fixture(updateMode="manual"){const updater=new EventEmitter();updater.downloadCalls=0;updater.installCalls=0;updater.checkForUpdates=async()=>({updateInfo:{version:"2.0.0"}});updater.downloadUpdate=async()=>{updater.downloadCalls++;return true};updater.quitAndInstall=()=>{updater.installCalls++};const manager=createUpdateManager({app:{isPackaged:true,getVersion:()=>"1.0.0"},getAutoUpdater:()=>updater,getSettings:()=>({updateMode}),voiceBroadcast:()=>{},diagnostic:()=>{}});manager.bind();return{updater,manager}}
+test("manual update policy never downloads automatically",()=>{const {updater,manager}=fixture("manual");updater.emit("update-available",{version:"2.0.0"});assert.equal(manager.getState(),"available");assert.equal(updater.downloadCalls,0);assert.equal(updater.autoDownload,false);assert.equal(updater.autoInstallOnAppQuit,false)});
+test("automatic update policy downloads but waits for explicit installation",async()=>{const {updater,manager}=fixture("automatic");updater.emit("update-available",{version:"2.0.0"});assert.equal(manager.getState(),"downloading");await new Promise(resolve=>setImmediate(resolve));assert.equal(updater.downloadCalls,1);updater.emit("update-downloaded",{version:"2.0.0"});assert.equal(manager.getState(),"downloaded");assert.equal(manager.install(),true);assert.equal(updater.installCalls,1)});
+test("update checks are disabled for unpackaged development builds",async()=>{const updater=new EventEmitter();let checks=0;updater.checkForUpdates=async()=>{checks++};const manager=createUpdateManager({app:{isPackaged:false,getVersion:()=>"1.0.0"},getAutoUpdater:()=>updater,diagnostic:()=>{}});const result=await manager.check();assert.equal(result.state,"unavailable");assert.equal(checks,0)});
