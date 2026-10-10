@@ -221,7 +221,7 @@ export class CharacterController{
   }
   const ok=this.animation.play(key,options);
   if(ok)this.startFrameLoop();
-  else if(wasAuthoring){this.authoring=true;this.autonomous?.stop?.();}
+  else if(wasAuthoring){this.authoring=true;}
   else if(this.visible&&this.animationEnabled&&!this.animationPaused)this.autonomous?.start?.();
   return ok;
  }

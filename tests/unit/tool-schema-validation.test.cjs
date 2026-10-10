@@ -40,7 +40,7 @@ test("enforces numeric bounds and string length", () => {
 });
 
 test("supports allOf, anyOf, oneOf, and not schema composition", () => {
-  assert.equal(validateToolArguments({value: 3}, {type:"object",allOf:[{required:["value"]},{properties:{value:{type:"number",minimum:1}}]},properties:{value:{type:"number"}}}, "composed"), null);
+  assert.equal(validateToolArguments({value: 3}, {type:"object",allOf:[{required:["value"]},{properties:{value:{type:"number",minimum:1}}}],properties:{value:{type:"number"}}}, "composed"), null);
   assert.equal(validateToolArguments({value:"ok"}, {type:"object",properties:{value:{anyOf:[{type:"string"},{type:"number"}]}}}, "anyOf"), null);
   assert.match(validateToolArguments({value:true}, {type:"object",properties:{value:{anyOf:[{type:"string"},{type:"number"}]}}}, "anyOf"), /does not match any allowed schema/);
   assert.equal(validateToolArguments({value:"text"}, {type:"object",properties:{value:{oneOf:[{type:"string"},{type:"number"}]}}}, "oneOf"), null);
