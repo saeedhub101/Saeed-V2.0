@@ -12,7 +12,8 @@ $required = @(
   "acceptance.authoritative-glb-visible",
   "acceptance.repeat-load-preserves-visible-character",
   "acceptance.available-bones-animate",
-  "acceptance.rest-pose-bone-position-save-reset"
+  "acceptance.rest-pose-bone-position-save-reset",
+  "acceptance.rest-pose-process-restart"
 )
 
 function Write-Result([object]$Result) {
@@ -28,12 +29,15 @@ try {
   Remove-Item $report -Force -ErrorAction SilentlyContinue
   Remove-Item "$report.startup.json" -Force -ErrorAction SilentlyContinue
   Remove-Item "$report.runner-failure.json" -Force -ErrorAction SilentlyContinue
+  Remove-Item "$report.restart.json" -Force -ErrorAction SilentlyContinue
+  Remove-Item "$report.restart.startup.json" -Force -ErrorAction SilentlyContinue
   if (!(Test-Path $exe -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;error="Packaged EXE missing";requiredChecks=$required})
     exit 1
   }
 
   $env:SAEED_CI_E2E_SUITE = $Suite
+  $env:SAEED_CI_E2E_RESTART_PHASE = "prepare"
   $env:SAEED_CI_E2E_REPORT = $report
   $env:SAEED_CI_E2E_REPORT_STARTUP = "$report.startup.json"
   $proc = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=$Suite" -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
@@ -82,6 +86,57 @@ try {
     Write-Host "FAILED_ACCEPTANCE_CHECKS=$($failed -join ',')"
     exit 1
   }
+  # Relaunch the packaged EXE in a fresh process and verify that the saved bone
+  # transform is restored from persistent character profile storage.
+  $restartReport = "$report.restart.json"
+  $restartStartup = "$report.restart.startup.json"
+  $restartStdout = Join-Path $env:RUNNER_TEMP "saeed-e2e-restart.stdout.log"
+  $restartStderr = Join-Path $env:RUNNER_TEMP "saeed-e2e-restart.stderr.log"
+  $env:SAEED_CI_E2E_RESTART_PHASE = "verify"
+  $env:SAEED_CI_E2E_REPORT = $restartReport
+  $env:SAEED_CI_E2E_REPORT_STARTUP = $restartStartup
+  $proc2 = Start-Process -FilePath $exe -ArgumentList "--ci-e2e --ci-e2e-suite=$Suite" -PassThru -RedirectStandardOutput $restartStdout -RedirectStandardError $restartStderr
+  $restartStartupDeadline = (Get-Date).AddSeconds(120)
+  $restartStartupReady = $false
+  while (!$proc2.HasExited -and (Get-Date) -lt $restartStartupDeadline) {
+    if (Test-Path $restartStartup) {
+      try {
+        $startup2 = Get-Content $restartStartup -Raw | ConvertFrom-Json
+        if ($startup2.stage -eq "ci-e2e-start") { $restartStartupReady = $true; break }
+        if ($startup2.stage -in @("startup-failed","uncaughtException")) { break }
+      } catch {}
+    }
+    Start-Sleep -Seconds 2
+  }
+  if (!$restartStartupReady) {
+    if (!$proc2.HasExited) { & taskkill.exe /PID $proc2.Id /T /F | Out-Null; $proc2.WaitForExit(10000) }
+    if (Test-Path $restartStdout) { Get-Content $restartStdout -Raw | Write-Host }
+    if (Test-Path $restartStderr) { Get-Content $restartStderr -Raw | Write-Host }
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_STARTUP_FAILED";error="Second packaged process did not reach ci-e2e-start within 120 seconds";startupReport=$restartStartup;stdoutLog=$restartStdout;stderrLog=$restartStderr})
+    exit 1
+  }
+  $restartDeadline = (Get-Date).AddMinutes(5)
+  while (!$proc2.HasExited -and (Get-Date) -lt $restartDeadline) { Start-Sleep -Seconds 2 }
+  if (!$proc2.HasExited) {
+    & taskkill.exe /PID $proc2.Id /T /F | Out-Null
+    $proc2.WaitForExit(10000)
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_VERIFY_TIMEOUT";error="Rest-pose restart verification exceeded 5 minutes";stdoutLog=$restartStdout;stderrLog=$restartStderr})
+    exit 1
+  }
+  if (Test-Path $restartStdout) { Get-Content $restartStdout -Raw | Write-Host }
+  if (Test-Path $restartStderr) { Get-Content $restartStderr -Raw | Write-Host }
+  if (!(Test-Path $restartReport -PathType Leaf)) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_NO_REPORT";error="Second packaged process exited without a rest-pose verification report";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
+    exit 1
+  }
+  $rr = Get-Content $restartReport -Raw | ConvertFrom-Json
+  Get-Content $restartReport -Raw | Write-Host
+  $restartCheck = $rr.checks.PSObject.Properties["acceptance.rest-pose-process-restart"]
+  if ($rr.pass -ne $true -or !$restartCheck -or $restartCheck.Value.pass -ne $true) {
+    Write-Host "FAILED_RESTART_ACCEPTANCE=acceptance.rest-pose-process-restart"
+    exit 1
+  }
+  Write-Host "REST_POSE_PROCESS_RESTART=PASS"
   Write-Host "CURRENT_PRODUCT_ACCEPTANCE=PASS"
 } catch {
   Write-Result ([ordered]@{suite=$Suite;pass=$false;status="ERROR";error=$_.Exception.Message})
