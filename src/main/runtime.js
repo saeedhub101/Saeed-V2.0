@@ -1,8 +1,6 @@
 const {app,BrowserWindow,ipcMain,globalShortcut,desktopCapturer,Tray,Menu,screen,dialog,nativeImage,session}=require("electron");
 const path=require("path"),fs=require("fs"),{spawn}=require("child_process");
 const ciSmoke=process.env.SAEED_CI_SMOKE==="1"||process.argv.includes("--ci-smoke");
-const ciAutomation=ciSmoke;
-if(ciAutomation){app.commandLine.appendSwitch("use-fake-device-for-media-stream");app.commandLine.appendSwitch("use-fake-ui-for-media-stream");}
 function ciWriteStartupReport(kind,error){
  if(!ciSmoke)return;
  try{
@@ -64,20 +62,11 @@ function trayIcon(){
  return nativeImage.createFromPath(windowsIconPath());
 }
 app.setAppUserModelId("ai.saeed.desktop");
-const singleInstanceLock=ciAutomation?true:app.requestSingleInstanceLock();
+const singleInstanceLock=app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
-else if(!ciAutomation)app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
+else app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 
-function scheduleCiRuntimeSmoke(){if(!ciSmoke)return;setTimeout(()=>void runCiRuntimeSmoke(),1500)}
-
-let ciRuntime;
-function initCiRuntime(){if(ciRuntime)return ciRuntime;const {createCiRuntime}=require("./ci-runtime");ciRuntime=createCiRuntime({ciSmoke,app,getCharacterWindow:()=>characterWin,getTray:()=>tray,getAgent:()=>agent,getBrainSupervisor:()=>null,getCurrentMicMode,resourceService:getResourceService(),addons:getAddonService(),learning:getLearning(),OpenAIRealtime:require("../realtime").OpenAIRealtime,request3DStatus,apiHealth:getApiHealth(),diagnosticState,voiceRuntime:ensureVoiceHost().getVoiceRuntime(),transcribeLocalWav:ensureVoiceHost().transcribeLocalWav,whisperRuntimePaths:ensureVoiceHost().whisperRuntimePaths,ensureBrain});return ciRuntime;}
-async function runCi3DBaseline(){return initCiRuntime().runCi3DBaseline()}
-async function runCiRuntimeSmoke(){return initCiRuntime().runCiRuntimeSmoke()}
-
-
-
-app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");if(ciSmoke)getResourceService().startResourceProbe();
+app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");
  try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
  try{await createWindow();if(characterWin&&!getVoiceMuted()&&!ciSmoke)ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
  // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
@@ -116,4 +105,4 @@ app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQ
 app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceHost?.stopVoiceServices?.("app quit")}catch{}});
 
 function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
-async function createWindow(){await createCharacterWindow();if(ciSmoke)scheduleCiRuntimeSmoke()}
+async function createWindow(){await createCharacterWindow()}
