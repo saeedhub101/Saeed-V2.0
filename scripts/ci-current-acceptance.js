@@ -223,7 +223,8 @@ function main() {
     voiceIpc.includes('knownProviderDefaults=["base-q5_1","gpt-4o-mini-transcribe","whisper-large-v3-turbo","scribe_v2"]'),
     { note: "STT API routing must use provider-specific multipart field names and normalize configured base URLs." });
   check("local-stt-drains-audio-buffered-during-transcription",
-    voiceClient.includes('queueMicrotask(()=>{if(this.active&&!this.localTranscribing)void this.flushLocalChunk()})'),
+    voiceClient.includes('queueMicrotask(()=>{if(this.active&&!this.localTranscribing)void this.flushLocalChunk()})') &&
+    voiceClient.includes('this.localSamples.reduce((n,a)=>n+a.length,0)>=2400'),
     { note: "Audio captured while an earlier local STT request is running must be drained after that request finishes." });
   check("local-whisper-result-is-unwrapped-before-brain-routing",
     voiceClient.includes('sttProvider==="whisper"?await window.saeed.voice.transcribeLocalWav(encoded):await window.saeed.voice.sttTranscribe(encoded)') &&
