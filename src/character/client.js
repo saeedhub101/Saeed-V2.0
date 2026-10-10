@@ -71,6 +71,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="boneRotation")return{ok:true,rotation:engine?.getBoneEditorRotation?.(String(x.bone||""))||null};
   if(x.action==="bindSlot"){const ok=c.bindSlot?.(String(x.slot||""),String(x.bone||""));return{ok:Boolean(ok),mapping:c.engine?.getCharacterRigAutoMap?.()||{},status:c.status()}}
   if(x.action==="setBoneRotation"){const ok=c.setBoneRotation?.(String(x.bone||""),x.rotation||{})??engine?.setBoneRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneRotation?.(String(x.bone||""))||null}};
+  if(x.action==="setBoneTransform"){const ok=engine?.setBoneTransform?.(String(x.bone||""),x.transform||{});return{ok:Boolean(ok),status:c.status(),transform:engine?.getCharacterPoseStatus?.()?.bones?.[String(x.bone||"")]||null}};
   if(x.action==="setBoneEditorRotation"){const ok=engine?.setBoneEditorRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneEditorRotation?.(String(x.bone||""))||null}};
   if(x.action==="resetBoneToRest"){const bone=String(x.bone||"");const rotation=c.resetBoneToRest?.(bone);return{ok:Boolean(rotation),rotation:rotation||null,status:c.status()}};
   if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}}
