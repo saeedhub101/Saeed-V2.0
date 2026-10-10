@@ -207,6 +207,13 @@ function main() {
     voiceRuntime.includes("!sessionAbortController.signal.aborted"),
     { note: "Stopping or disconnecting realtime voice must abort in-flight tool calls and prevent stale tool results from being delivered." });
 
+  const voiceHost = exists("src/main/voice/voice-host.js") ? read("src/main/voice/voice-host.js") : "";
+  check("local-whisper-transcription-has-a-hard-timeout",
+    voiceHost.includes("Whisper transcription timed out after 120000ms") &&
+    voiceHost.includes("try{child.kill()}catch{}") &&
+    voiceHost.includes("clearTimeout(timer)"),
+    { note: "A stalled local Whisper process must be terminated and the transcription promise must settle so the voice pipeline cannot hang indefinitely." });
+
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
   const reportPreservedOnRunnerFailure = runner.includes('$destination = "$report.runner-failure.json"');
