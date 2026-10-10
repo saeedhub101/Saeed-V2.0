@@ -158,7 +158,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $exe = "dist\\win-unpacked\\Saeed AI.exe"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
           $userData = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-restart-user-data"
           $state = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-restart-state.json"
           $saveReport = Join-Path $env:RUNNER_TEMP "saeed-rest-pose-save.json"
@@ -188,7 +188,7 @@ jobs:
               Write-Host (Get-Content $reportPath -Raw)
               throw "Rest-pose $label acceptance failed with exit code $($proc.ExitCode) and $($failed.Count) failed check(s)."
             }
-            Copy-Item $reportPath ("dist\\ci-rest-pose-" + $label + ".json") -Force
+            Copy-Item $reportPath ("dist\ci-rest-pose-" + $label + ".json") -Force
             Write-Host ("REST_POSE_RESTART_" + $label.ToUpper() + "=PASS (" + $result.checks.Count + " checks)")
           }
           Invoke-RestPoseProcess "--ci-rest-pose-save" $saveReport "save"
