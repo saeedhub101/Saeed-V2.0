@@ -20,7 +20,8 @@ const suites = [
   { name: "microphone lifecycle race unit tests", args: ["--test", path.join(root, "tests", "unit", "mic-mode-race.test.cjs")] },
   { name: "project JavaScript syntax suite", args: ["--test", path.join(root, "tests", "unit", "source-syntax.test.cjs")] },
   { name: "tool argument schema regression tests", args: ["--test", path.join(root, "tests", "unit", "tool-schema-validation.test.cjs")] },
-  { name: "microphone RMS settings wiring tests", args: ["--test", path.join(root, "tests", "unit", "microphone-rms-wiring.test.cjs")] }
+  { name: "microphone RMS settings wiring tests", args: ["--test", path.join(root, "tests", "unit", "microphone-rms-wiring.test.cjs")] },
+  { name: "conversation archive validation tests", args: ["--test", path.join(root, "tests", "unit", "conversation-archive.test.cjs")] }
 ];
 const results = [];
 

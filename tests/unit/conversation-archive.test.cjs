@@ -1,0 +1,7 @@
+"use strict";
+const test=require("node:test"),assert=require("node:assert/strict");
+const {createArchive,validateArchive,MAX_ARCHIVE_BYTES}=require("../../src/main/conversation/archive");
+test("exports and validates supported user/assistant history",()=>{const a=createArchive([{id:"one",title:"Hello",messages:[{role:"user",content:"hi"},{role:"assistant",content:"hello"}]}]);assert.equal(a.format,"saeed-conversations");assert.equal(validateArchive(JSON.stringify(a)).conversations[0].messages.length,2)});
+test("rejects unsupported format and unsafe roles",()=>{assert.throws(()=>validateArchive({format:"other",version:1,conversations:[]}));assert.throws(()=>validateArchive({format:"saeed-conversations",version:1,conversations:[{title:"x",messages:[{role:"tool",content:"x"}]}]}))});
+test("rejects malformed and oversized archives",()=>{assert.throws(()=>validateArchive("{"));assert.throws(()=>validateArchive(" ".repeat(MAX_ARCHIVE_BYTES+1)));assert.throws(()=>validateArchive({format:"saeed-conversations",version:1,conversations:[{title:"",messages:[]}]}))});
+test("rejects oversized messages and duplicate ids",()=>{assert.throws(()=>validateArchive({format:"saeed-conversations",version:1,conversations:[{id:"x",title:"A",messages:[]},{id:"x",title:"B",messages:[]}]}));assert.throws(()=>validateArchive({format:"saeed-conversations",version:1,conversations:[{title:"A",messages:[{role:"user",content:"x".repeat(50001)}]}]}))});
