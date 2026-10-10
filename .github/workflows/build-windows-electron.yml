@@ -123,7 +123,7 @@ jobs:
           $env:SAEED_CI_ACCEPTANCE_REPORT = $report
           $env:SAEED_CI_USER_DATA = $userData
           $proc = Start-Process -FilePath $exe -ArgumentList "--ci-acceptance" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $deadline = (Get-Date).AddSeconds(120)
+          $deadline = (Get-Date).AddSeconds(180)
           while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
           if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Packaged runtime acceptance timed out." }
           $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }

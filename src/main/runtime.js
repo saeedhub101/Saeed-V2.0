@@ -134,6 +134,10 @@ async function runCiProductAcceptance(){
   const voice=ensureVoiceHost();
   const whisper=voice.whisperRuntimePaths();
   check("packaged-whisper-runtime-present",Boolean(fs.existsSync(whisper.exe)&&fs.existsSync(whisper.model)),{executableExists:fs.existsSync(whisper.exe),modelExists:fs.existsSync(whisper.model)});
+  try{
+   const transcription=await voice.transcribeLocalWav(Buffer.alloc(24000).toString("base64"));
+   check("packaged-whisper-transcription-runs",typeof transcription==="string",{transcriptCharacters:transcription.length});
+  }catch(error){check("packaged-whisper-transcription-runs",false,{error:error?.message||String(error)})}
   const micOff=await voice.setMicMode("off");
   check("microphone-off-lifecycle",micOff===true&&voice.getCurrentMicMode()==="off",{mode:voice.getCurrentMicMode()});
   voice.ensureTts();
