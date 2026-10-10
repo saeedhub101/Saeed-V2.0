@@ -122,3 +122,10 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 - Character profile writes now read the saved profile back from persistent storage and throw an explicit error if the write cannot be verified.
 - Rest-pose saving now verifies the persisted profile by loading it again from storage, including its retry path, instead of trusting only the object returned by the save call.
 - Added static acceptance contracts for both persistence guarantees. These contracts have been authored but have **not** been run; no tests or builds were started.
+
+
+## Source implementation updates — 2026-10-10 (continued)
+
+- Rest-pose snapshots now include each bone's local position in addition to Euler/quaternion rotation. Loading a saved profile and resetting to the saved rest pose restore those positions when present, while old profiles without position data remain readable.
+- Save verification now compares the persisted position components as well as rotation values.
+- A static acceptance contract now requires position capture, restore, and persistence verification. Runtime position-editing acceptance remains pending.
