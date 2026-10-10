@@ -16,8 +16,11 @@ function schemaTypeMatches(value,type){
 function containsPrototypeSensitiveKey(value,seen=new Set()){
  if(!value||typeof value!=="object"||seen.has(value))return false;
  seen.add(value);
- if(!Array.isArray(value))for(const key of Object.keys(value))if(["__proto__","prototype","constructor"].includes(key)||containsPrototypeSensitiveKey(value[key],seen))return true;
- else for(const item of value)if(containsPrototypeSensitiveKey(item,seen))return true;
+ if(!Array.isArray(value)){
+  for(const key of Object.keys(value))if(["__proto__","prototype","constructor"].includes(key)||containsPrototypeSensitiveKey(value[key],seen))return true;
+ }else{
+  for(const item of value)if(containsPrototypeSensitiveKey(item,seen))return true;
+ }
  return false;
 }
 function validateSchemaValue(value,schema,pathName){
