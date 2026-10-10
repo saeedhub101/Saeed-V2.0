@@ -8,6 +8,7 @@ import { FingerController } from "./FingerController.js";
 import { MotionEditor } from "./MotionEditor.js";
 import { CharacterProfileStore } from "./CharacterProfileStore.js";
 import { AutonomousBehaviorController } from "./AutonomousBehaviorController.js";
+import { verifyRestPoseSnapshot } from "./rest-pose-validation.mjs";
 
 export class CharacterController{
  constructor(engine){
@@ -134,14 +135,7 @@ export class CharacterController{
   let persistedProfile=null;
   if(this.characterId){
    persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-   const verify=(stored={})=>{
-    const saved=stored?.restPose?.bones||{};
-    const names=Object.keys(bones);
-    return names.length>0&&names.every(name=>{
-     const a=bones[name],b=saved[name];
-     return b&&Math.abs(Number(b.x)-Number(a.x))<1e-7&&Math.abs(Number(b.y)-Number(a.y))<1e-7&&Math.abs(Number(b.z)-Number(a.z))<1e-7&&(["qx","qy","qz","qw"].every(k=>Number.isFinite(Number(a[k]))&&Number.isFinite(Number(b[k]))?Math.abs(Number(b[k])-Number(a[k]))<1e-7:true))&&a.position&&b.position&&["x","y","z"].every(k=>Math.abs(Number(a.position[k])-Number(b.position[k]))<1e-7);
-    });
-   };
+   const verify=(stored={})=>verifyRestPoseSnapshot(bones,stored);
    persisted=verify(this.profiles.load(this.characterId)||{});
    if(!persisted){
     persistedProfile=this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
