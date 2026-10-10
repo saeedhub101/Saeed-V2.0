@@ -31,3 +31,16 @@ test("settings changes fail loudly when durable persistence fails",t=>{
  assert.throws(()=>store.apply(previous,{language:"ar"}),/previous settings were preserved/);
  assert.equal(previous.language,"en");
 });
+test("provider fallback preferences and credential presence survive settings reload",t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-fallback-settings-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const store=new SettingsStore(dir);
+ store.apply(store.load(),{fallbackEnabled:true,fallbackProvider:"ollama",fallbackBaseUrl:"http://localhost:11434/v1",fallbackModel:"llama3.2",fallbackApiKey:"fallback-secret"});
+ const loaded=store.load();
+ assert.equal(loaded.fallbackEnabled,true);
+ assert.equal(loaded.fallbackProvider,"ollama");
+ assert.equal(loaded.fallbackApiKey,"fallback-secret");
+ const safe=store.public(loaded);
+ assert.equal(safe.fallbackApiKey,"");
+ assert.equal(safe.hasFallbackApiKey,true);
+});

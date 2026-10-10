@@ -7,6 +7,15 @@ class ModelExecutor{
   onEvent=event=>{if(current())emit(event)};saveHistory=()=>{if(current())persist()};
   if(!current())return "";
   const s=settings||{};
+  const runFallback=async(reason)=>{
+   const fallbackProvider=String(s.fallbackProvider||"");
+   if(s.fallbackEnabled!==true||!fallbackProvider||fallbackProvider===String(s.provider||"")||!current())return null;
+   const defaults=providerDefaults(fallbackProvider)||{};
+   const fallbackSettings={...s,provider:fallbackProvider,baseUrl:String(s.fallbackBaseUrl||defaults.baseUrl||""),model:String(s.fallbackModel||defaults.model||""),apiKey:String(s.fallbackApiKey||""),fallbackEnabled:false,fallbackProvider:"",fallbackBaseUrl:"",fallbackModel:"",fallbackApiKey:""};
+   if(fallbackProvider!=="ollama"&&!fallbackSettings.apiKey){onEvent({type:"diagnostic",level:"WARN",stage:"AI PROVIDER FALLBACK",message:"Fallback was configured but its API key is missing",meta:{provider:fallbackProvider,reason}});return null;}
+   onEvent({type:"diagnostic",level:"WARN",stage:"AI PROVIDER FALLBACK",message:"Primary provider failed before tool execution; retrying with configured fallback",meta:{primary:String(s.provider||"unknown"),fallback:fallbackProvider,reason}});
+   return this.run({text,image,settings:fallbackSettings,history,registry,onEvent,dir,memoryContext,saveHistory,baseStepLimit,askForMoreSteps,providerDefaults,isCurrent:current,signal});
+  };
     const addonPreference=String(s.provider||"").startsWith("addon:")?String(s.provider).slice(6):null;
   const addonLlm=addonPreference?addonRuntime().find(dir,"llm",addonPreference):null;
   if(addonPreference&&!addonLlm){
@@ -120,6 +129,7 @@ class ModelExecutor{
     responseText=await r.text();
    }catch(e){
     if(!current())return "";
+    if(step===0){const fallback=await runFallback("network-or-timeout");if(fallback!==null)return fallback;}
     const timedOut=requestController.signal.aborted||e?.name==="TimeoutError"||e?.name==="AbortError"||/timeout|aborted/i.test(String(e?.message||""));
     onEvent({type:"diagnostic",level:"ERROR",stage:timedOut?"LLM REQUEST TIMEOUT":"LLM REQUEST FAILURE",message:timedOut?"LLM API request timed out":e.message});
     const answer="I could not reach the API brain. Please check the provider, API key, and connection.";
@@ -131,6 +141,7 @@ class ModelExecutor{
    if(!r.ok){
     let detail="";try{const j=JSON.parse(responseText);detail=j?.error?.message||j?.error?.type||""}catch{}
     const transient=r.status===408||r.status===409||r.status===425||r.status===429||r.status>=500;
+    if(step===0&&transient){const fallback=await runFallback("http-"+r.status);if(fallback!==null)return fallback;}
     const answer=r.status===401||r.status===403?"The API brain rejected the API key. Please check or connect your API key in Settings.":transient?"The API provider is temporarily unavailable. Please try again.":"The API brain returned an error. Please check your API connection in Settings.";
     onEvent({type:"diagnostic",level:"ERROR",stage:"LLM HTTP ERROR",message:"HTTP "+r.status+" from LLM provider"+(detail?": "+detail:"")});
     onEvent({type:"answer",text:answer,source:"api-http-error"});return answer
