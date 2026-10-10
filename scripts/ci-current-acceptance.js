@@ -120,7 +120,8 @@ function main() {
     "acceptance.authoritative-glb-visible",
     "acceptance.repeat-load-preserves-visible-character",
     "acceptance.available-bones-animate",
-    "acceptance.rest-pose-bone-position-save-reset"
+    "acceptance.rest-pose-bone-position-save-reset",
+    "acceptance.rest-pose-process-restart"
   ];
   const missingIds = acceptanceIds.filter(id => !e2e.includes(id));
   check("packaged-acceptance-suite-wired", missingIds.length === 0 && runner.includes("current"),
