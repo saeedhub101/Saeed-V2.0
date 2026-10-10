@@ -120,3 +120,10 @@ Provide an optional, permission-controlled email capability using IMAP for mailb
 - Add-on tool handlers receive a cancellation context (`isCurrent` and optional `signal`) so long-running capabilities can stop work when their conversation is invalidated.
 
 **Verification status:** source changes only. No test suite or build was run for these updates; runtime and packaged acceptance remain pending.
+
+
+## Source implementation updates — 2026-10-10 (continued)
+
+- MCP stdio and HTTPS transports now accept an optional cancellation signal and timeout, reject on premature stdio process exit, and terminate a running stdio child when cancelled or timed out.
+- HTTP requests now share an abort deadline across initialization and tool execution. The stdio JSON-lines framing and HTTP/SSE line parsing were reviewed and corrected while making the cancellation path explicit.
+- Added a static acceptance contract for MCP cancellation and timeout handling. It has not been executed.
