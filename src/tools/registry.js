@@ -90,7 +90,7 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   const controller=new AbortController();
   const externalSignal=options?.signal||null;
   const externalAbort=()=>{try{controller.abort(externalSignal?.reason instanceof Error?externalSignal.reason:new Error("Tool request cancelled"))}catch{}};
-  if(externalSignal?.aborted)externalAbort();else externalSignal?.addEventListener("abort",externalAbort,{once:true});
+  if(externalSignal?.aborted)externalAbort();else externalSignal?.addEventListener?.("abort",externalAbort,{once:true});
   this.activeControllers.add(controller);
   const current=()=>{try{return Boolean(isCurrent())&&!this.emergencyStopped&&generation===this.emergencyGeneration&&!controller.signal.aborted}catch{return false}};
   const stale=()=>({ok:false,stale:true,error:"Stale conversation request cancelled"});
