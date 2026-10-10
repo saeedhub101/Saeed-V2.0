@@ -135,3 +135,7 @@ Provide a taskbar/tray toggle to enable or disable a small label/bubble beneath 
 
 - The packaged release gate now includes a two-process rest-pose persistence scenario: the first EXE process saves a real bone's position and rotation, exits, and a fresh EXE process verifies the restored transform and persisted rest-pose baseline before cleanup.
 - The current acceptance runner requires both the in-process position save/reset scenario and the fresh-process restart scenario. These checks are implemented but remain unexecuted; no tests or builds were started.
+
+
+- The Rest Pose Editor now exposes local bone-position fields alongside rotation controls. Position reads and writes use the actual GLB bone transforms, and direct position editing is allowed even before logical humanoid slots are fully mapped.
+- The new two-process restart acceptance verifies that a bone's saved local position and rotation survive closing and relaunching the packaged EXE. It then restores the original transform and profile state. This acceptance is authored only and has not been run.
