@@ -219,7 +219,8 @@ function main() {
     voiceIpc.includes('c.p==="elevenlabs"?"language_code":"language"') &&
     voiceIpc.includes('base+"/audio/transcriptions"') &&
     voiceIpc.includes('base+"/speech-to-text"') &&
-    voiceIpc.includes('replace(/\\/+$/,"")'),
+    voiceIpc.includes('.replace(/\\/+$/,"")') &&
+    voiceIpc.includes('knownProviderDefaults=["base-q5_1","gpt-4o-mini-transcribe","whisper-large-v3-turbo","scribe_v2"]'),
     { note: "STT API routing must use provider-specific multipart field names and normalize configured base URLs." });
   check("local-stt-drains-audio-buffered-during-transcription",
     voiceClient.includes('queueMicrotask(()=>{if(this.active&&!this.localTranscribing)void this.flushLocalChunk()})'),
