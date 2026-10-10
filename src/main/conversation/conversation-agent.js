@@ -21,7 +21,7 @@ class ConversationAgent{
  writeJsonAtomic(file,value){
   const temp=file+".tmp-"+process.pid+"-"+Date.now();
   try{const serialized=JSON.stringify(value,null,2);fs.writeFileSync(temp,serialized,{encoding:"utf8",flag:"wx"});const staged=JSON.parse(fs.readFileSync(temp,"utf8"));if(!staged||typeof staged!=="object")throw new Error("Persistence read-back validation failed");fs.renameSync(temp,file);const persisted=JSON.parse(fs.readFileSync(file,"utf8"));if(!persisted||typeof persisted!=="object")throw new Error("Persistence verification failed");return true}
-  catch(error){try{fs.unlinkSync(temp)}catch{}this.lastPersistenceError=String(error?.message||error);return false}
+  catch(error){try{fs.unlinkSync(temp)}catch{}this.lastPersistenceError=String(error?.message||error);try{this.onEvent?.({type:"diagnostic",level:"ERROR",stage:"CONVERSATION PERSISTENCE",message:"Conversation data could not be written or verified",meta:{file:path.basename(file),error:this.lastPersistenceError}})}catch{}return false}
  }
  saveConversations(){return this.writeJsonAtomic(this.chatsFile,{currentConversationId:this.currentConversationId,conversations:this.conversations.map(x=>({...x,messages:(Array.isArray(x.messages)?x.messages:[]).slice(-200)}))})}
  exportConversationsArchive(){return conversationArchive.createArchive(this.conversations)}
