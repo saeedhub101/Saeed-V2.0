@@ -26,18 +26,25 @@ function validateSchemaValue(value,schema,pathName){
  if(typeof value==="string"){
   if(Number.isInteger(schema.minLength)&&value.length<schema.minLength)return pathName+" is too short";
   if(Number.isInteger(schema.maxLength)&&value.length>schema.maxLength)return pathName+" is too long";
-  if(schema.pattern){try{if(!(new RegExp(schema.pattern)).test(value))return pathName+" has an invalid format"}catch{}}
+  if(schema.pattern){try{if(!(new RegExp(schema.pattern)).test(value))return pathName+" has an invalid format"}catch{return pathName+" uses an invalid schema pattern"}}
+  if(schema.format==="email"&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(value))return pathName+" must be a valid email address";
+  if(schema.format==="uri"||schema.format==="url"){try{const parsed=new URL(value);if(!["http:","https:"].includes(parsed.protocol))return pathName+" must be an HTTP(S) URL"}catch{return pathName+" must be a valid URL"}}
  }
  if(typeof value==="number"){
   if(Number.isFinite(schema.minimum)&&value<schema.minimum)return pathName+" must be at least "+schema.minimum;
   if(Number.isFinite(schema.maximum)&&value>schema.maximum)return pathName+" must be at most "+schema.maximum;
+  if(Number.isFinite(schema.exclusiveMinimum)&&value<=schema.exclusiveMinimum)return pathName+" must be greater than "+schema.exclusiveMinimum;
+  if(Number.isFinite(schema.exclusiveMaximum)&&value>=schema.exclusiveMaximum)return pathName+" must be less than "+schema.exclusiveMaximum;
  }
  if(Array.isArray(value)){
   if(Number.isInteger(schema.minItems)&&value.length<schema.minItems)return pathName+" needs at least "+schema.minItems+" item(s)";
   if(Number.isInteger(schema.maxItems)&&value.length>schema.maxItems)return pathName+" supports at most "+schema.maxItems+" item(s)";
+  if(schema.uniqueItems&&new Set(value.map(item=>JSON.stringify(item))).size!==value.length)return pathName+" must contain unique items";
   if(schema.items)for(let i=0;i<value.length;i++){const error=validateSchemaValue(value[i],schema.items,pathName+"["+(i+1)+"]");if(error)return error}
  }
  if(value&&typeof value==="object"&&!Array.isArray(value)){
+  if(Number.isInteger(schema.minProperties)&&Object.keys(value).length<schema.minProperties)return pathName+" needs at least "+schema.minProperties+" properties";
+  if(Number.isInteger(schema.maxProperties)&&Object.keys(value).length>schema.maxProperties)return pathName+" supports at most "+schema.maxProperties+" properties";
   for(const key of schema.required||[])if(!Object.prototype.hasOwnProperty.call(value,key)||value[key]===undefined)return pathName+" is missing required field \""+key+"\"";
   if(schema.additionalProperties===false){const allowed=new Set(Object.keys(schema.properties||{}));for(const key of Object.keys(value))if(!allowed.has(key))return pathName+" has unexpected field \""+key+"\"";}
   for(const [key,child] of Object.entries(schema.properties||{})){
@@ -102,12 +109,12 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
    if(!current())return stale();
    const toolName=String(name||"");
    const requiredArgs={ocr_image:"filePath",extract_image_table:"filePath",inspect_image:"filePath",open_file:"filePath",reveal_file:"filePath",read_file:"filePath",open_application:"application"};
-   if(toolName==="character_motion"){const validationError=validateToolArguments(args,characterMotionToolSchema.function.parameters,toolName);if(validationError)return{ok:false,error:validationError};if(!(await this.authorize("system",{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for system"}:stale();if(!current())return stale();if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});if(!current())return stale();this.record(toolName,args);return out}
+   if(toolName==="character_motion"){const validationError=validateToolArguments(args,characterMotionToolSchema.function.parameters,toolName);if(validationError)return{ok:false,error:validationError};if(!(await this.authorize("system",{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for system"}:stale();if(!current())return stale();if(!this.characterController)return{ok:false,error:"Character controller unavailable"};const out=await this.characterController(args||{});if(!current())return stale();if(out?.ok!==false&&out!==undefined&&out!==null)this.record(toolName,args);return out}
    const required=requiredArgs[toolName];if(required&&!String(args?.[required]??"").trim())return{ok:false,error:'Missing required argument "'+required+'" for tool "'+toolName+'".'};
    const toolSchema=domains.flatMap(d=>d.schemas()).find(s=>s?.function?.name===toolName);const addon=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);const addonTool=addon?require("../addons/runtime").resolveTool(this.userDataPath,toolName):null;if(!toolSchema&&!addonTool)return{ok:false,error:"Unknown tool: "+toolName};const argumentSchema=toolSchema?.function?.parameters||addonTool?.tool?.parameters;const validationError=validateToolArguments(args,argumentSchema,toolName);if(validationError)return{ok:false,error:validationError};const category=this.categoryFor(toolName);if(!(await this.authorize(category,{name:toolName,args},current)))return current()?{ok:false,error:"Permission denied for "+category}:stale();if(!current())return stale();
    const context={computer:this.computer,captureScreen:this.captureScreen,userDataPath:this.userDataPath,memory:this.memory,tasks:this.tasks,tasksFile:this.tasksFile,isCurrent:current,signal:controller.signal,requestPermission:(c,r)=>this.authorize(c,r,current),characterController:this.characterController};
-   for(const d of domains){if(!current())return stale();const out=await d.call(toolName,args,context);if(!current())return stale();if(out!==null){this.memory=context.memory;this.tasks=context.tasks;this.tasksFile=context.tasksFile;this.record(toolName,args);return out}}
-   if(addon){if(!current())return stale();const out=await require("../addons/runtime").callTool(this.userDataPath,toolName,args,{isCurrent:current,signal:controller.signal});if(!current())return stale();this.record(toolName,args);return out}
+   for(const d of domains){if(!current())return stale();const out=await d.call(toolName,args,context);if(!current())return stale();if(out!==null){this.memory=context.memory;this.tasks=context.tasks;this.tasksFile=context.tasksFile;if(out?.ok!==false&&out!==undefined)this.record(toolName,args);return out}}
+   if(addon){if(!current())return stale();const out=await require("../addons/runtime").callTool(this.userDataPath,toolName,args,{isCurrent:current,signal:controller.signal});if(!current())return stale();if(out?.ok!==false&&out!==undefined)this.record(toolName,args);return out}
    return{ok:false,error:"Unknown tool: "+toolName}
   }catch(e){if(!current())return stale();return{ok:false,error:e?.message||String(e)}}
   finally{this.activeControllers.delete(controller);externalSignal?.removeEventListener?.("abort",externalAbort)}
