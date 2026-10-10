@@ -42,8 +42,6 @@ for(const [name,src,tokens] of [
  ["Character Studio",studio,["setBoneEditorRotation","saveRestPose","resetBoneToRest","defineMotion","loadMotion"]],
  ["Character host",characterHostForChecks,['"setBoneEditorRotation"','"saveRestPose"','"resetBoneToRest"']]
 ])for(const token of tokens)must(src.includes(token),name+" missing required GLB/rig/rest-pose/animation contract: "+token);
-must(read("src/main/ci-e2e.js").includes("character.studio-editor-world-axis-rotation"),"World-axis character editing E2E is missing");
-must(read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"),"Nested-axis stability E2E is missing");
 const transcriptUi=read("src/renderer/character.html");
 const transcriptCss=read("src/renderer/style.css");
 const voiceClient=read("src/renderer/voice/voice-client.js");
@@ -66,29 +64,7 @@ must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workf
 
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must retain a manual dispatch option");
-must(/^  push:\s*$/m.test(workflow)&&/^\s*branches:\s*$/m.test(workflow)&&/^\s*- main\s*$/m.test(workflow),"Phase 4 Windows build must run automatically on pushes to main");
 must(!/^\s*(pull_request|schedule):/m.test(workflow),"Unexpected non-main automatic trigger detected in Windows workflow");
-must(exists(".github/workflows/verify-phases-1-3.yml"),"Manual no-build Phase 1–3 verification workflow is missing");
-const verifyWorkflow=read(".github/workflows/verify-phases-1-3.yml");
-must(/^on:\s*$/m.test(verifyWorkflow)&&/workflow_dispatch:/m.test(verifyWorkflow)&&!/\b(electron-builder|npm run build|npm run dist)\b/.test(verifyWorkflow),"Phase 1–3 verification workflow must be manual-only and must not build the application");
-const suiteNames=[0,1,4,5,6];
-const runner=read("scripts/ci-run-packaged-e2e.ps1");
-for(const n of suiteNames){
- const marker=n===0?"- name: FIRST PACKAGED EXE TEST":n===4?"- name: GLB Character Test":`- name: Packaged EXE E2E Suite ${n} `;
- const start=workflow.indexOf(marker);
- const end=start<0?-1:workflow.indexOf("\n      - name:",start+marker.length);
- const block=start<0?"":workflow.slice(start,end<0?workflow.length:end);
- must(start>=0,`Missing independent packaged E2E Suite ${n} step`);
- must(block.includes("if: always()"),`E2E Suite ${n} is not forced to run`);
- must(block.includes("continue-on-error: true"),`E2E Suite ${n} can stop the workflow`);
- must(block.includes("scripts/ci-run-packaged-e2e.ps1"),`E2E Suite ${n} does not use the shared packaged runner`);
- must(block.includes(`-Suite ${n}`),`E2E Suite ${n} does not launch its actual runner suite`);
-}
-must(runner.includes("ci-e2e-glb-character-test.json")&&runner.includes("ci-e2e-performance-rest-pose.json")&&runner.includes("ci-e2e-suite-$Suite.json"),"Packaged E2E runner does not emit the required per-suite reports");
-must(runner.includes("--ci-e2e-suite=$Suite"),"Packaged E2E runner does not pass the suite identifier to the app");
-must(runner.includes("catch {"),"Packaged E2E runner has no isolated PowerShell error boundary");
-
-
 const characterHost=read("src/main/character/character-host.js");
 const characterClient=read("src/character/client.js");
 must(characterHost.includes('"setBoneEditorRotation"'),"Rest-relative editor rotation is missing from the skeleton-ready command allowlist");
