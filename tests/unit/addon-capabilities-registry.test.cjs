@@ -101,3 +101,16 @@ test("installed add-on executable symlinks cannot escape the package directory",
   assert.throws(()=>manager.resolveEntryPath(root,"provider","external/evil.js"),/through a symlink/);
  }finally{fs.rmSync(root,{recursive:true,force:true});fs.rmSync(outside,{recursive:true,force:true})}
 });
+
+test("downloadable catalog add-ons pin release URLs and mandatory SHA-256 hashes",()=>{
+ const manager=require("../../src/addons/manager");
+ const catalog=JSON.parse(fs.readFileSync(path.join(__dirname,"../../src/addons/catalog.json"),"utf8"));
+ const installable=catalog.addons.filter(item=>item.installable===true);
+ assert.equal(installable.length,4);
+ for(const item of installable){
+  assert.match(item.sha256,/^[a-f0-9]{64}$/i,item.id+" must have a SHA-256 checksum");
+  assert.match(item.downloadUrl,/\/releases\/download\/v4\.4\//,item.id+" must use the checksum-pinned release");
+  assert.doesNotThrow(()=>manager.validateCatalogEntry(item));
+  assert.throws(()=>manager.validateCatalogEntry({...item,sha256:undefined}),/SHA-256/i);
+ }
+});
