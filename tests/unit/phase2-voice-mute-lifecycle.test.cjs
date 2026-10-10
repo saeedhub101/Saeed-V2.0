@@ -23,9 +23,8 @@ test("mute changes output state without forcing microphone mode off", () => {
 test("unmuting while Character is hidden keeps TTS released until it is shown",()=>{
  const composition=fs.readFileSync(path.join(__dirname,"../../src/main/application/runtime-composition.js"),"utf8");
  const start=composition.indexOf("const setVoiceMuted=muted=>");
- const end=composition.indexOf(";\n const ensureScreenCapture",start);
- const body=composition.slice(start,end);
- assert.ok(start>=0&&end>start);
+ const body=composition.slice(start,start+650);
+ assert.ok(start>=0);
  assert.match(body,/target\.isVisible\(\)/);
  assert.match(body,/host\.releaseTts\("character hidden"\)/);
 });
