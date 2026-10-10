@@ -29,6 +29,7 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
    {label:"Hide Saeed",click:hideCharacter},
    {label:"Add-ons / Plug-ins",click:showAddons},
    {label:"Learning / Teach Mode",click:showLearning},
+   {label:(getTranscriptLabelEnabled?.()?"Hide":"Show")+" microphone transcript bubble",type:"checkbox",checked:Boolean(getTranscriptLabelEnabled?.()),click:()=>toggleTranscriptLabel?.()},
    {label:"Voice",submenu:[{label:"Mic ON",click:()=>setMicMode("on")},{label:"Mic OFF",click:()=>setMicMode("off")}]},
     {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Character Studio — Bones / Rest Pose / Animation",click:showRestPoseEditor},{label:"Normalize Humanoid Rest Pose",click:showNormalizeHumanoidRestPose},{label:"Size",submenu:characterSizeMenu()}]},
    {label:"Diagnostics",submenu:[{label:"Performance",click:showPerformance},{label:"Status",click:showStatus},{label:"3D Status",click:show3DStatus}]},
