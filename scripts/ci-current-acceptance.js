@@ -167,12 +167,16 @@ function main() {
   const characterEngine = exists("src/character/CharacterEngine.js") ? read("src/character/CharacterEngine.js") : "";
   const characterControllerSource = exists("src/character/CharacterController.js") ? read("src/character/CharacterController.js") : "";
   const characterClient = exists("src/character/client.js") ? read("src/character/client.js") : "";
+  const restPoseValidation = exists("src/character/rest-pose-validation.mjs") ? read("src/character/rest-pose-validation.mjs") : "";
   check("rest-pose-persists-bone-positions-not-only-rotations",
     characterEngine.includes("position:{x:b.position.x,y:b.position.y,z:b.position.z}") &&
     characterEngine.includes("const p=r?.position,px=Number(p?.x),py=Number(p?.y),pz=Number(p?.z)") &&
     characterClient.includes('if(x.action==="setBoneTransform")') &&
-    characterControllerSource.includes('a.position&&b.position&&["x","y","z"].every'),
-    { note: "Rest-pose capture, storage verification, reload and reset must preserve actual bone positions as well as rotations." });
+    characterControllerSource.includes("verifyRestPoseSnapshot(bones,stored)") &&
+    restPoseValidation.includes("const expectedPosition = captured.position") &&
+    restPoseValidation.includes("const actualPosition = stored.position") &&
+    restPoseValidation.includes("Math.abs(actual - expected) > tolerance"),
+    { note: "Rest-pose capture, storage verification, reload and reset must preserve and strictly verify actual bone positions as well as rotations." });
 
   const packagedRunner = exists("scripts/ci-run-packaged-e2e.ps1") ? read("scripts/ci-run-packaged-e2e.ps1") : "";
   const e2eSource = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
