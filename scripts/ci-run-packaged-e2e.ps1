@@ -77,10 +77,8 @@ try {
   }
   if (Test-Path $stdout) { Get-Content $stdout -Raw | Write-Host }
   if (Test-Path $stderr) { Get-Content $stderr -Raw | Write-Host }
-  if ($proc.ExitCode -ne 0) {
-    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_FAILED";error="Packaged app exited nonzero after its E2E run";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
-    exit 1
-  }
+  $proc.WaitForExit()
+  $proc.Refresh()
   if (!(Test-Path $report -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;status="NO_REPORT";error="Packaged app exited without an acceptance report";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
     exit 1
@@ -88,6 +86,14 @@ try {
 
   $r = Get-Content $report -Raw | ConvertFrom-Json
   Get-Content $report -Raw | Write-Host
+  if ($null -eq $proc.ExitCode) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_UNKNOWN";error="Packaged process exit code remained unavailable after WaitForExit";stdoutLog=$stdout;stderrLog=$stderr})
+    exit 1
+  }
+  if ($proc.ExitCode -ne 0) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="PROCESS_EXIT_FAILED";error="Packaged app exited nonzero after its E2E run";exitCode=$proc.ExitCode;stdoutLog=$stdout;stderrLog=$stderr})
+    exit 1
+  }
   $missing = @($required | Where-Object { $null -eq $r.checks.PSObject.Properties[$_] })
   $failed = @($required | Where-Object { $id=$_; $p=$r.checks.PSObject.Properties[$id]; -not $p -or $p.Value.pass -ne $true })
   if ($missing.Count -gt 0 -or $failed.Count -gt 0 -or $r.pass -ne $true) {
@@ -139,16 +145,22 @@ try {
   }
   if (Test-Path $restartStdout) { Get-Content $restartStdout -Raw | Write-Host }
   if (Test-Path $restartStderr) { Get-Content $restartStderr -Raw | Write-Host }
-  if ($proc2.ExitCode -ne 0) {
-    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_FAILED";error="Second packaged process exited nonzero after restart verification";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
-    exit 1
-  }
+  $proc2.WaitForExit()
+  $proc2.Refresh()
   if (!(Test-Path $restartReport -PathType Leaf)) {
     Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_NO_REPORT";error="Second packaged process exited without a rest-pose verification report";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
     exit 1
   }
   $rr = Get-Content $restartReport -Raw | ConvertFrom-Json
   Get-Content $restartReport -Raw | Write-Host
+  if ($null -eq $proc2.ExitCode) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_UNKNOWN";error="Restart process exit code remained unavailable after WaitForExit";stdoutLog=$restartStdout;stderrLog=$restartStderr})
+    exit 1
+  }
+  if ($proc2.ExitCode -ne 0) {
+    Write-Result ([ordered]@{suite=$Suite;pass=$false;status="RESTART_PROCESS_EXIT_FAILED";error="Second packaged process exited nonzero after restart verification";exitCode=$proc2.ExitCode;stdoutLog=$restartStdout;stderrLog=$restartStderr})
+    exit 1
+  }
   $restartCheck = $rr.checks.PSObject.Properties["acceptance.rest-pose-process-restart"]
   if ($rr.pass -ne $true -or !$restartCheck -or $restartCheck.Value.pass -ne $true) {
     Write-Host "FAILED_RESTART_ACCEPTANCE=acceptance.rest-pose-process-restart"
