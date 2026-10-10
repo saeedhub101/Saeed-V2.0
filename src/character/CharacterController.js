@@ -148,19 +148,24 @@ export class CharacterController{
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return null;
   const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;
-  if(normalization?.normalized){
-   this.engine?.captureAuthoritativeRestPose?.(normalization);
-   if(!this.characterId){
-    const names=this.engine?.getAvailableBoneNames?.()||[];
-    if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-   }
-   if(this.characterId){
+  if(!normalization?.normalized)return normalization;
+  this.engine?.captureAuthoritativeRestPose?.(normalization);
+  if(!this.characterId){
+   const names=this.engine?.getAvailableBoneNames?.()||[];
+   if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  }
+  let persisted=false;
+  let persistenceError=null;
+  if(this.characterId){
+   try{
     const restPose={normalization:this.engine?.getRestPoseNormalization?.()||normalization,bones:this.engine?.snapshotBoneRotations?.()||{}};
     this.profiles.save(this.characterId,{restPose,normalizehumanoidrestpose:restPose});
-   }
-  }
-  return normalization;
-}
+    persisted=verifyRestPoseSnapshot(restPose.bones,this.profiles.load(this.characterId)||{});
+    if(!persisted)persistenceError="Normalized rest pose could not be verified after reading it back from persistent storage";
+   }catch(error){persistenceError=error?.message||String(error)}
+  }else persistenceError="No character profile was available to persist the normalized rest pose";
+  return {...normalization,persisted,profileId:this.characterId,persistenceError};
+ }
  resetPose(){
   const ready=this.ensureRigBound({authoring:true});
   if(!ready.ok)return false;
