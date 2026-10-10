@@ -4,7 +4,7 @@ const conversationArchive=require("./archive");
 const {writeJsonAtomic:writeAtomicJson}=require("../services/atomic-json-store");
 class ConversationAgent{
  constructor({registry,onEvent,requestStepIncrease}){
-    this.registry=registry;this.onEvent=onEvent||(()=>{});this.requestGeneration=0;this.memoryService=null;this.getMemoryService=()=>this.memoryService||(this.memoryService=require("../services/memory-service"));this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.dir=app.getPath("userData");this.settingsStore=createSettingsStore(this.dir);this.file=this.settingsStore.file;this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");fs.mkdirSync(this.dir,{recursive:true});this._settings=this.settingsStore.load();this.loadConversations();this.globalMemory={facts:[]};this.currentConversationId=this.currentConversationId||null;this.history=[];if(this.currentConversationId)this.ensureConversationState();else this.newConversation();this.brain=new Brain({registry,getSettings:()=>this.settings,memoryContext:()=>this.memoryContext(),saveHistory:()=>this.saveHistory(),baseStepLimit:()=>this.baseStepLimit(),getDir:()=>this.dir,onEvent:e=>this.onEvent(e),requestStepIncrease:o=>this.askForMoreSteps(o.current,o.task),providerDefaults:n=>this.providerDefaults(n)})}
+    this.registry=registry;this.onEvent=onEvent||(()=>{});this.requestGeneration=0;this.requestController=null;this.memoryService=null;this.getMemoryService=()=>this.memoryService||(this.memoryService=require("../services/memory-service"));this.requestStepIncrease=requestStepIncrease|| (async()=>false);this.dir=app.getPath("userData");this.settingsStore=createSettingsStore(this.dir);this.file=this.settingsStore.file;this.historyFile=path.join(this.dir,"conversation.json");this.chatsFile=path.join(this.dir,"conversations.json");this.memoryFile=path.join(this.dir,"global-memory.json");fs.mkdirSync(this.dir,{recursive:true});this._settings=this.settingsStore.load();this.loadConversations();this.globalMemory={facts:[]};this.currentConversationId=this.currentConversationId||null;this.history=[];if(this.currentConversationId)this.ensureConversationState();else this.newConversation();this.brain=new Brain({registry,getSettings:()=>this.settings,memoryContext:()=>this.memoryContext(),saveHistory:()=>this.saveHistory(),baseStepLimit:()=>this.baseStepLimit(),getDir:()=>this.dir,onEvent:e=>this.onEvent(e),requestStepIncrease:o=>this.askForMoreSteps(o.current,o.task),providerDefaults:n=>this.providerDefaults(n)})}
  ensureConversationState(){
   if(!Array.isArray(this.conversations)||!this.conversations.length){this.newConversation();return this.currentConversationId;}
   const selected=this.conversations.find(x=>x.id===this.currentConversationId);
@@ -37,7 +37,7 @@ class ConversationAgent{
  rememberFromUserText(text){const s=String(text||"").trim();if(!s)return;const patterns=[/\bmy name is\s+(.{1,80})/i,/\bi live in\s+(.{1,80})/i,/\bi am from\s+(.{1,80})/i,/\bi prefer\s+(.{1,120})/i,/\bremember that\s+(.{1,180})/i,/\bplease remember\s+(.{1,180})/i,/تذكر(?:\s+أن)?\s+(.{1,180})/i,/احفظ(?:\s+أن)?\s+(.{1,180})/i,/أفضل\s+(.{1,120})/i,/اسمي\s+(.{1,80})/i,/أعيش في\s+(.{1,80})/i];for(const re of patterns){const m=s.match(re);if(m){const fact=String(m[1]||"").trim().replace(/[.!؟]+$/,"");if(fact){this.getMemoryService().addFact(this.dir,fact);this.globalMemory.facts=this.getMemoryService().listFacts(this.dir)}break}}}
  saveHistory(){const chat=this.conversations.find(x=>x.id===this.currentConversationId);let ok=true;if(chat){chat.messages=this.history.slice(-200);chat.updatedAt=new Date().toISOString();if(!chat.title||chat.title==="New Chat"){const first=this.history.find(x=>x.role==="user"&&typeof x.content==="string");if(first)chat.title=first.content.trim().slice(0,48)||"New Chat"}ok=this.saveConversations()&&ok}ok=this.writeJsonAtomic(this.historyFile,this.history.slice(-200))&&ok;return ok}
  clearHistory(){this.invalidateRequests();this.history=[];const chat=this.conversations.find(x=>x.id===this.currentConversationId);if(chat){chat.messages=[];chat.title="New Chat";chat.updatedAt=new Date().toISOString();this.saveConversations()}try{fs.writeFileSync(this.historyFile,"[]")}catch(e){}}
- invalidateRequests(){this.requestGeneration=(this.requestGeneration||0)+1;return this.requestGeneration}
+ invalidateRequests(){this.requestGeneration=(this.requestGeneration||0)+1;try{this.requestController?.abort(new Error("Conversation request cancelled"))}catch{}this.requestController=null;return this.requestGeneration}
  newConversation(){this.invalidateRequests();const now=new Date().toISOString(),chat={id:this.newId(),title:"New Chat",createdAt:now,updatedAt:now,messages:[]};this.conversations.unshift(chat);this.currentConversationId=chat.id;this.history=[];this.saveConversations();return this.chatMeta(chat)}
  selectConversation(id){const chat=this.conversations.find(x=>x.id===String(id));if(!chat)return null;this.invalidateRequests();this.currentConversationId=chat.id;this.history=Array.isArray(chat.messages)?chat.messages.slice(-200):[];this.saveHistory();return this.chatMeta(chat)}
  deleteConversation(id){const target=String(id||"");const index=this.conversations.findIndex(x=>x.id===target);if(index<0)return null;const wasCurrent=this.currentConversationId===target;if(wasCurrent)this.invalidateRequests();this.conversations.splice(index,1);if(!this.conversations.length){const chat=this.newConversation();return{chat,history:[],deleted:target}}if(wasCurrent){const next=this.conversations[Math.max(0,index-1)]||this.conversations[0];this.currentConversationId=next.id;this.history=Array.isArray(next.messages)?next.messages.slice(-200):[];this.saveHistory()}else this.saveConversations();return{chat:this.getCurrentConversation(),history:this.history.slice(-200),deleted:target}}
@@ -59,18 +59,18 @@ class ConversationAgent{
  }
  async run(text,image=null){
   const input=String(text||"").trim();if(!input)return "";
-  const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history;
-  const isCurrent=()=>this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
-  const result=await this.brain.run({text:input,image,history,isCurrent});
+  const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history,controller=new AbortController();this.requestController=controller;
+  const isCurrent=()=>!controller.signal.aborted&&this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
+  const result=await this.brain.run({text:input,image,history,isCurrent,signal:controller.signal});
   if(!isCurrent()||result?.stale)return "";
   return this.commitBrainResult(input,result,{emitAnswer:true});
  }
  async runVoice(text,image=null){
   this.ensureConversationState();
   const input=String(text||"").trim();if(!input)return "";
-  const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history;
-  const isCurrent=()=>this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
-  const result=await this.brain.run({text:input,image,history,isCurrent});
+  const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history,controller=new AbortController();this.requestController=controller;
+  const isCurrent=()=>!controller.signal.aborted&&this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
+  const result=await this.brain.run({text:input,image,history,isCurrent,signal:controller.signal});
   if(!isCurrent()||result?.stale)return "";
   return this.commitBrainResult(input,result);
  }
