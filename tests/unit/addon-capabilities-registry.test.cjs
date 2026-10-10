@@ -85,3 +85,19 @@ test("resolved add-on entry paths must remain inside the installed package",()=>
   assert.throws(()=>manager.resolveEntryPath(root,"provider","../outside.js"),/escapes its installation directory/);
  }finally{fs.rmSync(root,{recursive:true,force:true})}
 });
+
+test("installed add-on executable symlinks cannot escape the package directory",()=>{
+ const manager=require("../../src/addons/manager");
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-addon-entry-link-"));
+ const outside=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-addon-entry-outside-"));
+ const addon=path.join(root,"addons","provider");
+ try{
+  fs.mkdirSync(addon,{recursive:true});
+  fs.writeFileSync(path.join(outside,"evil.js"),"module.exports={compromised:true}","utf8");
+  try{fs.symlinkSync(outside,path.join(addon,"external"),process.platform==="win32"?"junction":"dir")}catch(error){
+   if(process.platform==="win32"&&["EPERM","EACCES","UNKNOWN"].includes(error.code))return;
+   throw error;
+  }
+  assert.throws(()=>manager.resolveEntryPath(root,"provider","external/evil.js"),/through a symlink/);
+ }finally{fs.rmSync(root,{recursive:true,force:true});fs.rmSync(outside,{recursive:true,force:true})}
+});
