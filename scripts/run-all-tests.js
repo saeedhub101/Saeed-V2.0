@@ -6,7 +6,8 @@ const root = path.resolve(__dirname, "..");
 const suites = [
   { name: "current acceptance suite", args: [path.join(root, "scripts", "ci-current-acceptance.js")] },
   { name: "rest-pose regression unit tests", args: ["--test", path.join(root, "tests", "unit", "rest-pose-validation.test.mjs")] },
-  { name: "emergency-stop regression unit tests", args: ["--test", path.join(root, "tests", "unit", "emergency-stop.test.cjs")] }
+  { name: "emergency-stop regression unit tests", args: ["--test", path.join(root, "tests", "unit", "emergency-stop.test.cjs")] },
+  { name: "microphone lifecycle race unit tests", args: ["--test", path.join(root, "tests", "unit", "mic-mode-race.test.cjs")] }
 ];
 const results = [];
 
