@@ -1,6 +1,7 @@
 "use strict";
 const fs = require("node:fs");
 const path = require("node:path");
+const os = require("node:os");
 const { spawnSync } = require("node:child_process");
 
 const root = path.resolve(__dirname, "..");
@@ -90,7 +91,7 @@ function main() {
     "assets/Saeed_AI-3D.glb", "src/main.js", "src/preload.js",
     "src/main/runtime.js", "src/main/ci-e2e.js", "src/avatar.js",
     "src/character/CharacterEngine.js", "src/character/CharacterController.js",
-    "src/character/AutoRigMapper.js", "src/three/GLTFLoader.js",
+    "src/character/AutoRigMapper.js", "src/three/GLTFLoader.js", "src/character-studio.html",
     "scripts/ci-run-packaged-e2e.ps1", ".github/workflows/build-windows-electron.yml"
   ];
   const missing = required.filter(p => !exists(p));
@@ -111,6 +112,18 @@ function main() {
     const result = spawnSync(process.execPath, ["--check", path.join(root, file)], { encoding: "utf8" });
     return { file, pass: result.status === 0, error: result.status === 0 ? "" : String(result.stderr || result.stdout || result.error || "node --check failed") };
   });
+  const studioHtmlForSyntax = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
+  const studioModuleMatch = studioHtmlForSyntax.match(/<script type="module">([\\s\\S]*?)<\\/script>/);
+  if (studioModuleMatch) {
+    const temporaryStudioModule = path.join(os.tmpdir(), "saeed-character-studio-" + process.pid + ".mjs");
+    try {
+      fs.writeFileSync(temporaryStudioModule, studioModuleMatch[1], "utf8");
+      const studioSyntax = spawnSync(process.execPath, ["--check", temporaryStudioModule], { encoding: "utf8" });
+      syntaxResults.push({ file: "src/character-studio.html#module", pass: studioSyntax.status === 0, error: studioSyntax.status === 0 ? "" : String(studioSyntax.stderr || studioSyntax.stdout || studioSyntax.error || "node --check failed") });
+    } finally { try { fs.unlinkSync(temporaryStudioModule); } catch {} }
+  } else {
+    syntaxResults.push({ file: "src/character-studio.html#module", pass: false, error: "Inline Character Studio module script was not found" });
+  }
   check("runtime-javascript-syntax", syntaxResults.every(x => x.pass), { files: syntaxResults });
 
   const e2e = exists("src/main/ci-e2e.js") ? read("src/main/ci-e2e.js") : "";
