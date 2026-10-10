@@ -173,11 +173,14 @@ function main() {
 
   const restPoseHtml = exists("src/rest-pose.html") ? read("src/rest-pose.html") : "";
   const restPoseEditor = exists("src/rest-pose.js") ? read("src/rest-pose.js") : "";
+  const characterHost = exists("src/main/character/character-host.js") ? read("src/main/character/character-host.js") : "";
   check("rest-pose-editor-can-edit-local-bone-position",
     restPoseHtml.includes('id="px"') && restPoseHtml.includes('id="py"') && restPoseHtml.includes('id="pz"') &&
     restPoseEditor.includes('command("bonePosition",{bone})') &&
-    restPoseEditor.includes('command("setBonePosition",{bone,position:'),
-    { note: "The Rest Pose Editor must expose actual local bone-position editing, not rotation-only controls." });
+    restPoseEditor.includes('command("setBonePosition",{bone,position:') &&
+    characterClient.includes('action==="boneRotation"||action==="bonePosition"') &&
+    characterHost.includes('"setBonePosition","setBoneTransform","bonePosition"'),
+    { note: "The Rest Pose Editor must expose actual local bone-position editing, not rotation-only controls, even before logical rig mapping." });
 
   const runtime = exists("src/main/runtime.js") ? read("src/main/runtime.js") : "";
   const startupMarkerPresent = runtime.includes('ciWriteE2EStartup("ci-e2e-start"');
