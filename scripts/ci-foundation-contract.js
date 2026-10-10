@@ -64,6 +64,7 @@ must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workf
 
 const workflow=read(".github/workflows/build-windows-electron.yml");
 must(/^on:\s*$/m.test(workflow)&&/workflow_dispatch:/m.test(workflow),"Windows build workflow must retain a manual dispatch option");
+must(/^\s*push:\s*$/m.test(workflow)&&/branches:\s*\n\s*-\s*main/m.test(workflow),"Windows build workflow must automatically run on pushes to main");
 must(!/^\s*(pull_request|schedule):/m.test(workflow),"Unexpected non-main automatic trigger detected in Windows workflow");
 const characterHost=read("src/main/character/character-host.js");
 const characterClient=read("src/character/client.js");
