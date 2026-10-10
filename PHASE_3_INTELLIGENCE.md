@@ -127,3 +127,6 @@ Provide an optional, permission-controlled email capability using IMAP for mailb
 - MCP stdio and HTTPS transports now accept an optional cancellation signal and timeout, reject on premature stdio process exit, and terminate a running stdio child when cancelled or timed out.
 - HTTP requests now share an abort deadline across initialization and tool execution. The stdio JSON-lines framing and HTTP/SSE line parsing were reviewed and corrected while making the cancellation path explicit.
 - Added a static acceptance contract for MCP cancellation and timeout handling. It has not been executed.
+
+
+- Updating an explicit memory fact now removes obsolete vector-index versions for that fact key while preserving the newly indexed version, preventing semantic recall from returning stale wording. A static acceptance contract was added; it has not been run.
