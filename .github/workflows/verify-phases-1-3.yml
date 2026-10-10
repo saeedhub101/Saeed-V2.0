@@ -2,6 +2,9 @@ name: Saeed AI — Current Product Preflight (No Build)
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
