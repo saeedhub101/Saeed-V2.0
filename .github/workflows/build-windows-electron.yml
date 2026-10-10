@@ -194,6 +194,8 @@ jobs:
           Invoke-RestPoseProcess "--ci-rest-pose-save" $saveReport "save"
           if (!(Test-Path $state)) { throw "The first process did not write the rest-pose state marker." }
           Invoke-RestPoseProcess "--ci-rest-pose-verify" $verifyReport "verify"
+          Remove-Item $userData -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $state -Force -ErrorAction SilentlyContinue
 
       - name: Build optional add-on bundles
         shell: pwsh

@@ -31,7 +31,7 @@ test("packaged acceptance covers GLB, rig, rendering, motion, rest pose, voice l
 });
 
 test("packaged acceptance exercises real motion edits, invalid-GLB preservation, and fresh-process rest-pose persistence",()=>{
- for(const token of ["invalid-glb-rejected-preserves-current-character","generated-motion-created","generated-motion-changes-real-bone","edited-motion-changes-real-bone-differently","generated-motion-cleaned-up","runCiRestPoseRestart","restart-real-bone-rotation-written","restart-real-bone-position-written","restart-rotation-survives-fresh-process","restart-position-survives-fresh-process","--ci-rest-pose-save","--ci-rest-pose-verify"])assert.ok(runtime.includes(token),"missing real-runtime acceptance contract: "+token);
+ for(const token of ["invalid-glb-rejected-preserves-current-character","generated-motion-created","generated-motion-changes-real-bone","generated-motion-changes-all-mapped-bones","edited-motion-changes-real-bone-differently","edited-motion-changes-all-mapped-bones-differently","generated-motion-cleaned-up","rest-pose-original-transform-restored","runCiRestPoseRestart","restart-real-bone-rotation-written","restart-real-bone-position-written","restart-rotation-survives-fresh-process","restart-position-survives-fresh-process","--ci-rest-pose-save","--ci-rest-pose-verify"])assert.ok(runtime.includes(token),"missing real-runtime acceptance contract: "+token);
  assert.match(workflow,/Verify rest pose survives a full application restart/);
  assert.match(workflow,/dist\/ci-rest-pose-save\.json/);
  assert.match(workflow,/dist\/ci-rest-pose-verify\.json/);

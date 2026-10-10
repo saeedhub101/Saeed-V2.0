@@ -200,6 +200,10 @@ async function runCiProductAcceptance(){
   const stopped=await characterHost.command({action:"stopAll"});
   check("motion-stop",stopped?.ok===true,{ok:Boolean(stopped?.ok)});
   const mappedHead=rig.mapping?.head;const restPoseBone=String(typeof mappedHead==="string"&&mappedHead?mappedHead:rig.bones.find(name=>/head/i.test(String(name)))||rig.bones[0]||"");
+  const restPoseInitialStatus=await characterHost.command({action:"status"});
+  const restPoseInitialBone=restPoseInitialStatus?.status?.actualBones?.[restPoseBone]||null;
+  const originalRestRotation=restPoseInitialBone?.rotation?{x:Number(restPoseInitialBone.rotation.x),y:Number(restPoseInitialBone.rotation.y),z:Number(restPoseInitialBone.rotation.z)}:null;
+  const originalRestPosition=restPoseInitialBone?.position?{x:Number(restPoseInitialBone.position.x),y:Number(restPoseInitialBone.position.y),z:Number(restPoseInitialBone.position.z)}:null;
   const desiredRestRotation={x:0.123,y:0.087,z:-0.061};
   const editedBone=restPoseBone?await characterHost.command({action:"setBoneRotation",bone:restPoseBone,rotation:desiredRestRotation}):{ok:false,error:"No bone available"};
   const editRotation=editedBone?.rotation||{};
@@ -220,38 +224,51 @@ async function runCiProductAcceptance(){
    check("invalid-glb-rejected-preserves-current-character",invalidCandidate?.ok!==true&&rigAfterInvalid?.ok===true&&rigAfterInvalid?.bones?.length===rig.bones.length,{rejected:invalidCandidate?.ok!==true,error:invalidCandidate?.error||null,bonesBefore:rig.bones.length,bonesAfter:rigAfterInvalid?.bones?.length||0});
   }catch(error){check("invalid-glb-rejected-preserves-current-character",false,{error:error?.message||String(error)})}
   finally{try{fs.unlinkSync(invalidCandidatePath)}catch{}}
-  const motionSlot=typeof rig.mapping?.head==="string"&&rig.mapping.head?"head":Object.keys(rig.mapping||{}).find(slot=>typeof rig.mapping[slot]==="string"&&rig.bones.includes(rig.mapping[slot]));
-  const motionBone=String(motionSlot?rig.mapping[motionSlot]:"");
+  const seenMotionBones=new Set();
+  const motionSlots=Object.entries(rig.mapping||{}).filter(([slot,bone])=>typeof slot==="string"&&typeof bone==="string"&&rig.bones.includes(bone)&&!seenMotionBones.has(bone)&&seenMotionBones.add(bone)).map(([slot,bone])=>({slot,bone}));
+  const motionBone=String(motionSlots[0]?.bone||"");
   const motionId="ci-generated-motion-acceptance";
   const motionStatus=await characterHost.command({action:"status"});
-  const initialMotionRotation=motionStatus?.status?.actualBones?.[motionBone]?.rotation||null;
-  const makeCiMotion=angle=>({id:motionId,duration:1,loop:false,layer:"body",keyframes:[{time:0,pose:{[motionSlot]:{x:0,y:0,z:0}}},{time:1,pose:{[motionSlot]:{x:angle,y:0,z:0}}}]});
-  let motionFirstRotation=null,motionEditedRotation=null;
+  const initialMotionRotations=Object.fromEntries(motionSlots.map(({bone})=>[bone,motionStatus?.status?.actualBones?.[bone]?.rotation||null]));
+  const makePose=angle=>Object.fromEntries(motionSlots.map(({slot})=>[slot,{x:angle,y:angle*0.4,z:-angle*0.25}]));
+  const makeCiMotion=angle=>({id:motionId,duration:1,loop:false,layer:"body",keyframes:[{time:0,pose:makePose(0)},{time:1,pose:makePose(angle)}]});
+  let motionFirstRotations={},motionEditedRotations={};
   try{
    await characterHost.command({action:"stopAll"});
-   const defined=motionSlot?await characterHost.command({action:"defineMotion",motion:makeCiMotion(0.35)}):{ok:false,error:"No mapped logical slot"};
-   check("generated-motion-created",defined?.ok===true&&defined?.motion?.id===motionId,{slot:motionSlot||null,bone:motionBone,error:defined?.error||null});
+   const defined=motionSlots.length?await characterHost.command({action:"defineMotion",motion:makeCiMotion(0.35)}):{ok:false,error:"No mapped logical slots"};
+   check("generated-motion-created",defined?.ok===true&&defined?.motion?.id===motionId,{mappedSlots:motionSlots.length,bones:motionSlots.map(item=>item.bone),error:defined?.error||null});
    const played=defined?.ok===true?await characterHost.command({action:"play",motion:motionId,options:{priority:100,blend:0.01}}):{ok:false};
    await wait(300);
    const afterFirst=await characterHost.command({action:"status"});
-   motionFirstRotation=afterFirst?.status?.actualBones?.[motionBone]?.rotation||null;
-   const firstMoved=played?.ok===true&&Boolean(initialMotionRotation&&motionFirstRotation)&&Math.abs(Number(motionFirstRotation.x)-Number(initialMotionRotation.x))>0.015;
-   check("generated-motion-changes-real-bone",firstMoved,{slot:motionSlot||null,bone:motionBone,before:initialMotionRotation,after:motionFirstRotation,played:Boolean(played?.ok)});
+   motionFirstRotations=Object.fromEntries(motionSlots.map(({bone})=>[bone,afterFirst?.status?.actualBones?.[bone]?.rotation||null]));
+   const changedMotionBones=motionSlots.filter(({bone})=>{const before=initialMotionRotations[bone],after=motionFirstRotations[bone];return Boolean(before&&after)&&["x","y","z"].some(axis=>Math.abs(Number(after[axis])-Number(before[axis]))>0.015)});
+   const firstMoved=played?.ok===true&&changedMotionBones.length===motionSlots.length&&motionSlots.length>0;
+   check("generated-motion-changes-real-bone",firstMoved,{mappedBoneCount:motionSlots.length,changedBoneCount:changedMotionBones.length,unchangedBones:motionSlots.filter(({bone})=>!changedMotionBones.some(item=>item.bone===bone)).map(item=>item.bone),representativeBone:motionBone,before:initialMotionRotations[motionBone]||null,after:motionFirstRotations[motionBone]||null});
+   check("generated-motion-changes-all-mapped-bones",firstMoved,{mappedSlots:motionSlots.map(item=>item.slot),mappedBones:motionSlots.map(item=>item.bone),changedBones:changedMotionBones.map(item=>item.bone)});
    await characterHost.command({action:"stopAll"});
-   const edited=motionSlot?await characterHost.command({action:"defineMotion",motion:makeCiMotion(-0.55)}):{ok:false};
+   const edited=motionSlots.length?await characterHost.command({action:"defineMotion",motion:makeCiMotion(-0.55)}):{ok:false};
    const playedEdited=edited?.ok===true?await characterHost.command({action:"play",motion:motionId,options:{priority:100,blend:0.01}}):{ok:false};
    await wait(300);
    const afterEdited=await characterHost.command({action:"status"});
-   motionEditedRotation=afterEdited?.status?.actualBones?.[motionBone]?.rotation||null;
-   const editedMoved=playedEdited?.ok===true&&Boolean(initialMotionRotation&&motionEditedRotation&&motionFirstRotation)&&Math.abs(Number(motionEditedRotation.x)-Number(initialMotionRotation.x))>0.015&&Math.abs(Number(motionEditedRotation.x)-Number(motionFirstRotation.x))>0.025;
-   check("edited-motion-changes-real-bone-differently",editedMoved,{slot:motionSlot||null,bone:motionBone,first:motionFirstRotation,edited:motionEditedRotation,played:Boolean(playedEdited?.ok)});
+   motionEditedRotations=Object.fromEntries(motionSlots.map(({bone})=>[bone,afterEdited?.status?.actualBones?.[bone]?.rotation||null]));
+   const editedChangedBones=motionSlots.filter(({bone})=>{const initial=initialMotionRotations[bone],first=motionFirstRotations[bone],editedRotation=motionEditedRotations[bone];return Boolean(initial&&first&&editedRotation)&&["x","y","z"].some(axis=>Math.abs(Number(editedRotation[axis])-Number(initial[axis]))>0.015)&&["x","y","z"].some(axis=>Math.abs(Number(editedRotation[axis])-Number(first[axis]))>0.025)});
+   const editedMoved=playedEdited?.ok===true&&motionSlots.length>0&&editedChangedBones.length===motionSlots.length;
+   check("edited-motion-changes-real-bone-differently",editedMoved,{mappedBoneCount:motionSlots.length,changedBoneCount:editedChangedBones.length,unchangedBones:motionSlots.filter(({bone})=>!editedChangedBones.some(item=>item.bone===bone)).map(item=>item.bone)});
+   check("edited-motion-changes-all-mapped-bones-differently",editedMoved,{mappedSlots:motionSlots.map(item=>item.slot),mappedBones:motionSlots.map(item=>item.bone),changedBones:editedChangedBones.map(item=>item.bone)});
   }catch(error){check("generated-motion-and-edit-playback",false,{error:error?.message||String(error)})}
-  finally{
-   try{await characterHost.command({action:"stopAll"})}catch{}
-   try{await characterHost.command({action:"deleteMotion",id:motionId})}catch{}
-  }
+  finally{try{await characterHost.command({action:"stopAll"})}catch{}try{await characterHost.command({action:"deleteMotion",id:motionId})}catch{}}
   const motionList=await characterHost.command({action:"listMotions"});
   check("generated-motion-cleaned-up",Array.isArray(motionList?.motions)&&!motionList.motions.some(m=>m?.id===motionId),{remaining:motionList?.motions?.filter(m=>m?.id===motionId).length||0});
+  try{
+   const rotationSet=restPoseBone&&originalRestRotation?await characterHost.command({action:"setBoneRotation",bone:restPoseBone,rotation:originalRestRotation}):{ok:false};
+   const positionSet=restPoseBone&&originalRestPosition?await characterHost.command({action:"setBonePosition",bone:restPoseBone,position:originalRestPosition}):{ok:false};
+   const originalSaved=await characterHost.command({action:"saveRestPose"});
+   const originalRead=await characterHost.command({action:"status"});
+   const actualOriginal=originalRead?.status?.actualBones?.[restPoseBone]||null;
+   const rotationRestored=Boolean(actualOriginal?.rotation&&originalRestRotation)&&["x","y","z"].every(axis=>Math.abs(Number(actualOriginal.rotation[axis])-originalRestRotation[axis])<0.02);
+   const positionRestored=Boolean(actualOriginal?.position&&originalRestPosition)&&["x","y","z"].every(axis=>Math.abs(Number(actualOriginal.position[axis])-originalRestPosition[axis])<0.005);
+   check("rest-pose-original-transform-restored",rotationSet?.ok===true&&positionSet?.ok===true&&originalSaved?.persisted===true&&rotationRestored&&positionRestored,{bone:restPoseBone,rotationRestored,positionRestored,persisted:Boolean(originalSaved?.persisted)});
+  }catch(error){check("rest-pose-original-transform-restored",false,{error:error?.message||String(error)})}
   const voice=ensureVoiceHost();
   const whisper=voice.whisperRuntimePaths();
   check("packaged-whisper-runtime-present",Boolean(fs.existsSync(whisper.exe)&&fs.existsSync(whisper.model)),{executableExists:fs.existsSync(whisper.exe),modelExists:fs.existsSync(whisper.model)});
