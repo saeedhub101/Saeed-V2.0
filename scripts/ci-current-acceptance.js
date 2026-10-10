@@ -225,6 +225,21 @@ function main() {
   check("local-stt-drains-audio-buffered-during-transcription",
     voiceClient.includes('queueMicrotask(()=>{if(this.active&&!this.localTranscribing)void this.flushLocalChunk()})'),
     { note: "Audio captured while an earlier local STT request is running must be drained after that request finishes." });
+  check("local-whisper-result-is-unwrapped-before-brain-routing",
+    voiceClient.includes('sttProvider==="whisper"?await window.saeed.voice.transcribeLocalWav(encoded):await window.saeed.voice.sttTranscribe(encoded)') &&
+    voiceClient.includes('const text=String(result?.text||"").trim()') &&
+    !voiceClient.includes('{ok:true,text:await window.saeed.voice.transcribeLocalWav(encoded)}'),
+    { note: "The local STT IPC response is an object; its text field must be extracted before calling the voice brain." });
+
+  const performanceHtml = exists("src/performance.html") ? read("src/performance.html") : "";
+  const performanceJs = exists("src/performance.js") ? read("src/performance.js") : "";
+  const systemControls = exists("src/main/application/system-controls.js") ? read("src/main/application/system-controls.js") : "";
+  check("microphone-transcript-bubble-toggle-is-wired-to-settings-and-character-menu",
+    performanceHtml.includes('id="showSpeechText"') &&
+    performanceJs.includes("setTranscriptLabelEnabled(showSpeechText)") &&
+    systemControls.includes("microphone transcript bubble") &&
+    systemControls.includes("toggleTranscriptLabel?.()"),
+    { note: "The user-transcript bubble must be controllable from Performance settings and the character right-click menu." });
 
   const voiceRuntime = exists("src/main/voice/voice-runtime.js") ? read("src/main/voice/voice-runtime.js") : "";
   check("realtime-tool-execution-cancels-with-voice-session",
