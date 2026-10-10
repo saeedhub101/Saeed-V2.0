@@ -4,11 +4,12 @@ function createPermissionManager({getAgent,showChat,getChatWindow,diagnostic}){
  const confirmations=new Map();
  function permissionPolicy(category){const configured=getAgent()?.settings?.permissions?.[category];if(configured==="allow"||configured==="deny"||configured==="ask")return configured;return DEFAULT_PERMISSIONS[category]||"ask";}
  async function confirmPermission(category,request={}){
+  const signal=request.signal;if(signal?.aborted)return false;
   if(permissionPolicy(category)==="deny")return false;
   try{await showChat()}catch(error){diagnostic?.("ERROR","AGENT CONFIRMATION","Could not open confirmation surface; operation denied",{category,error:String(error?.message||error)});return false}
+  if(signal?.aborted)return false;
   const chatWindow=getChatWindow?.();
   if(!chatWindow||chatWindow.isDestroyed?.()||!chatWindow.webContents||chatWindow.webContents.isDestroyed?.()){diagnostic?.("WARN","AGENT CONFIRMATION","No live confirmation surface; operation denied",{category,name:request.name||category});return false}
-  const signal=request.signal;if(signal?.aborted)return false;
   const id=Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   return new Promise(resolve=>{
    let settled=false;
