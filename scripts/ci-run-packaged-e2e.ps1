@@ -11,7 +11,8 @@ $required = @(
   "acceptance.app-startup",
   "acceptance.authoritative-glb-visible",
   "acceptance.repeat-load-preserves-visible-character",
-  "acceptance.available-bones-animate"
+  "acceptance.available-bones-animate",
+  "acceptance.rest-pose-bone-position-save-reset"
 )
 
 function Write-Result([object]$Result) {
