@@ -229,6 +229,7 @@ function main() {
   check("local-whisper-result-is-unwrapped-before-brain-routing",
     voiceClient.includes('sttProvider==="whisper"?await window.saeed.voice.transcribeLocalWav(encoded):await window.saeed.voice.sttTranscribe(encoded)') &&
     voiceClient.includes('const text=String(result?.text||"").trim()') &&
+    voiceClient.includes('micSpeechRms=Math.max(0.005,Math.min(0.025,Number(cfg?.micSpeechRms)||0.02))') &&
     !voiceClient.includes('{ok:true,text:await window.saeed.voice.transcribeLocalWav(encoded)}'),
     { note: "The local STT IPC response is an object; its text field must be extracted before calling the voice brain." });
 
