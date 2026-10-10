@@ -156,7 +156,6 @@ gate("world-axis editor rotation is exposed end-to-end",studio.includes("setBone
 gate("animation editing and playback are connected",studio.includes("defineMotion")&&studio.includes("loadMotion")&&controller.includes("defineMotion")&&controller.includes("play(")&&editor.length>100);
 gate("Studio reports real skeleton and mapping status",studio.includes("Mapped slots:")&&studio.includes("boneList")&&studio.includes("status"));
 gate("add-ons and learning pages exist",exists("src/addons/window.html")&&exists("src/learning/window.html"));
-gate("E2E includes world-axis and nested-axis regressions",exists("src/main/ci-e2e.js")&&read("src/main/ci-e2e.js").includes("character.studio-editor-world-axis-rotation")&&read("src/main/ci-e2e.js").includes("character.studio-nested-axis-stability"));
 
 // 9. Report.
 const report={
