@@ -141,5 +141,8 @@ test("character behavior preferences keep deterministic idle active and filter d
  behavior.configure({random:true,dancing:false,walking:false});
  const selectedAgain=behavior.chooseWeighted(["dance","walk","nod"]);
  assert.equal(selectedAgain,"nod");
+ behavior.onMoodChanged("thoughtful");
+ behavior.configure({random:false,moodPalettes:false,walking:false,dancing:false});
+ assert.equal(behavior.chooseIdle(),"nod");
  behavior.stop();
 });
