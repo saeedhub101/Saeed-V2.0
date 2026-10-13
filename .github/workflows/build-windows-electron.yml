@@ -243,6 +243,7 @@ jobs:
             build/whisper-runtime/WHISPER-CPP-LICENSE.txt
             dist/icons/*
             dist/addons/*.zip
+            ci-reports/current-acceptance.json
 
       - name: Publish official release
         if: success() && inputs.publish_release == true
