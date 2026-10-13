@@ -111,6 +111,14 @@ test("speaking and thinking gesture cycles are observable and cancel on lifecycl
  assert.equal(behavior.getStatus().thinkingCycle,true);
  behavior.handleEvent({type:"request-cancelled"});
  assert.equal(behavior.getStatus().thinkingCycle,false);
+ behavior.handleEvent({type:"speech-start"});
+ assert.equal(behavior.getStatus().speakingCycle,true);
+ behavior.handleEvent({type:"mute"});
+ const status=behavior.getStatus();
+ assert.equal(status.speakingCycle,false);
+ assert.equal(status.activeTimers.speaking,false);
+ assert.equal(status.eventCounts.mute,1);
+ assert.equal(typeof status.lastMotionReason,"string");
  behavior.stop();
 });
 
