@@ -7,6 +7,7 @@ const path = require("node:path");
 const source = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterController.js"), "utf8");
 const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterEngine.js"), "utf8");
 const hostSource = fs.readFileSync(path.join(__dirname, "../../src/main/character/character-host.js"), "utf8");
+const performanceSource = fs.readFileSync(path.join(__dirname, "../../src/performance.js"), "utf8");
 const playStart = source.indexOf(" play(id,options={}){");
 const playEnd = source.indexOf("\n stop(id)", playStart);
 const playBody = source.slice(playStart, playEnd);
@@ -76,4 +77,11 @@ test("rig diagnostics can enumerate skeleton bones before automatic or manual ma
 
 test("rig editor API exposes bone names instead of renderer object references",()=>{
  assert.match(source,/getRig:\(\)=>\(\{bones:engine\.getAvailableBoneNames\?\.\(\)\|\|\[\],mapping:Object\.fromEntries\(Object\.entries\(engine\.getBoneMap\?\.\(\)\|\|\{\}\)\.map\(\(\[slot,bone\]\)=>\[slot,bone\?\.name\|\|bone\]\)\)/);
+});
+
+test("direct bone editor refreshes its handlers for the currently selected character",()=>{
+ assert.match(performanceSource,/rigTabCurrentBoneNames=names/);
+ assert.match(performanceSource,/rigTabCurrentActualBones=s\?\.actualBones\|\|\{\}/);
+ assert.match(performanceSource,/fillBoneEditor\(rigTabCurrentActualBones\)/);
+ assert.match(performanceSource,/updateBoneOptions\(rigTabCurrentBoneNames,esc\)/);
 });
