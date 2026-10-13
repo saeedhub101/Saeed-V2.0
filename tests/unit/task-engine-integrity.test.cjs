@@ -14,7 +14,10 @@ test("a pending plan step cannot be marked completed before it starts",t=>{
  assert.throws(()=>engine.updatePlanStep(dir,run.id,1,"completed","I say it worked"),/must be started/);
  assert.equal(engine.get(dir,run.id).plan[0].status,"pending");
  engine.updatePlanStep(dir,run.id,1,"running");
- engine.updatePlanStep(dir,run.id,1,"completed","Observed resulting state");
+ assert.throws(()=>engine.updatePlanStep(dir,run.id,1,"completed","Observed resulting state"),/observed successful tool result/);
+ engine.observe(dir,run.id,{type:"tool",name:"read_file",args:{path:"example.txt"}});
+ engine.observe(dir,run.id,{type:"tool_result",name:"read_file",result:{ok:true,content:"verified"}});
+ engine.updatePlanStep(dir,run.id,1,"completed","Read-back confirmed the expected state");
  assert.equal(engine.get(dir,run.id).plan[0].status,"completed");
 });
 test("MCP discovery and connection checks do not verify a prior state-changing action",t=>{
