@@ -49,7 +49,7 @@ function observe(userData,id,event){
    step.finishedAt=now;
    if(type==="tool_error")step.error=safeText(event.error,240);
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
-   if(["inspect_document","extract_pdf_text","read_excel","active_window","list_windows","screenshot","ocr_image","inspect_image"].includes(name)){
+   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)){
     run.verification.attempted=true;
     run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed"});
     if(run.verification.evidence.length>30)run.verification.evidence.shift();
