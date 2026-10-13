@@ -16,10 +16,11 @@ function setEnabled(userData,id,enabled){const s=get(userData,id);if(!s)throw ne
 function extractParameters(skill,text){
  const source=String(text||""),values={};
  const parameters=Array.isArray(skill?.parameters)?skill.parameters:[];
+ const escapeRegex=value=>String(value).replace(/[-/\\^$*+?.()|[\]{}]/g,"\\$&");
  for(const parameter of parameters){
   const aliases=[parameter.name,...(parameter.aliases||[])].filter(Boolean).sort((a,b)=>String(b).length-String(a).length);
   for(const alias of aliases){
-   const escaped=String(alias).replace(/[\.\*\+\?\^\$\{\}\(\)\|\[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");
+   const escaped=escapeRegex(alias).replace(/\s+/g,"\\s+");
    let matchValue=null;
    try{matchValue=source.match(new RegExp("(?:^|[\\s,;،])"+escaped+"\\s*(?:(?:is|=|:|هو|هي|named|called|with|as|اسمه|اسمها|باسم|اسم)\\s*)?([^,;،\\n]+)","i"))}catch{}
    if(matchValue?.[1]){
@@ -32,21 +33,13 @@ function extractParameters(skill,text){
  if(unresolved.length===1){
   const triggerPhrases=(skill?.trigger?.phrases||[]).filter(Boolean).sort((a,b)=>String(b).length-String(a).length);
   for(const phrase of triggerPhrases){
-   const escaped=String(phrase).replace(/[.*+?^${}()|[\]\\]/g,"\\  }
- }
- return values;
-}
-function resolveTemplate").replace(/\\s+/g,"\\s+");
+   const escaped=escapeRegex(phrase).replace(/\s+/g,"\\s+");
    let remainder="";
    try{const match=source.match(new RegExp("^\\s*"+escaped+"(?:\\s*[,;:：-]\\s*|\\s+)(.+?)\\s*$","i"));if(match?.[1])remainder=match[1].trim()}catch{}
    if(!remainder)continue;
    remainder=remainder.replace(/^(?:(?:named|called|with name|name is|for|اسمه|اسمها|باسم|اسم)\\s+)/i,"").replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
    const aliases=parameters.flatMap(parameter=>[parameter.name,...(parameter.aliases||[])].filter(Boolean));
-   if(!remainder||aliases.some(alias=>new RegExp("(^|[\\s:：=])"+String(alias).replace(/[.*+?^${}()|[\]\\]/g,"\\  }
- }
- return values;
-}
-function resolveTemplate").replace(/\\s+/g,"\\s+")+"(?=$|[\\s:：=])","i").test(remainder)))continue;
+   if(!remainder||aliases.some(alias=>new RegExp("(^|[\\s:：=])"+escapeRegex(alias).replace(/\s+/g,"\\s+")+"(?=$|[\\s:：=])","i").test(remainder)))continue;
    values[unresolved[0].name]=remainder;
    break;
   }
