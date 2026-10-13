@@ -23,7 +23,7 @@ function extractParameters(skill,text){
    let matchValue=null;
    try{matchValue=source.match(new RegExp("(?:^|[\\s,;،])"+escaped+"\\s*(?:(?:is|=|:|هو|هي)\\s*)?([^,;\\n]+)","i"))}catch{}
    if(matchValue?.[1]){
-    const value=String(matchValue[1]).trim().replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
+    const value=String(matchValue[1]).trim().replace(/^[\s"'“”]+|[\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
     if(value){values[parameter.name]=value;break}
    }
   }
