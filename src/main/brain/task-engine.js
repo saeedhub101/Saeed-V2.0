@@ -24,11 +24,11 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  const run=get(userData,id);if(!run||run.status!=="running")throw new Error("Active task run not found");
  const step=run.plan?.[Number(index)-1];if(!step)throw new Error("Task plan step not found");
  const next=String(status||"");
- if(!["pending","running","completed","failed","skipped","needs_approval"].includes(next))throw new Error("Invalid task plan step status");
+ if(!["pending","running","completed","failed","skipped","needs_approval","interrupted"].includes(next))throw new Error("Invalid task plan step status");
  if(next==="completed"&&!String(evidence||"").trim())throw new Error("A completed plan step requires verification evidence");
  const now=new Date().toISOString();step.status=next;
  if(next==="running"&&!step.startedAt)step.startedAt=now;
- if(["completed","failed","skipped","needs_approval"].includes(next))step.finishedAt=now;
+ if(["completed","failed","skipped","needs_approval","interrupted"].includes(next))step.finishedAt=now;
  if(evidence)step.evidence=safeText(evidence,300);
  return persist(userData,run);
 }
@@ -51,7 +51,7 @@ function observe(userData,id,event){
    if(type==="tool_result")for(const previous of run.steps){if(previous!==step&&previous.tool===name&&previous.status==="failed"){previous.status="recovered";previous.recoveredAt=now}}
    if(type==="tool_error")step.error=safeText(event.error,240);
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
-   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)){
+   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)){
     run.verification.attempted=true;
     run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed"});
     if(run.verification.evidence.length>30)run.verification.evidence.shift();
@@ -68,6 +68,7 @@ function finish(userData,id,{status="finished",summary="",verification=null}={})
  run.status=["finished","needs_attention","cancelled"].includes(status)?status:"finished";
  run.summary=safeText(summary,1000);run.finishedAt=new Date().toISOString();
  for(const step of run.steps)if(step.status==="running"){step.status="interrupted";step.finishedAt=run.finishedAt}
+ for(const step of run.plan||[])if(step.status==="running"){step.status="interrupted";step.finishedAt=run.finishedAt}
  if(verification&&typeof verification==="object")run.verification={...run.verification,...verification};
  return persist(userData,run);
 }
