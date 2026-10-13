@@ -8,6 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, "../../src/character/Charact
 const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterEngine.js"), "utf8");
 const hostSource = fs.readFileSync(path.join(__dirname, "../../src/main/character/character-host.js"), "utf8");
 const performanceSource = fs.readFileSync(path.join(__dirname, "../../src/performance.js"), "utf8");
+const characterClientSource = fs.readFileSync(path.join(__dirname, "../../src/character/client.js"), "utf8");
 const playStart = source.indexOf(" play(id,options={}){");
 const playEnd = source.indexOf("\n stop(id)", playStart);
 const playBody = source.slice(playStart, playEnd);
@@ -84,4 +85,9 @@ test("direct bone editor refreshes its handlers for the currently selected chara
  assert.match(performanceSource,/rigTabCurrentActualBones=s\?\.actualBones\|\|\{\}/);
  assert.match(performanceSource,/fillBoneEditor\(rigTabCurrentActualBones\)/);
  assert.match(performanceSource,/updateBoneOptions\(rigTabCurrentBoneNames,esc\)/);
+});
+
+test("direct bone editor rest-pose capture persists the authoritative pose",()=>{
+ assert.match(characterClientSource,/if\(x\.action==="pose"\)\{if\(captureRestPose\)\{const rest=c\.saveRestPose\?\.\(\)/);
+ assert.match(characterClientSource,/persisted:Boolean\(rest\?\.persisted\),restPose:rest\|\|null/);
 });
