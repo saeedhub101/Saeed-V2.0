@@ -140,7 +140,9 @@ export class AutonomousBehaviorController{
   };
   const candidates=palettes[kind]?.[this.mood]||palettes[kind]?.cheerful||[];
   const weights={dance:this.energy>=65?1.6:.45,clap:1.35,wave:1.2,nod:1.15,think:1.1,lookCloser:.95,shake:.8,stretch:.7};
-  return this.chooseWeighted(candidates,weights);
+  const motion=this.chooseWeighted(candidates,weights);
+  this.lastMotionReason=motion?"context "+kind+" / "+this.mood:"skipped: no registered motion for "+kind+" / "+this.mood;
+  return motion;
  }
  chooseIdle(){
   let available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get?.(id));
@@ -240,8 +242,10 @@ export class AutonomousBehaviorController{
  }
  playMotion(motion,options={}){
   const registry=this.character?.animation?.registry;
-  if(registry?.get&&!registry.get(motion))return false;
-  return Boolean(this.character?.play?.(motion,options));
+  if(registry?.get&&!registry.get(motion)){this.lastMotionReason="skipped: unregistered motion "+String(motion);return false}
+  const ok=Boolean(this.character?.play?.(motion,options));
+  this.lastMotionReason=ok?"played "+String(motion)+" at priority "+String(options.priority??0):"skipped: motion controller rejected "+String(motion);
+  return ok;
  }
  react(reaction){
   if(reaction.id==="greeting"&&this.settings.greeting===false)reaction={...reaction,motion:"nod"};
@@ -290,6 +294,7 @@ export class AutonomousBehaviorController{
   const type=typeof event==="string"?event:String(event?.type||"").toLowerCase();
   if(!this.running||!this.visible)return false;
   this.lastEvent=type;
+  this.eventCounts.set(type,(this.eventCounts.get(type)||0)+1);
   const lifecycleEvents=["speech-start","assistant-speech-start","speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","thinking","assistant-thinking","chat-end","assistant-cancelled","request-cancelled","app-focus","wake"];
   if(this.settings.events===false&&!lifecycleEvents.includes(type))return false;
   if(type==="pointer-move"){
@@ -418,7 +423,7 @@ export class AutonomousBehaviorController{
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
+  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
