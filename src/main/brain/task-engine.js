@@ -72,7 +72,7 @@ function observe(userData,id,event){
  if(toolName==="task_plan")return run;
  const mutatingTools=new Set(["open_application","open_url","write_file","write_excel","mouse_click","type_text","key_press","interact_ui_element","email_send","complete_task","remove_task","remember","forget","memory_add","knowledge_add","add_task","agent_skills"]);
  const externalTool=toolName==="mcp_call_tool"?String(event.args?.tool||""):String(event.args?.tool||"");
- const mutating=mutatingTools.has(toolName)&&(toolName!=="agent_skills"||!["list","get"].includes(String(event.args?.operation||"")) )||(toolName==="mcp_call_tool"&&!isReadOnlyMcpTool(externalTool));
+ const addonTool=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);\n const addonReadOnly=addonTool&&/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select)(?:[_-]|$)/i.test(toolName)&&!/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/i.test(toolName);\n const mutating=mutatingTools.has(toolName)&&(toolName!=="agent_skills"||!["list","get"].includes(String(event.args?.operation||"")) )||(toolName==="mcp_call_tool"&&!isReadOnlyMcpTool(externalTool))||(addonTool&&!addonReadOnly);
  if(type==="tool"&&mutating)run.lastActionAt=now;
  if(type==="tool"){
   if(run.steps.length>=MAX_STEPS)return run;
