@@ -44,3 +44,25 @@ test("provider fallback preferences and credential presence survive settings rel
  assert.equal(safe.fallbackApiKey,"");
  assert.equal(safe.hasFallbackApiKey,true);
 });
+
+test("settings normalize invalid permission and microphone thresholds",t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-settings-normalize-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const store=new SettingsStore(dir);
+ const next=store.apply(store.load(),{permissions:{files:"superuser",network:"deny"},micSpeechRms:NaN,micInterruptRms:-10});
+ assert.equal(next.permissions.files,"ask");
+ assert.equal(next.permissions.network,"deny");
+ assert.equal(next.micSpeechRms,0.02);
+ assert.equal(next.micInterruptRms,0.02);
+});
+test("character behavior settings are bounded and normalized",t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-settings-behavior-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const store=new SettingsStore(dir);
+ const next=store.apply(store.load(),{characterBehavior:{frequency:"turbo",eventCooldownSec:9999,sleepAfterMin:0,renderWakeMs:0,blinking:"yes"}});
+ assert.equal(next.characterBehavior.frequency,"normal");
+ assert.equal(next.characterBehavior.eventCooldownSec,300);
+ assert.equal(next.characterBehavior.sleepAfterMin,1);
+ assert.equal(next.characterBehavior.renderWakeMs,100);
+ assert.equal(next.characterBehavior.blinking,true);
+});
