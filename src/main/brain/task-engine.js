@@ -48,6 +48,15 @@ function setPlan(userData,id,steps){
  run.plan=steps.map((step,index)=>({index:index+1,title:safeText(step.title,180),successCriteria:safeText(step.successCriteria,300),status:"pending",startedAt:null,finishedAt:null,evidence:""}));
  return persist(userData,run);
 }
+function appendPlanSteps(userData,id,steps){
+ const run=get(userData,id);if(!run||run.status!=="running")throw new Error("Active task run not found");
+ if(!Array.isArray(steps)||!steps.length)throw new Error("Provide at least one plan step to append");
+ if(!Array.isArray(run.plan))run.plan=[];
+ if(run.plan.length+steps.length>30)throw new Error("A task plan supports at most 30 steps");
+ if(steps.some(step=>!safeText(step?.title,180)||!safeText(step?.successCriteria,300)))throw new Error("Every appended plan step requires a title and measurable success criteria");
+ for(const step of steps)run.plan.push({index:run.plan.length+1,title:safeText(step.title,180),successCriteria:safeText(step.successCriteria,300),status:"pending",startedAt:null,finishedAt:null,evidence:""});
+ return persist(userData,run);
+}
 function updatePlanStep(userData,id,index,status,evidence=""){
  const run=get(userData,id);if(!run||run.status!=="running")throw new Error("Active task run not found");
  const step=run.plan?.[Number(index)-1];if(!step)throw new Error("Task plan step not found");
@@ -116,4 +125,4 @@ function list(userData,limit=20){
  const dir=ensure(userData);
  return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>x.isFile()&&x.name.endsWith(".json")).map(x=>{try{return JSON.parse(fs.readFileSync(path.join(dir,x.name),"utf8"))}catch{return null}}).filter(Boolean).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,Math.max(1,Math.min(100,Number(limit)||20)));
 }
-module.exports={begin,get,setPlan,updatePlanStep,observe,finish,list,recoverStaleRuns};
+module.exports={begin,get,setPlan,appendPlanSteps,updatePlanStep,observe,finish,list,recoverStaleRuns};
