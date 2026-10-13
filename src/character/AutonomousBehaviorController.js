@@ -395,7 +395,7 @@ export class AutonomousBehaviorController{
   }
   if(type==="user-input"||type==="user-message"||type==="user-transcript"){
    const text=String(typeof event==="object"?(event.text||event.message?.content||event.message||event.transcript||event.content||""):"").trim();
-   const normalized=text.toLocaleLowerCase().replace(/[\\s\\p{P}]+/gu," ").trim();
+   const normalized=text.toLocaleLowerCase().replace(/[\s\p{P}]+/gu," ").trim();
    const inputNow=performance.now();
    if(normalized&&normalized===this.lastUserText&&inputNow-this.lastUserTextAt<1500){this.lastMotionReason="skipped: duplicate user transcript";return false}
    if(normalized){this.lastUserText=normalized;this.lastUserTextAt=inputNow}
