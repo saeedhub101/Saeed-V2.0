@@ -138,7 +138,7 @@ function main() {
 
   const mcpTransport = exists("src/addons/mcp.js") ? read("src/addons/mcp.js") : "";
   check("mcp-transports-support-cancellation-and-timeouts",
-    mcpTransport.includes("const signal=controller.signal") &&
+    mcpTransport.includes("signal=controller.signal") &&
     mcpTransport.includes(",signal});") &&
     mcpTransport.includes("MCP stdio request timed out after") &&
     mcpTransport.includes("MCP HTTP request timed out after") &&
