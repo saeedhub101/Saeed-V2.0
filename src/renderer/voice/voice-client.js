@@ -39,9 +39,8 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  window.saeedPrayerSpeak=speakArabicPrayer;
  window.saeedSpeakText=speak;
  async function speak(text){
-  if(!text||!ttsReady)return;
   await refreshRmsSettings();
-  if(voiceMuted)return;
+  if(!text||voiceMuted||!ttsReady)return;
   window.saeedShowMessage?.(text);
   window.saeedCharacterRuntime?.controller?.handleEvent?.({type:"assistant-message",text:String(text)});
   if(["openai","groq","elevenlabs","hakim"].includes(ttsProvider))return speakApi(text);
