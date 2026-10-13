@@ -53,6 +53,7 @@ suites.push({ name: "Persistent learning experience memory tests", args: ["--tes
 suites.push({ name: "Agent-created learned workflow tests", args: ["--test", path.join(root, "tests", "unit", "agent-skills-create.test.cjs")] });
 suites.push({ name: "Task engine integrity regression tests", args: ["--test", path.join(root, "tests", "unit", "task-engine-integrity.test.cjs")] });
 suites.push({ name: "Character motion editor safety tests", args: ["--test", path.join(root, "tests", "unit", "motion-editor-safety.test.mjs")] });
+suites.push({ name: "Autonomous character contextual behavior tests", args: ["--test", path.join(root, "tests", "unit", "character-behavior-context.test.cjs")] });
 
 const results = [];
 
