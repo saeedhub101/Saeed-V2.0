@@ -34,6 +34,7 @@ export class AutonomousBehaviorController{
   this.intent="idle";
   this.energy=70;
   this.lastEnergyAt=performance.now();
+  this.sleepStartedAt=0;
   this.lastInteraction=performance.now();
   this.sleeping=false;
   this.recent=[];
@@ -76,8 +77,13 @@ export class AutonomousBehaviorController{
  decayEnergy(){
   const now=performance.now(),minutes=Math.max(0,(now-this.lastEnergyAt)/60000);
   this.lastEnergyAt=now;
-  if(this.sleeping){this.energy=Math.min(85,Math.max(this.energy,55+minutes*2));return}
-  this.energy=Math.max(MIN_ENERGY,this.energy-minutes*.5);
+  if(this.sleeping){
+   const sleptMinutes=this.sleepStartedAt?Math.max(0,(now-this.sleepStartedAt)/60000):0;
+   if(sleptMinutes>5)this.energy=Math.max(this.energy,Math.min(85,55+sleptMinutes*2));
+   return;
+  }
+  const hour=new Date().getHours(),night=hour>=22||hour<6;
+  this.energy=Math.max(MIN_ENERGY,this.energy-minutes*(night?.7:.5));
  }
  gainEnergy(amount){this.decayEnergy();this.energy=Math.min(100,this.energy+amount)}
  touch(){
@@ -91,7 +97,9 @@ export class AutonomousBehaviorController{
  }
  wakeIfSleeping(){
   if(!this.sleeping)return false;
+  this.decayEnergy();
   this.sleeping=false;
+  this.sleepStartedAt=0;
   this.intent="reacting";
   this.gainEnergy(15);
   const wakeMotion=this.chooseContextMotion("wake")||"wave";
@@ -111,6 +119,7 @@ export class AutonomousBehaviorController{
    }
    this.clearCycleTimers();
    this.sleeping=true;
+   this.sleepStartedAt=performance.now();
    this.intent="sleeping";
    this.character.stopAll();
    this.character.play("sleep",{priority:60});
