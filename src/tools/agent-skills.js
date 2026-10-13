@@ -6,7 +6,6 @@ function call(name,args,context){
  if(name!=="agent_skills")return null;
  const api=learning(),dir=context.userDataPath,operation=String(args.operation||"");
  if(operation==="list")return{ok:true,skills:api.list(dir).map(skill=>({id:skill.id,name:skill.name,description:skill.description,triggerPhrases:skill.trigger.phrases,parameters:skill.parameters,stepCount:skill.steps.length,enabled:skill.enabled,updatedAt:skill.updatedAt}))};
- if(!String(args.skillId||"").trim())return{ok:false,error:"skillId is required for this operation"};
  if(operation==="create"){
   const name=String(args.name||"").trim(),phrases=Array.isArray(args.triggerPhrases)?args.triggerPhrases.map(api.normalize).filter(Boolean):[],steps=Array.isArray(args.steps)?args.steps:[];
   if(!name||!phrases.length||!steps.length)return{ok:false,error:"Creating a learned workflow requires name, triggerPhrases, and at least one verified step"};
@@ -18,6 +17,7 @@ function call(name,args,context){
    return{ok:true,skill:{id:saved.id,name:saved.name,triggerPhrases:saved.trigger.phrases,parameters:saved.parameters,stepCount:saved.steps.length,enabled:saved.enabled,updatedAt:saved.updatedAt}};
   }catch(error){return{ok:false,error:"Could not save learned workflow: "+String(error?.message||error).slice(0,180)}}
  }
+ if(!String(args.skillId||"").trim())return{ok:false,error:"skillId is required for this operation"};
  const skill=api.get(dir,args.skillId);
  if(!skill)return{ok:false,error:"Saved skill not found: "+args.skillId};
  if(operation==="get")return{ok:true,skill};
