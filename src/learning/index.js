@@ -13,7 +13,30 @@ function get(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))retu
 function save(userData,skill){const v=validate(skill);ensure(userData);const f=fileFor(userData,v.id),result=writeJsonAtomic(f,v);if(!result.ok)throw new Error("Learned skill persistence failed: "+result.error);const persisted=get(userData,v.id);if(!persisted||persisted.id!==v.id||persisted.steps.length!==v.steps.length)throw new Error("Learned skill persistence verification failed");return persisted}
 function remove(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return false;fs.unlinkSync(f);return true}
 function setEnabled(userData,id,enabled){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);s.enabled=Boolean(enabled);s.updatedAt=new Date().toISOString();return save(userData,s)}
-function match(userData,text){const n=normalize(text);if(!n)return null;return list(userData).find(s=>s.enabled!==false&&(s.trigger?.phrases||[]).some(p=>normalize(p)===n))||null}
+function match(userData,text){
+ const n=normalize(text);if(!n)return null;
+ const skills=list(userData).filter(skill=>skill.enabled!==false);
+ const exact=skills.find(skill=>(skill.trigger?.phrases||[]).some(phrase=>normalize(phrase)===n));
+ if(exact)return exact;
+ const stop=new Set(["a","an","the","please","my","this","that","for","to","of","in","on","at","with","and","then","now","me","من","في","على","الى","إلى","هذه","هذا","ذلك","تلك","من فضلك","رجاء","الآن","لي","ثم"]);
+ const tokens=value=>new Set(normalize(value).split(/\s+/).filter(token=>token.length>1&&!stop.has(token)));
+ const query=tokens(n);if(query.size<2)return null;
+ const ranked=[];
+ for(const skill of skills){
+  let best=0;
+  for(const phrase of skill.trigger?.phrases||[]){
+   const trigger=tokens(phrase);if(trigger.size<2)continue;
+   let overlap=0;for(const token of trigger)if(query.has(token))overlap++;
+   const recall=overlap/trigger.size,precision=overlap/query.size;
+   const score=0.75*recall+0.25*precision;
+   if(score>best)best=score;
+  }
+  if(best>=0.78)ranked.push({skill,score:best});
+ }
+ ranked.sort((a,b)=>b.score-a.score);
+ if(!ranked.length||ranked.length>1&&ranked[0].score-ranked[1].score<0.15)return null;
+ return Object.assign({},ranked[0].skill,{matchScore:Number(ranked[0].score.toFixed(3)),matchType:"fuzzy"});
+}
 function exportSkill(userData,id){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);return JSON.stringify(s,null,2)}
 function importSkill(userData,data){return save(userData,typeof data==="string"?JSON.parse(data):data)}
 function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},steps:[],approval:"per-tool"}}}
