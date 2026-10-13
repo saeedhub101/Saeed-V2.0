@@ -1,6 +1,7 @@
 param(
  [ValidateSet("Inspect","Act")][string]$Mode="Inspect",
  [int]$TargetPid=0,
+ [string]$TargetWindowTitle="",
  [int]$Limit=150,
  [int]$ElementIndex=-1,
  [ValidateSet("invoke","set_value","select","toggle","focus","expand","collapse")][string]$Action="focus",
@@ -20,9 +21,9 @@ public static class SaeedUiNative {
 }
 "@
  $root=$null
- if($TargetPid -gt 0) {
+ if($TargetPid -gt 0 -or $TargetWindowTitle) {
   $top=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
-  foreach($candidate in $top) { try { if($candidate.Current.ProcessId -eq $TargetPid) { $root=$candidate; break } } catch {} }
+  foreach($candidate in $top) { try { $currentWindow=$candidate.Current;if(($TargetPid -le 0 -or $currentWindow.ProcessId -eq $TargetPid) -and (-not $TargetWindowTitle -or $currentWindow.Name -ceq $TargetWindowTitle)) { $root=$candidate; break } } catch {} }
  } else {
   $handle=[SaeedUiNative]::GetForegroundWindow()
   if($handle -ne [IntPtr]::Zero) { $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle) }
