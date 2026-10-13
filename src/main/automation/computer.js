@@ -62,17 +62,17 @@ class Computer{
   const p=Math.round(Number(pid));if(!Number.isFinite(p))return{ok:false,error:"Invalid pid"};
   return this.powershell('$p=Get-Process -Id '+p+' -ErrorAction Stop;Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.Interaction]::AppActivate($p.Id)');
  }
- async inspectWindowControls(pid=null,limit=150,windowTitle=""){
-  const targetPid=pid==null?0:Math.round(Number(pid)),max=Math.max(1,Math.min(500,Math.round(Number(limit)||150)));
-  if(!Number.isFinite(targetPid)||targetPid<0)return{ok:false,error:"Invalid target process id"};
+ async inspectWindowControls(pid=null,limit=150,windowTitle="",windowHandle=0){
+  const targetPid=pid==null?0:Math.round(Number(pid)),targetHandle=windowHandle==null?0:Math.round(Number(windowHandle)),max=Math.max(1,Math.min(500,Math.round(Number(limit)||150)));
+  if(!Number.isFinite(targetPid)||targetPid<0||!Number.isFinite(targetHandle)||targetHandle<0)return{ok:false,error:"Invalid target process id or window handle"};
   const script=path.join(__dirname,"windows-ui-automation.ps1");
-  const command="& '"+this.esc(script)+"' -Mode Inspect -TargetPid "+targetPid+" -TargetWindowTitle '"+this.esc(windowTitle)+"' -Limit "+max;
+  const command="& '"+this.esc(script)+"' -Mode Inspect -TargetPid "+targetPid+" -TargetWindowHandle "+targetHandle+" -TargetWindowTitle '"+this.esc(windowTitle)+"' -Limit "+max;
   try{const result=await this.powershell(command);const data=JSON.parse(result.stdout||"{}");return data&&typeof data==="object"?data:{ok:false,error:"UI Automation returned an invalid response"}}catch(error){return{ok:false,error:String(error?.message||error).slice(0,400)}}
  }
- async interactUiElement({pid=null,windowTitle="",elementIndex,action,value="",expectedName="",automationId="",controlType="",expectedBounds=null}={}){
-  const targetPid=pid==null?0:Math.round(Number(pid)),rawIndex=Number(elementIndex),index=Math.round(rawIndex);
+ async interactUiElement({pid=null,windowTitle="",windowHandle=0,elementIndex,action,value="",expectedName="",automationId="",controlType="",expectedBounds=null}={}){
+  const targetPid=pid==null?0:Math.round(Number(pid)),targetHandle=windowHandle==null?0:Math.round(Number(windowHandle)),rawIndex=Number(elementIndex),index=Math.round(rawIndex);
   const allowed=new Set(["invoke","set_value","select","toggle","focus","expand","collapse"]);
-  if(!Number.isFinite(targetPid)||targetPid<0||!Number.isInteger(rawIndex)||index<0||!allowed.has(String(action||"")))return{ok:false,error:"Invalid UI Automation target or action"};
+  if(!Number.isFinite(targetPid)||targetPid<0||!Number.isFinite(targetHandle)||targetHandle<0||!Number.isInteger(rawIndex)||index<0||!allowed.has(String(action||"")))return{ok:false,error:"Invalid UI Automation target or action"};
   if(action==="set_value"&&value==null)return{ok:false,error:"A value is required for set_value"};
   const hasStableIdentity=Boolean(String(expectedName||"").trim()||String(automationId||"").trim());
   if(!hasStableIdentity&&!expectedBounds)return{ok:false,error:"Unsafe UI Automation target: provide an accessible name, AutomationId, or the observed bounds for an unnamed control."};
@@ -85,7 +85,7 @@ class Computer{
    if(coordinates.some(value=>!Number.isFinite(value))||coordinates[2]<0||coordinates[3]<0)return{ok:false,error:"Invalid expected control bounds"};
    boundsArgs=" -CheckBounds $true -ExpectedX "+coordinates[0]+" -ExpectedY "+coordinates[1]+" -ExpectedWidth "+coordinates[2]+" -ExpectedHeight "+coordinates[3];
   }
-  const command="& "+quote(script)+" -Mode Act -TargetPid "+targetPid+" -TargetWindowTitle "+quote(windowTitle)+" -ElementIndex "+index+" -Action "+quote(action)+" -Value "+quote(value)+" -ExpectedName "+quote(expectedName)+" -AutomationId "+quote(automationId)+" -ControlType "+quote(controlType)+boundsArgs;
+  const command="& "+quote(script)+" -Mode Act -TargetPid "+targetPid+" -TargetWindowHandle "+targetHandle+" -TargetWindowTitle "+quote(windowTitle)+" -ElementIndex "+index+" -Action "+quote(action)+" -Value "+quote(value)+" -ExpectedName "+quote(expectedName)+" -AutomationId "+quote(automationId)+" -ControlType "+quote(controlType)+boundsArgs;
   try{const result=await this.powershell(command);const data=JSON.parse(result.stdout||"{}");return data&&typeof data==="object"?data:{ok:false,error:"UI Automation returned an invalid response"}}catch(error){return{ok:false,error:String(error?.message||error).slice(0,400)}}
  }
  async processes(){
