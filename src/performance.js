@@ -147,12 +147,15 @@ $("rigAuto")?.addEventListener("click",async()=>{
 $("rigRefresh")?.addEventListener("click",refreshRigTab);
 window.saeed.character.onCharacterSelected?.(()=>{if(document.querySelector(".tabs button.active")?.dataset.tab==="character"){refreshCharacterController();refreshMotionEditor()}});
 
+let rigTabCurrentBoneNames=[],rigTabCurrentActualBones={};
 const rigTabJoints=["hips","head","leftShoulder","rightShoulder","leftUpperArm","rightUpperArm","leftThigh","rightThigh","spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye",...["left","right"].flatMap(side=>["Thumb","Index","Middle","Ring","Pinky"].flatMap(finger=>[1,2,3,4].map(segment=>side+"Hand"+finger+segment)))];
 async function refreshRigTab(){
  try{
   const rigResult=await controllerCommand({action:"getRig"});
   const names=[...new Set(rigResult?.bones||[])];
   const s=rigResult?.status||{};
+  rigTabCurrentBoneNames=names;
+  rigTabCurrentActualBones=s?.actualBones||{};
   const mapped=rigResult?.mapping&&typeof rigResult.mapping==="object"?rigResult.mapping:(s?.retargeting?.bones||{});
   const grid=$("rigMappingGrid");
   const esc=v=>String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
@@ -169,8 +172,8 @@ async function refreshRigTab(){
      panel=document.createElement("section");panel.id="allBoneEditor";panel.className="characterControllerPanel allBoneEditor";
      panel.innerHTML='<div class="sectionHead"><span class="eyebrow">DIRECT SKELETON CONTROL</span><h2>Edit Any Bone</h2><p id="boneEditorSummary">Choose a detected GLB bone, adjust local rotation and translation, then capture or restore its rest pose.</p></div><div class="formGrid"><label class="wide">Find bone<input id="boneSearch" type="search" placeholder="Search bone name"></label><label>Bone<select id="boneSelect"></select></label><label>Parent<input id="boneParent" readonly></label></div><div class="formGrid boneTransformGrid"><label>Rotate X (deg)<input id="boneRotX" type="number" step="1"></label><label>Rotate Y (deg)<input id="boneRotY" type="number" step="1"></label><label>Rotate Z (deg)<input id="boneRotZ" type="number" step="1"></label><label>Move X<input id="bonePosX" type="number" step="0.01"></label><label>Move Y<input id="bonePosY" type="number" step="0.01"></label><label>Move Z<input id="bonePosZ" type="number" step="0.01"></label></div><div class="permissionActions"><button id="boneApply" class="primary">Apply Bone Transform</button><button id="boneSaveRest" class="secondary">Set Current Rest Pose</button><button id="boneResetAll" class="secondary">Restore Full Rest Pose</button></div><p id="boneEditorState" class="hint"></p>';
      $("rigAuto").parentElement.after(panel);
-     $("boneSelect").addEventListener("change",()=>fillBoneEditor(s?.actualBones||{}));
-     $("boneSearch").addEventListener("input",()=>updateBoneOptions(names,esc));
+     $("boneSelect").addEventListener("change",()=>fillBoneEditor(rigTabCurrentActualBones));
+     $("boneSearch").addEventListener("input",()=>updateBoneOptions(rigTabCurrentBoneNames,esc));
      $("boneApply").addEventListener("click",async()=>{const name=$("boneSelect").value;if(!name)return;const radians=v=>Number(v||0)*Math.PI/180;const transform={rotation:{x:radians($("boneRotX").value),y:radians($("boneRotY").value),z:radians($("boneRotZ").value)},position:{x:Number($("bonePosX").value)||0,y:Number($("bonePosY").value)||0,z:Number($("bonePosZ").value)||0}};const r=await controllerCommand({action:"pose",pose:{__bones:{[name]:transform}}});$("boneEditorState").textContent=r?.ok?"Bone transform applied relative to its rest pose.":r?.error||"Bone transform failed.";await refreshRigTab()});
      $("boneSaveRest").addEventListener("click",async()=>{const r=await controllerCommand({action:"pose",pose:{__captureRest:true}});$("boneEditorState").textContent=r?.ok?"Current full skeleton pose saved as this character's rest pose.":r?.error||"Rest pose save failed.";await refreshRigTab()});
      $("boneResetAll").addEventListener("click",async()=>{const r=await controllerCommand({action:"resetPose"});$("boneEditorState").textContent=r?.ok?"Full skeleton restored to its saved rest pose.":r?.error||"Rest pose restore failed.";await refreshRigTab()});
