@@ -5,6 +5,12 @@ const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
 const REACTION_GAP_MS=1400;
 const TEXT_REACTIONS=[
+ {id:"worry",pattern:/(?:\b(worried|anxious|nervous|scared|afraid|concerned|i am stressed|i'm stressed)\b|قلقان|قلقة|متوتر|متوترة|خائف|خايف|خايفة|أشعر بالقلق|حاسس بضغط)/i,mood:"thoughtful",motion:"think",expression:"sad"},
+ {id:"anger",pattern:/(?:\b(i am angry|i'm angry|furious|pissed off|fed up|this is ridiculous)\b|أنا غاضب|انا غاضب|معصب|مستفز|طفح الكيل|هذا سخيف)/i,mood:"thoughtful",motion:"think",expression:"confused"},
+ {id:"empathy",pattern:/(?:\b(having a hard time|rough day|i feel terrible|i feel bad|i am struggling|i'm struggling)\b|يوم صعب|أشعر بالسوء|تعبان نفسيا|أعاني|الأمور صعبة)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
+ {id:"celebration",pattern:/(?:\b(i did it|we did it|finally worked|it worked|problem solved|we made it)\b|نجحت|زبطت|اشتغل|انحلت المشكلة|حليناها|أخيرا نجح)/i,mood:"cheerful",motion:"clap",expression:"happy"},
+ {id:"curiosity",pattern:/(?:\b(i wonder|interesting|tell me more|i am curious|i'm curious)\b|مثير للاهتمام|احكيلي أكثر|أخبرني المزيد|عندي فضول|غريب فعلا)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
+ {id:"worry",pattern:/(?:\b(worried|anxious|nervous|scared|afraid|concerned|i am stressed|i'm stressed)\b|قلقان|قلقة|متوتر|متوترة|خائف|خايف|خايفة|أشعر بالقلق|حاسس بضغط)/i,mood:"thoughtful",motion:"think",expression:"sad"},
  {id:"urgency",pattern:/(?:\b(urgent|asap|emergency|quickly|hurry|right now)\b|بسرعة|مستعجل|ضروري جدا|حالا|فورا)/i,mood:"puzzled",motion:"lookCloser",expression:"surprised"},
  {id:"apology",pattern:/(?:\b(i am sorry|i'm sorry|my apologies|forgive me|sorry about that)\b|آسف|اسف|أعتذر|اعتذر|سامحني|حقك علي)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
  {id:"encouragement",pattern:/(?:\b(you can do it|keep going|don't give up|well try again|you've got this)\b|تقدر|استمر|لا تستسلم|حاول مرة أخرى|أنت قادر)/i,mood:"cheerful",motion:"nod",expression:"happy"},
@@ -168,6 +174,11 @@ export class AutonomousBehaviorController{
    disagreement:{cheerful:["shake","think"],curious:["shake","lookCloser"],thoughtful:["shake","nod"],mischievous:["shake","think"],pleased:["shake","nod"],sleepy:["shake","nod"],puzzled:["shake","think"],sad:["nod","think"]},
    farewell:{cheerful:["wave","nod"],curious:["wave","nod"],thoughtful:["wave","nod"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]},
    apology:{cheerful:["nod","think"],curious:["nod","think"],thoughtful:["nod","think"],mischievous:["nod"],pleased:["nod"],sleepy:["nod"],puzzled:["nod","think"],sad:["nod","think"]},
+   worry:{cheerful:["think","nod"],curious:["think","lookCloser"],thoughtful:["think","nod"],mischievous:["think"],pleased:["think","nod"],sleepy:["nod"],puzzled:["think","nod"],sad:["think","nod"]},
+   anger:{cheerful:["think","nod"],curious:["think","lookCloser"],thoughtful:["think","nod"],mischievous:["think"],pleased:["think"],sleepy:["think"],puzzled:["think","nod"],sad:["think","nod"]},
+   empathy:{cheerful:["nod","think"],curious:["nod","think"],thoughtful:["nod","think"],mischievous:["nod"],pleased:["nod"],sleepy:["nod"],puzzled:["nod","think"],sad:["nod","think"]},
+   celebration:{cheerful:["clap","dance","wave"],curious:["clap","wave"],thoughtful:["clap","nod"],mischievous:["dance","clap"],pleased:["clap","dance"],sleepy:["clap","nod"],puzzled:["clap","wave"],sad:["clap","nod"]},
+   curiosity:{cheerful:["lookCloser","nod"],curious:["lookCloser","think"],thoughtful:["lookCloser","think"],mischievous:["lookCloser","nod"],pleased:["lookCloser","nod"],sleepy:["lookCloser"],puzzled:["lookCloser","think"],sad:["lookCloser","nod"]},
    encouragement:{cheerful:["nod","clap","wave"],curious:["nod","wave"],thoughtful:["nod","wave"],mischievous:["clap","wave"],pleased:["clap","nod"],sleepy:["nod"],puzzled:["nod","wave"],sad:["nod","wave"]},
    affection:{cheerful:["wave","nod"],curious:["nod","wave"],thoughtful:["nod"],mischievous:["wave","dance"],pleased:["wave","nod","clap"],sleepy:["nod"],puzzled:["nod"],sad:["nod"]},
    urgency:{cheerful:["lookCloser","think"],curious:["lookCloser","think"],thoughtful:["think","lookCloser"],mischievous:["think"],pleased:["lookCloser"],sleepy:["lookCloser","think"],puzzled:["lookCloser","think"],sad:["think"]},
@@ -303,7 +314,7 @@ export class AutonomousBehaviorController{
   this.onMoodChanged(reaction.mood,true);
   this.setExpression(reaction.expression,.78);
   this.intent="reacting";
-  const contextual=["praise","excitement","confusion","disagreement","farewell","apology","encouragement","affection","urgency","boredom"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
+  const contextual=["praise","excitement","confusion","disagreement","farewell","apology","encouragement","affection","urgency","boredom","worry","anger","empathy","celebration","curiosity"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
   const motion=contextual||reaction.motion;
   const duration=motion==="dance"?2.1:motion==="lookCloser"?1.8:1.25;
   const played=this.playMotion(motion,{duration,priority:42});
