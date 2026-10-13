@@ -99,7 +99,7 @@ export class AutonomousBehaviorController{
  }
  armSleepTimer(){
   this.clearSleepTimer();
-  if(!this.running||!this.visible||this.sleeping)return;
+  if(!this.running||!this.visible||this.sleeping||this.settings.sleep===false)return;
   this.sleepTimer=setTimeout(()=>{
    this.sleepTimer=null;
    if(!this.running||!this.visible)return;
@@ -115,7 +115,7 @@ export class AutonomousBehaviorController{
   },Math.max(60000,Number(this.settings.sleepAfterMs)||SLEEP_AFTER_MS));
  }
  chooseWeighted(candidates,weights={}){
-  const available=[...new Set((candidates||[]).filter(id=>typeof id==="string"&&this.character?.animation?.registry?.get?.(id)))];
+  const available=[...new Set((candidates||[]).filter(id=>typeof id==="string"&&this.character?.animation?.registry?.get?.(id)&&!(this.settings.dancing===false&&id==="dance")))];
   if(!available.length)return null;
   const fresh=available.filter(id=>!this.recent.includes(id));
   const source=fresh.length?fresh:available;
@@ -161,6 +161,7 @@ export class AutonomousBehaviorController{
  }
  evaluateNow(){
   if(!this.running||!this.visible||this.sleeping||this.settings.idle===false)return false;
+  if(this.settings.random===false||this.settings.idleThoughts===false||this.settings.autonomousMovement===false){this.schedule(DEFAULT_IDLE_DELAY);return false;}
   this.decayEnergy();
   if(["speaking","thinking","doing","being-moved"].includes(this.intent)){
    this.schedule(DEFAULT_IDLE_DELAY);
@@ -245,7 +246,7 @@ export class AutonomousBehaviorController{
  }
  scheduleSpeakingGesture(){
   this.clearSpeakingTimer();
-  if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking")return;
+  if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking"||this.settings.speakingCycle===false)return;
   const delay=4500+Math.random()*3500;
   this.speakingTimer=setTimeout(()=>{
    this.speakingTimer=null;
@@ -257,7 +258,7 @@ export class AutonomousBehaviorController{
  }
  scheduleThinkingGesture(){
   this.clearThinkingTimer();
-  if(!this.running||!this.visible||this.sleeping||this.intent!=="thinking")return;
+  if(!this.running||!this.visible||this.sleeping||this.intent!=="thinking"||this.settings.thinkingCycle===false)return;
   const delay=2800+Math.random()*2200;
   this.thinkingTimer=setTimeout(()=>{
    this.thinkingTimer=null;
@@ -272,6 +273,7 @@ export class AutonomousBehaviorController{
   if(!this.running||!this.visible)return false;
   this.lastEvent=type;
   if(type==="pointer-move"){
+   if(this.settings.eyeTracking===false)return false;
    const now=performance.now();if(now-this.lastGazeAt<110)return false;this.lastGazeAt=now;
    const x=Math.max(-1,Math.min(1,Number(event?.x)||0)),y=Math.max(-1,Math.min(1,Number(event?.y)||0));
    const ok=Boolean(this.character.face?.lookAt?.(x*1.35,1.5-y*.25,1.2));if(ok)this.intent="attending";return ok;
