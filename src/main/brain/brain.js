@@ -25,10 +25,13 @@ class Brain{
  }
  async run({text,image=null,history=[],isCurrent=()=>true,signal=null}={}){
   const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
-  const taskEngine=require("./task-engine");let taskRun=null;\n  const emit=event=>{if(current()){if(taskRun){try{taskEngine.observe(this.getDir(),taskRun.id,event)}catch{}}this.onEvent(event)}};\n  const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");taskEngine.finish(this.getDir(),taskRun.id,{status:status||(failed?"needs_attention":"finished"),summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:status||(failed?"needs_attention":"finished")})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
+  const taskEngine=require("./task-engine");let taskRun=null;
+  const emit=event=>{if(current()){if(taskRun){try{taskEngine.observe(this.getDir(),taskRun.id,event)}catch{}}this.onEvent(event)}};
+  const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");taskEngine.finish(this.getDir(),taskRun.id,{status:status||(failed?"needs_attention":"finished"),summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:status||(failed?"needs_attention":"finished")})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
-  if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};\n  try{taskRun=taskEngine.begin(this.getDir(),s);this.onEvent({type:"task-start",taskId:taskRun.id,goal:s})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}
+  if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};
+  try{taskRun=taskEngine.begin(this.getDir(),s);this.onEvent({type:"task-start",taskId:taskRun.id,goal:s})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}
   const learned=learning().match(this.getDir(),s);
   if(learned){
    try{const result=await learning().run(this.getDir(),this.registry,learned,{isCurrent:current});if(!current()||result?.stale){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}}const learnedAnswer="Done — I followed the learned skill: "+learned.name+".";finishTask(learnedAnswer,result?.ok===false?"needs_attention":undefined);return{handled:true,answer:learnedAnswer,source:"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
