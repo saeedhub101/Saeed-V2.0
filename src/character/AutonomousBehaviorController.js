@@ -3,12 +3,12 @@ const SLEEP_AFTER_MS=60*60*1000;
 const RECENT_LIMIT=4;
 const MIN_ENERGY=20;
 const TEXT_REACTIONS=[
- {id:"greeting",pattern:/\b(hello|hi|hey|good morning|good evening|مرحبا|اهلا|أهلا|السلام عليكم|صباح الخير|مساء الخير)\b/i,mood:"cheerful",motion:"wave",expression:"happy"},
- {id:"thanks",pattern:/\b(thanks|thank you|thx|much appreciated|شكرا|شكرًا|يسلمو|مشكور|ممتاز)\b/i,mood:"pleased",motion:"nod",expression:"happy"},
- {id:"praise",pattern:/\b(great job|well done|amazing|awesome|brilliant|you are great|رائع|مبدع|أحسنت|احسنت|ممتاز جدا)\b/i,mood:"mischievous",motion:"dance",expression:"happy"},
- {id:"frustration",pattern:/\b(doesn't work|does not work|broken|wrong|annoying|frustrated|failed|error|ما اشتغل|لا يعمل|خطأ|غلط|فاشل|مزعج)\b/i,mood:"thoughtful",motion:"think",expression:"confused"},
- {id:"farewell",pattern:/\b(bye|goodbye|see you|good night|تصبح على خير|مع السلامة|الى اللقاء|إلى اللقاء)\b/i,mood:"pleased",motion:"wave",expression:"happy"},
- {id:"confusion",pattern:/\b(i don't understand|i do not understand|confused|what do you mean|مش فاهم|مش فاهمة|لم أفهم|ماذا تقصد)\b/i,mood:"curious",motion:"think",expression:"confused"}
+ {id:"greeting",pattern:/(?:\b(hello|hi|hey|good morning|good evening)\b|مرحبا|اهلا|أهلا|السلام عليكم|صباح الخير|مساء الخير)/i,mood:"cheerful",motion:"wave",expression:"happy"},
+ {id:"thanks",pattern:/(?:\b(thanks|thank you|thx|much appreciated)\b|شكرا|شكرًا|يسلمو|مشكور|ممتاز)/i,mood:"pleased",motion:"nod",expression:"happy"},
+ {id:"praise",pattern:/(?:\b(great job|well done|amazing|awesome|brilliant|you are great)\b|رائع|مبدع|أحسنت|احسنت|ممتاز جدا)/i,mood:"mischievous",motion:"dance",expression:"happy"},
+ {id:"frustration",pattern:/(?:\b(doesn't work|does not work|broken|wrong|annoying|frustrated|failed|error)\b|ما اشتغل|لا يعمل|خطأ|غلط|فاشل|مزعج)/i,mood:"thoughtful",motion:"think",expression:"confused"},
+ {id:"farewell",pattern:/(?:\b(bye|goodbye|see you|good night)\b|تصبح على خير|مع السلامة|الى اللقاء|إلى اللقاء)/i,mood:"pleased",motion:"wave",expression:"happy"},
+ {id:"confusion",pattern:/(?:\b(i don't understand|i do not understand|confused|what do you mean)\b|مش فاهم|مش فاهمة|لم أفهم|ماذا تقصد)/i,mood:"curious",motion:"think",expression:"confused"}
 ];
 
 export class AutonomousBehaviorController{
