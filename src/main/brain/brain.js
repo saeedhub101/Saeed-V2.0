@@ -54,9 +54,11 @@ class Brain{
      else if(incompletePlan)finalAnswer="The task plan still has unfinished steps, so I can't confirm completion.";
      else if(failed)finalAnswer="At least one action failed, so I can't confirm completion.";
     }
-    taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:finalAnswer.slice(0,1000)});
-    this.onEvent({type:"task-finished",taskId:taskRun.id,status:finalStatus});
-    return{status:finalStatus,answer:finalAnswer};
+    const persisted=taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:finalAnswer.slice(0,1000)});
+    const actualStatus=persisted?.status||finalStatus;
+    if(actualStatus==="needs_attention"&&finalStatus==="finished")finalAnswer="I attempted the requested actions, but the task log shows an interrupted or unverified step. I can't confirm completion.";
+    this.onEvent({type:"task-finished",taskId:taskRun.id,status:actualStatus});
+    return{status:actualStatus,answer:finalAnswer};
    }catch(error){
     this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)});
     return{status:"needs_attention",answer:finalAnswer};
