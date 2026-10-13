@@ -84,7 +84,7 @@ function parameterNameFromControl(label,automationId){
  let raw=String(label||"").trim();
  if(!raw)raw=String(automationId||"").trim();
  raw=raw.replace(/^(?:txt|text|input|field|edit|cmb|combo|ddl)[_-]?/i,"").replace(/(?:textBox|textbox|input|edit|comboBox|combo|field)$/i,"");
- const words=raw.replace(/([a-z0-9])([A-Z])/g,"$1 $2").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").match(/[a-z0-9]+/gi)||[];
+ const words=raw.replace(/([a-z0-9])([A-Z])/g,"$1 $2").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").match(/[a-z0-9]+/gi)||[];
  if(!words.length)return null;
  const name=words.map((word,index)=>index===0?word.toLowerCase():word[0].toUpperCase()+word.slice(1).toLowerCase()).join("");
  if(!/^[a-z][a-z0-9_]{0,39}$/i.test(name)||["edit","text","textbox","input","field","combobox"].includes(name.toLowerCase()))return null;
@@ -101,15 +101,15 @@ function recordStep(session,tool,args){
  const controlType=String(windowInfo.controlType||""),label=String(windowInfo.control||"").trim(),automationId=String(windowInfo.automationId||"").trim();
  if(selectedTool==="mouse_click"&&input.button!=="right"&&Number.isInteger(Number(windowInfo.elementIndex))&&Number(windowInfo.elementIndex)>=0&&(label||automationId)){
   let action=null;
-  if(/\\.Button$/i.test(controlType)||/\\.Hyperlink$/i.test(controlType)||/\\.MenuItem$/i.test(controlType))action="invoke";
-  else if(/\\.Edit$/i.test(controlType)||/\\.Document$/i.test(controlType))action="focus";
-  else if(/\\.ComboBox$/i.test(controlType))action="expand";
-  else if(/\\.CheckBox$/i.test(controlType))action="toggle";
-  else if(/\\.RadioButton$|\\.ListItem$|\\.TabItem$|\\.TreeItem$/i.test(controlType))action="select";
+  if(/\.Button$/i.test(controlType)||/\.Hyperlink$/i.test(controlType)||/\.MenuItem$/i.test(controlType))action="invoke";
+  else if(/\.Edit$/i.test(controlType)||/\.Document$/i.test(controlType))action="focus";
+  else if(/\.ComboBox$/i.test(controlType))action="expand";
+  else if(/\.CheckBox$/i.test(controlType))action="toggle";
+  else if(/\.RadioButton$|\.ListItem$|\.TabItem$|\.TreeItem$/i.test(controlType))action="select";
   if(action){selectedTool="interact_ui_element";selectedArgs={pid:Number(windowInfo.pid)||0,elementIndex:Number(windowInfo.elementIndex),action,expectedName:label,automationId,controlType}}
  }
  if(selectedTool==="type_text"&&typeof input.text==="string"&&input.text.length){
-  const isField=/\\.(?:Edit|ComboBox|Document)$/i.test(controlType);
+  const isField=/\.(?:Edit|ComboBox|Document)$/i.test(controlType);
   const parameterName=isField?parameterNameFromControl(label,automationId):null;
   if(parameterName){
    let name=parameterName,number=2;
