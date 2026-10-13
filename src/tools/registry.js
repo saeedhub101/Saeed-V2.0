@@ -105,7 +105,9 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   if(!current()||policy==="deny")return false;
   const name=String(request?.name||"");
   const alwaysConfirm=new Set(["email_send","mcp_call_tool"]);
-  if(policy==="allow"&&!alwaysConfirm.has(name))return current();
+  const uiLabel=String(request?.args?.expectedName||"").trim(),uiId=String(request?.args?.automationId||"").trim();
+  const sensitiveUiInvoke=name==="interact_ui_element"&&request?.args?.action==="invoke"&&(!uiLabel&&!uiId||/issue|send|submit|pay|delete|remove|approve|confirm|finali[sz]|publish|purchase|release|policy|إصدار|ارسال|إرسال|دفع|حذف|اعتماد|تأكيد|نهائي/i.test(uiLabel+" "+uiId));
+  if(policy==="allow"&&!alwaysConfirm.has(name)&&!sensitiveUiInvoke)return current();
   try{return current()&&Boolean(await this.confirm({...request,permissionCategory:category}))&&current()}catch{return false}
  }
  async call(name,args={},options={}){
