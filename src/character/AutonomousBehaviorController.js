@@ -22,6 +22,11 @@ export class AutonomousBehaviorController{
  constructor(character){
   this.character=character;
   this.running=false;
+  this.speakingTimer=null;
+  this.thinkingTimer=null;
+  this.lastEvent="startup";
+  this.lastMotionReason="startup";
+  this.lastMotionId=null;
   this.visible=true;
   this.timer=null;
   this.sleepTimer=null;
@@ -48,11 +53,15 @@ export class AutonomousBehaviorController{
   this.clearTimer();
   this.clearSleepTimer();
   this.clearBlinkTimer();
+  this.clearCycleTimers();
   this.sleeping=false;
  }
  clearTimer(){if(this.timer){clearTimeout(this.timer);this.timer=null}}
  clearSleepTimer(){if(this.sleepTimer){clearTimeout(this.sleepTimer);this.sleepTimer=null}}
  clearBlinkTimer(){if(this.blinkTimer){clearTimeout(this.blinkTimer);this.blinkTimer=null}}
+ clearSpeakingTimer(){if(this.speakingTimer){clearTimeout(this.speakingTimer);this.speakingTimer=null}}
+ clearThinkingTimer(){if(this.thinkingTimer){clearTimeout(this.thinkingTimer);this.thinkingTimer=null}}
+ clearCycleTimers(){this.clearSpeakingTimer();this.clearThinkingTimer()}
  configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer()}return {...this.settings}}
  armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
  setVisible(value){
@@ -99,24 +108,29 @@ export class AutonomousBehaviorController{
    this.character.play("sleep",{priority:60});
   },Math.max(60000,Number(this.settings.sleepAfterMs)||SLEEP_AFTER_MS));
  }
- chooseIdle(){
-  const available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get(id));
+ chooseWeighted(candidates,weights={}){
+  const available=[...new Set((candidates||[]).filter(id=>typeof id==="string"&&this.character?.animation?.registry?.get?.(id)))];
   if(!available.length)return null;
-  const hour=new Date().getHours();
-  const night=hour>=22||hour<7;
-  const lowEnergy=this.energy<45||night;
+  const fresh=available.filter(id=>!this.recent.includes(id));
+  const source=fresh.length?fresh:available;
+  const total=source.reduce((sum,id)=>sum+Math.max(.05,Number(weights[id])||1),0);
+  let roll=Math.random()*total;
+  for(const id of source){roll-=Math.max(.05,Number(weights[id])||1);if(roll<=0){this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);this.lastMotionId=id;return id}}
+  const id=source[source.length-1];this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);this.lastMotionId=id;return id;
+ }
+ chooseIdle(){
+  const available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get?.(id));
+  if(!available.length)return null;
+  const hour=new Date().getHours(),night=hour>=22||hour<6,morning=hour>=5&&hour<12;
+  const lowEnergy=this.energy<40||night,highEnergy=this.energy>=70;
   const calm=new Set(["nod","think","yawn","stretch","lookCloser"]);
   const pool=lowEnergy?available.filter(id=>calm.has(id)):available;
-  const choices=pool.length?pool:available;
-  const fresh=choices.filter(id=>!this.recent.includes(id));
-  const source=fresh.length?fresh:choices;
-  const weights={wave:1.15,nod:1.35,think:1.1,stretch:1.05,lookCloser:1.15,yawn:lowEnergy?1.7:.45,crackBack:.8,crackFingers:.85,dance:night?.25:0.65};
-  const weighted=source.map(motion=>({motion,weight:Math.max(.05,weights[motion]||1)}));
-  const total=weighted.reduce((sum,item)=>sum+item.weight,0);
-  let roll=Math.random()*total,id=weighted[weighted.length-1].motion;
-  for(const item of weighted){roll-=item.weight;if(roll<=0){id=item.motion;break}}
-  this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);
-  return id;
+  const weights={wave:1.1,nod:1.2,think:1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
+  if(this.mood==="curious"){weights.lookCloser=(weights.lookCloser||1)*1.8;weights.think=(weights.think||1)*1.25}
+  if(this.mood==="pleased"||this.mood==="cheerful"){weights.wave=(weights.wave||1)*1.35;weights.nod=(weights.nod||1)*1.2}
+  if(this.mood==="thoughtful"||this.mood==="sad"||this.mood==="sleepy"){weights.yawn=(weights.yawn||1)*1.25;weights.dance=(weights.dance||1)*.25}
+  this.lastMotionReason=night?"nighttime calm bias":lowEnergy?"low-energy calm bias":this.mood+" mood palette";
+  return this.chooseWeighted(pool.length?pool:available,weights);
  }
  schedule(delay=DEFAULT_IDLE_DELAY){
   this.clearTimer();
@@ -178,7 +192,7 @@ export class AutonomousBehaviorController{
  react(reaction){
   const now=performance.now();
   if(this.lastReactionId===reaction.id&&now-this.lastReactionAt<REACTION_GAP_MS)return false;
-  this.lastReactionAt=now;this.lastReactionId=reaction.id;
+  this.lastReactionAt=now;this.lastReactionId=reaction.id;this.lastEvent="text:"+reaction.id;
   this.onMoodChanged(reaction.mood,true);
   this.character.face?.expression?.(reaction.expression,.78);
   this.intent="reacting";
@@ -190,30 +204,66 @@ export class AutonomousBehaviorController{
   if(!clean)return null;
   return TEXT_REACTIONS.find(item=>item.pattern.test(clean))||null;
  }
+ scheduleSpeakingGesture(){
+  this.clearSpeakingTimer();
+  if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking")return;
+  const delay=4500+Math.random()*3500;
+  this.speakingTimer=setTimeout(()=>{
+   this.speakingTimer=null;
+   if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking")return;
+   const id=this.chooseWeighted(["talkGesture","nod","lookCloser","wave"],{talkGesture:1.5,nod:1.2,lookCloser:.8,wave:.45});
+   if(id&&(!this.character?.animation?.active||this.character.animation.active.length<2))this.playMotion(id,{duration:id==="talkGesture"?.9:.7,priority:18});
+   this.scheduleSpeakingGesture();
+  },delay);
+ }
+ scheduleThinkingGesture(){
+  this.clearThinkingTimer();
+  if(!this.running||!this.visible||this.sleeping||this.intent!=="thinking")return;
+  const delay=2800+Math.random()*2200;
+  this.thinkingTimer=setTimeout(()=>{
+   this.thinkingTimer=null;
+   if(!this.running||!this.visible||this.sleeping||this.intent!=="thinking")return;
+   const id=this.chooseWeighted(["think","lookCloser","nod"],{think:1.5,lookCloser:1.1,nod:.4});
+   if(id)this.playMotion(id,{duration:id==="lookCloser"?1.2:.85,priority:26});
+   this.scheduleThinkingGesture();
+  },delay);
+ }
  handleEvent(event){
   const type=typeof event==="string"?event:String(event?.type||"").toLowerCase();
   if(!this.running||!this.visible)return false;
+  this.lastEvent=type;
   if(type==="pointer-move"){
    const now=performance.now();if(now-this.lastGazeAt<110)return false;this.lastGazeAt=now;
    const x=Math.max(-1,Math.min(1,Number(event?.x)||0)),y=Math.max(-1,Math.min(1,Number(event?.y)||0));
    const ok=Boolean(this.character.face?.lookAt?.(x*1.35,1.5-y*.25,1.2));if(ok)this.intent="attending";return ok;
   }
   this.touch();
-  if(type==="speech-start"){
+  if(type==="speech-start"||type==="assistant-speech-start"){
+   this.clearThinkingTimer();
    this.intent="speaking";
    this.character.face?.expression?.(this.mood==="sad"?"sad":"happy",.45);
    this.playMotion("talkGesture",{duration:.9,priority:25});
+   this.scheduleSpeakingGesture();
    return true;
   }
-  if(type==="speech-end"){
+  if(type==="speech-end"||type==="assistant-speech-end"||type==="speech-cancelled"){
+   this.clearCycleTimers();
    this.intent="idle";
    this.character.face?.expression?.(this.mood==="sad"?"sad":"neutral",.5);
    this.schedule(3200);
    return true;
   }
-  if(type==="thinking"||type==="assistant-thinking"){
+  if(type==="thinking"||type==="assistant-thinking"||type==="tool-progress"){
+   this.clearSpeakingTimer();
    this.intent="thinking";
-   this.playMotion("think",{duration:2.2,priority:35});
+   this.playMotion("think",{duration:1.1,priority:35});
+   this.scheduleThinkingGesture();
+   return true;
+  }
+  if(type==="chat-end"||type==="assistant-cancelled"||type==="request-cancelled"){
+   this.clearCycleTimers();
+   this.intent="idle";
+   this.schedule(1800);
    return true;
   }
   if(type==="user-input"||type==="user-message"||type==="user-transcript"){
@@ -236,12 +286,14 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="tool"||type==="tool-start"){
+   this.clearCycleTimers();
    this.intent="doing";
    this.character.face?.expression?.("thinking",.45);
    this.playMotion("think",{duration:1.4,priority:30});
    return true;
   }
   if(type==="tool_result"||type==="tool-success"||type==="task-complete"){
+   this.clearCycleTimers();
    this.intent="reacting";
    this.onMoodChanged("pleased",true);
    this.character.face?.expression?.("happy",.65);
@@ -249,6 +301,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="tool_error"||type==="tool-failure"){
+   this.clearCycleTimers();
    this.intent="reacting";
    this.onMoodChanged("thoughtful",true);
    this.character.face?.expression?.("sad",.55);
@@ -290,7 +343,7 @@ export class AutonomousBehaviorController{
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,visible:this.visible,intent:this.intent,energy:Math.round(this.energy),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction};
+  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
