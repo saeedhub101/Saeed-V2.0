@@ -93,7 +93,7 @@ function observe(userData,id,event){
  const externalTool=toolName==="mcp_call_tool"?String(event.args?.tool||""):String(event.args?.tool||"");
  const addonTool=/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(toolName);
  const addonReadOnly=addonTool&&/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select)(?:[_-]|$)/i.test(toolName)&&!/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/i.test(toolName);
- const coreReadOnly=/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select|screenshot|ocr|extract|analyze)(?:[_-]|$)/i.test(toolName)&&!/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/i.test(toolName);
+ const coreReadOnly=(toolName==="agent_skills"&&["list","get"].includes(String(event.args?.operation||"")))||(/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select|screenshot|ocr|extract|analyze)(?:[_-]|$)/i.test(toolName)&&!/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/i.test(toolName));
  const mutating=toolName==="task_plan"?false:toolName==="mcp_call_tool"?!isReadOnlyMcpTool(externalTool):addonTool?!addonReadOnly:!coreReadOnly;
  if(type==="tool"&&mutating)run.lastActionAt=now;
  if(type==="tool"){
