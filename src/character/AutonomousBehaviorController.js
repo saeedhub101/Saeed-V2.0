@@ -276,6 +276,7 @@ export class AutonomousBehaviorController{
    const x=Math.max(-1,Math.min(1,Number(event?.x)||0)),y=Math.max(-1,Math.min(1,Number(event?.y)||0));
    const ok=Boolean(this.character.face?.lookAt?.(x*1.35,1.5-y*.25,1.2));if(ok)this.intent="attending";return ok;
   }
+  const wasSleeping=this.sleeping;
   this.touch();
   if(type==="speech-start"||type==="assistant-speech-start"){
    this.clearThinkingTimer();
@@ -308,6 +309,8 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="user-input"||type==="user-message"||type==="user-transcript"){
+   this.clearCycleTimers();
+   this.interruptLowPriorityMotions();
    const text=String(typeof event==="object"?(event.text||event.message?.content||event.message||event.transcript||event.content||""):"").trim();
    const reaction=this.classifyText(text);
    if(reaction)return this.react(reaction);
@@ -318,6 +321,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="assistant-message"||type==="assistant-response"||type==="voice-answer"){
+   this.clearCycleTimers();
    const text=String(event?.text||event?.message?.content||event?.message||"");
    const reaction=this.classifyText(text);
    if(reaction)return this.react(reaction);
@@ -352,6 +356,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="double-click"||type==="right-click"||type==="summon"){
+   if(wasSleeping)return true;
    this.onMoodChanged("cheerful",true);
    this.character.face?.expression?.("happy",.7);
    const motion=this.chooseContextMotion("wake")||"wave";
@@ -378,8 +383,8 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="app-focus"||type==="wake"){
-   if(this.sleeping)this.wakeIfSleeping();
-   else this.playMotion(this.chooseContextMotion("wake")||"wave",{duration:1,priority:30});
+   if(wasSleeping)return true;
+   this.playMotion(this.chooseContextMotion("wake")||"wave",{duration:1,priority:30});
    return true;
   }
   if(type==="app-blur"||type==="idle-timeout"){
