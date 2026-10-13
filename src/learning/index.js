@@ -84,12 +84,13 @@ function recordStep(session,tool,args){if(!session?.recording)throw new Error("R
 function finishRecording(userData,session){if(!session?.recording)throw new Error("Recorder is not running");session.recording=false;if(!session.skill.trigger.phrases.length)session.skill.trigger.phrases=[normalize(session.skill.name)];return save(userData,session.skill)}
 async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{},variables={}}={}){
  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
- const emit=typeof onEvent==="function"?onEvent:()=>{},results=[];
+ const emit=typeof onEvent==="function"?onEvent:()=>{},results=[],resolvedSteps=[];
  const missing=(skill.parameters||[]).filter(parameter=>parameter.required!==false&&!String(variables?.[parameter.name]??"").trim()).map(parameter=>parameter.name);
  if(missing.length)return{ok:false,skill:skill.id,missingParameters:missing};
- for(const step of skill.steps){
+ for(const step of skill.steps){try{resolvedSteps.push({...step,args:resolveTemplate(step.args||{},variables||{})})}catch(error){return{ok:false,skill:skill.id,missingParameters:[String(error.message||error).replace(/^Missing skill parameter:\\s*/,"")]}}}
+ for(const step of resolvedSteps){
   if(!current())return{ok:false,stale:true,skill:skill.id,results};
-  let args;try{args=resolveTemplate(step.args||{},variables||{})}catch(error){return{ok:false,skill:skill.id,missingParameters:[String(error.message||error).replace(/^Missing skill parameter:\\s*/,"")]}}
+  const args=step.args||{};
   emit({type:"tool",name:step.tool,args:redactToolArgs(step.tool,args)});
   const out=await registry.call(step.tool,args,{isCurrent:current});
   if(!current())return{ok:false,stale:true,skill:skill.id,results};
