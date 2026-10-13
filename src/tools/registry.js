@@ -1,6 +1,6 @@
 const {redactToolArgs}=require("./redact");
 const path=require("path"),{Computer}=require("../main/automation/computer");
-const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./addons"),require("./email")];
+const domains=[require("./files"),require("./office"),require("./image"),require("./windows"),require("./web"),require("./interaction"),require("./memory-tasks"),require("./agent-tasks"),require("./addons"),require("./email")];
 const characterMotionToolSchema={type:"function",function:{name:"character_motion",description:"Control Saeed's character semantically. Use gestures such as wave, nod, think, talk, celebrate, clap or jump; never provide bone angles.",parameters:{type:"object",properties:{intent:{type:"string"},duration:{type:"number"},intensity:{type:"number"}},required:["intent"]}}};
 
 function schemaTypeMatches(value,type){
@@ -87,7 +87,7 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   if(["open_url","web_search","fetch_web_page","network_info"].includes(name))return"network";
   if(["screenshot","ocr_image","extract_image_table","inspect_image"].includes(name))return"screen";
   if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return"mouseKeyboard";
-  if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget","memory_add","memory_search","knowledge_add"].includes(name))return"tasksMemory";
+  if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget","memory_add","memory_search","knowledge_add","agent_task_history","agent_task_details"].includes(name))return"tasksMemory";
   if(["mcp_list_servers","mcp_list_tools","mcp_call_tool"].includes(name))return"mcp";
   if(/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(name))return"addons";
   if(["email_provider_info","email_test_connection","email_imap_folders","email_imap_search","email_imap_fetch","email_pop3_list","email_pop3_fetch"].includes(name))return"network";
