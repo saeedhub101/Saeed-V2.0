@@ -70,9 +70,9 @@ class Computer{
   try{const result=await this.powershell(command);const data=JSON.parse(result.stdout||"{}");return data&&typeof data==="object"?data:{ok:false,error:"UI Automation returned an invalid response"}}catch(error){return{ok:false,error:String(error?.message||error).slice(0,400)}}
  }
  async interactUiElement({pid=null,elementIndex,action,value="",expectedName="",automationId="",controlType=""}={}){
-  const targetPid=pid==null?0:Math.round(Number(pid)),index=Math.round(Number(elementIndex));
+  const targetPid=pid==null?0:Math.round(Number(pid)),rawIndex=Number(elementIndex),index=Math.round(rawIndex);
   const allowed=new Set(["invoke","set_value","select","toggle","focus","expand","collapse"]);
-  if(!Number.isFinite(targetPid)||targetPid<0||!Number.isInteger(index)||index<0||!allowed.has(String(action||"")))return{ok:false,error:"Invalid UI Automation target or action"};
+  if(!Number.isFinite(targetPid)||targetPid<0||!Number.isInteger(rawIndex)||index<0||!allowed.has(String(action||"")))return{ok:false,error:"Invalid UI Automation target or action"};
   if(action==="set_value"&&value==null)return{ok:false,error:"A value is required for set_value"};
   const script=path.join(__dirname,"windows-ui-automation.ps1");
   const quote=v=>"'"+this.esc(v)+"'";
