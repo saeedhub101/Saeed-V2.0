@@ -21,11 +21,12 @@ function recoverStaleRuns(userData,maxAgeMs=12*60*60*1000){
   const updated=Date.parse(run.updatedAt||run.createdAt||"");
   if(!Number.isFinite(updated)||now-updated<maxAgeMs)continue;
   const finishedAt=new Date().toISOString();
+  const uncertainActions=(run.steps||[]).filter(step=>step.status==="running").map(step=>({index:step.index,tool:safeText(step.tool,100),externalTool:safeText(step.externalTool||"",120),operation:safeText(step.operation||"",30),startedAt:step.startedAt||null}));
   run.status="needs_attention";run.finishedAt=finishedAt;
   run.summary="Recovered after the app restarted or the task stopped responding. Review the saved step log before continuing; actions were not replayed automatically.";
   for(const step of run.steps||[])if(step.status==="running"){step.status="interrupted";step.finishedAt=finishedAt}
   for(const step of run.plan||[])if(step.status==="running"||step.status==="pending"){step.status="interrupted";step.finishedAt=finishedAt}
-  run.recovery={at:finishedAt,reason:"stale-running-task",autoReplay:false};
+  run.recovery={at:finishedAt,reason:"stale-running-task",autoReplay:false,uncertainActions,lastActionAt:run.lastActionAt||null};
   persist(userData,run);recovered.push({id:run.id,goal:run.goal,status:run.status});
  }
  return recovered;
