@@ -15,6 +15,11 @@ test("agent can persist a reusable workflow after a verified task",t=>{
  assert.equal(result.ok,true);
  assert.equal(result.skill.stepCount,1);
  assert.equal(learning.get(dir,result.skill.id).steps.length,1);
+ const success=learning.recordOutcome(dir,result.skill.id,"success");
+ assert.equal(success.metadata.outcomes.successes,1);
+ const failure=learning.recordOutcome(dir,result.skill.id,"failure","target control disappeared");
+ assert.equal(failure.metadata.outcomes.failures,1);
+ assert.equal(failure.metadata.lastFailure,"target control disappeared");
 });
 
 test("workflow creation rejects incomplete or duplicate skills",t=>{
