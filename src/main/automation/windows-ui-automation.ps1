@@ -63,5 +63,4 @@ public static class SaeedUiNative {
  [pscustomobject]@{ok=$true;action=$Action;elementIndex=$ElementIndex;name=$current.Name;automationId=$current.AutomationId;controlType=$current.ControlType.ProgrammaticName;processId=$current.ProcessId;message="UI Automation action sent. Re-inspect the target state to verify the result."} | ConvertTo-Json -Depth 5 -Compress
 } catch {
  [pscustomobject]@{ok=$false;error=$_.Exception.Message} | ConvertTo-Json -Compress
- exit 1
 }
