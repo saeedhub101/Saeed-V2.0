@@ -163,6 +163,27 @@ async function rpcSse(server,method,params={},options={}){
   if(!streamDone)failAll(new Error("MCP SSE request ended"));
  }
 }
-async function listTools(userData,id,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);return s.transport==="stdio"?rpcStdio(s,[{method:"tools/list",params:{}}],options):s.transport==="sse"?rpcSse(s,"tools/list",{},options):rpcHttp(s,"tools/list",{},options)}
+function getEnabledServer(userData,id){
+ const server=listServers(userData).find(item=>item.id===String(id));
+ if(!server||server.enabled===false)throw new Error("MCP server not available: "+id);
+ return server;
+}
+async function requestServer(userData,id,method,params={},options={}){
+ const server=getEnabledServer(userData,id);
+ if(server.transport==="stdio")return rpcStdio(server,[{method,params}],options);
+ if(server.transport==="sse")return rpcSse(server,method,params,options);
+ return rpcHttp(server,method,params,options);
+}
+async function listTools(userData,id,options={}){return requestServer(userData,id,"tools/list",{},options)}
+async function listResources(userData,id,options={}){return requestServer(userData,id,"resources/list",{},options)}
+async function readResource(userData,id,uri,options={}){
+ const value=String(uri||"").trim();if(!value||value.length>4096)throw new Error("A valid MCP resource URI is required");
+ return requestServer(userData,id,"resources/read",{uri:value},options);
+}
+async function listPrompts(userData,id,options={}){return requestServer(userData,id,"prompts/list",{},options)}
+async function getPrompt(userData,id,name,args={},options={}){
+ const value=String(name||"").trim();if(!value||value.length>256)throw new Error("A valid MCP prompt name is required");
+ return requestServer(userData,id,"prompts/get",{name:value,arguments:args&&typeof args==="object"&&!Array.isArray(args)?args:{}},options);
+}
 async function callTool(userData,id,name,args={},confirm=async()=>false,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);const signal=options.signal||null;if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const allowed=s.permissions?.tools;if(Array.isArray(allowed)&&!allowed.includes(name))throw new Error("MCP tool is not permitted: "+name);if(s.permissions?.alwaysAsk&&!await confirm({server:id,tool:name,args,signal}))throw new Error("MCP tool permission denied");if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const p={name,arguments:args};return s.transport==="stdio"?rpcStdio(s,[{method:"tools/call",params:p}],options):s.transport==="sse"?rpcSse(s,"tools/call",p,options):rpcHttp(s,"tools/call",p,options)}
-module.exports={file,addServer,removeServer,listServers,describeServers,listTools,callTool};
+module.exports={file,addServer,removeServer,listServers,describeServers,listTools,listResources,readResource,listPrompts,getPrompt,callTool};
