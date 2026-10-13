@@ -9,7 +9,7 @@ const memory=require("../../src/learning/experience-memory");
 test("verified successful experience persists and is recalled for a similar task",t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-learning-experience-"));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
- const saved=memory.record(dir,{goal:"Create a new Excel workbook and save it",tools:["open_application","write_excel","read_excel"],steps:[{name:"open_application",fields:["name"]},{name:"write_excel",fields:["sheet","cells"]},{name:"read_excel",fields:["sheet"]}],outcome:"success",verified:true});
+ const saved=memory.record(dir,{goal:"Create a new Excel workbook and save it",tools:["open_application","write_excel","read_excel"],steps:[{name:"open_application",fields:["name"]},{name:"write_excel",fields:["sheet","cells"]},{name:"read_excel",fields:["sheet"]}],outcome:"success",verified:true,app:"Excel",verification:"read_excel",notes:"Reopen workbook and confirm saved values."});
  assert.equal(saved.saved,true);
  const hits=memory.recall(dir,"create Excel workbook and save",3);
  assert.equal(hits.length,1);
