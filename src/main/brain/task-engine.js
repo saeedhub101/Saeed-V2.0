@@ -6,11 +6,18 @@ function safeText(value,max=500){return String(value??"").replace(/[\r\n\t]+/g,"
 function ensure(userData){fs.mkdirSync(directory(userData),{recursive:true});return directory(userData)}
 function fileFor(userData,id){if(!/^[a-z0-9-]{8,80}$/i.test(String(id||"")))throw new Error("Invalid task run id");return path.join(directory(userData),id+".json")}
 function persist(userData,run){run.updatedAt=new Date().toISOString();const result=writeJsonAtomic(fileFor(userData,run.id),run);if(!result?.ok)throw new Error("Task run persistence failed: "+(result?.error||"unknown error"));return run}
+function prune(userData,keepId){
+ const dir=ensure(userData);
+ const files=fs.readdirSync(dir,{withFileTypes:true}).filter(entry=>entry.isFile()&&entry.name.endsWith(".json")).map(entry=>{const file=path.join(dir,entry.name);let createdAt=0;try{createdAt=Date.parse(JSON.parse(fs.readFileSync(file,"utf8")).createdAt)||fs.statSync(file).mtimeMs}catch{try{createdAt=fs.statSync(file).mtimeMs}catch{}}return{file,name:entry.name,createdAt}}).sort((a,b)=>b.createdAt-a.createdAt);
+ let kept=0;
+ for(const entry of files){if(entry.name===String(keepId)+".json"||kept<MAX_RUNS){kept++;continue}try{fs.unlinkSync(entry.file)}catch{}}
+}
 function begin(userData,goal){
  ensure(userData);
  const id=Date.now().toString(36)+"-"+crypto.randomBytes(6).toString("hex");
  const run={schemaVersion:1,id,goal:safeText(goal,2000),status:"running",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),finishedAt:null,steps:[],lastActionAt:null,verification:{attempted:false,evidence:[]},plan:[],summary:""};
  persist(userData,run);
+ prune(userData,id);
  return run;
 }
 function get(userData,id){const file=fileFor(userData,id);if(!fs.existsSync(file))return null;return JSON.parse(fs.readFileSync(file,"utf8"))}
