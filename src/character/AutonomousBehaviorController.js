@@ -5,7 +5,7 @@ const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
 const REACTION_GAP_MS=1400;
 const TEXT_REACTIONS=[
- {id:"question",pattern:/(?:\b(why|how|what|when|where|who|which|can you|could you|would you|is it|are you|explain)\b|كيف|لماذا|ليش|شو|ماذا|متى|أين|وين|هل|اشرح)/i,mood:"curious",motion:"lookCloser",expression:"curious"},
+ {id:"question",pattern:/(?:\b(why|how|what|when|where|who|which|can you|could you|would you|is it|are you|explain)\b|كيف|لماذا|ليش|شو|ماذا|متى|أين|وين|هل|اشرح)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
  {id:"excitement",pattern:/(?:\b(wow|awesome|fantastic|amazing|excited|love it|perfect|yes!)\b|واو|رائع جدا|ممتاز جدا|يا سلام|مذهل|متحمس)/i,mood:"cheerful",motion:"dance",expression:"happy"},
  {id:"sadness",pattern:/(?:\b(sad|upset|lonely|bad day|disappointed|sorry to hear)\b|حزين|زعلان|متضايق|وحيد|يوم سيء|آسف)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
  {id:"affirmation",pattern:/(?:\b(yes|yeah|yep|correct|exactly|agreed|sure|okay|ok)\b|نعم|اه|آه|تمام|صحيح|بالضبط|موافق)/i,mood:"pleased",motion:"nod",expression:"happy"},
@@ -166,7 +166,7 @@ export class AutonomousBehaviorController{
   if(this.moodUntil&&performance.now()>=this.moodUntil){
    this.moodUntil=0;
    this.onMoodChanged(this.baseMood,false);
-   const faceMap={cheerful:"happy",curious:"curious",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"};
+   const faceMap={cheerful:"happy",curious:"surprised",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"};
    this.character.face?.expression?.(faceMap[this.mood]||"neutral",.45);
   }
  }
@@ -222,7 +222,7 @@ export class AutonomousBehaviorController{
    if(reaction)return this.react(reaction);
    this.intent="attending";
    this.onMoodChanged("curious",true);
-   this.character.face?.expression?.("curious",.55);
+   this.character.face?.expression?.("surprised",.55);
    this.playMotion("think",{duration:1.35,priority:35});
    return true;
   }
