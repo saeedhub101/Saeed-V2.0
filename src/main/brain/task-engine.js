@@ -34,7 +34,7 @@ function updatePlanStep(userData,id,index,status,evidence=""){
 function observe(userData,id,event){
  if(!event||typeof event!=="object")return null;
  const run=get(userData,id);if(!run||run.status!=="running")return run;
- const now=new Date().toISOString(),type=String(event.type||"");
+ const now=new Date().toISOString(),type=String(event.type||"");\n if(String(event.name||"")==="task_plan")return run;
  if(type==="tool"){
   if(run.steps.length>=MAX_STEPS)return run;
   const name=safeText(event.name,100);
