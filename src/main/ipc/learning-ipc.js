@@ -25,7 +25,7 @@ function registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensure
    const screen=await agent.registry?.call?.("screenshot",{});
    if(screen?.ok&&typeof screen.image==="string"&&/^data:image\//i.test(screen.image)){initialImage=screen.image;visionReady=true}
   }catch{}
-  return await agent.run(instruction,initialImage,{forceApi:visionReady});
+  return await agent.run(instruction,initialImage,{forceApi:true});
  });
  ipcMain.handle("learning:get",(_,id)=>getLearning().get(app.getPath("userData"),id));
  ipcMain.handle("learning:record-start",(_,name,phrases)=>{
