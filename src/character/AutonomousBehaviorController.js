@@ -286,7 +286,7 @@ export class AutonomousBehaviorController{
    this.scheduleSpeakingGesture();
    return true;
   }
-  if(type==="speech-end"||type==="assistant-speech-end"||type==="speech-cancelled"){
+  if(type==="speech-end"||type==="assistant-speech-end"||type==="speech-cancelled"||type==="mute"||type==="muted"||type==="audio-muted"||type==="voice-muted"){
    this.clearCycleTimers();
    this.intent="idle";
    this.character.face?.expression?.(this.mood==="sad"?"sad":"neutral",.5);
