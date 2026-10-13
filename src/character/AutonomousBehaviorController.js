@@ -279,6 +279,7 @@ export class AutonomousBehaviorController{
   return ok;
  }
  react(reaction){
+  this.clearSleepTimer();
   if(reaction.id==="greeting"&&this.settings.greeting===false)reaction={...reaction,motion:"nod"};
   if(reaction.motion==="dance"&&this.settings.dancing===false)reaction={...reaction,motion:"nod"};
   const now=performance.now();
@@ -339,6 +340,7 @@ export class AutonomousBehaviorController{
   const wasSleeping=this.sleeping;
   this.touch();
   if(type==="speech-start"||type==="assistant-speech-start"){
+   this.clearSleepTimer();
    this.clearThinkingTimer();
    this.interruptLowPriorityMotions();
    this.intent="speaking";
@@ -348,13 +350,16 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="speech-end"||type==="assistant-speech-end"||type==="speech-cancelled"||type==="mute"||type==="muted"||type==="audio-muted"||type==="voice-muted"){
+   this.clearSleepTimer();
    this.clearCycleTimers();
    this.intent="idle";
    this.setSpeechExpression(this.mood==="sad"?"sad":"neutral",.5);
    this.schedule(3200);
+   this.armSleepTimer();
    return true;
   }
   if(type==="thinking"||type==="assistant-thinking"||type==="tool-progress"){
+   this.clearSleepTimer();
    this.clearSpeakingTimer();
    this.interruptLowPriorityMotions();
    this.intent="thinking";
@@ -363,9 +368,11 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="chat-end"||type==="assistant-cancelled"||type==="request-cancelled"){
+   this.clearSleepTimer();
    this.clearCycleTimers();
    this.intent="idle";
    this.schedule(1800);
+   this.armSleepTimer();
    return true;
   }
   if(type==="user-input"||type==="user-message"||type==="user-transcript"){
@@ -381,16 +388,19 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="assistant-message"||type==="assistant-response"||type==="voice-answer"){
+   this.clearSleepTimer();
    this.clearCycleTimers();
    const text=String(event?.text||event?.message?.content||event?.message||"");
    const reaction=this.classifyText(text);
    if(reaction)return this.react(reaction);
-   this.intent="responding";
+   this.intent="reacting";
    this.setExpression("happy",.5);
    this.playMotion("nod",{duration:.65,priority:32});
+   this.scheduleReactionFinish(1100);
    return true;
   }
   if(type==="tool"||type==="tool-start"){
+   this.clearSleepTimer();
    this.clearCycleTimers();
    this.interruptLowPriorityMotions();
    this.intent="doing";
@@ -399,6 +409,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="tool_result"||type==="tool-success"||type==="task-complete"){
+   this.clearSleepTimer();
    this.clearCycleTimers();
    this.intent="reacting";
    this.onMoodChanged("pleased",true);
@@ -409,6 +420,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="tool_error"||type==="tool-failure"){
+   this.clearSleepTimer();
    this.clearCycleTimers();
    this.intent="reacting";
    this.onMoodChanged("thoughtful",true);
@@ -418,6 +430,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="double-click"||type==="right-click"||type==="summon"){
+   this.clearSleepTimer();
    if(wasSleeping)return true;
    this.onMoodChanged("cheerful",true);
    this.setExpression("happy",.7);
@@ -434,6 +447,7 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="drag-start"){
+   this.clearSleepTimer();
    this.clearTimer();
    this.clearCycleTimers();
    this.interruptLowPriorityMotions();
