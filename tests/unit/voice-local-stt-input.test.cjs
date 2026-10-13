@@ -32,7 +32,7 @@ test("concurrent local STT requests use separate temporary WAV files and clean t
   const wav=args[args.indexOf("-f")+1];wavPaths.push(wav);
   const bytes=fs.readFileSync(wav);assert.equal(bytes.toString("ascii",0,4),"RIFF");assert.equal(bytes.toString("ascii",8,12),"WAVE");
   const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.kill=()=>{};
-  process.nextTick(()=>{child.stdout.once("end",()=>child.emit("close",0));child.stdout.end("recognized speech\\n");child.stderr.end()});
+  process.nextTick(()=>{child.stdout.once("end",()=>child.emit("close",0));child.stdout.end("recognized speech\n");child.stderr.end()});
   return child;
  });
  const audio=Buffer.from([0,0,1,0,2,0,3,0]).toString("base64");
