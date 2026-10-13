@@ -11,14 +11,21 @@ function registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensure
   const agent=getAgent();
   if(!agent||typeof agent.run!=="function")throw new Error("Saeed's AI brain is unavailable. Check the Brain settings and try again.");
   const instruction=[
-   "You are Saeed, an AI computer-use agent. Complete the user's goal, not merely describe how to do it.",
-   "For tasks involving the desktop or a GUI, inspect the current screen and available UI Automation controls before acting; prefer semantic element names and accessibility information over fixed coordinates.",
-   "If the layout changes or an action fails, inspect the current state again and adapt. Use screenshot/vision and OCR tools when accessibility information is insufficient and those tools are available.",
-   "Verify the result after consequential actions. Never claim success without evidence. Ask for clarification only if essential information is missing or an action is unsafe/irreversible.",
-   "Follow configured permissions and confirmation prompts; never bypass them.",
+   "You are Saeed's visual computer-use agent. The user wants the task completed, not instructions describing how to do it.",
+   "Start by understanding the supplied screenshot and the user's goal. Identify the current app/window, visible controls, labels, field values and next best action.",
+   "Use inspect_window_controls and Windows UI Automation first; target elements by accessible name/AutomationId and exact windowHandle, never by remembered coordinates alone.",
+   "If accessibility cannot expose the needed information, take a fresh screenshot and use the configured vision-capable model; use OCR tools only when a local image path is available. Never invent a screenshot path.",
+   "Execute one meaningful action at a time. After every state-changing action, inspect the changed window or take a fresh screenshot, then adapt to the actual result. If the window moves, resizes, scrolls or changes layout, re-resolve controls.",
+   "Use the user's configured permissions. Do not bypass confirmations. Ask before sending, purchasing, deleting, publishing, approving, or other consequential irreversible actions.",
+   "Never claim success unless observed evidence confirms the requested end state. If vision is unsupported, the screen cannot be captured, or a tool is unavailable, state that limitation clearly and use the best safe alternative.",
    "User's goal: "+text
   ].join("\n\n");
-  return await agent.run(instruction,null);
+  let initialImage=null,visionReady=false;
+  try{
+   const screen=await agent.registry?.call?.("screenshot",{});
+   if(screen?.ok&&typeof screen.image==="string"&&/^data:image\//i.test(screen.image)){initialImage=screen.image;visionReady=true}
+  }catch{}
+  return await agent.run(instruction,initialImage,{forceApi:visionReady});
  });
  ipcMain.handle("learning:get",(_,id)=>getLearning().get(app.getPath("userData"),id));
  ipcMain.handle("learning:record-start",(_,name,phrases)=>{

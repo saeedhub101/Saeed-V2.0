@@ -57,11 +57,11 @@ class ConversationAgent{
   if(emitAnswer)this.onEvent({type:"answer",text:answer,source:result?.source||"brain"});
   return answer;
  }
- async run(text,image=null){
+ async run(text,image=null,options={}){
   const input=String(text||"").trim();if(!input)return "";
   const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history,controller=new AbortController();this.requestController=controller;
   const isCurrent=()=>!controller.signal.aborted&&this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
-  const result=await this.brain.run({text:input,image,history,isCurrent,signal:controller.signal});
+  const result=await this.brain.run({text:input,image,history,isCurrent,signal:controller.signal,forceApi:Boolean(options?.forceApi)});
   if(!isCurrent()||result?.stale)return "";
   return this.commitBrainResult(input,result,{emitAnswer:true});
  }

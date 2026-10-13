@@ -23,7 +23,7 @@ class Brain{
   if(mode==="local")return{mode:"local",reason:"forced-local"};
   return{mode:"auto",reason:"local-first"};
  }
- async run({text,image=null,history=[],isCurrent=()=>true,signal=null}={}){
+ async run({text,image=null,history=[],isCurrent=()=>true,signal=null,forceApi=false}={}){
   const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
   const taskEngine=require("./task-engine");let taskRun=null,taskPersistenceWarned=false;
   const emit=event=>{
@@ -76,7 +76,7 @@ class Brain{
    catch(e){const detail=String(e?.message||e||"Unknown learned-skill error").replace(/[\r\n\t]+/g," ").slice(0,240);emit({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:detail,meta:{skill:learned.id}});const failedAnswer="The saved skill \""+learned.name+"\" stopped because a step failed. I did not restart it automatically, to avoid repeating actions that may already have succeeded. Error: "+detail;const finished=finishTask(failedAnswer,"needs_attention");return{handled:true,answer:finished.answer,source:"learned-skill-failed",event:{type:"learned-skill",skill:learned.id,name:learned.name,result:{ok:false,error:detail}}}}
   }
   if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
-  const route=this.classify(s);
+  const route=forceApi?{mode:"api",reason:"computer-use-vision"}:this.classify(s);
   emit({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTE",message:"Single brain route selected: "+(route.mode==="auto"?"local-first":route.mode),meta:route});
   if(route.mode!=="api"){
    try{const local=await this.local.tryExecute(s,{isCurrent:current,onEvent:emit});if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};if(local?.handled){const finished=finishTask(local.answer);return{handled:true,answer:finished.answer,source:finished.status==="needs_attention"?"local-unverified":"local"}}}
