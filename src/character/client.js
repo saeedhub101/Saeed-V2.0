@@ -55,6 +55,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="deleteMotion"){const ok=c.deleteMotion(String(x.id||""));return{ok,status:c.status()}}
   if(x.action==="setMotionEnabled"){const ok=c.setMotionEnabled?.(String(x.id||""),x.enabled!==false);return{ok,status:c.status()}}
   if(x.action==="listMotions")return{ok:true,motions:c.listMotions(),status:c.status()};
+  if(x.action==="captureMotionPose"){const mapping=engine?.getBoneMap?.()||{},pose={};for(const [slot,bone] of Object.entries(mapping)){const name=typeof bone==="string"?bone:bone?.name;const rotation=name?engine?.getBoneEditorRotation?.(name):null;if(rotation&&[rotation.x,rotation.y,rotation.z].every(Number.isFinite))pose[slot]={x:rotation.x,y:rotation.y,z:rotation.z}}return{ok:Object.keys(pose).length>0,pose,mappedSlots:Object.keys(pose).length,status:c.status()}};
   if(x.action==="beginAuthoring"){const ok=c.beginAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
   if(x.action==="endAuthoring"){const ok=c.endAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
   if(x.action==="status")return{ok:true,status:c.status()};
