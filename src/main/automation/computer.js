@@ -74,6 +74,9 @@ class Computer{
   const allowed=new Set(["invoke","set_value","select","toggle","focus","expand","collapse"]);
   if(!Number.isFinite(targetPid)||targetPid<0||!Number.isInteger(rawIndex)||index<0||!allowed.has(String(action||"")))return{ok:false,error:"Invalid UI Automation target or action"};
   if(action==="set_value"&&value==null)return{ok:false,error:"A value is required for set_value"};
+  const hasStableIdentity=Boolean(String(expectedName||"").trim()||String(automationId||"").trim());
+  if(!hasStableIdentity&&!expectedBounds)return{ok:false,error:"Unsafe UI Automation target: provide an accessible name, AutomationId, or the observed bounds for an unnamed control."};
+  if(!hasStableIdentity&&expectedBounds&&!String(controlType||"").trim())return{ok:false,error:"Unnamed controls require their observed control type and bounds."};
   const script=path.join(__dirname,"windows-ui-automation.ps1");
   const quote=v=>"'"+this.esc(v)+"'";
   let boundsArgs=" -CheckBounds $false";
