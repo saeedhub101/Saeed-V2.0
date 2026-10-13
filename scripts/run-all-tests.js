@@ -47,6 +47,8 @@ const suites = [
   { name: "Backup and restore integrity tests", args: ["--test", path.join(root, "tests", "unit", "backup-service.test.cjs")] },
   { name: "Update policy lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "update-manager.test.cjs")] }
 ];
+suites.push({ name: "Task engine integrity regression tests", args: ["--test", path.join(root, "tests", "unit", "task-engine-integrity.test.cjs")] });
+
 const results = [];
 
 for (const suite of suites) {
