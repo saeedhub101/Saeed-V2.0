@@ -66,6 +66,11 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  if(["completed","failed","skipped","interrupted"].includes(step.status)&&next!==step.status)throw new Error("Terminal plan steps are immutable; append a recovery step instead");
  if(next==="completed"&&step.status!=="running")throw new Error("A plan step must be started before it can be completed");
  if(next==="completed"&&!String(evidence||"").trim())throw new Error("A completed plan step requires verification evidence");
+ if(next==="completed"){
+  const started=Date.parse(step.startedAt||"");
+  const observed=Number.isFinite(started)&&(run.steps||[]).some(item=>item.status==="returned"&&Number.isFinite(Date.parse(item.finishedAt||""))&&Date.parse(item.finishedAt)>=started);
+  if(!observed)throw new Error("A plan step requires an observed successful tool result after it starts; text alone is not verification");
+ }
  const now=new Date().toISOString();step.status=next;
  if(next==="running"&&!step.startedAt)step.startedAt=now;
  if(["completed","failed","skipped","needs_approval","interrupted"].includes(next))step.finishedAt=now;
