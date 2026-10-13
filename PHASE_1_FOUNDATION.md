@@ -65,7 +65,7 @@ Establish the contracts required by later phases:
 - no Brain → bone access;
 - no Tool Registry bypass;
 - no permanent render loop;
-- Windows builds remain manual-only through `workflow_dispatch`; automatic triggers stay disabled. A manual build may be run for verification while Phase 1 work continues.
+- Windows builds run automatically on pushes to `main` and retain `workflow_dispatch` for deliberate runs. A manual build may be run for verification while Phase 1 work continues.
 
 ## Exit criteria
 
