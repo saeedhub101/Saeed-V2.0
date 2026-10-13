@@ -2,6 +2,10 @@
 
 Target: `saeedhub101/Saeed-V2.0`, branch `main`. This is a new roadmap; existing Markdown files must remain unchanged.
 
+## Current implementation status — 2026-10-13
+
+An initial behavior-parity increment is committed on `main`: mood-weighted anti-repeat motion selection; energy/time-of-day influence on idle motion and cadence; 20-minute default sleep with wake-on-interaction; separate bounded speech and thinking gesture cycles; lifecycle cancellation for those cycles; and behavior diagnostics for intent, mood, energy, recent motion, last event, and motion-selection reason. Existing Arabic/English text reactions and tool-result reactions are retained. This is **partial parity, not complete Merlin parity**: the remaining checklist items below still require implementation and verified acceptance.
+
 ## Product comparison
 
 ### Saeed-V2.0 strengths
