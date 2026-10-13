@@ -17,7 +17,8 @@ function get(userData,id){const file=fileFor(userData,id);if(!fs.existsSync(file
 function setPlan(userData,id,steps){
  const run=get(userData,id);if(!run||run.status!=="running")throw new Error("Active task run not found");
  if(!Array.isArray(steps)||!steps.length||steps.length>30)throw new Error("A task plan must contain 1-30 steps");
- run.plan=steps.map((step,index)=>({index:index+1,title:safeText(step?.title,180)||("Step "+(index+1)),successCriteria:safeText(step?.successCriteria,300),status:"pending",startedAt:null,finishedAt:null,evidence:""}));
+ if(steps.some(step=>!safeText(step?.title,180)||!safeText(step?.successCriteria,300)))throw new Error("Every plan step requires a title and measurable success criteria");
+ run.plan=steps.map((step,index)=>({index:index+1,title:safeText(step.title,180),successCriteria:safeText(step.successCriteria,300),status:"pending",startedAt:null,finishedAt:null,evidence:""}));
  return persist(userData,run);
 }
 function updatePlanStep(userData,id,index,status,evidence=""){
