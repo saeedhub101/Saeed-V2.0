@@ -20,14 +20,14 @@ function Context {
  $sb=New-Object Text.StringBuilder 512;[void][SaeedRecorderNative]::GetWindowText($hw,$sb,$sb.Capacity)
  $controlName="";$automationId="";$controlType="";$runtimeId="";$bounds=$null
  try{$el=[System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($global:cx,$global:cy)));if($el){$controlName=$el.Current.Name;$automationId=$el.Current.AutomationId;$controlType=$el.Current.ControlType.ProgrammaticName;$runtimeId=$el.GetRuntimeId() -join ",";$rect=$el.Current.BoundingRectangle;$bounds=[pscustomobject]@{x=$rect.X;y=$rect.Y;width=$rect.Width;height=$rect.Height}}}catch{}
- [pscustomobject]@{pid=[int]$processId;title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType;runtimeId=$runtimeId;elementIndex=-1;bounds=$bounds}
+ [pscustomobject]@{pid=[int]$processId;handle=[long]$hw.ToInt64();title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType;runtimeId=$runtimeId;elementIndex=-1;bounds=$bounds}
 }
 function AddElementIndex($ctx) {
  try {
   if(-not $ctx.runtimeId){return $ctx}
   $top=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
   $root=$null
-  foreach($candidate in $top){try{$currentWindow=$candidate.Current;if($currentWindow.ProcessId -eq [int]$ctx.pid -and $currentWindow.Name -ceq [string]$ctx.title){$root=$candidate;break}}catch{}}
+  foreach($candidate in $top){try{$currentWindow=$candidate.Current;if($currentWindow.ProcessId -eq [int]$ctx.pid -and $currentWindow.NativeWindowHandle -eq [long]$ctx.handle -and $currentWindow.Name -ceq [string]$ctx.title){$root=$candidate;break}}catch{}}
   if(-not $root){return $ctx}
   $all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
   for($i=0;$i -lt $all.Count;$i++){
