@@ -48,15 +48,17 @@ class Brain{
     const incompletePlan=Boolean(saved?.plan?.length&&saved.plan.some(step=>!["completed","skipped"].includes(step.status)));
     const verifiedAfterLastAction=Boolean(saved?.lastActionAt&&saved?.verification?.evidence?.some(item=>item.result==="returned"&&Number.isFinite(Date.parse(item.at))&&Date.parse(item.at)>=Date.parse(saved.lastActionAt)));
     const unverifiedAction=Boolean(saved?.lastActionAt&&!verifiedAfterLastAction);
-    const finalStatus=status||(failed||incompletePlan||unverifiedAction?"needs_attention":"finished");
-    if(!status&&finalStatus==="needs_attention"){
-     if(unverifiedAction)finalAnswer="I attempted the requested actions, but I couldn't verify the final state. I can't confirm completion.";
+    const finalStatus=taskPersistenceWarned?"needs_attention":(status||(failed||incompletePlan||unverifiedAction?"needs_attention":"finished"));
+    if(finalStatus==="needs_attention"){
+     if(taskPersistenceWarned)finalAnswer="Task progress could not be saved reliably, so I cannot confirm completion. Check the task diagnostics before retrying.";
+     else if(!status&&unverifiedAction)finalAnswer="I attempted the requested actions, but I couldn't verify the final state. I can't confirm completion.";
      else if(incompletePlan)finalAnswer="The task plan still has unfinished steps, so I can't confirm completion.";
      else if(failed)finalAnswer="At least one action failed, so I can't confirm completion.";
     }
     const persisted=taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:finalAnswer.slice(0,1000)});
     const actualStatus=persisted?.status||finalStatus;
     if(actualStatus==="needs_attention"&&finalStatus==="finished")finalAnswer="I attempted the requested actions, but the task log shows an interrupted or unverified step. I can't confirm completion.";
+    if(taskPersistenceWarned&&actualStatus==="needs_attention")finalAnswer="Task progress could not be saved reliably, so I cannot confirm completion.";
     this.onEvent({type:"task-finished",taskId:taskRun.id,status:actualStatus});
     return{status:actualStatus,answer:finalAnswer};
    }catch(error){
