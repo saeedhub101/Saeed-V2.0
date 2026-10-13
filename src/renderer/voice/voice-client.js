@@ -13,7 +13,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
   try{
    const r=await window.saeed.voice.ttsSpeak(text);
    if(generation!==outputGeneration||voiceMuted||!ttsReady)return;
-   if(!r?.ok){speechSuppressed=false;report("ERROR","TTS API",r?.error||"OpenAI TTS failed");window.saeedCharacterRuntime?.controller?.play?.("idle");return}
+   if(!r?.ok){speechSuppressed=false;report("ERROR","TTS API",r?.error||String(ttsProvider).toUpperCase()+" TTS failed");window.saeedCharacterRuntime?.controller?.play?.("idle");return}
    if(!mic.playCtx)mic.playCtx=new AudioContext();
    await mic.playCtx.resume();
    if(generation!==outputGeneration||voiceMuted||!ttsReady)return;
