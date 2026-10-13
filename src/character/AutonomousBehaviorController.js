@@ -213,6 +213,12 @@ export class AutonomousBehaviorController{
    this.character.face?.expression?.(faceMap[this.mood]||"neutral",.45);
   }
  }
+ interruptLowPriorityMotions(){
+  if(this.character?.authoring)return false;
+  const active=[...(this.character?.animation?.active||[])];
+  for(const item of active){if(Number(item?.priority??0)<=20&&item?.m?.id)this.character.animation.stop(item.m.id)}
+  return active.length>0;
+ }
  playMotion(motion,options={}){
   const registry=this.character?.animation?.registry;
   if(registry?.get&&!registry.get(motion))return false;
@@ -269,6 +275,7 @@ export class AutonomousBehaviorController{
   this.touch();
   if(type==="speech-start"||type==="assistant-speech-start"){
    this.clearThinkingTimer();
+   this.interruptLowPriorityMotions();
    this.intent="speaking";
    this.character.face?.expression?.(this.mood==="sad"?"sad":"happy",.45);
    this.playMotion("talkGesture",{duration:.9,priority:25});
@@ -284,6 +291,7 @@ export class AutonomousBehaviorController{
   }
   if(type==="thinking"||type==="assistant-thinking"||type==="tool-progress"){
    this.clearSpeakingTimer();
+   this.interruptLowPriorityMotions();
    this.intent="thinking";
    this.playMotion("think",{duration:1.1,priority:35});
    this.scheduleThinkingGesture();
@@ -316,6 +324,7 @@ export class AutonomousBehaviorController{
   }
   if(type==="tool"||type==="tool-start"){
    this.clearCycleTimers();
+   this.interruptLowPriorityMotions();
    this.intent="doing";
    this.character.face?.expression?.("thinking",.45);
    this.playMotion("think",{duration:1.4,priority:30});
@@ -351,6 +360,9 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="drag-start"){
+   this.clearTimer();
+   this.clearCycleTimers();
+   this.interruptLowPriorityMotions();
    this.intent="being-moved";
    this.character.face?.expression?.("surprised",.35);
    return true;
@@ -358,6 +370,7 @@ export class AutonomousBehaviorController{
   if(type==="drag-end"){
    this.intent="reacting";
    this.playMotion("nod",{duration:.65,priority:30});
+   this.schedule(1200);
    return true;
   }
   if(type==="app-focus"||type==="wake"){
