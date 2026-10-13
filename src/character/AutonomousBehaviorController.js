@@ -5,11 +5,11 @@ const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
 const REACTION_GAP_MS=1400;
 const TEXT_REACTIONS=[
- {id:"worry",pattern:/(?:\b(worried|anxious|nervous|scared|afraid|concerned|i am stressed|i'm stressed)\b|قلقان|قلقة|متوتر|متوترة|خائف|خايف|خايفة|أشعر بالقلق|حاسس بضغط)/i,mood:"thoughtful",motion:"think",expression:"sad"},
+ {id:"worry",pattern:/(?:\b(worried|anxious|nervous|scared|afraid|concerned|i am stressed|i'm stressed)\b|قلقان|قلقة|متوتر|متوترة|خائف|خايف|خايفة|أشعر بالقلق|اشعر بالقلق|حاسس بضغط)/i,mood:"thoughtful",motion:"think",expression:"sad"},
  {id:"anger",pattern:/(?:\b(i am angry|i'm angry|furious|pissed off|fed up|this is ridiculous)\b|أنا غاضب|انا غاضب|معصب|مستفز|طفح الكيل|هذا سخيف)/i,mood:"thoughtful",motion:"think",expression:"confused"},
- {id:"empathy",pattern:/(?:\b(having a hard time|rough day|i feel terrible|i feel bad|i am struggling|i'm struggling)\b|يوم صعب|أشعر بالسوء|تعبان نفسيا|أعاني|الأمور صعبة)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
- {id:"celebration",pattern:/(?:\b(i did it|we did it|finally worked|it worked|problem solved|we made it)\b|نجحت|زبطت|اشتغل|انحلت المشكلة|حليناها|أخيرا نجح)/i,mood:"cheerful",motion:"clap",expression:"happy"},
- {id:"curiosity",pattern:/(?:\b(i wonder|interesting|tell me more|i am curious|i'm curious)\b|مثير للاهتمام|احكيلي أكثر|أخبرني المزيد|عندي فضول|غريب فعلا)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
+ {id:"empathy",pattern:/(?:\b(having a hard time|rough day|i feel terrible|i feel bad|i am struggling|i'm struggling)\b|يوم صعب|أشعر بالسوء|اشعر بالسوء|تعبان نفسيا|أعاني|اعاني|الأمور صعبة|الامور صعبة)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
+ {id:"celebration",pattern:/(?:\b(i did it|we did it|finally worked|it worked|problem solved|we made it)\b|نجحت|زبطت|اشتغل|انحلت المشكلة|حليناها|أخيرا نجح|اخيرا نجح)/i,mood:"cheerful",motion:"clap",expression:"happy"},
+ {id:"curiosity",pattern:/(?:\b(i wonder|interesting|tell me more|i am curious|i'm curious)\b|مثير للاهتمام|احكيلي أكثر|احكيلي اكثر|أخبرني المزيد|اخبرني المزيد|عندي فضول|غريب فعلا)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
 
  {id:"urgency",pattern:/(?:\b(urgent|asap|emergency|quickly|hurry|right now)\b|بسرعة|مستعجل|ضروري جدا|ضروري|حالا|فورا|مستعجل جدا)/i,mood:"puzzled",motion:"lookCloser",expression:"surprised"},
  {id:"apology",pattern:/(?:\b(i am sorry|i'm sorry|my apologies|forgive me|sorry about that)\b|آسف|اسف|أعتذر|اعتذر|سامحني|حقك علي)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
