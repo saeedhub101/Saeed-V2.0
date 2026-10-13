@@ -22,7 +22,7 @@ function recordOutcome(userData,id,outcome,detail=""){
  else throw new Error("Outcome must be success or failure");
  stats.lastOutcome=outcome;stats.lastOutcomeAt=new Date().toISOString();
  metadata.outcomes=stats;
- if(outcome==="failure")metadata.lastFailure=String(detail||"Skill execution failed").replace(/[\\r\\n\\t]+/g," ").slice(0,300);
+ if(outcome==="failure")metadata.lastFailure=String(detail||"Skill execution failed").replace(/[\r\n\t]+/g," ").slice(0,300);
  else delete metadata.lastFailure;
  skill.metadata=metadata;
  return save(userData,skill);
