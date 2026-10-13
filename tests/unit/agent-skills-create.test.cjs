@@ -11,10 +11,13 @@ test("agent can persist a reusable workflow after a verified task",t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-agent-skill-create-"));
  t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  assert.ok(agentSkills.schemas()[0].function.parameters.properties.operation.enum.includes("create"));
- const result=agentSkills.call("agent_skills",{operation:"create",name:"Open named application",description:"Open an app specified by the user",triggerPhrases:["open application","launch app"],parameters:[{name:"appName",description:"Application name",required:true}],steps:[{tool:"open_application",args:{name:"Calculator"}}]},{userDataPath:dir});
+ const result=agentSkills.call("agent_skills",{operation:"create",name:"Open named application",description:"Open an app specified by the user",triggerPhrases:["open application","launch app"],app:"Windows",keywords:"desktop launch utility",verify:"Confirm the target window is visible",notes:"Prefer UI Automation over coordinates",parameters:[{name:"appName",description:"Application name",required:true}],steps:[{tool:"open_application",args:{name:"Calculator"}}]},{userDataPath:dir});
  assert.equal(result.ok,true);
  assert.equal(result.skill.stepCount,1);
  assert.equal(learning.get(dir,result.skill.id).steps.length,1);
+ assert.equal(learning.get(dir,result.skill.id).metadata.app,"Windows");
+ assert.equal(learning.get(dir,result.skill.id).metadata.verification,"Confirm the target window is visible");
+ assert.equal(learning.match(dir,"launch app Calculator").id,result.skill.id);
  const success=learning.recordOutcome(dir,result.skill.id,"success");
  assert.equal(success.metadata.outcomes.successes,1);
  const failure=learning.recordOutcome(dir,result.skill.id,"failure","target control disappeared");
