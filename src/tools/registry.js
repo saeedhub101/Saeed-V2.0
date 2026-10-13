@@ -90,7 +90,7 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return"mouseKeyboard";
   if(name==="agent_skills"&&args?.operation==="delete")return"destructive";
   if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget","memory_add","memory_search","knowledge_add","agent_task_history","agent_task_details","agent_skills"].includes(name))return"tasksMemory";
-  if(["mcp_list_servers","mcp_list_tools","mcp_list_resources","mcp_read_resource","mcp_list_prompts","mcp_get_prompt","mcp_call_tool"].includes(name))return"mcp";
+  if(["mcp_list_servers","mcp_test_connection","mcp_list_tools","mcp_list_resources","mcp_read_resource","mcp_list_prompts","mcp_get_prompt","mcp_call_tool"].includes(name))return"mcp";
   if(/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(name))return"addons";
   if(["email_provider_info","email_test_connection","email_imap_folders","email_imap_search","email_imap_fetch","email_pop3_list","email_pop3_fetch"].includes(name))return"network";
   if(name==="email_send")return"credentials";
