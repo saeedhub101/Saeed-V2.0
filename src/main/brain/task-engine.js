@@ -12,8 +12,27 @@ function prune(userData,keepId){
  let kept=0;
  for(const entry of files){if(entry.name===String(keepId)+".json"||kept<MAX_RUNS){kept++;continue}try{fs.unlinkSync(entry.file)}catch{}}
 }
+function recoverStaleRuns(userData,maxAgeMs=12*60*60*1000){
+ const dir=ensure(userData),now=Date.now(),recovered=[];
+ for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+  if(!entry.isFile()||!entry.name.endsWith(".json"))continue;
+  let run;try{run=JSON.parse(fs.readFileSync(path.join(dir,entry.name),"utf8"))}catch{continue}
+  if(run?.status!=="running")continue;
+  const updated=Date.parse(run.updatedAt||run.createdAt||"");
+  if(!Number.isFinite(updated)||now-updated<maxAgeMs)continue;
+  const finishedAt=new Date().toISOString();
+  run.status="needs_attention";run.finishedAt=finishedAt;
+  run.summary="Recovered after the app restarted or the task stopped responding. Review the saved step log before continuing; actions were not replayed automatically.";
+  for(const step of run.steps||[])if(step.status==="running"){step.status="interrupted";step.finishedAt=finishedAt}
+  for(const step of run.plan||[])if(step.status==="running"||step.status==="pending"){step.status="interrupted";step.finishedAt=finishedAt}
+  run.recovery={at:finishedAt,reason:"stale-running-task",autoReplay:false};
+  persist(userData,run);recovered.push({id:run.id,goal:run.goal,status:run.status});
+ }
+ return recovered;
+}
 function begin(userData,goal){
  ensure(userData);
+ recoverStaleRuns(userData);
  const id=Date.now().toString(36)+"-"+crypto.randomBytes(6).toString("hex");
  const run={schemaVersion:1,id,goal:safeText(goal,2000),status:"running",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),finishedAt:null,steps:[],lastActionAt:null,verification:{attempted:false,evidence:[]},plan:[],summary:""};
  persist(userData,run);
@@ -94,4 +113,4 @@ function list(userData,limit=20){
  const dir=ensure(userData);
  return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>x.isFile()&&x.name.endsWith(".json")).map(x=>{try{return JSON.parse(fs.readFileSync(path.join(dir,x.name),"utf8"))}catch{return null}}).filter(Boolean).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,Math.max(1,Math.min(100,Number(limit)||20)));
 }
-module.exports={begin,get,setPlan,updatePlanStep,observe,finish,list};
+module.exports={begin,get,setPlan,updatePlanStep,observe,finish,list,recoverStaleRuns};
