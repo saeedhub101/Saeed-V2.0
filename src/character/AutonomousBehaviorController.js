@@ -138,17 +138,24 @@ export class AutonomousBehaviorController{
   return this.chooseWeighted(candidates,weights);
  }
  chooseIdle(){
-  const available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get?.(id));
+  let available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get?.(id));
+  if(this.settings.walking===false)available=available.filter(id=>!["walk","walking","step","run"].includes(String(id).toLowerCase()));
+  if(this.settings.dancing===false)available=available.filter(id=>id!=="dance");
   if(!available.length)return null;
   const hour=new Date().getHours(),night=hour>=22||hour<6,morning=hour>=5&&hour<12;
   const lowEnergy=this.energy<40||night,highEnergy=this.energy>=70;
   const calm=new Set(["nod","think","yawn","stretch","lookCloser"]);
   const pool=lowEnergy?available.filter(id=>calm.has(id)):available;
-  const weights={wave:1.1,nod:1.2,think:1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
+  const weights={wave:1.1,nod:1.2,think:this.settings.idleThoughts===false?.05:1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
   if(this.mood==="curious"){weights.lookCloser=(weights.lookCloser||1)*1.8;weights.think=(weights.think||1)*1.25}
   if(this.mood==="pleased"||this.mood==="cheerful"){weights.wave=(weights.wave||1)*1.35;weights.nod=(weights.nod||1)*1.2}
   if(this.mood==="thoughtful"||this.mood==="sad"||this.mood==="sleepy"){weights.yawn=(weights.yawn||1)*1.25;weights.dance=(weights.dance||1)*.25}
   this.lastMotionReason=night?"nighttime calm bias":lowEnergy?"low-energy calm bias":this.mood+" mood palette";
+  if(this.settings.random===false){
+   const preferred=this.mood==="curious"?"lookCloser":this.mood==="thoughtful"||this.mood==="puzzled"?"think":this.mood==="sleepy"||lowEnergy?"stretch":this.mood==="pleased"||this.mood==="cheerful"?"nod":"wave";
+   const id=available.includes(preferred)?preferred:available[0];
+   this.lastMotionId=id;this.lastMotionReason+="; deterministic selection";return id;
+  }
   return this.chooseWeighted(pool.length?pool:available,weights);
  }
  schedule(delay=DEFAULT_IDLE_DELAY){
@@ -163,7 +170,7 @@ export class AutonomousBehaviorController{
  }
  evaluateNow(){
   if(!this.running||!this.visible||this.sleeping||this.settings.idle===false)return false;
-  if(this.settings.random===false||this.settings.idleThoughts===false||this.settings.autonomousMovement===false){this.schedule(DEFAULT_IDLE_DELAY);return false;}
+  if(this.settings.autonomousMovement===false){this.schedule(DEFAULT_IDLE_DELAY);return false;}
   this.decayEnergy();
   if(["speaking","thinking","doing","being-moved"].includes(this.intent)){
    this.schedule(DEFAULT_IDLE_DELAY);
