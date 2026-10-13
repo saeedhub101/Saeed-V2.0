@@ -47,7 +47,7 @@ export class AutonomousBehaviorController{
   this.lastMotionAt=0;
   this.lastCasualMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.lastGazeAt=0;this.lastUserText="";this.lastUserTextAt=0;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,random:true,idleThoughts:true,events:true,greeting:true,dancing:true,sleep:true,speakingCycle:true,thinkingCycle:true,moodPalettes:true,energyModulation:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:SLEEP_AFTER_MS};
+  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.lastGazeAt=0;this.lastUserText="";this.lastUserTextAt=0;this.interactionCooldowns=new Map();this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,random:true,idleThoughts:true,events:true,greeting:true,dancing:true,sleep:true,speakingCycle:true,thinkingCycle:true,moodPalettes:true,energyModulation:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:SLEEP_AFTER_MS};
  }
  start(){
   if(this.running)return;
@@ -368,6 +368,11 @@ export class AutonomousBehaviorController{
    const x=Math.max(-1,Math.min(1,Number(event?.x)||0)),y=Math.max(-1,Math.min(1,Number(event?.y)||0));
    const ok=Boolean(this.character.face?.lookAt?.(x*1.35,1.5-y*.25,1.2));if(ok)this.intent="attending";return ok;
   }
+  if(type==="hover"||type==="zoom"){
+   const now=performance.now(),previous=this.interactionCooldowns.get(type)||0;
+   if(now-previous<1100){this.lastMotionReason="skipped: repeated "+type+" event";return false}
+   this.interactionCooldowns.set(type,now);
+  }
   const wasSleeping=this.sleeping;
   this.touch();
   if(type==="speech-start"||type==="assistant-speech-start"){
@@ -512,7 +517,7 @@ export class AutonomousBehaviorController{
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
+  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,interactionCooldowns:Object.fromEntries(this.interactionCooldowns),eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
