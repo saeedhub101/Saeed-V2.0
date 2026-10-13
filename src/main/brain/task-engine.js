@@ -119,11 +119,12 @@ function finish(userData,id,{status="finished",summary="",verification=null}={})
  let finalSummary=safeText(summary,1000);
  if(finalStatus==="finished"){
   const failed=(run.steps||[]).some(step=>step.status==="failed");
+  const interrupted= (run.steps||[]).some(step=>["running","interrupted"].includes(step.status));
   const incompletePlan=Boolean(run.plan?.length&&run.plan.some(step=>!["completed","skipped"].includes(step.status)));
   const verifiedAfterLastAction=Boolean(run.lastActionAt&&run.verification?.evidence?.some(item=>item.result==="returned"&&Number.isFinite(Date.parse(item.at))&&Date.parse(item.at)>=Date.parse(run.lastActionAt)));
-  if(failed||incompletePlan||(run.lastActionAt&&!verifiedAfterLastAction)){
+  if(failed||interrupted||incompletePlan||(run.lastActionAt&&!verifiedAfterLastAction)){
    finalStatus="needs_attention";
-   finalSummary="Completion was not confirmed: "+(run.lastActionAt&&!verifiedAfterLastAction?"a state-changing action lacks subsequent verification.":incompletePlan?"the task plan has unfinished steps.":"one or more actions failed.")+" "+finalSummary;
+   finalSummary="Completion was not confirmed: "+(run.lastActionAt&&!verifiedAfterLastAction?"a state-changing action lacks subsequent verification.":incompletePlan?"the task plan has unfinished steps.":interrupted?"one or more actions were interrupted or remain in flight.":"one or more actions failed.")+" "+finalSummary;
   }
  }
  run.status=finalStatus;run.summary=finalSummary.slice(0,1000);run.finishedAt=new Date().toISOString();
