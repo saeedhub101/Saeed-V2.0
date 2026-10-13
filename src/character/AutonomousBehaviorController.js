@@ -5,6 +5,11 @@ const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
 const REACTION_GAP_MS=1400;
 const TEXT_REACTIONS=[
+ {id:"urgency",pattern:/(?:\b(urgent|asap|emergency|quickly|hurry|right now)\b|بسرعة|مستعجل|ضروري جدا|حالا|فورا)/i,mood:"puzzled",motion:"lookCloser",expression:"surprised"},
+ {id:"apology",pattern:/(?:\b(i am sorry|i'm sorry|my apologies|forgive me|sorry about that)\b|آسف|اسف|أعتذر|اعتذر|سامحني|حقك علي)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
+ {id:"encouragement",pattern:/(?:\b(you can do it|keep going|don't give up|well try again|you've got this)\b|تقدر|استمر|لا تستسلم|حاول مرة أخرى|أنت قادر)/i,mood:"cheerful",motion:"nod",expression:"happy"},
+ {id:"affection",pattern:/(?:\b(i appreciate you|you are the best|love you|proud of you)\b|أحبك|بحبك|أقدرك|فخور بك|انت الأفضل|أنت الأفضل)/i,mood:"pleased",motion:"wave",expression:"happy"},
+ {id:"boredom",pattern:/(?:\b(bored|boring|nothing to do|i'm tired of this)\b|طفشان|مللت|ممل|زهقان|لا يوجد شيء أفعله)/i,mood:"sleepy",motion:"stretch",expression:"sleepy"},
  {id:"question",pattern:/(?:\b(why|how|what|when|where|who|which|can you|could you|would you|is it|are you|explain)\b|كيف|لماذا|ليش|شو|ماذا|متى|أين|وين|هل|اشرح)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
  {id:"excitement",pattern:/(?:\b(wow|awesome|fantastic|amazing|excited|love it|perfect|yes!)\b|واو|رائع جدا|ممتاز جدا|يا سلام|مذهل|متحمس)/i,mood:"cheerful",motion:"dance",expression:"happy"},
  {id:"sadness",pattern:/(?:\b(sad|upset|lonely|bad day|disappointed|sorry to hear)\b|حزين|زعلان|متضايق|وحيد|يوم سيء|آسف)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
@@ -160,7 +165,12 @@ export class AutonomousBehaviorController{
    excitement:{cheerful:["dance","clap","wave"],curious:["wave","clap"],thoughtful:["wave","nod"],mischievous:["dance","clap"],pleased:["dance","clap","wave"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]},
    confusion:{cheerful:["think","lookCloser"],curious:["lookCloser","think","shake"],thoughtful:["think","nod"],mischievous:["think","lookCloser"],pleased:["think","nod"],sleepy:["think","nod"],puzzled:["think","shake","lookCloser"],sad:["think","nod"]},
    disagreement:{cheerful:["shake","think"],curious:["shake","lookCloser"],thoughtful:["shake","nod"],mischievous:["shake","think"],pleased:["shake","nod"],sleepy:["shake","nod"],puzzled:["shake","think"],sad:["nod","think"]},
-   farewell:{cheerful:["wave","nod"],curious:["wave","nod"],thoughtful:["wave","nod"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]}
+   farewell:{cheerful:["wave","nod"],curious:["wave","nod"],thoughtful:["wave","nod"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]},
+   apology:{cheerful:["nod","think"],curious:["nod","think"],thoughtful:["nod","think"],mischievous:["nod"],pleased:["nod"],sleepy:["nod"],puzzled:["nod","think"],sad:["nod","think"]},
+   encouragement:{cheerful:["nod","clap","wave"],curious:["nod","wave"],thoughtful:["nod","wave"],mischievous:["clap","wave"],pleased:["clap","nod"],sleepy:["nod"],puzzled:["nod","wave"],sad:["nod","wave"]},
+   affection:{cheerful:["wave","nod"],curious:["nod","wave"],thoughtful:["nod"],mischievous:["wave","dance"],pleased:["wave","nod","clap"],sleepy:["nod"],puzzled:["nod"],sad:["nod"]},
+   urgency:{cheerful:["lookCloser","think"],curious:["lookCloser","think"],thoughtful:["think","lookCloser"],mischievous:["think"],pleased:["lookCloser"],sleepy:["lookCloser","think"],puzzled:["lookCloser","think"],sad:["think"]},
+   boredom:{cheerful:["stretch","yawn"],curious:["stretch","lookCloser"],thoughtful:["stretch","yawn"],mischievous:["stretch"],pleased:["stretch"],sleepy:["yawn","stretch"],puzzled:["stretch"],sad:["stretch","nod"]}
   };
   const activeMood=this.settings.moodPalettes===false?"cheerful":this.mood;
   const candidates=palettes[kind]?.[activeMood]||palettes[kind]?.cheerful||[];
@@ -292,7 +302,7 @@ export class AutonomousBehaviorController{
   this.onMoodChanged(reaction.mood,true);
   this.setExpression(reaction.expression,.78);
   this.intent="reacting";
-  const contextual=["praise","excitement","confusion","disagreement","farewell"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
+  const contextual=["praise","excitement","confusion","disagreement","farewell","apology","encouragement","affection","urgency","boredom"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
   const motion=contextual||reaction.motion;
   const duration=motion==="dance"?2.1:motion==="lookCloser"?1.8:1.25;
   const played=this.playMotion(motion,{duration,priority:42});
