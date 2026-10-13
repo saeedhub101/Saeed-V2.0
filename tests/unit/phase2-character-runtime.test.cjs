@@ -91,3 +91,13 @@ test("direct bone editor rest-pose capture persists the authoritative pose",()=>
  assert.match(characterClientSource,/if\(x\.action==="pose"\)\{if\(captureRestPose\)\{const rest=c\.saveRestPose\?\.\(\)/);
  assert.match(characterClientSource,/persisted:Boolean\(rest\?\.persisted\),restPose:rest\|\|null/);
 });
+
+test("direct bone transforms report failure when no actual GLB bone accepted the edit",()=>{
+ const start=source.indexOf(" setPose(pose={}){");
+ const end=source.indexOf("\n  ",start+20);
+ const body=source.slice(start,start+1000);
+ assert.ok(start>=0);
+ assert.match(body,/const applied=\{\}/);
+ assert.match(body,/if\(ok\)applied\[name\]=transform/);
+ assert.match(body,/return Object\.keys\(applied\)\.length\?applied:false/);
+});
