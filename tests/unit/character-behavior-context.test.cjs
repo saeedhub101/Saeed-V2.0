@@ -113,3 +113,25 @@ test("speaking and thinking gesture cycles are observable and cancel on lifecycl
  assert.equal(behavior.getStatus().thinkingCycle,false);
  behavior.stop();
 });
+
+
+test("character behavior preferences keep deterministic idle active and filter disabled motions",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const character={
+  mood:"cheerful",
+  moodPalette:()=>["wave","nod","think","dance","walk"],
+  animation:{registry:{get:id=>({id})},active:[]},
+  face:{expression:()=>true,blink:()=>true,lookAt:()=>true},
+  play:()=>true,stopAll:()=>true,
+  engine:{setRestRelativeBoneRotation:()=>true}
+ };
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.configure({random:false,dancing:false,walking:false,idleThoughts:false});
+ const selected=behavior.chooseIdle();
+ assert.equal(selected,"nod");
+ assert.equal(behavior.getStatus().lastMotionId,"nod");
+ behavior.configure({random:true,dancing:false,walking:false});
+ const selectedAgain=behavior.chooseWeighted(["dance","walk","nod"]);
+ assert.equal(selectedAgain,"nod");
+ behavior.stop();
+});
