@@ -15,8 +15,8 @@ class LocalExecutor{
   return answer(out);
  }
  cleanTarget(s){return String(s||"").trim().replace(/[.?!؟،]+$/,"").replace(/^(my|the|this)\s+/i,"").trim()}
- async tryExecute(text,{isCurrent=()=>true}={}){
-  const runTool=(...args)=>this.tool(...args,isCurrent);
+ async tryExecute(text,{isCurrent=()=>true,onEvent=this.onEvent}={}){
+  const runTool=(name,args,answer)=>this.tool(name,args,answer,isCurrent,onEvent);
   const t=String(text||"").trim(),l=t.toLowerCase();if(!t||!isCurrent())return{handled:false,stale:!isCurrent()};
   const say=t.match(/^(?:say|repeat|قل|كرر)\s+(?:exactly\s*[:：]?\s*)?(.+)$/i);if(say)return{handled:true,answer:String(say[1]).trim()};
   if(/(?:what(?:'s| is)\s+)?(?:the\s+)?(?:time|current time)|what time is it|كم الساعة|الساعة كم|الوقت الآن/i.test(l))return{handled:true,answer:"The local time is "+new Date().toLocaleTimeString()+" on "+new Date().toLocaleDateString()+"."};
