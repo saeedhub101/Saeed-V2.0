@@ -25,8 +25,10 @@ function Context {
 function AddElementIndex($ctx) {
  try {
   if(-not $ctx.runtimeId){return $ctx}
-  $handle=[SaeedRecorderNative]::GetForegroundWindow()
-  $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
+  $top=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
+  $root=$null
+  foreach($candidate in $top){try{$currentWindow=$candidate.Current;if($currentWindow.ProcessId -eq [int]$ctx.pid -and $currentWindow.Name -ceq [string]$ctx.title){$root=$candidate;break}}catch{}}
+  if(-not $root){return $ctx}
   $all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
   for($i=0;$i -lt $all.Count;$i++){
    try{if((($all.Item($i).GetRuntimeId()) -join ",") -eq $ctx.runtimeId){$ctx.elementIndex=$i;break}}catch{}
