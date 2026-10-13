@@ -43,6 +43,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
   brainInitPromise=(async()=>{
    const {ConversationAgent}=require("../conversation/conversation-agent");
    const {ToolRegistry}=require("../../tools");
+   try{const recovered=require("../brain/task-engine").recoverStaleRuns(app.getPath("userData"),0);if(recovered.length)diagnostic("WARN","TASK RECOVERY","Marked "+recovered.length+" unfinished task run(s) as interrupted; no actions were replayed",{taskIds:recovered.map(run=>run.id)});}catch(error){diagnostic("WARN","TASK RECOVERY",String(error?.message||error).slice(0,200))}
    registry=new ToolRegistry({
     captureScreen,
     userDataPath:app.getPath("userData"),
