@@ -114,8 +114,18 @@ function observe(userData,id,event){
 function finish(userData,id,{status="finished",summary="",verification=null}={}){
  const run=get(userData,id);if(!run)return null;
  if(run.status!=="running")return run;
- run.status=["finished","needs_attention","cancelled"].includes(status)?status:"finished";
- run.summary=safeText(summary,1000);run.finishedAt=new Date().toISOString();
+ let finalStatus=["finished","needs_attention","cancelled"].includes(status)?status:"finished";
+ let finalSummary=safeText(summary,1000);
+ if(finalStatus==="finished"){
+  const failed=(run.steps||[]).some(step=>step.status==="failed");
+  const incompletePlan=Boolean(run.plan?.length&&run.plan.some(step=>!["completed","skipped"].includes(step.status)));
+  const verifiedAfterLastAction=Boolean(run.lastActionAt&&run.verification?.evidence?.some(item=>item.result==="returned"&&Number.isFinite(Date.parse(item.at))&&Date.parse(item.at)>=Date.parse(run.lastActionAt)));
+  if(failed||incompletePlan||(run.lastActionAt&&!verifiedAfterLastAction)){
+   finalStatus="needs_attention";
+   finalSummary="Completion was not confirmed: "+(run.lastActionAt&&!verifiedAfterLastAction?"a state-changing action lacks subsequent verification.":incompletePlan?"the task plan has unfinished steps.":"one or more actions failed.")+" "+finalSummary;
+  }
+ }
+ run.status=finalStatus;run.summary=finalSummary.slice(0,1000);run.finishedAt=new Date().toISOString();
  for(const step of run.steps)if(step.status==="running"){step.status="interrupted";step.finishedAt=run.finishedAt}
  for(const step of run.plan||[])if(step.status==="running"){step.status="interrupted";step.finishedAt=run.finishedAt}
  if(verification&&typeof verification==="object")run.verification={...run.verification,...verification};
