@@ -1,4 +1,4 @@
-const {execFile}=require("child_process"),{promisify}=require("util"),run=promisify(execFile),{clipboard}=require("electron");
+const {execFile}=require("child_process"),{promisify}=require("util"),run=promisify(execFile),{clipboard}=require("electron"),path=require("path");
 
 class Computer{
  async powershell(command){
@@ -61,6 +61,23 @@ class Computer{
  async focusWindow(pid){
   const p=Math.round(Number(pid));if(!Number.isFinite(p))return{ok:false,error:"Invalid pid"};
   return this.powershell('$p=Get-Process -Id '+p+' -ErrorAction Stop;Add-Type -AssemblyName Microsoft.VisualBasic;[Microsoft.VisualBasic.Interaction]::AppActivate($p.Id)');
+ }
+ async inspectWindowControls(pid=null,limit=150){
+  const targetPid=pid==null?0:Math.round(Number(pid)),max=Math.max(1,Math.min(500,Math.round(Number(limit)||150)));
+  if(!Number.isFinite(targetPid)||targetPid<0)return{ok:false,error:"Invalid target process id"};
+  const script=path.join(__dirname,"windows-ui-automation.ps1");
+  const command="& '"+this.esc(script)+"' -Mode Inspect -TargetPid "+targetPid+" -Limit "+max;
+  try{const result=await this.powershell(command);const data=JSON.parse(result.stdout||"{}");return data&&typeof data==="object"?data:{ok:false,error:"UI Automation returned an invalid response"}}catch(error){return{ok:false,error:String(error?.message||error).slice(0,400)}}
+ }
+ async interactUiElement({pid=null,elementIndex,action,value="",expectedName="",automationId="",controlType=""}={}){
+  const targetPid=pid==null?0:Math.round(Number(pid)),index=Math.round(Number(elementIndex));
+  const allowed=new Set(["invoke","set_value","select","toggle","focus","expand","collapse"]);
+  if(!Number.isFinite(targetPid)||targetPid<0||!Number.isInteger(index)||index<0||!allowed.has(String(action||"")))return{ok:false,error:"Invalid UI Automation target or action"};
+  if(action==="set_value"&&value==null)return{ok:false,error:"A value is required for set_value"};
+  const script=path.join(__dirname,"windows-ui-automation.ps1");
+  const quote=v=>"'"+this.esc(v)+"'";
+  const command="& "+quote(script)+" -Mode Act -TargetPid "+targetPid+" -ElementIndex "+index+" -Action "+quote(action)+" -Value "+quote(value)+" -ExpectedName "+quote(expectedName)+" -AutomationId "+quote(automationId)+" -ControlType "+quote(controlType);
+  try{const result=await this.powershell(command);const data=JSON.parse(result.stdout||"{}");return data&&typeof data==="object"?data:{ok:false,error:"UI Automation returned an invalid response"}}catch(error){return{ok:false,error:String(error?.message||error).slice(0,400)}}
  }
  async processes(){
   const r=await this.powershell('Get-Process | Sort-Object CPU -Descending | Select-Object -First 100 Id,ProcessName,CPU,WorkingSet,Responding | ConvertTo-Json -Compress');
