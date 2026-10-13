@@ -1,15 +1,15 @@
-# Merlin Behavior Parity and Saeed Superiority Roadmap
+# Character Behavior and Saeed Product Superiority Roadmap
 
 Target: `saeedhub101/Saeed-V2.0`, branch `main`. This is a new roadmap; existing Markdown files must remain unchanged.
 
 ## Current implementation status — 2026-10-13
 
-A behavior-parity increment is committed on `main`: mood-weighted anti-repeat motion selection; energy/time-of-day influence on idle cadence and night drain; sleep recovery and wake-on-interaction; independent speech/thinking gesture cycles; a bounded reaction-finish timer and clearer intent returns; casual-motion throttling to prevent backlog; lifecycle cancellation on mute/cancel/hide; Arabic/English reactions; mood-specific pools for praise, excitement, confusion, disagreement and farewell; deterministic/random, walking/dancing, gaze, expression and idle-thought preferences; and diagnostics for intent, mood, energy, event counts, active timers, recent motions and motion-selection reasons. Performance exposes speech/thinking controls plus independent mood-palette and energy/time-of-day adaptation switches; saved behavior preferences are forwarded to the live controller, which now starts with the same defaults as Performance. Focused regression tests cover contextual reactions, deterministic selection, disabled motions, lifecycle cancellation and diagnostics. The Windows acceptance/package workflow for commit `b98b5fdf45a8ed9b0511d6c7b00c81933e7fef63` completed successfully; newer behavior commits are still being checked. This is **partial parity, not complete Merlin parity**: continue the remaining checklist and verify the newest commit's actual reports.
+A behavior-parity increment is committed on `main`: mood-weighted anti-repeat motion selection; energy/time-of-day influence on idle cadence and night drain; sleep recovery and wake-on-interaction; independent speech/thinking gesture cycles; a bounded reaction-finish timer and clearer intent returns; casual-motion throttling to prevent backlog; lifecycle cancellation on mute/cancel/hide; Arabic/English reactions; mood-specific pools for praise, excitement, confusion, disagreement and farewell; deterministic/random, walking/dancing, gaze, expression and idle-thought preferences; and diagnostics for intent, mood, energy, event counts, active timers, recent motions and motion-selection reasons. Performance exposes speech/thinking controls plus independent mood-palette and energy/time-of-day adaptation switches; saved behavior preferences are forwarded to the live controller, which now starts with the same defaults as Performance. Focused regression tests cover contextual reactions, deterministic selection, disabled motions, lifecycle cancellation and diagnostics. The Windows acceptance/package workflow for commit `b98b5fdf45a8ed9b0511d6c7b00c81933e7fef63` completed successfully; newer behavior commits are still being checked. This is **partial parity, not complete the reference assistant parity**: continue the remaining checklist and verify the newest commit's actual reports.
 
 ## Product comparison
 ## Detailed feature comparison
 
-| Capability | Older Saeed | Saeed-V2.0 target | Merlin the Wizard |
+| Capability | Older Saeed | Saeed-V2.0 target | Reference Assistant |
 |---|---|---|---|
 | Character | 3D avatar; Studio for bones, pose, rig building, custom keyframes, shape keys, visemes, lip-sync, outfits/accessories | **Strategic winner**: retain and harden 3D GLB, rig, rest-pose, face, and motion-authoring stack | 2D MS Agent sprites; multiple selectable characters and sprite animation |
 | Autonomous personality | Intent-driven 3D motions and face behavior are part of its design | Existing Arabic/English reactions and 3D behavior controller; expand into complete state/mood/energy engine | **Current behavior reference**: mood-weighted animation palettes, recent-motion suppression, energy/time modulation, sleep/wake, gaze, speaking/thinking cycles |
@@ -24,8 +24,8 @@ A behavior-parity increment is committed on `main`: mood-weighted anti-repeat mo
 
 ### What each currently wins at
 - **Older Saeed wins on breadth of desktop productivity and automation**: Office/PDF/data/browser/files, Windows UI Automation, skill memory, procedures, and domain-specific chart/pump tools. Its README describes these capabilities; V2.0 must inspect current code and port only missing pieces rather than assume every feature is already integrated.
-- **Merlin wins on character behavior cohesion**: its central controller explicitly coordinates intent, mood palettes, energy, time-of-day, anti-repeat, sleep/wake, and separate thinking/speaking cycles.
-- **Saeed-V2.0 should win overall by integration**: a real expressive 3D character plus Merlin-quality autonomous behavior plus Saeed's productivity breadth, persistent memory, Arabic-first experience, provider independence, and reliable commercial packaging. These are target advantages, not a claim that all are complete today.
+- **the reference assistant wins on character behavior cohesion**: its central controller explicitly coordinates intent, mood palettes, energy, time-of-day, anti-repeat, sleep/wake, and separate thinking/speaking cycles.
+- **Saeed-V2.0 should win overall by integration**: a real expressive 3D character plus reference-assistant-quality autonomous behavior plus Saeed's productivity breadth, persistent memory, Arabic-first experience, provider independence, and reliable commercial packaging. These are target advantages, not a claim that all are complete today.
 
 
 ### Saeed-V2.0 strengths
@@ -37,7 +37,7 @@ A behavior-parity increment is committed on `main`: mood-weighted anti-repeat mo
 - Broader desktop automation/productivity concepts and integrations.
 - File/application workflows and operational tools. Migrate only missing, useful capabilities; do not import legacy duplication or architecture.
 
-### Merlin strengths to adopt
+### the reference assistant strengths to adopt
 - Central animation/intent controller with explicit idle, reacting, thinking, speaking, doing, sleeping, and hidden states.
 - Mood-weighted animation pools for idle, speech, wake, success/failure, thanks, surprise, and confusion.
 - Recent-animation suppression and throttling to prevent repetitive gestures and queue buildup.
@@ -46,14 +46,14 @@ A behavior-parity increment is committed on `main`: mood-weighted anti-repeat mo
 - Sleep/wake, gaze/attention, immediate interruption during drag, and reactions to clicks, zoom, chat, and tool outcomes.
 - Configurable behavior features and diagnostic state.
 
-### Do not inherit Merlin's limitations
-- Merlin uses a 2D sprite runtime; Saeed keeps the real 3D GLB, skeleton, face, gaze, and motion editing.
+### Do not inherit the reference assistant's limitations
+- the reference assistant uses a 2D sprite runtime; Saeed keeps the real 3D GLB, skeleton, face, gaze, and motion editing.
 - Never copy sprite-specific animation IDs, IPC, or window architecture. Resolve motions from Saeed's actual registered motion set.
 - Behavior must remain autonomous without an LLM/network and respect Saeed's existing chat, microphone, visibility, and settings contracts.
 
 ## Implementation plan
 
-### Phase 1 — complete Merlin behavior parity
+### Phase 1 — complete the reference assistant behavior parity
 - [ ] One central intent state machine; central ownership of timers and transitions.
 - [ ] Mood-specific semantic motion pools for idle, speech, thinking, wake, success, failure, thanks, surprise, and confusion.
 - [ ] Recent-motion ring buffer, weighted selection, cooldowns, deduplication, and priority-based interruption.
@@ -64,7 +64,7 @@ A behavior-parity increment is committed on `main`: mood-weighted anti-repeat mo
 - [ ] Diagnostics expose intent, mood, energy, last event, recent motions, active timers, and why a motion was chosen/skipped.
 - [ ] Validate real logs and pass counts; a green workflow status alone is not acceptance.
 
-### Phase 2 — exceed Merlin through 3D
+### Phase 2 — exceed the reference assistant through 3D
 - [ ] Rig-aware semantic adapter for each GLB; never assume optional bones, expressions, or motions exist.
 - [ ] Coordinate face expressions, blink, eye/head gaze, torso motion, and speech-visemes.
 - [ ] Motion blending and interruption without damaging rest pose or user-authored keyframes.
