@@ -92,7 +92,8 @@ export class AutonomousBehaviorController{
   this.sleeping=false;
   this.intent="reacting";
   this.gainEnergy(15);
-  this.character.play("wave",{duration:1.2,priority:45});
+  const wakeMotion=this.chooseContextMotion("wake")||"wave";
+  this.character.play(wakeMotion,{duration:wakeMotion==="dance"?1.6:1.2,priority:45});
   this.schedule(2500);
   return true;
  }
