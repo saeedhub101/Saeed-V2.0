@@ -42,7 +42,7 @@ export class AutonomousBehaviorController{
   this.lastMotionAt=0;
   this.lastCasualMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.lastGazeAt=0;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,random:true,idleThoughts:true,events:true,greeting:true,dancing:true,sleep:true,speakingCycle:true,thinkingCycle:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:SLEEP_AFTER_MS};
+  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.lastGazeAt=0;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,random:true,idleThoughts:true,events:true,greeting:true,dancing:true,sleep:true,speakingCycle:true,thinkingCycle:true,moodPalettes:true,energyModulation:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:SLEEP_AFTER_MS};
  }
  start(){
   if(this.running)return;
@@ -162,10 +162,11 @@ export class AutonomousBehaviorController{
    disagreement:{cheerful:["shake","think"],curious:["shake","lookCloser"],thoughtful:["shake","nod"],mischievous:["shake","think"],pleased:["shake","nod"],sleepy:["shake","nod"],puzzled:["shake","think"],sad:["nod","think"]},
    farewell:{cheerful:["wave","nod"],curious:["wave","nod"],thoughtful:["wave","nod"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]}
   };
-  const candidates=palettes[kind]?.[this.mood]||palettes[kind]?.cheerful||[];
-  const weights={dance:this.energy>=65?1.6:.45,clap:1.35,wave:1.2,nod:1.15,think:1.1,lookCloser:.95,shake:.8,stretch:.7};
+  const activeMood=this.settings.moodPalettes===false?"cheerful":this.mood;
+  const candidates=palettes[kind]?.[activeMood]||palettes[kind]?.cheerful||[];
+  const weights={dance:this.settings.energyModulation===false?1:(this.energy>=65?1.6:.45),clap:1.35,wave:1.2,nod:1.15,think:1.1,lookCloser:.95,shake:.8,stretch:.7};
   const motion=this.chooseWeighted(candidates,weights);
-  this.lastMotionReason=motion?"context "+kind+" / "+this.mood:"skipped: no registered motion for "+kind+" / "+this.mood;
+  this.lastMotionReason=motion?"context "+kind+" / "+activeMood:"skipped: no registered motion for "+kind+" / "+activeMood;
   return motion;
  }
  chooseIdle(){
@@ -174,14 +175,16 @@ export class AutonomousBehaviorController{
   if(this.settings.dancing===false)available=available.filter(id=>id!=="dance");
   if(!available.length)return null;
   const hour=new Date().getHours(),night=hour>=22||hour<6,morning=hour>=5&&hour<12;
-  const lowEnergy=this.energy<40||night,highEnergy=this.energy>=70;
+  const useEnergy=this.settings.energyModulation!==false;
+  const lowEnergy=useEnergy&&(this.energy<40||night),highEnergy=useEnergy&&this.energy>=70;
+  const activeMood=this.settings.moodPalettes===false?"cheerful":this.mood;
   const calm=new Set(["nod","think","yawn","stretch","lookCloser"]);
   const pool=lowEnergy?available.filter(id=>calm.has(id)):available;
   const weights={wave:1.1,nod:1.2,think:this.settings.idleThoughts===false ? .05 : 1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
-  if(this.mood==="curious"){weights.lookCloser=(weights.lookCloser||1)*1.8;weights.think=(weights.think||1)*1.25}
-  if(this.mood==="pleased"||this.mood==="cheerful"){weights.wave=(weights.wave||1)*1.35;weights.nod=(weights.nod||1)*1.2}
-  if(this.mood==="thoughtful"||this.mood==="sad"||this.mood==="sleepy"){weights.yawn=(weights.yawn||1)*1.25;weights.dance=(weights.dance||1)*.25}
-  this.lastMotionReason=night?"nighttime calm bias":lowEnergy?"low-energy calm bias":this.mood+" mood palette";
+  if(activeMood==="curious"){weights.lookCloser=(weights.lookCloser||1)*1.8;weights.think=(weights.think||1)*1.25}
+  if(activeMood==="pleased"||activeMood==="cheerful"){weights.wave=(weights.wave||1)*1.35;weights.nod=(weights.nod||1)*1.2}
+  if(activeMood==="thoughtful"||activeMood==="sad"||activeMood==="sleepy"){weights.yawn=(weights.yawn||1)*1.25;weights.dance=(weights.dance||1)*.25}
+  this.lastMotionReason=useEnergy&&night?"nighttime calm bias":lowEnergy?"low-energy calm bias":activeMood+" mood palette";
   if(this.settings.random===false){
    const preferred=this.mood==="curious"?"lookCloser":this.mood==="thoughtful"||this.mood==="puzzled"?"think":this.mood==="sleepy"||lowEnergy?"stretch":this.mood==="pleased"||this.mood==="cheerful"?"nod":"wave";
    const id=available.includes(preferred)?preferred:available[0];
@@ -194,7 +197,7 @@ export class AutonomousBehaviorController{
   if(!this.running||!this.visible||this.sleeping)return;
   this.armBlinkTimer();
   const base=Math.max(1000,Number(delay)||Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY);
-  const energyFactor=Math.max(.65,Math.min(1.35,this.energy/70));
+  const energyFactor=this.settings.energyModulation===false?1:Math.max(.65,Math.min(1.35,this.energy/70));
   const energyAdjusted=delay===DEFAULT_IDLE_DELAY?base/energyFactor:base;
   const jitter=delay===DEFAULT_IDLE_DELAY?(.72+Math.random()*.78):1;
   this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.round(energyAdjusted*jitter));
@@ -303,7 +306,10 @@ export class AutonomousBehaviorController{
  scheduleSpeakingGesture(){
   this.clearSpeakingTimer();
   if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking"||this.settings.speakingCycle===false)return;
-  const delay=4500+Math.random()*3500;
+  const energyFactor=this.settings.energyModulation===false?1:Math.max(.1,Math.min(1,this.energy/100));
+  const base=6000+(1-energyFactor)*3000;
+  const span=6000*(.7+energyFactor*.6);
+  const delay=base+Math.random()*span;
   this.speakingTimer=setTimeout(()=>{
    this.speakingTimer=null;
    if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking")return;
