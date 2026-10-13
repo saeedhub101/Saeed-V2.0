@@ -45,7 +45,8 @@ const suites = [
   { name: "Atomic settings persistence tests", args: ["--test", path.join(root, "tests", "unit", "settings-store-persistence.test.cjs")] },
   { name: "Event-driven request cancellation wiring tests", args: ["--test", path.join(root, "tests", "unit", "request-cancellation-wiring.test.cjs")] },
   { name: "Backup and restore integrity tests", args: ["--test", path.join(root, "tests", "unit", "backup-service.test.cjs")] },
-  { name: "Update policy lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "update-manager.test.cjs")] }
+  { name: "Update policy lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "update-manager.test.cjs")] },
+  { name: "Local STT input validation tests", args: ["--test", path.join(root, "tests", "unit", "voice-local-stt-input.test.cjs")] }
 ,  { name: "Incomplete GLB rig visibility tests", args: ["--test", path.join(root, "tests", "unit", "glb-incomplete-rig.test.cjs")] }
 ];
 suites.push({ name: "Task engine integrity regression tests", args: ["--test", path.join(root, "tests", "unit", "task-engine-integrity.test.cjs")] });
