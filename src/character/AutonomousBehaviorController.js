@@ -56,6 +56,7 @@ export class AutonomousBehaviorController{
   this.clearBlinkTimer();
   this.clearCycleTimers();
   this.sleeping=false;
+  this.sleepStartedAt=0;
  }
  clearTimer(){if(this.timer){clearTimeout(this.timer);this.timer=null}}
  clearSleepTimer(){if(this.sleepTimer){clearTimeout(this.sleepTimer);this.sleepTimer=null}}
@@ -83,7 +84,7 @@ export class AutonomousBehaviorController{
    return;
   }
   const hour=new Date().getHours(),night=hour>=22||hour<6;
-  this.energy=Math.max(MIN_ENERGY,this.energy-minutes*(night?.7:.5));
+  this.energy=Math.max(MIN_ENERGY,this.energy-minutes*(night ? .7 : .5));
  }
  gainEnergy(amount){this.decayEnergy();this.energy=Math.min(100,this.energy+amount)}
  touch(){
