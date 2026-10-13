@@ -70,6 +70,7 @@ export class CharacterController{
    if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
    const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
    const profile=this.profiles.load(profileId)||{};
+   const customMotionRestore=this.editor.restore(profile.customMotions||[]);
    const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
    const engineMap=this.engine?.getCharacterRigAutoMap?.()||{};
    let mapping=Object.keys(engineMap).length?{...engineMap}:null;
@@ -100,7 +101,7 @@ export class CharacterController{
    this.rigReady=Object.keys(mapped).length>0;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
    this.profiles.save(profileId,{mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),autoConfidence:autoResult?.confidence||profile.autoConfidence||{},calibration:this.retargeter.status().calibration,restPose,normalizehumanoidrestpose:restPose,idlePose:this.animation.idlePose,customMotions:this.editor.list()});
-   this.lastBindingResult={loaded:mappedBoneCount>0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,partial:missingRequired.length>0,reason:missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b]))};
+   this.lastBindingResult={loaded:mappedBoneCount>0,mappedBoneCount,sceneBoneCount:names.length,bound:true,profileId,missingRequired,partial:missingRequired.length>0,reason:missingRequired.length?"Partial rig: missing "+missingRequired.join(", "):undefined,mapping:Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||b])),customMotionsRestored:customMotionRestore.restored.length,customMotionRestoreErrors:customMotionRestore.errors};
    return this.lastBindingResult;
   }finally{this.binding=false;}
  }

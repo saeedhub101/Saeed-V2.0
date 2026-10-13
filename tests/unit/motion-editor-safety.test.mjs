@@ -42,3 +42,16 @@ test("motion IDs reject whitespace and unsafe separators",()=>{
  assert.throws(()=>editor.define(motion("two motions")),/Motion ID must be/);
  assert.throws(()=>editor.define(motion("../wave")),/Motion ID must be/);
 });
+
+test("restoring a character profile replaces old custom motions and skips invalid definitions",()=>{
+ const registry=new MotionRegistry();
+ registry.register({id:"wave",duration:1,update:()=>{}});
+ const editor=new MotionEditor(registry);
+ editor.define(motion("previous-character-motion"));
+ const result=editor.restore([motion("saved-character-motion"),motion("wave"),motion("../unsafe")]);
+ assert.deepEqual(editor.list().map(x=>x.id),["saved-character-motion"]);
+ assert.deepEqual(result.restored,["saved-character-motion"]);
+ assert.equal(result.errors.length,2);
+ assert.equal(registry.has("wave"),true);
+ assert.equal(registry.has("previous-character-motion"),false);
+});
