@@ -58,3 +58,11 @@ test("failed character persistence restores the previous or last persisted GLB",
  assert.match(hostSource,/restorePreviousCharacter\(previousPending,target\)/);
  assert.match(hostSource,/previous saved asset was restored/);
 });
+
+test("custom motion profiles are not restored until the incoming rig is successfully bound",()=>{
+ const bindStart=source.indexOf(" bindCurrentCharacter(){");
+ const bindEnd=source.indexOf("\n autoMap()",bindStart);
+ const body=source.slice(bindStart,bindEnd);
+ assert.ok(bindStart>=0&&bindEnd>bindStart);
+ assert.ok(body.indexOf("if(!bound||!valid)")<body.indexOf("this.editor.restore(profile.customMotions||[])"));
+});
