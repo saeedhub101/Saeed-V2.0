@@ -15,7 +15,7 @@ class SettingsStore{
   if(!["manual","notify","automatic"].includes(String(value.updateMode)))value.updateMode=DEFAULTS.updateMode;
   if(!["saeed","api","auto"].includes(String(value.realtimeBrainMode)))value.realtimeBrainMode=DEFAULTS.realtimeBrainMode;
   value.maxSteps=Number.isFinite(Number(value.maxSteps))?Math.max(1,Math.min(100,Math.trunc(Number(value.maxSteps)))):DEFAULTS.maxSteps;
-  const clamp=(v,f,min,max)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):f;
+  const clamp=(v,f,min,max)=>v===null||v===undefined||v===""||!Number.isFinite(Number(v))?f:Math.max(min,Math.min(max,Number(v)));
   value.micSpeechRms=clamp(value.micSpeechRms,DEFAULTS.micSpeechRms,0.001,0.5);
   value.micInterruptRms=clamp(value.micInterruptRms,DEFAULTS.micInterruptRms,value.micSpeechRms,1);
   for(const key of Object.keys(DEFAULT_PERMISSIONS))if(!["allow","ask","deny"].includes(value.permissions[key]))value.permissions[key]=DEFAULT_PERMISSIONS[key];
