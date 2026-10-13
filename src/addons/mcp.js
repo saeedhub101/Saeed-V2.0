@@ -174,13 +174,13 @@ async function requestServer(userData,id,method,params={},options={}){
  if(server.transport==="sse")return rpcSse(server,method,params,options);
  return rpcHttp(server,method,params,options);
 }
-async function listTools(userData,id,options={}){return requestServer(userData,id,"tools/list",{},options)}
-async function listResources(userData,id,options={}){return requestServer(userData,id,"resources/list",{},options)}
+async function listTools(userData,id,options={}){return requestServer(userData,id,"tools/list",options.cursor?{cursor:String(options.cursor)}:{},options)}
+async function listResources(userData,id,options={}){return requestServer(userData,id,"resources/list",options.cursor?{cursor:String(options.cursor)}:{},options)}
 async function readResource(userData,id,uri,options={}){
  const value=String(uri||"").trim();if(!value||value.length>4096)throw new Error("A valid MCP resource URI is required");
  return requestServer(userData,id,"resources/read",{uri:value},options);
 }
-async function listPrompts(userData,id,options={}){return requestServer(userData,id,"prompts/list",{},options)}
+async function listPrompts(userData,id,options={}){return requestServer(userData,id,"prompts/list",options.cursor?{cursor:String(options.cursor)}:{},options)}
 async function getPrompt(userData,id,name,args={},options={}){
  const value=String(name||"").trim();if(!value||value.length>256)throw new Error("A valid MCP prompt name is required");
  return requestServer(userData,id,"prompts/get",{name:value,arguments:args&&typeof args==="object"&&!Array.isArray(args)?args:{}},options);
