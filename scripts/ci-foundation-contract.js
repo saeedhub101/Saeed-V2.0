@@ -56,7 +56,7 @@ must(preloadSource.includes("onTranscriptLabel")&&preloadSource.includes("getTra
 const learningSource=read("src/learning/index.js");
 const brainSource=read("src/main/brain/brain.js");
 must(learningSource.includes("isCurrent=()=>true")&&learningSource.includes("stale:true"),"Learned skill runner does not stop when the active conversation is cancelled");
-must(brainSource.includes("learning().run(this.getDir(),this.registry,learned,{isCurrent:current})"),"Brain does not propagate request cancellation into learned skills");
+must(brainSource.includes("learning().run(this.getDir(),this.registry,learned,{isCurrent:current,onEvent:emit,variables})"),"Brain does not propagate request cancellation into learned skills");
 must(read("src/main/runtime.js").includes('ipcMain.handle("transcript-label:get"'),"Transcript label preference IPC is missing");
 
 
