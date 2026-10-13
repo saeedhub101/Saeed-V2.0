@@ -1,6 +1,7 @@
 param(
  [ValidateSet("Inspect","Act")][string]$Mode="Inspect",
  [int]$TargetPid=0,
+ [long]$TargetWindowHandle=0,
  [string]$TargetWindowTitle="",
  [int]$Limit=150,
  [int]$ElementIndex=-1,
@@ -26,9 +27,9 @@ public static class SaeedUiNative {
 }
 "@
  $root=$null
- if($TargetPid -gt 0 -or $TargetWindowTitle) {
+ if($TargetPid -gt 0 -or $TargetWindowHandle -gt 0 -or $TargetWindowTitle) {
   $top=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
-  foreach($candidate in $top) { try { $currentWindow=$candidate.Current;if(($TargetPid -le 0 -or $currentWindow.ProcessId -eq $TargetPid) -and (-not $TargetWindowTitle -or $currentWindow.Name -ceq $TargetWindowTitle)) { $root=$candidate; break } } catch {} }
+  foreach($candidate in $top) { try { $currentWindow=$candidate.Current;if(($TargetPid -le 0 -or $currentWindow.ProcessId -eq $TargetPid) -and ($TargetWindowHandle -le 0 -or $currentWindow.NativeWindowHandle -eq $TargetWindowHandle) -and (-not $TargetWindowTitle -or $currentWindow.Name -ceq $TargetWindowTitle)) { $root=$candidate; break } } catch {} }
  } else {
   $handle=[SaeedUiNative]::GetForegroundWindow()
   if($handle -ne [IntPtr]::Zero) { $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle) }
@@ -46,7 +47,7 @@ public static class SaeedUiNative {
     $elements.Add([pscustomobject]@{elementIndex=$i;name=$current.Name;automationId=$current.AutomationId;controlType=$current.ControlType.ProgrammaticName;className=$current.ClassName;isEnabled=$current.IsEnabled;isOffscreen=$current.IsOffscreen;processId=$current.ProcessId;boundingRectangle=@{x=$rect.X;y=$rect.Y;width=$rect.Width;height=$rect.Height};patterns=$patterns})
    } catch {}
   }
-  [pscustomobject]@{ok=$true;windowTitle=$root.Current.Name;processId=$root.Current.ProcessId;totalElements=$all.Count;truncated=($all.Count -gt $max);elements=@($elements)} | ConvertTo-Json -Depth 7 -Compress
+  [pscustomobject]@{ok=$true;windowTitle=$root.Current.Name;processId=$root.Current.ProcessId;windowHandle=$root.Current.NativeWindowHandle;totalElements=$all.Count;truncated=($all.Count -gt $max);elements=@($elements)} | ConvertTo-Json -Depth 7 -Compress
   exit 0
  }
  if($ElementIndex -lt 0) { throw "ElementIndex is required for UI Automation actions." }
@@ -67,7 +68,7 @@ public static class SaeedUiNative {
   "expand" { $pattern=$null;if(-not $element.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern,[ref]$pattern)){throw "Element does not support ExpandCollapsePattern."};$pattern.Expand() }
   "collapse" { $pattern=$null;if(-not $element.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern,[ref]$pattern)){throw "Element does not support ExpandCollapsePattern."};$pattern.Collapse() }
  }
- [pscustomobject]@{ok=$true;action=$Action;elementIndex=$ElementIndex;name=$current.Name;automationId=$current.AutomationId;controlType=$current.ControlType.ProgrammaticName;processId=$current.ProcessId;message="UI Automation action sent. Re-inspect the target state to verify the result."} | ConvertTo-Json -Depth 5 -Compress
+ [pscustomobject]@{ok=$true;action=$Action;elementIndex=$ElementIndex;name=$current.Name;automationId=$current.AutomationId;controlType=$current.ControlType.ProgrammaticName;processId=$current.ProcessId;windowHandle=$root.Current.NativeWindowHandle;message="UI Automation action sent. Re-inspect the target state to verify the result."} | ConvertTo-Json -Depth 5 -Compress
 } catch {
  [pscustomobject]@{ok=$false;error=$_.Exception.Message} | ConvertTo-Json -Compress
 }
