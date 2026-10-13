@@ -9,13 +9,13 @@ function tokens(value){return [...new Set(normalize(value).split(/[\s_-]+/).filt
 function fileFor(userData){return path.join(userData,FILE)}
 function load(userData){try{const value=JSON.parse(fs.readFileSync(fileFor(userData),"utf8"));return Array.isArray(value)?value.filter(x=>x&&typeof x==="object"&&typeof x.goal==="string"&&Array.isArray(x.tools)):[]}catch{return[]}}
 function save(userData,items){fs.mkdirSync(userData,{recursive:true});const result=writeJsonAtomic(fileFor(userData),items.slice(-MAX_RECORDS));if(!result.ok)throw new Error("Learning experience persistence failed: "+result.error);const persisted=load(userData);if(persisted.length!==Math.min(items.length,MAX_RECORDS))throw new Error("Learning experience persistence verification failed");}
-function record(userData,{goal,tools=[],outcome="success",failureTool="",verified=false}={}){
+function record(userData,{goal,tools=[],steps=[],outcome="success",failureTool="",verified=false}={}){
  const cleanGoal=String(goal||"").trim().replace(/[\r\n\t]+/g," ").slice(0,240);
  const names=[...tools].map(x=>String(x||"").trim()).filter(x=>/^[a-z][a-z0-9_.-]{0,79}$/i.test(x)).filter(x=>x!=="task_plan").slice(0,24);
  if(cleanGoal.length<8||names.length<2)return{saved:false,reason:"insufficient-experience"};
  const items=load(userData),key=normalize(cleanGoal),existing=items.find(x=>normalize(x.goal)===key);
- const row=existing||{id:require("crypto").createHash("sha256").update(key).digest("hex").slice(0,12),goal:cleanGoal,tools:[],successes:0,failures:0,createdAt:new Date().toISOString()};
- if(outcome==="success"&&verified){row.successes++;row.tools=names;row.lastOutcome="success";row.verified=true;row.failureTool="";}
+ const row=existing||{id:require("crypto").createHash("sha256").update(key).digest("hex").slice(0,12),goal:cleanGoal,tools:[],steps:[],successes:0,failures:0,createdAt:new Date().toISOString()};
+ if(outcome==="success"&&verified){row.successes++;row.tools=names;row.steps=steps.filter(step=>step&&typeof step.name==="string"&&/^[a-z][a-z0-9_.-]{0,79}$/i.test(step.name)).slice(0,24).map(step=>({name:step.name,fields:[...new Set((Array.isArray(step.fields)?step.fields:[]).map(x=>String(x||"").trim()).filter(x=>/^[a-z][a-z0-9_-]{0,49}$/i.test(x)))].slice(0,10)}));row.lastOutcome="success";row.verified=true;row.failureTool="";}
  else{row.failures++;row.lastOutcome="failure";row.verified=false;row.failureTool=String(failureTool||"").slice(0,80);}
  row.updatedAt=new Date().toISOString();
  const index=items.findIndex(x=>x.id===row.id);if(index>=0)items[index]=row;else items.push(row);
@@ -30,7 +30,7 @@ function promptText(userData,query){
  const hits=recall(userData,query,3);if(!hits.length)return"";
  return"\n\nRelevant experience learned from previous tasks (guidance only; never blindly replay an old action sequence):\n"+hits.map(item=>{
   const reliable=item.successes>item.failures&&item.verified;
-  return"- Similar task: "+item.goal+"\n  Outcome history: "+item.successes+" verified success(es), "+item.failures+" failure(s).\n  "+(reliable?"Previously verified tool sequence: "+item.tools.join(" → ")+". Adapt it to the current screen, inspect state before acting, and verify the final result.":"This experience is not reliably successful. Treat it as a caution, inspect current state, and choose a safer approach.")+(item.failureTool?"\n  Last failed tool: "+item.failureTool+"; diagnose before retrying.":"");
+  return"- Similar task: "+item.goal+"\n  Outcome history: "+item.successes+" verified success(es), "+item.failures+" failure(s).\n  "+(reliable?"Previously verified tool sequence: "+(item.steps?.length?item.steps.map(step=>step.name+(step.fields?.length?" ("+step.fields.join(", ")+")":"")).join(" → "):item.tools.join(" → "))+". Adapt it to the current screen, inspect state before acting, and verify the final result.":"This experience is not reliably successful. Treat it as a caution, inspect current state, and choose a safer approach.")+(item.failureTool?"\n  Last failed tool: "+item.failureTool+"; diagnose before retrying.":"");
  }).join("\n").slice(0,3200);
 }
 module.exports={fileFor,load,record,recall,promptText,normalize};
