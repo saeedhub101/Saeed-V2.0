@@ -118,3 +118,12 @@ test("rig editor prefers the active controller binding over a stale auto-map",()
  assert.match(characterClientSource,/Object\.keys\(boundMapping\)\.length\?boundMapping/);
  assert.match(characterClientSource,/status\.autoRig\|\|\{\}/);
 });
+
+
+test("direct bone authoring remains available when animation playback is disabled",()=>{
+ const start=source.indexOf(" setPose(pose={}){");
+ const body=source.slice(start,start+800);
+ assert.ok(start>=0);
+ assert.ok(body.indexOf("const bones=pose?.__bones")<body.indexOf("if(!this.animationEnabled||this.animationPaused)"));
+ assert.match(body,/return Object\.keys\(applied\)\.length\?applied:false/);
+});
