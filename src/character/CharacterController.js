@@ -314,7 +314,7 @@ export class CharacterController{
 }
  
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
- setMotionEnabled(id,enabled=true){return this.animation.setMotionEnabled(id,enabled)}
+ setMotionEnabled(id,enabled=true){const ok=this.animation.setMotionEnabled(id,enabled);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
  deleteMotion(id){const ok=this.editor.remove(id);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  listMotions(){return this.editor.list()}
