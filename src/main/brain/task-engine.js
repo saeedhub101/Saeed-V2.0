@@ -9,11 +9,28 @@ function persist(userData,run){run.updatedAt=new Date().toISOString();const resu
 function begin(userData,goal){
  ensure(userData);
  const id=Date.now().toString(36)+"-"+crypto.randomBytes(6).toString("hex");
- const run={schemaVersion:1,id,goal:safeText(goal,2000),status:"running",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),finishedAt:null,steps:[],verification:{attempted:false,evidence:[]},summary:""};
+ const run={schemaVersion:1,id,goal:safeText(goal,2000),status:"running",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),finishedAt:null,steps:[],verification:{attempted:false,evidence:[]},plan:[],summary:""};
  persist(userData,run);
  return run;
 }
 function get(userData,id){const file=fileFor(userData,id);if(!fs.existsSync(file))return null;return JSON.parse(fs.readFileSync(file,"utf8"))}
+function setPlan(userData,id,steps){
+ const run=get(userData,id);if(!run||run.status!=="running")throw new Error("Active task run not found");
+ if(!Array.isArray(steps)||!steps.length||steps.length>30)throw new Error("A task plan must contain 1-30 steps");
+ run.plan=steps.map((step,index)=>({index:index+1,title:safeText(step?.title,180)||("Step "+(index+1)),successCriteria:safeText(step?.successCriteria,300),status:"pending",startedAt:null,finishedAt:null,evidence:""}));
+ return persist(userData,run);
+}
+function updatePlanStep(userData,id,index,status,evidence=""){
+ const run=get(userData,id);if(!run||run.status!=="running")throw new Error("Active task run not found");
+ const step=run.plan?.[Number(index)-1];if(!step)throw new Error("Task plan step not found");
+ const next=String(status||"");
+ if(!["pending","running","completed","failed","skipped","needs_approval"].includes(next))throw new Error("Invalid task plan step status");
+ const now=new Date().toISOString();step.status=next;
+ if(next==="running"&&!step.startedAt)step.startedAt=now;
+ if(["completed","failed","skipped","needs_approval"].includes(next))step.finishedAt=now;
+ if(evidence)step.evidence=safeText(evidence,300);
+ return persist(userData,run);
+}
 function observe(userData,id,event){
  if(!event||typeof event!=="object")return null;
  const run=get(userData,id);if(!run||run.status!=="running")return run;
@@ -55,4 +72,4 @@ function list(userData,limit=20){
  const dir=ensure(userData);
  return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>x.isFile()&&x.name.endsWith(".json")).map(x=>{try{return JSON.parse(fs.readFileSync(path.join(dir,x.name),"utf8"))}catch{return null}}).filter(Boolean).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt))).slice(0,Math.max(1,Math.min(100,Number(limit)||20)));
 }
-module.exports={begin,get,observe,finish,list};
+module.exports={begin,get,setPlan,updatePlanStep,observe,finish,list};
