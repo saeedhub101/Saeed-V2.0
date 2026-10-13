@@ -25,6 +25,7 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  const step=run.plan?.[Number(index)-1];if(!step)throw new Error("Task plan step not found");
  const next=String(status||"");
  if(!["pending","running","completed","failed","skipped","needs_approval"].includes(next))throw new Error("Invalid task plan step status");
+ if(next==="completed"&&!String(evidence||"").trim())throw new Error("A completed plan step requires verification evidence");
  const now=new Date().toISOString();step.status=next;
  if(next==="running"&&!step.startedAt)step.startedAt=now;
  if(["completed","failed","skipped","needs_approval"].includes(next))step.finishedAt=now;
@@ -47,6 +48,7 @@ function observe(userData,id,event){
   if(step){
    step.status=type==="tool_error"?"failed":"returned";
    step.finishedAt=now;
+   if(type==="tool_result")for(const previous of run.steps){if(previous!==step&&previous.tool===name&&previous.status==="failed"){previous.status="recovered";previous.recoveredAt=now}}
    if(type==="tool_error")step.error=safeText(event.error,240);
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
    if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)){
