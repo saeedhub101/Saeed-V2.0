@@ -40,7 +40,7 @@ class Brain{
    this.onEvent(event);
   };
   const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");const incompletePlan=Boolean(saved?.plan?.length&&saved.plan.some(step=>!["completed","skipped"].includes(step.status)));const finalStatus=status||(failed||incompletePlan?"needs_attention":"finished");taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:finalStatus})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
-  if(!current())return{handled:true,answer:"",source:"stale",stale:true};
+  if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
   if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};
   try{taskRun=taskEngine.begin(this.getDir(),s);this.onEvent({type:"task-start",taskId:taskRun.id,goal:s})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}
@@ -49,27 +49,27 @@ class Brain{
    try{const result=await learning().run(this.getDir(),this.registry,learned,{isCurrent:current,onEvent:emit});if(!current()||result?.stale){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}}const learnedAnswer="Done — I followed the learned skill: "+learned.name+".";finishTask(learnedAnswer,result?.ok===false?"needs_attention":undefined);return{handled:true,answer:learnedAnswer,source:"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
    catch(e){emit({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}})}
   }
-  if(!current())return{handled:true,answer:"",source:"stale",stale:true};
+  if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   const route=this.classify(s);
   emit({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTE",message:"Single brain route selected: "+(route.mode==="auto"?"local-first":route.mode),meta:route});
   if(route.mode!=="api"){
-   try{const local=await this.local.tryExecute(s,{isCurrent:current,onEvent:emit});if(!current())return{handled:true,answer:"",source:"stale",stale:true};if(local?.handled){finishTask(local.answer);return{handled:true,answer:local.answer,source:"local"}}}
+   try{const local=await this.local.tryExecute(s,{isCurrent:current,onEvent:emit});if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};if(local?.handled){finishTask(local.answer);return{handled:true,answer:local.answer,source:"local"}}}
    catch(e){emit({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message})}
    if(route.mode==="local"){const fallbackAnswer="I can handle common Windows computer tasks offline, but this request needs the API brain.";finishTask(fallbackAnswer,"needs_attention");return{handled:true,answer:fallbackAnswer,source:"local-fallback"}}
   }
-  if(!current())return{handled:true,answer:"",source:"stale",stale:true};
+  if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   if(settings.apiServices?.brain===false){const disabledAnswer="API Brain is disabled in Performance settings. Enable API Brain or switch Agent to Local only.";finishTask(disabledAnswer,"needs_attention");return{handled:true,answer:disabledAnswer,source:"api-disabled"}}
   let answer;
   try{
    answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),taskRunId:taskRun?.id||null,memoryContext:this.memoryContext,saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
   }catch(error){
-   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
+   if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
    const detail=String(error?.message||error||"Unknown provider error").replace(/[\r\n\t]+/g," ").slice(0,240);
    emit({type:"diagnostic",level:"ERROR",stage:"BRAIN PROVIDER FAILURE",message:"The selected AI provider failed before returning a result",meta:{provider:String(settings.provider||"unknown"),error:detail}});
    answer="The selected AI provider failed before completing the request. Check its configuration or choose another provider, then try again.";
    finishTask(answer,"needs_attention");return{handled:false,answer,source:"api-provider-error"};
   }
-  if(!current())return{handled:true,answer:"",source:"stale",stale:true};
+  if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   finishTask(answer);
   return{handled:false,answer,source:"api"};
  }
