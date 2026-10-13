@@ -1,6 +1,7 @@
 const {LocalExecutor}=require("../automation/local-executor");
 const {ModelExecutor}=require("./model-executor");
 const learning=()=>require("../../learning");
+const experienceMemory=()=>require("../../learning/experience-memory");
 
 class Brain{
  constructor({registry,getSettings,getDir,onEvent,requestStepIncrease,providerDefaults,memoryContext,saveHistory,baseStepLimit}={}){
@@ -25,9 +26,11 @@ class Brain{
  }
  async run({text,image=null,history=[],isCurrent=()=>true,signal=null,forceApi=false}={}){
   const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
-  const taskEngine=require("./task-engine");let taskRun=null,taskPersistenceWarned=false;
+  const taskEngine=require("./task-engine");let taskRun=null,taskPersistenceWarned=false;const experienceTools=[];let experienceFailureTool="";
   const emit=event=>{
    if(!current())return;
+   if(event?.type==="tool"&&typeof event.name==="string"&&event.name!=="task_plan")experienceTools.push(event.name);
+   if(event?.type==="tool_error"&&typeof event.name==="string")experienceFailureTool=event.name;
    if(taskRun){
     try{
      const saved=taskEngine.observe(this.getDir(),taskRun.id,event);
@@ -57,6 +60,16 @@ class Brain{
     }
     const persisted=taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:finalAnswer.slice(0,1000)});
     const actualStatus=persisted?.status||finalStatus;
+    try{
+     const memory=experienceMemory();
+     if(actualStatus==="finished"&&!failed&&!incompletePlan&&!unverifiedAction&&verifiedAfterLastAction){
+      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,outcome:"success",verified:true});
+      if(learned.saved)this.onEvent({type:"learning-experience",outcome:"success",id:learned.id,goal:s,toolCount:experienceTools.length});
+     }else if(actualStatus==="needs_attention"&&experienceFailureTool&&experienceTools.length>=2){
+      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,outcome:"failure",failureTool:experienceFailureTool,verified:false});
+      if(learned.saved)this.onEvent({type:"learning-experience",outcome:"failure",id:learned.id,goal:s,toolCount:experienceTools.length});
+     }
+    }catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"EXPERIENCE LEARNING",message:"Task experience could not be saved: "+String(error?.message||error).replace(/[\\r\\n\\t]+/g," ").slice(0,180)});}
     if(actualStatus==="needs_attention"&&finalStatus==="finished")finalAnswer="I attempted the requested actions, but the task log shows an interrupted or unverified step. I can't confirm completion.";
     if(taskPersistenceWarned&&actualStatus==="needs_attention")finalAnswer="Task progress could not be saved reliably, so I cannot confirm completion.";
     this.onEvent({type:"task-finished",taskId:taskRun.id,status:actualStatus});
@@ -87,7 +100,7 @@ class Brain{
   if(settings.apiServices?.brain===false){const disabledAnswer="API Brain is disabled in Performance settings. Enable API Brain or switch Agent to Local only.";finishTask(disabledAnswer,"needs_attention");return{handled:true,answer:disabledAnswer,source:"api-disabled"}}
   let answer;
   try{
-   answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),taskRunId:taskRun?.id||null,memoryContext:this.memoryContext,saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
+   answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),taskRunId:taskRun?.id||null,memoryContext:()=>String(this.memoryContext()||"")+experienceMemory().promptText(this.getDir(),s),saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
   }catch(error){
    if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
    const detail=String(error?.message||error||"Unknown provider error").replace(/[\r\n\t]+/g," ").slice(0,240);
