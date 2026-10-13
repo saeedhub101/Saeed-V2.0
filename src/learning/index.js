@@ -36,23 +36,6 @@ function resolveTemplate(value,variables){
  if(value&&typeof value==="object"){const out={};for(const [key,item] of Object.entries(value))out[key]=resolveTemplate(item,variables);return out}
  return value;
 }
-function match(userData,text){").replace(/\\s+/g,"\\s+");
-   let matchValue=null;
-   try{matchValue=source.match(new RegExp("(?:^|[\\s,;،])"+escaped+"\\s*(?:(?:is|=|:|هو|هي)\\s*)?([^,;\\n]+)","i"))}catch{}
-   if(matchValue?.[1]){
-    const value=String(matchValue[1]).trim().replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
-    if(value){values[parameter.name]=value;break}
-   }
-  }
- }
- return values;
-}
-function resolveTemplate(value,variables){
- if(typeof value==="string")return value.replace(/\\{\\{\\s*([a-z][a-z0-9_]*)\\s*\\}\\}/gi,(_,name)=>{if(!Object.prototype.hasOwnProperty.call(variables||{},name))throw new Error("Missing skill parameter: "+name);return String(variables[name])});
- if(Array.isArray(value))return value.map(item=>resolveTemplate(item,variables));
- if(value&&typeof value==="object"){const out={};for(const [key,item] of Object.entries(value))out[key]=resolveTemplate(item,variables);return out}
- return value;
-}
 function match(userData,text){
  const n=normalize(text);if(!n)return null;
  const skills=list(userData).filter(skill=>skill.enabled!==false);
