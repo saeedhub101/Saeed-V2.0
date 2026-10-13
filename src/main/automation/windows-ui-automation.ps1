@@ -8,7 +8,12 @@ param(
  [string]$Value="",
  [string]$ExpectedName="",
  [string]$AutomationId="",
- [string]$ControlType=""
+ [string]$ControlType="",
+ [bool]$CheckBounds=$false,
+ [double]$ExpectedX=0,
+ [double]$ExpectedY=0,
+ [double]$ExpectedWidth=0,
+ [double]$ExpectedHeight=0
 )
 $ErrorActionPreference="Stop"
 try {
