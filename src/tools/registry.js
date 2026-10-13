@@ -88,7 +88,7 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   if(["screenshot","ocr_image","extract_image_table","inspect_image","inspect_window_controls"].includes(name))return"screen";
   if(name==="interact_ui_element")return"mouseKeyboard";
   if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return"mouseKeyboard";
-  if(name==="agent_skills"&&args?.operation==="delete")return"destructive";
+  if(name==="agent_skills"&&["delete","replace_step","insert_step","remove_step","move_step"].includes(args?.operation))return"destructive";
   if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget","memory_add","memory_search","knowledge_add","agent_task_history","agent_task_details","agent_skills"].includes(name))return"tasksMemory";
   if(["mcp_list_servers","mcp_test_connection","mcp_list_tools","mcp_list_resources","mcp_read_resource","mcp_list_prompts","mcp_get_prompt","mcp_call_tool"].includes(name))return"mcp";
   if(/^addon_[a-z0-9][a-z0-9._-]{0,63}_.+/i.test(name))return"addons";
@@ -106,7 +106,7 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   if(!current()||policy==="deny")return false;
   const name=String(request?.name||"");
   const alwaysConfirm=new Set(["email_send","mcp_call_tool"]);
-  if(name==="agent_skills"&&request?.args?.operation==="delete")alwaysConfirm.add(name);
+  if(name==="agent_skills"&&["delete","replace_step","insert_step","remove_step","move_step"].includes(request?.args?.operation))alwaysConfirm.add(name);
   const uiLabel=String(request?.args?.expectedName||"").trim(),uiId=String(request?.args?.automationId||"").trim();
   const sensitiveUiInvoke=name==="interact_ui_element"&&request?.args?.action==="invoke"&&(!uiLabel&&!uiId||/issue|send|submit|pay|delete|remove|approve|confirm|finali[sz]|publish|purchase|release|policy|إصدار|ارسال|إرسال|دفع|حذف|اعتماد|تأكيد|نهائي/i.test(uiLabel+" "+uiId));
   if(policy==="allow"&&!alwaysConfirm.has(name)&&!sensitiveUiInvoke)return current();
