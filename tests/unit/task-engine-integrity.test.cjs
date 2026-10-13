@@ -45,3 +45,19 @@ test("evidence without an explicit post-action link cannot verify a state-changi
  assert.equal(finished.status,"needs_attention");
  assert.equal(finished.verification.evidence.some(item=>item.tool==="spoofed-proof"),false);
 });
+
+test("stale recovery preserves plan steps that never started",t=>{
+ const dir=temp();t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const run=engine.begin(dir,"recover without inventing progress");
+ engine.setPlan(dir,run.id,[
+  {title:"First",successCriteria:"First step verified"},
+  {title:"Second",successCriteria:"Second step verified"}
+ ]);
+ engine.updatePlanStep(dir,run.id,1,"running");
+ engine.observe(dir,run.id,{type:"tool",name:"read_file",args:{path:"first.txt"}});
+ engine.recoverStaleRuns(dir,0);
+ const recovered=engine.get(dir,run.id);
+ assert.equal(recovered.status,"needs_attention");
+ assert.equal(recovered.plan[0].status,"interrupted");
+ assert.equal(recovered.plan[1].status,"pending");
+});
