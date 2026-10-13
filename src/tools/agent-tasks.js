@@ -13,7 +13,7 @@ async function call(name,args,context){
  }
  if(name==="agent_task_history"){
   const runs=taskEngine().list(context.userDataPath,Math.min(50,Math.max(1,Number(args.limit)||10)));
-  return{ok:true,runs:runs.map(run=>({id:run.id,goal:run.goal,status:run.status,createdAt:run.createdAt,finishedAt:run.finishedAt,stepCount:run.steps.length,failedSteps:run.steps.filter(step=>step.status==="failed").map(step=>({index:step.index,tool:step.tool,error:step.error})),verification:run.verification,summary:run.summary}))};
+  return{ok:true,runs:runs.map(run=>({id:run.id,goal:run.goal,status:run.status,createdAt:run.createdAt,finishedAt:run.finishedAt,stepCount:run.steps.length,plan:run.plan.map(step=>({index:step.index,title:step.title,status:step.status})),failedSteps:run.steps.filter(step=>step.status==="failed").map(step=>({index:step.index,tool:step.tool,error:step.error})),verification:run.verification,summary:run.summary}))};
  }
  if(name==="agent_task_details"){
   const run=taskEngine().get(context.userDataPath,args.taskRunId);
