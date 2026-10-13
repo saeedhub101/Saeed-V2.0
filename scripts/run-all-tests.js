@@ -49,6 +49,7 @@ const suites = [
   { name: "Local STT input validation tests", args: ["--test", path.join(root, "tests", "unit", "voice-local-stt-input.test.cjs")] },
   { name: "Incomplete GLB rig visibility tests", args: ["--test", path.join(root, "tests", "unit", "glb-incomplete-rig.test.cjs")] }
 ];
+suites.push({ name: "Persistent learning experience memory tests", args: ["--test", path.join(root, "tests", "unit", "learning-experience-memory.test.cjs")] });
 suites.push({ name: "Task engine integrity regression tests", args: ["--test", path.join(root, "tests", "unit", "task-engine-integrity.test.cjs")] });
 suites.push({ name: "Character motion editor safety tests", args: ["--test", path.join(root, "tests", "unit", "motion-editor-safety.test.mjs")] });
 
