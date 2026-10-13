@@ -28,11 +28,12 @@ async function rpcStdio(server,requests,options={}){
   if(signal?.aborted){abort();return}
   signal?.addEventListener("abort",abort,{once:true});
   timer=setTimeout(()=>fail(new Error("MCP stdio request timed out after "+timeoutMs+"ms")),timeoutMs);
-  const request=(method,params)=>new Promise((res,rej)=>{
+  const request=(method,params,expectsResponse=true)=>new Promise((res,rej)=>{
    if(settled)return rej(new Error("MCP request is no longer active"));
-   const id=++seq;responses.set(id,{res,rej});
-   try{child.stdin.write(JSON.stringify({jsonrpc:"2.0",id,method,params:params||{}})+"\n",error=>{if(error){responses.delete(id);rej(error)}})}
-   catch(error){responses.delete(id);rej(error)}
+   const id=++seq,message={jsonrpc:"2.0",...(expectsResponse?{id}:{}),method,params:params||{}};
+   if(expectsResponse)responses.set(id,{res,rej});
+   try{child.stdin.write(JSON.stringify(message)+"\n",error=>{if(error){if(expectsResponse)responses.delete(id);rej(error)}else if(!expectsResponse)res(null)})}
+   catch(error){if(expectsResponse)responses.delete(id);rej(error)}
   });
   child.stdout.on("data",d=>{
    buffer+=String(d);let i;
@@ -47,7 +48,7 @@ async function rpcStdio(server,requests,options={}){
   (async()=>{try{
    await request("initialize",{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.2"}});
    if(signal?.aborted)throw new Error("MCP request cancelled");
-   await request("notifications/initialized",{});
+   await request("notifications/initialized",{},false);
    let out=null;
    for(const item of requests){if(signal?.aborted)throw new Error("MCP request cancelled");out=await request(item.method,item.params)}
    succeed(out);
