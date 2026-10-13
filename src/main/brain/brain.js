@@ -63,10 +63,15 @@ class Brain{
     try{
      const memory=experienceMemory();
      if(actualStatus==="finished"&&!failed&&!incompletePlan&&!unverifiedAction&&verifiedAfterLastAction){
-      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,steps:experienceSteps,outcome:"success",verified:true});
+      const evidence=Array.isArray(saved?.verification?.evidence)?saved.verification.evidence:[];
+      const verification=evidence.filter(item=>item&&item.result==="returned").slice(-3).map(item=>String(item.tool||item.name||"read-only verification").slice(0,80)).join(", ");
+      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,steps:experienceSteps,outcome:"success",verified:true,verification,notes:"Saved only after a persisted verification event occurred after the last state-changing action."});
       if(learned.saved)this.onEvent({type:"learning-experience",outcome:"success",id:learned.id,goal:s,toolCount:experienceTools.length});
-     }else if(actualStatus==="needs_attention"&&experienceFailureTool&&experienceTools.length>=2){
-      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,steps:experienceSteps,outcome:"failure",failureTool:experienceFailureTool,verified:false});
+     }else if(actualStatus==="needs_attention"&&experienceTools.length>=2){
+      const failedStep=saved?.steps?.find(step=>step.status==="failed");
+      const failureTool=experienceFailureTool||failedStep?.tool||(!verifiedAfterLastAction?"final-verification":"incomplete-plan");
+      const notes=[failed?"At least one recorded action failed.":"",incompletePlan?"The task plan contains unfinished steps.":"",unverifiedAction?"The final state was not verified after the last action.":""].filter(Boolean).join(" ");
+      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,steps:experienceSteps,outcome:"failure",failureTool,verified:false,notes});
       if(learned.saved)this.onEvent({type:"learning-experience",outcome:"failure",id:learned.id,goal:s,toolCount:experienceTools.length});
      }
     }catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"EXPERIENCE LEARNING",message:"Task experience could not be saved: "+String(error?.message||error).replace(/[\\r\\n\\t]+/g," ").slice(0,180)});}
