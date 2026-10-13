@@ -85,6 +85,7 @@ export class AutonomousBehaviorController{
  }
  setExpression(name,intensity=.5){if(this.settings.expressions===false)return false;return Boolean(this.character?.face?.expression?.(name,intensity))}
  setSpeechExpression(name,intensity=.5){if(this.settings.speechFace===false)return false;return this.setExpression(name,intensity)}
+ expressionForMood(){return ({cheerful:"happy",curious:"surprised",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"})[this.mood]||"neutral"}
  configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.settings.speakingCycle===false)this.clearSpeakingTimer();if(this.settings.thinkingCycle===false)this.clearThinkingTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking"&&this.settings.speakingCycle!==false)this.scheduleSpeakingGesture();if(this.intent==="thinking"&&this.settings.thinkingCycle!==false)this.scheduleThinkingGesture()}return {...this.settings}}
  armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
  setVisible(value){
@@ -361,7 +362,7 @@ export class AutonomousBehaviorController{
    this.clearThinkingTimer();
    this.interruptLowPriorityMotions();
    this.intent="speaking";
-   this.setSpeechExpression(this.mood==="sad"?"sad":"happy",.45);
+   this.setSpeechExpression(this.expressionForMood(),.45);
    this.playMotion("talkGesture",{duration:.9,priority:25});
    this.scheduleSpeakingGesture();
    return true;
@@ -370,7 +371,7 @@ export class AutonomousBehaviorController{
    this.clearSleepTimer();
    this.clearCycleTimers();
    this.intent="idle";
-   this.setSpeechExpression(this.mood==="sad"?"sad":"neutral",.5);
+   this.setSpeechExpression(this.expressionForMood(),.5);
    this.schedule(3200);
    this.armSleepTimer();
    return true;
