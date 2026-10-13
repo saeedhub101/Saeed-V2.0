@@ -18,9 +18,9 @@ function Json($o){$o|ConvertTo-Json -Compress -Depth 6}
 function Context {
  $hw=[SaeedRecorderNative]::GetForegroundWindow();$processId=0;[void][SaeedRecorderNative]::GetWindowThreadProcessId($hw,[ref]$processId)
  $sb=New-Object Text.StringBuilder 512;[void][SaeedRecorderNative]::GetWindowText($hw,$sb,$sb.Capacity)
- $controlName="";$automationId="";$controlType="";$runtimeId=""
- try{$el=[System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($global:cx,$global:cy)));if($el){$controlName=$el.Current.Name;$automationId=$el.Current.AutomationId;$controlType=$el.Current.ControlType.ProgrammaticName;$runtimeId=$el.GetRuntimeId() -join ","}}catch{}
- [pscustomobject]@{pid=[int]$processId;title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType;runtimeId=$runtimeId;elementIndex=-1}
+ $controlName="";$automationId="";$controlType="";$runtimeId="";$bounds=$null
+ try{$el=[System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($global:cx,$global:cy)));if($el){$controlName=$el.Current.Name;$automationId=$el.Current.AutomationId;$controlType=$el.Current.ControlType.ProgrammaticName;$runtimeId=$el.GetRuntimeId() -join ",";$rect=$el.Current.BoundingRectangle;$bounds=[pscustomobject]@{x=$rect.X;y=$rect.Y;width=$rect.Width;height=$rect.Height}}}catch{}
+ [pscustomobject]@{pid=[int]$processId;title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType;runtimeId=$runtimeId;elementIndex=-1;bounds=$bounds}
 }
 function AddElementIndex($ctx) {
  try {
