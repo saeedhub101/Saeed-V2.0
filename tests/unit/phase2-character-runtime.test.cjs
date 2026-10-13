@@ -73,3 +73,7 @@ test("rig diagnostics can enumerate skeleton bones before automatic or manual ma
  assert.match(gate,/getRig/);
  assert.match(gate,/const requiresRig=!skeletonOnlyActions\.has\(actionName\)/);
 });
+
+test("rig editor API exposes bone names instead of renderer object references",()=>{
+ assert.match(source,/getRig:\(\)=>\(\{bones:engine\.getAvailableBoneNames\?\.\(\)\|\|\[\],mapping:Object\.fromEntries\(Object\.entries\(engine\.getBoneMap\?\.\(\)\|\|\{\}\)\.map\(\(\[slot,bone\]\)=>\[slot,bone\?\.name\|\|bone\]\)\)/);
+});
