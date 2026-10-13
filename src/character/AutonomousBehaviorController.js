@@ -311,9 +311,22 @@ export class AutonomousBehaviorController{
   return played;
  }
  classifyText(text){
-  const clean=String(text||"").trim();
+  const clean=String(text||"").normalize("NFC").replace(/[\u064B-\u065F\u0670\u0640]/g,"").replace(/[إأآٱ]/g,"ا").replace(/ى/g,"ي").toLocaleLowerCase().trim();
   if(!clean)return null;
-  return TEXT_REACTIONS.find(item=>item.pattern.test(clean))||null;
+  // Avoid treating negated emotion/intent words as positive signals.
+  const guarded=[
+   {id:"urgency",pattern:/(?:\b(?:not urgent|no rush|don't hurry|do not hurry|not an emergency)\b|مش مستعجل|ليس عاجلا|مش ضروري)/i},
+   {id:"affirmation",pattern:/(?:\b(?:not okay|not ok|not correct|not agreed|not sure)\b|مش تمام|غير موافق|مش صحيح)/i},
+   {id:"disagreement",pattern:/(?:\b(?:no problem|not wrong|not disagree)\b|لا مشكلة|ما في مشكلة)/i}
+  ];
+  const blocked=new Set(guarded.filter(item=>item.pattern.test(clean)).map(item=>item.id));
+  const found=TEXT_REACTIONS.find(item=>!blocked.has(item.id)&&item.pattern.test(clean));
+  if(found)return found;
+  // Recover common Arabic variants without diacritics or hamza differences.
+  const compact=clean.replace(/\s+/g," ");
+  if(/(?:^|\s)(?:اهلا|مرحبا|السلام عليكم|صباح الخير|مساء الخير)(?:\s|$)/i.test(compact))return TEXT_REACTIONS.find(x=>x.id==="greeting");
+  if(/(?:^|\s)(?:شكرا|مشكور|يسلمو)(?:\s|$)/i.test(compact))return TEXT_REACTIONS.find(x=>x.id==="thanks");
+  return null;
  }
  scheduleSpeakingGesture(){
   this.clearSpeakingTimer();
