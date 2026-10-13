@@ -13,6 +13,20 @@ function get(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))retu
 function save(userData,skill){const v=validate(skill);ensure(userData);const f=fileFor(userData,v.id),result=writeJsonAtomic(f,v);if(!result.ok)throw new Error("Learned skill persistence failed: "+result.error);const persisted=get(userData,v.id);if(!persisted||persisted.id!==v.id||persisted.steps.length!==v.steps.length)throw new Error("Learned skill persistence verification failed");return persisted}
 function remove(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return false;fs.unlinkSync(f);return true}
 function setEnabled(userData,id,enabled){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);s.enabled=Boolean(enabled);s.updatedAt=new Date().toISOString();return save(userData,s)}
+function recordOutcome(userData,id,outcome,detail=""){
+ const skill=get(userData,id);if(!skill)throw new Error("Skill not found: "+id);
+ const metadata=skill.metadata&&typeof skill.metadata==="object"?{...skill.metadata}:{};
+ const stats=metadata.outcomes&&typeof metadata.outcomes==="object"?{...metadata.outcomes}:{successes:0,failures:0};
+ if(outcome==="success")stats.successes=Math.max(0,Number(stats.successes)||0)+1;
+ else if(outcome==="failure")stats.failures=Math.max(0,Number(stats.failures)||0)+1;
+ else throw new Error("Outcome must be success or failure");
+ stats.lastOutcome=outcome;stats.lastOutcomeAt=new Date().toISOString();
+ metadata.outcomes=stats;
+ if(outcome==="failure")metadata.lastFailure=String(detail||"Skill execution failed").replace(/[\\r\\n\\t]+/g," ").slice(0,300);
+ else delete metadata.lastFailure;
+ skill.metadata=metadata;
+ return save(userData,skill);
+}
 function extractParameters(skill,text){
  const source=String(text||""),values={};
  const parameters=Array.isArray(skill?.parameters)?skill.parameters:[];
@@ -141,4 +155,4 @@ async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{},va
  }
  return{ok:true,skill:skill.id,results};
 }
-module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,extractParameters,resolveTemplate,exportSkill,importSkill,beginRecording,recordStep,finishRecording,normalize};
+module.exports={root,ensure,list,get,save,remove,setEnabled,recordOutcome,match,run,extractParameters,resolveTemplate,exportSkill,importSkill,beginRecording,recordStep,finishRecording,normalize};
