@@ -82,7 +82,7 @@ function importSkill(userData,data){return save(userData,typeof data==="string"?
 function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},parameters:[],steps:[],approval:"per-tool"}}}
 function parameterNameFromControl(label,automationId){
  let raw=String(label||"").trim();
- if(!raw)raw=String(automationId||"").trim();
+ if(!raw||["name","id","date","number","type","value","code","text","email","address"].includes(raw.toLowerCase()))raw=String(automationId||raw).trim();
  raw=raw.replace(/^(?:txt|text|input|field|edit|cmb|combo|ddl)[_-]?/i,"").replace(/(?:textBox|textbox|input|edit|comboBox|combo|field)$/i,"");
  const words=raw.replace(/([a-z0-9])([A-Z])/g,"$1 $2").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").match(/[a-z0-9]+/gi)||[];
  if(!words.length)return null;
@@ -112,10 +112,10 @@ function recordStep(session,tool,args){
   const isField=/\.(?:Edit|ComboBox|Document)$/i.test(controlType);
   const parameterName=isField?parameterNameFromControl(label,automationId):null;
   if(parameterName){
-   let name=parameterName,number=2;const fieldAliases=[label,automationId].filter(Boolean).map(alias=>alias.toLowerCase());
-   while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>fieldAliases.includes(String(alias).toLowerCase())))name=parameterName+number++;
+   let name=parameterName,number=2;const identityAlias=(automationId||label).toLowerCase();
+   while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>String(alias).toLowerCase()===identityAlias))name=parameterName+number++;
    let parameter=session.skill.parameters.find(item=>item.name===name);
-   if(!parameter){parameter={name,description:label||automationId,aliases:[],required:true};session.skill.parameters.push(parameter)}
+   if(!parameter){parameter={name,description:(label&&!["name","id","date","number","type","value","code","text","email","address"].includes(label.toLowerCase()))?label:automationId||label,aliases:[],required:true};session.skill.parameters.push(parameter)}
    for(const alias of [label,automationId].filter(Boolean))if(!parameter.aliases.some(item=>String(item).toLowerCase()===alias.toLowerCase()))parameter.aliases.push(alias);
    selectedArgs={...input,text:"{{"+name+"}}"};
   }
