@@ -53,33 +53,114 @@ async function rpcStdio(server,requests,options={}){
   }catch(error){fail(error)}})();
  });
 }
+function parseMcpPayload(text){
+ const raw=String(text||"").trim();
+ if(!raw)return null;
+ const blocks=raw.split(/\r?\n\r?\n/);
+ for(const block of blocks){
+  const data=block.split(/\r?\n/).filter(line=>line.startsWith("data:")).map(line=>line.slice(5).replace(/^ /,"")).join("\n");
+  const candidate=data||block.trim();
+  if(!candidate||candidate.startsWith(":"))continue;
+  let message;try{message=JSON.parse(candidate)}catch{continue}
+  if(message?.error)throw new Error(message.error.message||"MCP error");
+  if(message&&Object.prototype.hasOwnProperty.call(message,"result"))return message.result;
+ }
+ return null;
+}
 async function rpcHttp(server,method,params={},options={}){
  const externalSignal=options.signal||null,timeoutMs=Math.max(1000,Number(options.timeoutMs)||30000),controller=new AbortController();
  const abort=()=>controller.abort(externalSignal?.reason instanceof Error?externalSignal.reason:new Error("MCP request cancelled"));
  if(externalSignal?.aborted)abort();else externalSignal?.addEventListener("abort",abort,{once:true});
- const timer=setTimeout(()=>controller.abort(new Error("MCP HTTP request timed out after "+timeoutMs+"ms")),timeoutMs);
- const signal=controller.signal;
+ const timer=setTimeout(()=>controller.abort(new Error("MCP HTTP request timed out after "+timeoutMs+"ms")),timeoutMs),signal=controller.signal;
  try{
   const headers={"Content-Type":"application/json","Accept":"application/json, text/event-stream",...(server.headers||{})};
   const post=async(body,extra={})=>{
    if(signal.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
-   const r=await fetch(server.url,{method:"POST",headers:{...headers,...extra},body:JSON.stringify(body),signal});
-   if(!r.ok)throw new Error("MCP HTTP "+r.status);
-   return r;
+   const response=await fetch(server.url,{method:"POST",headers:{...headers,...extra},body:JSON.stringify(body),redirect:"error",signal});
+   if(response.status===202)return{status:202,headers:response.headers,text:async()=>""};
+   if(!response.ok)throw new Error("MCP HTTP "+response.status);
+   return response;
   };
-  const parse=async r=>{
-   const text=await r.text();const line=text.split(/\r?\n/).find(x=>x.startsWith("data:"))||text;const clean=line.replace(/^data:\s*/,"").trim();
-   if(!clean)return{};
-   const msg=JSON.parse(clean);if(msg.error)throw new Error(msg.error.message||"MCP error");return msg.result;
+  const parse=async response=>{
+   if(response.status===202)return null;
+   const text=await response.text();
+   const result=parseMcpPayload(text);
+   if(result===null&&text.trim())throw new Error("MCP server returned an unrecognized JSON-RPC response");
+   return result;
   };
-  let id=Date.now();
-  const init=await post({jsonrpc:"2.0",id:++id,method:"initialize",params:{protocolVersion:"2025-11-25",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.2"}}});
-  const session=init.headers.get("mcp-session-id");
-  await post({jsonrpc:"2.0",method:"notifications/initialized",params:{}},session?{"MCP-Session-Id":session}:{});
+  let id=Date.now(),session="",protocolVersion="2025-11-25";
+  const initResponse=await post({jsonrpc:"2.0",id:++id,method:"initialize",params:{protocolVersion,capabilities:{},clientInfo:{name:"Saeed AI",version:"4.4"}}});
+  session=initResponse.headers.get("mcp-session-id")||"";
+  const init=await parse(initResponse);
+  if(!init||typeof init!=="object"||!init.protocolVersion)throw new Error("MCP initialize response is missing protocolVersion");
+  protocolVersion=String(init.protocolVersion);
+  const sessionHeaders={...(session?{"MCP-Session-Id":session}:{}),"MCP-Protocol-Version":protocolVersion};
+  const initialized=await post({jsonrpc:"2.0",method:"notifications/initialized",params:{}},sessionHeaders);
+  if(initialized.status!==202&&initialized.status!==204){try{await initialized.text()}catch{}}
   if(signal.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
-  return await parse(await post({jsonrpc:"2.0",id:++id,method,params},session?{"MCP-Session-Id":session}:{}));
+  return await parse(await post({jsonrpc:"2.0",id:++id,method,params},sessionHeaders));
  }finally{clearTimeout(timer);externalSignal?.removeEventListener("abort",abort)}
 }
-async function listTools(userData,id,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);return s.transport==="stdio"?rpcStdio(s,[{method:"tools/list",params:{}}],options):rpcHttp(s,"tools/list",{},options)}
-async function callTool(userData,id,name,args={},confirm=async()=>false,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);const signal=options.signal||null;if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const allowed=s.permissions?.tools;if(Array.isArray(allowed)&&!allowed.includes(name))throw new Error("MCP tool is not permitted: "+name);if(s.permissions?.alwaysAsk&&!await confirm({server:id,tool:name,args,signal}))throw new Error("MCP tool permission denied");if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const p={name,arguments:args};return s.transport==="stdio"?rpcStdio(s,[{method:"tools/call",params:p}],options):rpcHttp(s,"tools/call",p,options)}
+async function rpcSse(server,method,params={},options={}){
+ const externalSignal=options.signal||null,timeoutMs=Math.max(1000,Number(options.timeoutMs)||30000),controller=new AbortController();
+ const abort=()=>controller.abort(externalSignal?.reason instanceof Error?externalSignal.reason:new Error("MCP request cancelled"));
+ if(externalSignal?.aborted)abort();else externalSignal?.addEventListener("abort",abort,{once:true});
+ const timer=setTimeout(()=>controller.abort(new Error("MCP SSE request timed out after "+timeoutMs+"ms")),timeoutMs),signal=controller.signal;
+ let reader=null,postEndpoint=null,endpointResolve,endpointReject,streamFailure,streamDone=false;
+ const endpointReady=new Promise((resolve,reject)=>{endpointResolve=resolve;endpointReject=reject});
+ const pending=new Map();
+ const failAll=error=>{if(streamDone)return;streamDone=true;endpointReject?.(error);for(const item of pending.values())item.reject(error);pending.clear()};
+ try{
+  const response=await fetch(server.url,{method:"GET",headers:{Accept:"text/event-stream",...(server.headers||{})},redirect:"error",signal});
+  if(!response.ok)throw new Error("MCP SSE HTTP "+response.status);
+  if(!/text\/event-stream/i.test(response.headers.get("content-type")||""))throw new Error("MCP SSE endpoint did not return text/event-stream");
+  if(!response.body?.getReader)throw new Error("MCP SSE streaming is not supported by this runtime");
+  reader=response.body.getReader();
+  const decoder=new TextDecoder();
+  (async()=>{
+   let buffer="",eventName="message",data=[];
+   try{
+    while(!signal.aborted){
+     const part=await reader.read();if(part.done)break;
+     buffer+=decoder.decode(part.value,{stream:true});
+     let newline;
+     while((newline=buffer.indexOf("\n"))>=0){
+      let line=buffer.slice(0,newline);buffer=buffer.slice(newline+1);if(line.endsWith("\r"))line=line.slice(0,-1);
+      if(!line){const payload=data.join("\n");if(eventName==="endpoint"&&payload){postEndpoint=new URL(payload,server.url).toString();endpointResolve(postEndpoint)}else if(payload){try{const message=JSON.parse(payload);if(message.id!==undefined&&pending.has(String(message.id))){const waiter=pending.get(String(message.id));pending.delete(String(message.id));if(message.error)waiter.reject(new Error(message.error.message||"MCP error"));else waiter.resolve(message.result)}}catch{}}eventName="message";data=[];continue}
+      if(line.startsWith(":"))continue;
+      const colon=line.indexOf(":"),field=colon<0?line:line.slice(0,colon),value=colon<0?"":line.slice(colon+1).replace(/^ /,"");
+      if(field==="event")eventName=value;else if(field==="data")data.push(value);
+     }
+    }
+    if(!signal.aborted)failAll(new Error("MCP SSE stream closed before the response arrived"));
+   }catch(error){failAll(error)}
+  })();
+  const endpoint=await endpointReady;
+  const post=async(body)=>{
+   if(signal.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
+   const r=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json, text/event-stream",...(server.headers||{})},body:JSON.stringify(body),redirect:"error",signal});
+   if(!r.ok&&r.status!==202)throw new Error("MCP SSE POST HTTP "+r.status);
+   try{await r.body?.cancel?.()}catch{}
+  };
+  let id=Date.now();
+  const request=async(rpcMethod,rpcParams={},expectsResponse=true)=>{
+   const requestId=++id;
+   const result=expectsResponse?new Promise((resolve,reject)=>pending.set(String(requestId),{resolve,reject})):Promise.resolve(null);
+   try{await post({jsonrpc:"2.0",...(expectsResponse?{id:requestId}:{}),method:rpcMethod,params:rpcParams})}catch(error){pending.delete(String(requestId));throw error}
+   return await result;
+  };
+  const initialized=await request("initialize",{protocolVersion:"2024-11-05",capabilities:{},clientInfo:{name:"Saeed AI",version:"4.4"}});
+  if(!initialized||!initialized.protocolVersion)throw new Error("MCP SSE initialize response is missing protocolVersion");
+  await request("notifications/initialized",{},false);
+  if(signal.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));
+  return await request(method,params,true);
+ }finally{
+  clearTimeout(timer);externalSignal?.removeEventListener("abort",abort);
+  try{await reader?.cancel()}catch{}
+  try{controller.abort()}catch{}
+  if(!streamDone)failAll(new Error("MCP SSE request ended"));
+ }
+}
+async function listTools(userData,id,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);return s.transport==="stdio"?rpcStdio(s,[{method:"tools/list",params:{}}],options):s.transport==="sse"?rpcSse(s,"tools/list",{},options):rpcHttp(s,"tools/list",{},options)}
+async function callTool(userData,id,name,args={},confirm=async()=>false,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);const signal=options.signal||null;if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const allowed=s.permissions?.tools;if(Array.isArray(allowed)&&!allowed.includes(name))throw new Error("MCP tool is not permitted: "+name);if(s.permissions?.alwaysAsk&&!await confirm({server:id,tool:name,args,signal}))throw new Error("MCP tool permission denied");if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const p={name,arguments:args};return s.transport==="stdio"?rpcStdio(s,[{method:"tools/call",params:p}],options):s.transport==="sse"?rpcSse(s,"tools/call",p,options):rpcHttp(s,"tools/call",p,options)}
 module.exports={file,addServer,removeServer,listServers,listTools,callTool};
