@@ -85,3 +85,18 @@ test("settings loaded from disk are normalized before reaching runtime",t=>{
  assert.equal(loaded.apiServices.brain,true);
  assert.equal(loaded.micMode,"off");
 });
+
+test("invalid provider selections are rejected before runtime settings are persisted",t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-settings-provider-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const store=new SettingsStore(dir);
+ const next=store.apply(store.load(),{provider:"unknown-provider",fallbackProvider:"",fallbackEnabled:true,sttProvider:"invalid",ttsProvider:"invalid",realtimeProvider:"invalid"});
+ assert.equal(next.provider,"openai");
+ assert.equal(next.fallbackEnabled,false);
+ assert.equal(next.sttProvider,"whisper");
+ assert.equal(next.ttsProvider,"local");
+ assert.equal(next.realtimeProvider,"openai");
+ const loaded=store.load();
+ assert.equal(loaded.provider,"openai");
+ assert.equal(loaded.fallbackEnabled,false);
+});
