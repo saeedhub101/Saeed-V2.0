@@ -6,6 +6,7 @@ const path = require("node:path");
 
 const source = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterController.js"), "utf8");
 const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterEngine.js"), "utf8");
+const hostSource = fs.readFileSync(path.join(__dirname, "../../src/main/character/character-host.js"), "utf8");
 const playStart = source.indexOf(" play(id,options={}){");
 const playEnd = source.indexOf("\n stop(id)", playStart);
 const playBody = source.slice(playStart, playEnd);
@@ -49,4 +50,11 @@ test("destroying the Character Engine disposes the previous model before clearin
   assert.match(body, /dispose\(previous\)/);
   assert.match(body, /renderer\.forceContextLoss\?\.\(\)/);
   assert.ok(body.indexOf("dispose(previous)") < body.indexOf("root.clear()"));
+});
+
+test("failed character persistence restores the previous or last persisted GLB",()=>{
+ assert.match(hostSource,/function restorePreviousCharacter\(previousPending,target=getCharacterWindow\(\)\)/);
+ assert.match(hostSource,/previousPending\?\.data\|\|readPersistedCharacter\(\)\?\.data/);
+ assert.match(hostSource,/restorePreviousCharacter\(previousPending,target\)/);
+ assert.match(hostSource,/previous saved asset was restored/);
 });
