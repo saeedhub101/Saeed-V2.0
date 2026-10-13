@@ -34,7 +34,7 @@ export class AutonomousBehaviorController{
   this.recent=[];
   this.lastMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:3600000};
+  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.lastGazeAt=0;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:3600000};
  }
  start(){
   if(this.running)return;
@@ -193,6 +193,11 @@ export class AutonomousBehaviorController{
  handleEvent(event){
   const type=typeof event==="string"?event:String(event?.type||"").toLowerCase();
   if(!this.running||!this.visible)return false;
+  if(type==="pointer-move"){
+   const now=performance.now();if(now-this.lastGazeAt<110)return false;this.lastGazeAt=now;
+   const x=Math.max(-1,Math.min(1,Number(event?.x)||0)),y=Math.max(-1,Math.min(1,Number(event?.y)||0));
+   const ok=Boolean(this.character.face?.lookAt?.(x*1.35,1.5-y*.25,1.2));if(ok)this.intent="attending";return ok;
+  }
   this.touch();
   if(type==="speech-start"){
    this.intent="speaking";
