@@ -74,6 +74,7 @@ function updatePlanStep(userData,id,index,status,evidence=""){
 }
 function isReadOnlyMcpTool(name){
  const value=String(name||"").toLowerCase().trim().replace(/\s+/g,"-");
+ if(/^(mcp[-_])?(list[-_]servers|test[-_]connection|list[-_]tools|list[-_]resources|read[-_]resource|list[-_]prompts|get[-_]prompt)$/.test(value))return false;
  const readPattern=/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select)(?:[_-]|$)/;
  const writePattern=/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/;
  return Boolean(readPattern.test(value)&&!writePattern.test(value));
