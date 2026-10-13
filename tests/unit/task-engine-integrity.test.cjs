@@ -61,3 +61,12 @@ test("stale recovery preserves plan steps that never started",t=>{
  assert.equal(recovered.plan[0].status,"interrupted");
  assert.equal(recovered.plan[1].status,"pending");
 });
+
+test("unknown tool calls are treated as state-changing until verified",t=>{
+ const dir=temp();t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const run=engine.begin(dir,"unknown tool integrity");
+ engine.observe(dir,run.id,{type:"tool",name:"custom_execute",args:{operation:"change-state"}});
+ const saved=engine.get(dir,run.id);
+ assert.ok(saved.lastActionAt);
+ assert.equal(engine.finish(dir,run.id,{status:"finished",summary:"claimed done"}).status,"needs_attention");
+});
