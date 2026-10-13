@@ -18,7 +18,7 @@ using System.Runtime.InteropServices;
 public static class SaeedUiNative {
  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
 }
-"@ -ErrorAction SilentlyContinue
+"@
  $root=$null
  if($TargetPid -gt 0) {
   $top=[System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
