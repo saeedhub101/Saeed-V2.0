@@ -63,6 +63,7 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  const step=run.plan?.[Number(index)-1];if(!step)throw new Error("Task plan step not found");
  const next=String(status||"");
  if(!["pending","running","completed","failed","skipped","needs_approval","interrupted"].includes(next))throw new Error("Invalid task plan step status");
+ if(["completed","failed","skipped","interrupted"].includes(step.status)&&next!==step.status)throw new Error("Terminal plan steps are immutable; append a recovery step instead");
  if(next==="completed"&&!String(evidence||"").trim())throw new Error("A completed plan step requires verification evidence");
  const now=new Date().toISOString();step.status=next;
  if(next==="running"&&!step.startedAt)step.startedAt=now;
