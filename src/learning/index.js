@@ -112,8 +112,8 @@ function recordStep(session,tool,args){
   const isField=/\.(?:Edit|ComboBox|Document)$/i.test(controlType);
   const parameterName=isField?parameterNameFromControl(label,automationId):null;
   if(parameterName){
-   let name=parameterName,number=2;
-   while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>String(alias).toLowerCase()===label.toLowerCase()))name=parameterName+number++;
+   let name=parameterName,number=2;const fieldAliases=[label,automationId].filter(Boolean).map(alias=>alias.toLowerCase());
+   while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>fieldAliases.includes(String(alias).toLowerCase())))name=parameterName+number++;
    let parameter=session.skill.parameters.find(item=>item.name===name);
    if(!parameter){parameter={name,description:label||automationId,aliases:[],required:true};session.skill.parameters.push(parameter)}
    for(const alias of [label,automationId].filter(Boolean))if(!parameter.aliases.some(item=>String(item).toLowerCase()===alias.toLowerCase()))parameter.aliases.push(alias);
