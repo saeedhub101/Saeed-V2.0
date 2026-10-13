@@ -37,7 +37,7 @@ function extractParameters(skill,text){
    let remainder="";
    try{const match=source.match(new RegExp("^\\s*"+escaped+"(?:\\s*[,;:：-]\\s*|\\s+)(.+?)\\s*$","i"));if(match?.[1])remainder=match[1].trim()}catch{}
    if(!remainder)continue;
-   remainder=remainder.replace(/^(?:(?:named|called|with name|name is|for|اسمه|اسمها|باسم|اسم)\\s+)/i,"").replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
+   remainder=remainder.replace(/^(?:(?:named|called|with name|name is|for|اسمه|اسمها|باسم|اسم)\s+)/i,"").replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
    const aliases=parameters.flatMap(parameter=>[parameter.name,...(parameter.aliases||[])].filter(Boolean));
    if(!remainder||aliases.some(alias=>new RegExp("(^|[\\s:：=])"+escapeRegex(alias).replace(/\s+/g,"\\s+")+"(?=$|[\\s:：=])","i").test(remainder)))continue;
    values[unresolved[0].name]=remainder;
