@@ -98,6 +98,7 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
  async authorize(category,request,isCurrent=()=>true){
   const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
   if(!current())return false;
+  if(String(request?.name||"")==="task_plan")return current();
   let policy="ask";
   try{policy=typeof this.permissionPolicy==="function"?await this.permissionPolicy(category,request):"ask"}catch{return false}
   if(!current()||policy==="deny")return false;
