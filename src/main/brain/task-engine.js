@@ -9,7 +9,7 @@ function persist(userData,run){run.updatedAt=new Date().toISOString();const resu
 function begin(userData,goal){
  ensure(userData);
  const id=Date.now().toString(36)+"-"+crypto.randomBytes(6).toString("hex");
- const run={schemaVersion:1,id,goal:safeText(goal,2000),status:"running",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),finishedAt:null,steps:[],verification:{attempted:false,evidence:[]},plan:[],summary:""};
+ const run={schemaVersion:1,id,goal:safeText(goal,2000),status:"running",createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),finishedAt:null,steps:[],lastActionAt:null,verification:{attempted:false,evidence:[]},plan:[],summary:""};
  persist(userData,run);
  return run;
 }
@@ -36,8 +36,10 @@ function updatePlanStep(userData,id,index,status,evidence=""){
 function observe(userData,id,event){
  if(!event||typeof event!=="object")return null;
  const run=get(userData,id);if(!run||run.status!=="running")return run;
- const now=new Date().toISOString(),type=String(event.type||"");
- if(String(event.name||"")==="task_plan")return run;
+ const now=new Date().toISOString(),type=String(event.type||""),toolName=String(event.name||"");
+ if(toolName==="task_plan")return run;
+ const mutatingTools=new Set(["open_application","open_url","write_file","write_excel","mouse_click","type_text","key_press","interact_ui_element","email_send","mcp_call_tool","complete_task","remove_task"]);
+ if(type==="tool"&&mutatingTools.has(toolName))run.lastActionAt=now;
  if(type==="tool"){
   if(run.steps.length>=MAX_STEPS)return run;
   const name=safeText(event.name,100);
@@ -54,7 +56,7 @@ function observe(userData,id,event){
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
    if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)){
     run.verification.attempted=true;
-    run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed"});
+    run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed",afterAction:Boolean(run.lastActionAt&&now>=run.lastActionAt)});
     if(run.verification.evidence.length>30)run.verification.evidence.shift();
    }
   }
