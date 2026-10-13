@@ -16,7 +16,7 @@ test("verified successful experience persists and is recalled for a similar task
  assert.equal(hits[0].successes,1);
  assert.match(memory.promptText(dir,"create Excel workbook and save"),/Previously verified tool sequence/);
  assert.match(memory.promptText(dir,"create Excel workbook and save"),/write_excel \(sheet, cells\)/);
- assert.match(memory.promptText(dir,"create Excel workbook and save"),/App\\/context: Excel/);
+ assert.match(memory.promptText(dir,"create Excel workbook and save"),/App.context: Excel/);
  assert.match(memory.promptText(dir,"create Excel workbook and save"),/Verification used: read_excel/);
  assert.match(memory.promptText(dir,"create Excel workbook and save"),/confirm saved values/);
 });
