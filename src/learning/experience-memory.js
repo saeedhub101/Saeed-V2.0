@@ -9,14 +9,14 @@ function tokens(value){return [...new Set(normalize(value).split(/[\s_-]+/).filt
 function fileFor(userData){return path.join(userData,FILE)}
 function load(userData){try{const value=JSON.parse(fs.readFileSync(fileFor(userData),"utf8"));return Array.isArray(value)?value.filter(x=>x&&typeof x==="object"&&typeof x.goal==="string"&&Array.isArray(x.tools)):[]}catch{return[]}}
 function save(userData,items){fs.mkdirSync(userData,{recursive:true});const result=writeJsonAtomic(fileFor(userData),items.slice(-MAX_RECORDS));if(!result.ok)throw new Error("Learning experience persistence failed: "+result.error);const persisted=load(userData);if(persisted.length!==Math.min(items.length,MAX_RECORDS))throw new Error("Learning experience persistence verification failed");}
-function record(userData,{goal,tools=[],steps=[],outcome="success",failureTool="",verified=false}={}){
+function record(userData,{goal,tools=[],steps=[],outcome="success",failureTool="",verified=false,app="",verification="",notes=""}={}){
  const cleanGoal=String(goal||"").trim().replace(/[\r\n\t]+/g," ").slice(0,240);
  const names=[...tools].map(x=>String(x||"").trim()).filter(x=>/^[a-z][a-z0-9_.-]{0,79}$/i.test(x)).filter(x=>x!=="task_plan").slice(0,24);
  if(cleanGoal.length<8||names.length<2)return{saved:false,reason:"insufficient-experience"};
  const items=load(userData),key=normalize(cleanGoal),existing=items.find(x=>normalize(x.goal)===key);
  const row=existing||{id:require("crypto").createHash("sha256").update(key).digest("hex").slice(0,12),goal:cleanGoal,tools:[],steps:[],successes:0,failures:0,createdAt:new Date().toISOString()};
- if(outcome==="success"&&verified){row.successes++;row.tools=names;row.steps=steps.filter(step=>step&&typeof step.name==="string"&&/^[a-z][a-z0-9_.-]{0,79}$/i.test(step.name)).slice(0,24).map(step=>({name:step.name,fields:[...new Set((Array.isArray(step.fields)?step.fields:[]).map(x=>String(x||"").trim()).filter(x=>/^[a-z][a-z0-9_-]{0,49}$/i.test(x)))].slice(0,10)}));row.lastOutcome="success";row.verified=true;row.failureTool="";}
- else{row.failures++;row.lastOutcome="failure";row.verified=false;row.failureTool=String(failureTool||"").slice(0,80);}
+ if(outcome==="success"&&verified){row.successes++;row.tools=names;row.steps=steps.filter(step=>step&&typeof step.name==="string"&&/^[a-z][a-z0-9_.-]{0,79}$/i.test(step.name)).slice(0,24).map(step=>({name:step.name,fields:[...new Set((Array.isArray(step.fields)?step.fields:[]).map(x=>String(x||"").trim()).filter(x=>/^[a-z][a-z0-9_-]{0,49}$/i.test(x)))].slice(0,10)}));row.lastOutcome="success";row.verified=true;row.failureTool="";row.verification=String(verification||row.verification||"").replace(/[\\r\\n\\t]+/g," ").slice(0,500);row.notes=String(notes||row.notes||"").replace(/[\\r\\n\\t]+/g," ").slice(0,700);if(String(app||"").trim())row.app=String(app).trim().slice(0,120);}
+ else{row.failures++;row.lastOutcome="failure";row.verified=false;row.failureTool=String(failureTool||"").slice(0,80);row.notes=String(notes||row.notes||"").replace(/[\\r\\n\\t]+/g," ").slice(0,700);if(String(app||"").trim())row.app=String(app).trim().slice(0,120);}
  row.updatedAt=new Date().toISOString();
  const index=items.findIndex(x=>x.id===row.id);if(index>=0)items[index]=row;else items.push(row);
  save(userData,items);
@@ -24,7 +24,21 @@ function record(userData,{goal,tools=[],steps=[],outcome="success",failureTool="
 }
 function recall(userData,query,limit=4){
  const q=tokens(query);if(!q.length)return[];
- return load(userData).map(item=>{const words=tokens(item.goal);let overlap=0;for(const word of q)if(words.some(candidate=>candidate===word||candidate.includes(word)||word.includes(candidate)))overlap++;const score=overlap/Math.max(1,Math.min(q.length,words.length));return{item,score}}).filter(x=>x.score>=0.34).sort((a,b)=>(b.score+(b.item.successes>=b.item.failures?0.08:0))-(a.score+(a.item.successes>=a.item.failures?0.08:0))).slice(0,limit).map(x=>({...x.item,matchScore:Number(x.score.toFixed(2))}));
+ return load(userData).map(item=>{
+  const goal=tokens(item.goal),context=tokens([item.app,item.verification,item.notes,...(item.tools||[])].filter(Boolean).join(" "));
+  const goalHits=q.filter(word=>goal.some(candidate=>candidate===word||candidate.includes(word)||word.includes(candidate))).length;
+  const contextHits=q.filter(word=>context.some(candidate=>candidate===word||candidate.includes(word)||word.includes(candidate))).length;
+  const goalScore=goalHits/Math.max(1,Math.min(q.length,goal.length));
+  const contextScore=contextHits/Math.max(1,q.length);
+  const phraseBonus=normalize(item.goal)===normalize(query)?0.35:0;
+  const historyCount=Number(item.successes||0)+Number(item.failures||0);
+  const quality=historyCount?((Number(item.successes||0)-Number(item.failures||0))/historyCount)*0.12:0;
+  const score=Math.max(0,Math.min(1,goalScore*0.78+contextScore*0.22+phraseBonus+quality));
+  return{item,score,goalScore};
+ }).filter(x=>x.goalScore>=0.25||x.score>=0.38)
+ .sort((a,b)=>b.score-a.score)
+ .slice(0,Math.max(1,Math.min(10,Number(limit)||4)))
+ .map(x=>({...x.item,matchScore:Number(x.score.toFixed(2))}));
 }
 function promptText(userData,query){
  const hits=recall(userData,query,3);if(!hits.length)return"";
