@@ -102,6 +102,7 @@ export class AutonomousBehaviorController{
   this.sleepTimer=setTimeout(()=>{
    this.sleepTimer=null;
    if(!this.running||!this.visible)return;
+   this.clearCycleTimers();
    this.sleeping=true;
    this.intent="sleeping";
    this.character.stopAll();
@@ -143,6 +144,10 @@ export class AutonomousBehaviorController{
  evaluateNow(){
   if(!this.running||!this.visible||this.sleeping||this.settings.idle===false)return false;
   this.decayEnergy();
+  if(["speaking","thinking","doing","being-moved"].includes(this.intent)){
+   this.schedule(DEFAULT_IDLE_DELAY);
+   return false;
+  }
   this.restoreMoodIfDue();
   if(this.character.animation?.active?.length){this.schedule(DEFAULT_IDLE_DELAY);return false}
   if(performance.now()-this.lastMotionAt<this.cooldownMs){this.schedule(this.cooldownMs);return false}
@@ -166,7 +171,17 @@ export class AutonomousBehaviorController{
   return ok;
  }
  onUserInteraction(event={}){this.touch();return this.handleEvent(event)}
- onStateChanged(state){if(state?.intent)this.intent=String(state.intent);if(state?.visible!==undefined)this.setVisible(state.visible)}
+ onStateChanged(state){
+  if(state?.intent){
+   const next=String(state.intent).toLowerCase();
+   if(next!=="speaking")this.clearSpeakingTimer();
+   if(next!=="thinking")this.clearThinkingTimer();
+   this.intent=next;
+   if(next==="speaking")this.scheduleSpeakingGesture();
+   if(next==="thinking")this.scheduleThinkingGesture();
+  }
+  if(state?.visible!==undefined)this.setVisible(state.visible);
+ }
  onMoodChanged(mood,temporary=false){
   const valid=["cheerful","curious","thoughtful","mischievous","pleased","sleepy","puzzled","sad"];
   const next=String(mood||"cheerful").toLowerCase();
@@ -212,7 +227,7 @@ export class AutonomousBehaviorController{
    this.speakingTimer=null;
    if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking")return;
    const id=this.chooseWeighted(["talkGesture","nod","lookCloser","wave"],{talkGesture:1.5,nod:1.2,lookCloser:.8,wave:.45});
-   if(id&&(!this.character?.animation?.active||this.character.animation.active.length<2))this.playMotion(id,{duration:id==="talkGesture"?.9:.7,priority:18});
+   if(id&&(!this.character?.animation?.active||this.character.animation.active.length<2))this.playMotion(id,{duration:id==="talkGesture" ? .9 : .7,priority:18});
    this.scheduleSpeakingGesture();
   },delay);
  }
