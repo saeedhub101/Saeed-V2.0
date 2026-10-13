@@ -57,7 +57,7 @@ class ModelExecutor{
        if(!current())return "";
        let out;
        if(!call.name||call.args===null||!call.args||typeof call.args!=="object"||Array.isArray(call.args))out={ok:false,error:"Invalid tool name or JSON arguments"};
-       else out=await registry.call(call.name,call.args,{isCurrent:current});
+       else{onEvent({type:"tool",name:call.name,args:redactToolArgs(call.name,call.args)});out=await registry.call(call.name,call.args,{isCurrent:current});if(out?.ok===false)onEvent({type:"tool_error",name:call.name,error:out.error||"Tool failed"});else onEvent({type:"tool_result",name:call.name,result:redactToolResult(call.name,out)})}
        if(!current())return "";
        messages.push({role:"tool",tool_call_id:call.id,content:JSON.stringify(out)});
       }
