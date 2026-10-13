@@ -22,18 +22,18 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
    if(generation!==outputGeneration||voiceMuted||!ttsReady)return;
    const src=mic.playCtx.createBufferSource();src.buffer=buffer;src.connect(mic.playCtx.destination);mic.audioSources.add(src);
    window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-start");window.saeedCharacterRuntime?.controller?.play?.("talk");
-   src.onended=()=>{mic.audioSources.delete(src);if(mic.audioSources.size===0){speechSuppressed=false;window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end");window.saeedCharacterRuntime?.controller?.play?.("idle")}};
+   src.onended=()=>{mic.audioSources.delete(src);if(generation!==outputGeneration)return;if(mic.audioSources.size===0){speechSuppressed=false;window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end");window.saeedCharacterRuntime?.controller?.play?.("idle")}};
    src.start();
-  }catch(e){speechSuppressed=false;report("ERROR","TTS API PLAYBACK",e.message);window.saeedCharacterRuntime?.controller?.play?.("idle")}
+  }catch(e){if(generation!==outputGeneration)return;speechSuppressed=false;report("ERROR","TTS API PLAYBACK",e.message);window.saeedCharacterRuntime?.controller?.play?.("idle")}
  }
  function speakArabicPrayer(text){
-  if(!text||voiceMuted||!("speechSynthesis"in window))return false;
-  stopSpeaking();speechSuppressed=true;
+  if(!text||voiceMuted||!ttsReady||!("speechSynthesis"in window))return false;
+  stopSpeaking();speechSuppressed=true;const generation=outputGeneration;
   const u=new SpeechSynthesisUtterance(String(text));
   u.lang="ar-JO";u.rate=.88;u.pitch=1;
-  u.onstart=()=>{speechSuppressed=true;window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-start");window.saeedCharacterRuntime?.engine?.wakeRender?.(350)};
-  u.onend=()=>{speechSuppressed=false;stopSpeaking();window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end")};
-  u.onerror=()=>{speechSuppressed=false;stopSpeaking();window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end")};
+  u.onstart=()=>{if(generation!==outputGeneration||voiceMuted||!ttsReady)return;speechSuppressed=true;window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-start");window.saeedCharacterRuntime?.engine?.wakeRender?.(350)};
+  u.onend=()=>{if(generation!==outputGeneration)return;speechSuppressed=false;stopSpeaking();window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end")};
+  u.onerror=()=>{if(generation!==outputGeneration)return;speechSuppressed=false;stopSpeaking();window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end")};
   window.speechSynthesis.speak(u);return true;
  }
  window.saeedPrayerSpeak=speakArabicPrayer;
