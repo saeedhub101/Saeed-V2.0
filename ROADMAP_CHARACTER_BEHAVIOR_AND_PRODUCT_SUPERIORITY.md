@@ -1,6 +1,6 @@
 # Character Behavior and Saeed Product Superiority Roadmap
 
-Target: `saeedhub101/Saeed-V2.0`, branch `main`. This is a new roadmap; existing Markdown files must remain unchanged.
+Scope: implementation methodology and product roadmap only. Keep existing Markdown files unchanged.
 
 ## Current implementation status — 2026-10-13
 
