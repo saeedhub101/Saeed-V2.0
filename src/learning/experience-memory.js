@@ -1,13 +1,14 @@
 "use strict";
 const fs=require("fs");
 const path=require("path");
+const {writeJsonAtomic}=require("../main/services/atomic-json-store");
 const FILE="learning-experiences.json";
 const MAX_RECORDS=120;
 function normalize(value){return String(value||"").toLowerCase().normalize("NFKC").replace(/[^\p{L}\p{N}\s_-]/gu," ").replace(/\s+/g," ").trim().slice(0,300)}
 function tokens(value){return [...new Set(normalize(value).split(/[\s_-]+/).filter(x=>x.length>2&&!new Set(["the","and","for","with","from","please","that","this","then","now","من","على","الى","إلى","هذا","هذه","ثم","من فضلك"]).has(x)))];}
 function fileFor(userData){return path.join(userData,FILE)}
 function load(userData){try{const value=JSON.parse(fs.readFileSync(fileFor(userData),"utf8"));return Array.isArray(value)?value.filter(x=>x&&typeof x==="object"&&typeof x.goal==="string"&&Array.isArray(x.tools)):[]}catch{return[]}}
-function save(userData,items){fs.mkdirSync(userData,{recursive:true});const file=fileFor(userData),tmp=file+"."+process.pid+".tmp";fs.writeFileSync(tmp,JSON.stringify(items.slice(-MAX_RECORDS),null,2),"utf8");fs.renameSync(tmp,file)}
+function save(userData,items){fs.mkdirSync(userData,{recursive:true});const result=writeJsonAtomic(fileFor(userData),items.slice(-MAX_RECORDS));if(!result.ok)throw new Error("Learning experience persistence failed: "+result.error);const persisted=load(userData);if(persisted.length!==Math.min(items.length,MAX_RECORDS))throw new Error("Learning experience persistence verification failed");}
 function record(userData,{goal,tools=[],outcome="success",failureTool="",verified=false}={}){
  const cleanGoal=String(goal||"").trim().replace(/[\r\n\t]+/g," ").slice(0,240);
  const names=[...tools].map(x=>String(x||"").trim()).filter(x=>/^[a-z][a-z0-9_.-]{0,79}$/i.test(x)).filter(x=>x!=="task_plan").slice(0,24);
