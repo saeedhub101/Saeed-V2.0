@@ -4,7 +4,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
  ipcMain?.on("character:load-result",(event,generation,result)=>{const id=Number(generation)||0,waiter=loadWaiters.get(id);if(!waiter||event.sender!==getCharacterWindow()?.webContents)return;loadWaiters.delete(id);waiter(result||{ok:false,error:"Renderer returned an empty GLB load result"})});
  function displayForWindow(){const target=getCharacterWindow();if(!target)return screen.getPrimaryDisplay();const [x,y]=target.getPosition(),[w,h]=target.getSize();return screen.getDisplayMatching({x,y,width:w,height:h})||screen.getDisplayNearestPoint({x:x+w/2,y:y+h/2})||screen.getPrimaryDisplay()}
  function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}){const target=getCharacterWindow();if(!target)return;const a=display.workArea,[w,h]=target.getSize(),m=18,[x0,y0]=target.getPosition();const x=bottomRight?a.x+Math.max(0,a.width-w-m):Math.max(a.x,Math.min(x0,a.x+Math.max(0,a.width-w))),y=bottomRight?a.y+Math.max(0,a.height-h-m):Math.max(a.y,Math.min(y0,a.y+Math.max(0,a.height-h)));target.setPosition(Math.round(x),Math.round(y),false)}
- function sendCharacterData(data){const generation=++characterLoadGeneration;pendingCharacterData={data,generation};const delivered=sendPendingCharacterDataToCharacterWindow();sendPendingCharacterData();return delivered} function sendPendingCharacterDataToCharacterWindow(target=getCharacterWindow()){if(!target||target.isDestroyed()||!pendingCharacterData)return false;try{target.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation);return true}catch(error){diagnostic("ERROR","GLB DELIVERY",error?.message||String(error));return false}}
+ function sendCharacterData(data){const generation=++characterLoadGeneration;pendingCharacterData={data,generation};const delivered=sendPendingCharacterDataToCharacterWindow();sendPendingCharacterData();return delivered} function restorePreviousCharacter(previousPending,target=getCharacterWindow()){const data=previousPending?.data||readPersistedCharacter()?.data;if(!data){pendingCharacterData=null;return false}return sendCharacterData(data)} function sendPendingCharacterDataToCharacterWindow(target=getCharacterWindow()){if(!target||target.isDestroyed()||!pendingCharacterData)return false;try{target.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation);return true}catch(error){diagnostic("ERROR","GLB DELIVERY",error?.message||String(error));return false}}
  async function loadCandidateCharacter(data,name="character.glb"){
   let validation;
   try{validation=validateGlbCandidate(data)}catch(error){return{ok:false,error:error?.message||String(error)}}
@@ -19,7 +19,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   const result=await new Promise(resolve=>{
    const timer=setTimeout(()=>{
     loadWaiters.delete(generation);
-    if(previousPending?.data){const restoreGeneration=++characterLoadGeneration;timeoutRestoredPending={data:previousPending.data,generation:restoreGeneration};pendingCharacterData=timeoutRestoredPending;sendPendingCharacterDataToCharacterWindow(target);sendPendingCharacterData()}else pendingCharacterData=null;
+    if(previousPending?.data){const restoreGeneration=++characterLoadGeneration;timeoutRestoredPending={data:previousPending.data,generation:restoreGeneration};pendingCharacterData=timeoutRestoredPending;sendPendingCharacterDataToCharacterWindow(target);sendPendingCharacterData()}else{restorePreviousCharacter(null,target);timeoutRestoredPending=pendingCharacterData;}
     resolve({ok:false,generation,error:"Character renderer did not confirm the GLB load within 15 seconds; previous character restored"});
    },15000);
    loadWaiters.set(generation,value=>{clearTimeout(timer);resolve(value)});
@@ -34,9 +34,8 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   }
   const persisted=persistSelectedCharacter(candidate);
   if(!persisted){
-   pendingCharacterData=previousPending;
-   if(previousPending?.data)sendCharacterData(previousPending.data);
-   return{ok:false,error:"Character loaded in memory but could not be saved; previous saved asset was retained",generation,validation};
+   restorePreviousCharacter(previousPending,target);
+   return{ok:false,error:"Character loaded in memory but could not be saved; previous saved asset was restored",generation,validation};
   }
   const agent=getAgent();
   if(agent){agent.settings={...agent.settings,selectedCharacterName:path.basename(name)};agent.persistSettings()}
