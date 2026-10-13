@@ -131,7 +131,12 @@ export class AutonomousBehaviorController{
    wake:{cheerful:["wave","nod","dance"],curious:["lookCloser","think","wave"],thoughtful:["nod","think"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["nod","stretch"],puzzled:["think","shake"],sad:["nod","think"]},
    success:{cheerful:["dance","clap","wave","nod"],curious:["clap","nod","lookCloser"],thoughtful:["nod","wave"],mischievous:["dance","clap","wave"],pleased:["dance","clap","nod"],sleepy:["nod","wave"],puzzled:["nod","wave"],sad:["nod","wave"]},
    failure:{cheerful:["think","shake","lookCloser"],curious:["think","lookCloser","shake"],thoughtful:["think","nod","shake"],mischievous:["shake","think"],pleased:["think","nod"],sleepy:["think","nod"],puzzled:["think","shake","lookCloser"],sad:["think","nod"]},
-   thanks:{cheerful:["nod","wave"],curious:["nod","lookCloser"],thoughtful:["nod"],mischievous:["wave","nod"],pleased:["nod","wave","dance"],sleepy:["nod"],puzzled:["nod"],sad:["nod"]}
+   thanks:{cheerful:["nod","wave"],curious:["nod","lookCloser"],thoughtful:["nod"],mischievous:["wave","nod"],pleased:["nod","wave","dance"],sleepy:["nod"],puzzled:["nod"],sad:["nod"]},
+   praise:{cheerful:["clap","wave","dance"],curious:["clap","nod"],thoughtful:["nod","wave"],mischievous:["dance","wave","clap"],pleased:["clap","dance","nod"],sleepy:["nod"],puzzled:["nod","wave"],sad:["nod"]},
+   excitement:{cheerful:["dance","clap","wave"],curious:["wave","clap"],thoughtful:["wave","nod"],mischievous:["dance","clap"],pleased:["dance","clap","wave"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]},
+   confusion:{cheerful:["think","lookCloser"],curious:["lookCloser","think","shake"],thoughtful:["think","nod"],mischievous:["think","lookCloser"],pleased:["think","nod"],sleepy:["think","nod"],puzzled:["think","shake","lookCloser"],sad:["think","nod"]},
+   disagreement:{cheerful:["shake","think"],curious:["shake","lookCloser"],thoughtful:["shake","nod"],mischievous:["shake","think"],pleased:["shake","nod"],sleepy:["shake","nod"],puzzled:["shake","think"],sad:["nod","think"]},
+   farewell:{cheerful:["wave","nod"],curious:["wave","nod"],thoughtful:["wave","nod"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["wave","nod"],puzzled:["wave","nod"],sad:["wave","nod"]}
   };
   const candidates=palettes[kind]?.[this.mood]||palettes[kind]?.cheerful||[];
   const weights={dance:this.energy>=65?1.6:.45,clap:1.35,wave:1.2,nod:1.15,think:1.1,lookCloser:.95,shake:.8,stretch:.7};
@@ -247,8 +252,10 @@ export class AutonomousBehaviorController{
   this.onMoodChanged(reaction.mood,true);
   this.setExpression(reaction.expression,.78);
   this.intent="reacting";
-  const duration=reaction.motion==="dance"?2.1:reaction.motion==="lookCloser"?1.8:1.25;
-  return this.playMotion(reaction.motion,{duration,priority:42});
+  const contextual=["praise","excitement","confusion","disagreement","farewell"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
+  const motion=contextual||reaction.motion;
+  const duration=motion==="dance"?2.1:motion==="lookCloser"?1.8:1.25;
+  return this.playMotion(motion,{duration,priority:42});
  }
  classifyText(text){
   const clean=String(text||"").trim();
