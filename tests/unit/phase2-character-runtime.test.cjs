@@ -112,3 +112,9 @@ test("motion editor reports failed deletion instead of claiming success",()=>{
  assert.match(performanceSource,/if\(!result\?\.ok\)throw new Error\(result\?\.error\|\|"The selected motion was not removed\."\)/);
  assert.match(performanceSource,/Motion deletion failed:/);
 });
+
+test("rig editor prefers the active controller binding over a stale auto-map",()=>{
+ assert.match(characterClientSource,/const boundMapping=c\.api\?\.getRig\?\.\(\)\?\.mapping\|\|\{\}/);
+ assert.match(characterClientSource,/Object\.keys\(boundMapping\)\.length\?boundMapping/);
+ assert.match(characterClientSource,/status\.autoRig\|\|\{\}/);
+});
