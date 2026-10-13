@@ -62,6 +62,8 @@ export class AutonomousBehaviorController{
  clearSpeakingTimer(){if(this.speakingTimer){clearTimeout(this.speakingTimer);this.speakingTimer=null}}
  clearThinkingTimer(){if(this.thinkingTimer){clearTimeout(this.thinkingTimer);this.thinkingTimer=null}}
  clearCycleTimers(){this.clearSpeakingTimer();this.clearThinkingTimer()}
+ setExpression(name,intensity=.5){if(this.settings.expressions===false)return false;return Boolean(this.character?.face?.expression?.(name,intensity))}
+ setSpeechExpression(name,intensity=.5){if(this.settings.speechFace===false)return false;return this.setExpression(name,intensity)}
  configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.settings.speakingCycle===false)this.clearSpeakingTimer();if(this.settings.thinkingCycle===false)this.clearThinkingTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking"&&this.settings.speakingCycle!==false)this.scheduleSpeakingGesture();if(this.intent==="thinking"&&this.settings.thinkingCycle!==false)this.scheduleThinkingGesture()}return {...this.settings}}
  armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
  setVisible(value){
@@ -215,7 +217,7 @@ export class AutonomousBehaviorController{
    this.moodUntil=0;
    this.onMoodChanged(this.baseMood,false);
    const faceMap={cheerful:"happy",curious:"surprised",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"};
-   this.character.face?.expression?.(faceMap[this.mood]||"neutral",.45);
+   this.setExpression(faceMap[this.mood]||"neutral",.45);
   }
  }
  interruptLowPriorityMotions(){
@@ -230,11 +232,13 @@ export class AutonomousBehaviorController{
   return Boolean(this.character?.play?.(motion,options));
  }
  react(reaction){
+  if(reaction.id==="greeting"&&this.settings.greeting===false)reaction={...reaction,motion:"nod"};
+  if(reaction.motion==="dance"&&this.settings.dancing===false)reaction={...reaction,motion:"nod"};
   const now=performance.now();
   if(this.lastReactionId===reaction.id&&now-this.lastReactionAt<REACTION_GAP_MS)return false;
   this.lastReactionAt=now;this.lastReactionId=reaction.id;this.lastEvent="text:"+reaction.id;
   this.onMoodChanged(reaction.mood,true);
-  this.character.face?.expression?.(reaction.expression,.78);
+  this.setExpression(reaction.expression,.78);
   this.intent="reacting";
   const duration=reaction.motion==="dance"?2.1:reaction.motion==="lookCloser"?1.8:1.25;
   return this.playMotion(reaction.motion,{duration,priority:42});
@@ -272,6 +276,8 @@ export class AutonomousBehaviorController{
   const type=typeof event==="string"?event:String(event?.type||"").toLowerCase();
   if(!this.running||!this.visible)return false;
   this.lastEvent=type;
+  const lifecycleEvents=["speech-start","assistant-speech-start","speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","thinking","assistant-thinking","chat-end","assistant-cancelled","request-cancelled","app-focus","wake"];
+  if(this.settings.events===false&&!lifecycleEvents.includes(type))return false;
   if(type==="pointer-move"){
    if(this.settings.eyeTracking===false)return false;
    const now=performance.now();if(now-this.lastGazeAt<110)return false;this.lastGazeAt=now;
@@ -284,7 +290,7 @@ export class AutonomousBehaviorController{
    this.clearThinkingTimer();
    this.interruptLowPriorityMotions();
    this.intent="speaking";
-   this.character.face?.expression?.(this.mood==="sad"?"sad":"happy",.45);
+   this.setSpeechExpression(this.mood==="sad"?"sad":"happy",.45);
    this.playMotion("talkGesture",{duration:.9,priority:25});
    this.scheduleSpeakingGesture();
    return true;
@@ -292,7 +298,7 @@ export class AutonomousBehaviorController{
   if(type==="speech-end"||type==="assistant-speech-end"||type==="speech-cancelled"||type==="mute"||type==="muted"||type==="audio-muted"||type==="voice-muted"){
    this.clearCycleTimers();
    this.intent="idle";
-   this.character.face?.expression?.(this.mood==="sad"?"sad":"neutral",.5);
+   this.setSpeechExpression(this.mood==="sad"?"sad":"neutral",.5);
    this.schedule(3200);
    return true;
   }
@@ -318,7 +324,7 @@ export class AutonomousBehaviorController{
    if(reaction)return this.react(reaction);
    this.intent="attending";
    this.onMoodChanged("curious",true);
-   this.character.face?.expression?.("surprised",.55);
+   this.setExpression("surprised",.55);
    this.playMotion("think",{duration:1.35,priority:35});
    return true;
   }
@@ -328,7 +334,7 @@ export class AutonomousBehaviorController{
    const reaction=this.classifyText(text);
    if(reaction)return this.react(reaction);
    this.intent="responding";
-   this.character.face?.expression?.("happy",.5);
+   this.setExpression("happy",.5);
    this.playMotion("nod",{duration:.65,priority:32});
    return true;
   }
@@ -336,7 +342,7 @@ export class AutonomousBehaviorController{
    this.clearCycleTimers();
    this.interruptLowPriorityMotions();
    this.intent="doing";
-   this.character.face?.expression?.("thinking",.45);
+   this.setExpression("thinking",.45);
    this.playMotion("think",{duration:1.4,priority:30});
    return true;
   }
@@ -344,7 +350,7 @@ export class AutonomousBehaviorController{
    this.clearCycleTimers();
    this.intent="reacting";
    this.onMoodChanged("pleased",true);
-   this.character.face?.expression?.("happy",.65);
+   this.setExpression("happy",.65);
    const motion=this.chooseContextMotion("success")||"nod";
    this.playMotion(motion,{duration:motion==="dance"?1.6:.75,priority:40});
    return true;
@@ -353,20 +359,20 @@ export class AutonomousBehaviorController{
    this.clearCycleTimers();
    this.intent="reacting";
    this.onMoodChanged("thoughtful",true);
-   this.character.face?.expression?.("sad",.55);
+   this.setExpression("sad",.55);
    this.playMotion("shake",{duration:.7,priority:40});
    return true;
   }
   if(type==="double-click"||type==="right-click"||type==="summon"){
    if(wasSleeping)return true;
    this.onMoodChanged("cheerful",true);
-   this.character.face?.expression?.("happy",.7);
+   this.setExpression("happy",.7);
    const motion=this.chooseContextMotion("wake")||"wave";
    this.playMotion(motion,{duration:motion==="dance"?1.6:1.2,priority:45});
    return true;
   }
   if(type==="zoom"||type==="hover"){
-   this.character.face?.expression?.("curious",.5);
+   this.setExpression("curious",.5);
    this.playMotion("lookCloser",{duration:1.7,priority:35});
    return true;
   }
@@ -375,7 +381,7 @@ export class AutonomousBehaviorController{
    this.clearCycleTimers();
    this.interruptLowPriorityMotions();
    this.intent="being-moved";
-   this.character.face?.expression?.("surprised",.35);
+   this.setExpression("surprised",.35);
    return true;
   }
   if(type==="drag-end"){
