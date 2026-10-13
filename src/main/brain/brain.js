@@ -39,7 +39,7 @@ class Brain{
    }
    this.onEvent(event);
   };
-  const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");taskEngine.finish(this.getDir(),taskRun.id,{status:status||(failed?"needs_attention":"finished"),summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:status||(failed?"needs_attention":"finished")})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
+  const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");const incompletePlan=Boolean(saved?.plan?.length&&saved.plan.some(step=>!["completed","skipped"].includes(step.status)));const finalStatus=status||(failed||incompletePlan?"needs_attention":"finished");taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:finalStatus})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
   if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};
