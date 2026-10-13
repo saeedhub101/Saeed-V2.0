@@ -27,3 +27,19 @@ test("GLB validation accepts a renderable static mesh without a rig",()=>{
 test("GLB validation still rejects corrupt joint node references",()=>{
  assert.throws(()=>validateGlbCandidate(makeGlb(document({skin:true,joints:[99]}))),/invalid joint references/);
 });
+
+test("selected GLB is persisted only after binary read-back verification",t=>{
+ const fs=require("node:fs"),os=require("node:os"),path=require("node:path");
+ const {createCharacterStore}=require("../../src/main/character/character-store");
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-glb-store-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const diagnostics=[];
+ const service=createCharacterStore({app:{getPath:()=>dir},path,fs,screen:{},getCharacterWindow:()=>null,fitCharacterToDisplay:()=>{},diagnostic:(...args)=>diagnostics.push(args)});
+ const bytes=makeGlb(document({skin:true,joints:[]}));
+ const saved=service.persistSelectedCharacter(bytes);
+ assert.ok(saved);assert.deepEqual(fs.readFileSync(saved),bytes);
+ const restored=service.readPersistedCharacter();
+ assert.equal(restored.validation.ok,true);assert.deepEqual(Buffer.from(restored.data),bytes);
+ assert.equal(service.persistSelectedCharacter(Buffer.from("not a GLB")),null);
+ assert.deepEqual(fs.readFileSync(saved),bytes);
+});
