@@ -94,7 +94,7 @@ must(!preload.includes("window.saeedAvatar"),"Legacy avatar API exposed by prelo
 const registrySource=read("src/tools/registry.js");
 const permissionManagerSource=read("src/main/application/permission-manager.js");
 const settingsStoreSource=read("src/main/services/settings-store.js");
-must(registrySource.includes('require("./memory-tasks"),require("./addons")'),"Tool Registry does not route declared memory/email/MCP capabilities through the canonical dispatcher");
+must(registrySource.includes('require("./memory-tasks")')&&registrySource.includes('require("./addons")')&&registrySource.includes('require("./email")')&&registrySource.includes("domains.flatMap(d=>d.schemas())"),"Tool Registry does not route declared memory/email/MCP capabilities through the canonical dispatcher");
 must(!registrySource.includes('permissionPolicy=permissionPolicy||(()=> "allow")'),"Tool Registry must not default unknown permission policies to allow");
 must(registrySource.includes('new Set(["email_send","mcp_call_tool"])'),"Email sending and MCP tool calls must require explicit confirmation");
 must(!registrySource.includes('name:"credential_store"')&&!registrySource.includes('name:"credential_get"'),"Credential storage/retrieval must not be exposed as model-callable tools");
