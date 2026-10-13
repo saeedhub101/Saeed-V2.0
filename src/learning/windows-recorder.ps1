@@ -16,10 +16,23 @@ public static class SaeedRecorderNative {
 "@
 function Json($o){$o|ConvertTo-Json -Compress -Depth 6}
 function Context {
- $hw=[SaeedRecorderNative]::GetForegroundWindow();$pid=0;[void][SaeedRecorderNative]::GetWindowThreadProcessId($hw,[ref]$pid)
+ $hw=[SaeedRecorderNative]::GetForegroundWindow();$processId=0;[void][SaeedRecorderNative]::GetWindowThreadProcessId($hw,[ref]$processId)
  $sb=New-Object Text.StringBuilder 512;[void][SaeedRecorderNative]::GetWindowText($hw,$sb,$sb.Capacity)
- $controlName="";$automationId="";$controlType="";try{$el=[System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($global:cx,$global:cy)));if($el){$controlName=$el.Current.Name;$automationId=$el.Current.AutomationId;$controlType=$el.Current.ControlType.ProgrammaticName}}catch{}
- [pscustomobject]@{pid=[int]$pid;title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType}
+ $controlName="";$automationId="";$controlType="";$runtimeId=""
+ try{$el=[System.Windows.Automation.AutomationElement]::FromPoint((New-Object System.Windows.Point($global:cx,$global:cy)));if($el){$controlName=$el.Current.Name;$automationId=$el.Current.AutomationId;$controlType=$el.Current.ControlType.ProgrammaticName;$runtimeId=$el.GetRuntimeId() -join ","}}catch{}
+ [pscustomobject]@{pid=[int]$processId;title=$sb.ToString();control=$controlName;automationId=$automationId;controlType=$controlType;runtimeId=$runtimeId;elementIndex=-1}
+}
+function AddElementIndex($ctx) {
+ try {
+  if(-not $ctx.runtimeId){return $ctx}
+  $handle=[SaeedRecorderNative]::GetForegroundWindow()
+  $root=[System.Windows.Automation.AutomationElement]::FromHandle($handle)
+  $all=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+  for($i=0;$i -lt $all.Count;$i++){
+   try{if((($all.Item($i).GetRuntimeId()) -join ",") -eq $ctx.runtimeId){$ctx.elementIndex=$i;break}}catch{}
+  }
+ } catch {}
+ return $ctx
 }
 $keys=@{}
 $names=@{}
@@ -37,10 +50,10 @@ while($true){
  if($tpid -ne $IgnorePid -and $ctx.pid -ne $IgnorePid){
    $l=([SaeedRecorderNative]::GetAsyncKeyState(1) -band 0x8000) -ne 0
    $r=([SaeedRecorderNative]::GetAsyncKeyState(2) -band 0x8000) -ne 0
-   if($l -and -not $lastL){Json([pscustomobject]@{type="action";tool="mouse_click";args=@{x=$p.X;y=$p.Y;button="left";_window=$ctx}})}
-   if($r -and -not $lastR){Json([pscustomobject]@{type="action";tool="mouse_click";args=@{x=$p.X;y=$p.Y;button="right";_window=$ctx}})}
+   if($l -and -not $lastL){Json([pscustomobject]@{type="action";tool="mouse_click";args=@{x=$p.X;y=$p.Y;button="left";_window=(AddElementIndex $ctx)}})}
+   if($r -and -not $lastR){Json([pscustomobject]@{type="action";tool="mouse_click";args=@{x=$p.X;y=$p.Y;button="right";_window=(AddElementIndex $ctx)}})}
    $lastL=$l;$lastR=$r
-   if($typed -and ((Get-Date)-$lastType).TotalMilliseconds -gt 450){Json([pscustomobject]@{type="action";tool="type_text";args=@{text=$typed;_window=$ctx}});$typed=""}
+   if($typed -and ((Get-Date)-$lastType).TotalMilliseconds -gt 450){Json([pscustomobject]@{type="action";tool="type_text";args=@{text=$typed;_window=(AddElementIndex $ctx)}});$typed=""}
    foreach($vk in $names.Keys){
      $down=([SaeedRecorderNative]::GetAsyncKeyState([int]$vk) -band 0x8000) -ne 0
      if($down -and -not $keys[$vk]){
