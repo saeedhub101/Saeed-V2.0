@@ -38,5 +38,7 @@ test("evidence without an explicit post-action link cannot verify a state-changi
  const saved=JSON.parse(fs.readFileSync(file,"utf8"));
  saved.verification.evidence.push({at:new Date(Date.now()+1000).toISOString(),tool:"read_file",result:"returned",afterAction:false});
  fs.writeFileSync(file,JSON.stringify(saved));
- assert.equal(engine.finish(dir,run.id,{status:"finished",summary:"claimed done"}).status,"needs_attention");
+ const finished=engine.finish(dir,run.id,{status:"finished",summary:"claimed done",verification:{attempted:true,evidence:[{at:new Date().toISOString(),tool:"spoofed-proof",result:"returned",afterAction:true}]}});
+ assert.equal(finished.status,"needs_attention");
+ assert.equal(finished.verification.evidence.some(item=>item.tool==="spoofed-proof"),false);
 });
