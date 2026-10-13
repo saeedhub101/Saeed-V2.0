@@ -70,7 +70,7 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  return persist(userData,run);
 }
 function isReadOnlyMcpTool(name){
- const value=String(name||"").toLowerCase().replace(/\\s+/g,"");
+ const value=String(name||"").toLowerCase().trim().replace(/\s+/g,"-");
  const readPattern=/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select)(?:[_-]|$)/;
  const writePattern=/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/;
  return Boolean(readPattern.test(value)&&!writePattern.test(value));
