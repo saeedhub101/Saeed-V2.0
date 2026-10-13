@@ -26,7 +26,19 @@ class Brain{
  async run({text,image=null,history=[],isCurrent=()=>true,signal=null}={}){
   const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
   const taskEngine=require("./task-engine");let taskRun=null;
-  const emit=event=>{if(current()){if(taskRun){try{taskEngine.observe(this.getDir(),taskRun.id,event)}catch{}}this.onEvent(event)}};
+  const emit=event=>{
+   if(!current())return;
+   if(taskRun){
+    try{
+     const saved=taskEngine.observe(this.getDir(),taskRun.id,event);
+     if(["tool","tool_result","tool_error"].includes(String(event?.type||""))){
+      const step=[...(saved?.steps||[])].reverse().find(item=>item.tool===String(event.name||""));
+      if(step)this.onEvent({type:"task-progress",taskId:taskRun.id,step:{index:step.index,tool:step.tool,status:step.status,startedAt:step.startedAt,finishedAt:step.finishedAt}});
+     }
+    }catch{}
+   }
+   this.onEvent(event);
+  };
   const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");taskEngine.finish(this.getDir(),taskRun.id,{status:status||(failed?"needs_attention":"finished"),summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:status||(failed?"needs_attention":"finished")})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
