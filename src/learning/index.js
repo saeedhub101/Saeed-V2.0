@@ -106,7 +106,7 @@ function recordStep(session,tool,args){
   else if(/\.ComboBox$/i.test(controlType))action="expand";
   else if(/\.CheckBox$/i.test(controlType))action="toggle";
   else if(/\.RadioButton$|\.ListItem$|\.TabItem$|\.TreeItem$/i.test(controlType))action="select";
-  if(action){selectedTool="interact_ui_element";selectedArgs={pid:Number(windowInfo.pid)||0,elementIndex:Number(windowInfo.elementIndex),action,expectedName:label,automationId,controlType}}
+  if(action){selectedTool="interact_ui_element";selectedArgs={pid:Number(windowInfo.pid)||0,windowTitle:String(windowInfo.title||""),elementIndex:Number(windowInfo.elementIndex),action,expectedName:label,automationId,controlType}}
  }
  if(selectedTool==="type_text"&&typeof input.text==="string"&&input.text.length){
   const isField=/\.(?:Edit|ComboBox|Document)$/i.test(controlType);
