@@ -48,6 +48,7 @@ const suites = [
   { name: "Update policy lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "update-manager.test.cjs")] }
 ];
 suites.push({ name: "Task engine integrity regression tests", args: ["--test", path.join(root, "tests", "unit", "task-engine-integrity.test.cjs")] });
+suites.push({ name: "Character motion editor safety tests", args: ["--test", path.join(root, "tests", "unit", "motion-editor-safety.test.mjs")] });
 
 const results = [];
 
