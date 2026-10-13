@@ -41,7 +41,7 @@ class Brain{
   };
   const finishTask=(answer,status)=>{
    let finalAnswer=String(answer||"");
-   if(!taskRun)return{status:status||"finished",answer:finalAnswer};
+   if(!taskRun)return taskPersistenceWarned?{status:"needs_attention",answer:"Task tracking could not be initialized or saved reliably, so I cannot confirm completion."}:{status:status||"finished",answer:finalAnswer};
    try{
     const saved=taskEngine.get(this.getDir(),taskRun.id);
     const failed=saved?.steps?.some(step=>step.status==="failed");
@@ -63,13 +63,13 @@ class Brain{
     return{status:actualStatus,answer:finalAnswer};
    }catch(error){
     this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)});
-    return{status:"needs_attention",answer:finalAnswer};
+    return{status:"needs_attention",answer:"Task progress could not be saved or finalized reliably, so I cannot confirm completion."};
    }
   };
   if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
   if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};
-  try{taskRun=taskEngine.begin(this.getDir(),s);this.onEvent({type:"task-start",taskId:taskRun.id,goal:s})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}
+  try{taskRun=taskEngine.begin(this.getDir(),s);this.onEvent({type:"task-start",taskId:taskRun.id,goal:s})}catch(error){taskPersistenceWarned=true;this.onEvent({type:"diagnostic",level:"ERROR",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}
   const learned=learning().match(this.getDir(),s);
   if(learned){
    try{const variables=learning().extractParameters(learned,s);const result=await learning().run(this.getDir(),this.registry,learned,{isCurrent:current,onEvent:emit,variables});if(!current()||result?.stale){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}}if(result?.missingParameters?.length){const missingAnswer="I found the saved skill \""+learned.name+"\" but need these values before executing it: "+result.missingParameters.join(", ")+". Please provide them clearly (for example, field: value).";finishTask(missingAnswer,"needs_attention");return{handled:true,answer:missingAnswer,source:"learned-skill-missing-parameters",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}const learnedAnswer="Done — I followed the learned skill: "+learned.name+".";const finished=finishTask(learnedAnswer,result?.ok===false?"needs_attention":undefined);return{handled:true,answer:finished.answer,source:finished.status==="needs_attention"?"learned-skill-unverified":"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
