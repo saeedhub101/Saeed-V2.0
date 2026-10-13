@@ -2,7 +2,7 @@ const fs=require("fs"),path=require("path"),crypto=require("crypto");
 const {writeJsonAtomic}=require("../services/atomic-json-store");
 const ROOT="agent-runs",MAX_RUNS=100,MAX_STEPS=200;
 function directory(userData){return path.join(userData,ROOT)}
-function safeText(value,max=500){return String(value??"").replace(/[\\r\\n\\t]+/g," ").trim().slice(0,max)}
+function safeText(value,max=500){return String(value??"").replace(/[\r\n\t]+/g," ").trim().slice(0,max)}
 function ensure(userData){fs.mkdirSync(directory(userData),{recursive:true});return directory(userData)}
 function fileFor(userData,id){if(!/^[a-z0-9-]{8,80}$/i.test(String(id||"")))throw new Error("Invalid task run id");return path.join(directory(userData),id+".json")}
 function persist(userData,run){run.updatedAt=new Date().toISOString();const result=writeJsonAtomic(fileFor(userData,run.id),run);if(!result?.ok)throw new Error("Task run persistence failed: "+(result?.error||"unknown error"));return run}
