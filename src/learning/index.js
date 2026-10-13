@@ -99,14 +99,14 @@ function recordStep(session,tool,args){
  session.skill.parameters=Array.isArray(session.skill.parameters)?session.skill.parameters:[];
  let selectedTool=String(tool),selectedArgs=input;
  const controlType=String(windowInfo.controlType||""),label=String(windowInfo.control||"").trim(),automationId=String(windowInfo.automationId||"").trim();
- if(selectedTool==="mouse_click"&&input.button!=="right"&&Number.isInteger(Number(windowInfo.elementIndex))&&Number(windowInfo.elementIndex)>=0&&(label||automationId)){
+ if(selectedTool==="mouse_click"&&input.button!=="right"&&Number.isInteger(Number(windowInfo.elementIndex))&&Number(windowInfo.elementIndex)>=0&&(label||automationId||windowInfo.bounds)){
   let action=null;
   if(/\.Button$/i.test(controlType)||/\.Hyperlink$/i.test(controlType)||/\.MenuItem$/i.test(controlType))action="invoke";
   else if(/\.Edit$/i.test(controlType)||/\.Document$/i.test(controlType))action="focus";
   else if(/\.ComboBox$/i.test(controlType))action="expand";
   else if(/\.CheckBox$/i.test(controlType))action="toggle";
   else if(/\.RadioButton$|\.ListItem$|\.TabItem$|\.TreeItem$/i.test(controlType))action="select";
-  if(action){selectedTool="interact_ui_element";selectedArgs={pid:Number(windowInfo.pid)||0,windowTitle:String(windowInfo.title||""),elementIndex:Number(windowInfo.elementIndex),action,expectedName:label,automationId,controlType}}
+  if(action){selectedTool="interact_ui_element";selectedArgs={pid:Number(windowInfo.pid)||0,windowTitle:String(windowInfo.title||""),elementIndex:Number(windowInfo.elementIndex),action,expectedName:label,automationId,controlType,expectedBounds:windowInfo.bounds||undefined}}
  }
  if(selectedTool==="type_text"&&typeof input.text==="string"&&input.text.length){
   const isField=/\.(?:Edit|ComboBox|Document)$/i.test(controlType);
