@@ -133,7 +133,7 @@ function finish(userData,id,{status="finished",summary="",verification=null}={})
  run.status=finalStatus;run.summary=finalSummary.slice(0,1000);run.finishedAt=new Date().toISOString();
  for(const step of run.steps)if(step.status==="running"){step.status="interrupted";step.finishedAt=run.finishedAt}
  for(const step of run.plan||[])if(step.status==="running"){step.status="interrupted";step.finishedAt=run.finishedAt}
- if(verification&&typeof verification==="object")run.verification={...run.verification,...verification};
+ if(verification&&typeof verification==="object"){const trustedEvidence=Array.isArray(run.verification?.evidence)?run.verification.evidence:[];run.verification={...run.verification,...verification,evidence:trustedEvidence,attempted:Boolean(run.verification?.attempted)};}
  return persist(userData,run);
 }
 function list(userData,limit=20){
