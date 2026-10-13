@@ -40,8 +40,8 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  window.saeedSpeakText=speak;
  function speak(text){
   if(!text||voiceMuted||!ttsReady)return;
-  window.saeedCharacterRuntime?.controller?.handleEvent?.({type:"assistant-message",text:String(text)});
   window.saeedShowMessage?.(text);
+  window.saeedCharacterRuntime?.controller?.handleEvent?.({type:"assistant-message",text:String(text)});
   if(["openai","groq","elevenlabs"].includes(ttsProvider))return speakApi(text);
   return speakLocal(text);
  }
