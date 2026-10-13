@@ -101,3 +101,14 @@ test("direct bone transforms report failure when no actual GLB bone accepted the
  assert.match(body,/if\(ok\)applied\[name\]=transform/);
  assert.match(body,/return Object\.keys\(applied\)\.length\?applied:false/);
 });
+
+test("rest-pose capture is not blocked when animation playback is disabled",()=>{
+ const start=source.indexOf(" setPose(pose={}){");
+ const body=source.slice(start,start+400);
+ assert.ok(start>=0);
+ assert.ok(body.indexOf("if(pose?.__captureRest)")<body.indexOf("if(!this.animationEnabled||this.animationPaused)"));
+});
+test("motion editor reports failed deletion instead of claiming success",()=>{
+ assert.match(performanceSource,/if\(!result\?\.ok\)throw new Error\(result\?\.error\|\|"The selected motion was not removed\."\)/);
+ assert.match(performanceSource,/Motion deletion failed:/);
+});
