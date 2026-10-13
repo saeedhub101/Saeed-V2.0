@@ -67,7 +67,7 @@ while($true){
          if($vk -eq 32){$typed+=" "}elseif($vk -ge 65 -and $vk -le 90){$ch=[char]$vk;if(-not $shift){$ch=[char]::ToLower($ch)};$typed+=$ch}elseif($vk -ge 48 -and $vk -le 57){$typed+=[char]$vk}
          $lastType=Get-Date
        }else{
-         if($typed){Json([pscustomobject]@{type="action";tool="type_text";args=@{text=$typed;_window=$ctx}});$typed=""}
+         if($typed){Json([pscustomobject]@{type="action";tool="type_text";args=@{text=$typed;_window=(AddElementIndex $typedContext)}});$typed="";$typedContext=$null}
          if($vk -ne 16 -and $vk -ne 17 -and $vk -ne 18){Json([pscustomobject]@{type="action";tool="key_press";args=@{key=$name;_window=$ctx}})}
        }
      }
