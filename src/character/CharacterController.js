@@ -233,7 +233,7 @@ export class CharacterController{
  stop(id){const out=this.animation.stop(id);if(!this.animation.active.length)this.finishMotion();return out}
  stopAll(){const out=this.animation.stopAll();this.finishMotion();return out}
  finishMotion(){this.idleBusy=false;if(this.authoring||!this.visible||!this.animationEnabled||this.animationPaused)return false;this.autonomous?.start?.();return true}
- setPose(pose={}){if(this.authoring)this.beginAuthoring();if(!this.animationEnabled||this.animationPaused)return false;if(pose?.__captureRest){const rest=this.saveRestPose();this.startFrameLoop();return rest}const bones=pose?.__bones;if(bones){const applied={};for(const [name,transform] of Object.entries(bones)){const ok=transform?.rotation||transform?.position?this.engine?.setBoneTransform?.(name,transform):this.engine?.setBoneRotation?.(name,transform);if(ok)applied[name]=transform}if(Object.keys(applied).length)this.startFrameLoop();return Object.keys(applied).length?applied:false}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
+ setPose(pose={}){if(pose?.__captureRest){const rest=this.saveRestPose();this.startFrameLoop();return rest}if(this.authoring)this.beginAuthoring();if(!this.animationEnabled||this.animationPaused)return false;const bones=pose?.__bones;if(bones){const applied={};for(const [name,transform] of Object.entries(bones)){const ok=transform?.rotation||transform?.position?this.engine?.setBoneTransform?.(name,transform):this.engine?.setBoneRotation?.(name,transform);if(ok)applied[name]=transform}if(Object.keys(applied).length)this.startFrameLoop();return Object.keys(applied).length?applied:false}const out=this.animation.setPose(pose);this.startFrameLoop();return out}
   
  bindSlot(slot,name){
    this.beginAuthoring();
