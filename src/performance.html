@@ -53,6 +53,8 @@
 <label class="toggle"><input id="behaviorEyeTracking" type="checkbox"><span><b>Idle eye movement</b><small>Allow occasional eye/look direction changes. Rendering remains event-driven; there is no permanent render loop.</small></span></label>
 <label class="toggle"><input id="behaviorSpeakingCycle" type="checkbox"><span><b>Speaking gestures</b><small>Allow occasional short gestures while Saeed speaks; automatically stops at speech end or mute.</small></span></label>
 <label class="toggle"><input id="behaviorThinkingCycle" type="checkbox"><span><b>Thinking gestures</b><small>Allow short feedback motions while Saeed is thinking or using tools.</small></span></label>
+<label class="toggle"><input id="behaviorMoodPalettes" type="checkbox"><span><b>Mood-aware motion selection</b><small>Choose gestures that fit Saeed’s current mood instead of using a fixed cheerful palette.</small></span></label>
+<label class="toggle"><input id="behaviorEnergyModulation" type="checkbox"><span><b>Energy and time-of-day adaptation</b><small>Adjust idle motion frequency and gesture choice to energy level and local time.</small></span></label>
 </div><div class="formGrid behaviorControls">
 <label>Idle behavior frequency<select id="behaviorFrequency"><option value="rare">Rare</option><option value="normal">Normal</option><option value="frequent">Frequent</option></select></label>
 <label>Event cooldown (seconds)<small>Minimum time between automatic character events. Higher values mean fewer interruptions.</small><input id="behaviorCooldown" type="number" min="5" max="300"></label>
