@@ -70,7 +70,6 @@ export class CharacterController{
    if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
    const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
    const profile=this.profiles.load(profileId)||{};
-   const customMotionRestore=this.editor.restore(profile.customMotions||[]);
    const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
    const engineMap=this.engine?.getCharacterRigAutoMap?.()||{};
    let mapping=Object.keys(engineMap).length?{...engineMap}:null;
@@ -97,6 +96,7 @@ export class CharacterController{
    this.animation.bindRig(mapped,this.retargeter);
    this.animation.stopAll();
    this.characterId=profileId;
+   const customMotionRestore=this.editor.restore(profile.customMotions||[]);
    const missingRequired=missingRequiredSlots(mapped);
    this.rigReady=Object.keys(mapped).length>0;
    const restPose=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
