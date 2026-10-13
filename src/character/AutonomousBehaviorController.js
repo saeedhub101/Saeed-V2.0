@@ -170,7 +170,8 @@ export class AutonomousBehaviorController{
   return motion;
  }
  chooseIdle(){
-  let available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get?.(id));
+  const source=this.settings.moodPalettes===false?["nod","wave","stretch","lookCloser","think"]:this.character.moodPalette?.()||[];
+  let available=source.filter(id=>this.character.animation?.registry?.get?.(id));
   if(this.settings.walking===false)available=available.filter(id=>!["walk","walking","step","run"].includes(String(id).toLowerCase()));
   if(this.settings.dancing===false)available=available.filter(id=>id!=="dance");
   if(!available.length)return null;
@@ -180,13 +181,13 @@ export class AutonomousBehaviorController{
   const activeMood=this.settings.moodPalettes===false?"cheerful":this.mood;
   const calm=new Set(["nod","think","yawn","stretch","lookCloser"]);
   const pool=lowEnergy?available.filter(id=>calm.has(id)):available;
-  const weights={wave:1.1,nod:1.2,think:this.settings.idleThoughts===false ? .05 : 1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
+  const weights={wave:1.1,nod:1.2,think:this.settings.idleThoughts===false ? .05 : 1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night ? .2 : (highEnergy&&morning ? 1.45 : .7)};
   if(activeMood==="curious"){weights.lookCloser=(weights.lookCloser||1)*1.8;weights.think=(weights.think||1)*1.25}
   if(activeMood==="pleased"||activeMood==="cheerful"){weights.wave=(weights.wave||1)*1.35;weights.nod=(weights.nod||1)*1.2}
   if(activeMood==="thoughtful"||activeMood==="sad"||activeMood==="sleepy"){weights.yawn=(weights.yawn||1)*1.25;weights.dance=(weights.dance||1)*.25}
   this.lastMotionReason=useEnergy&&night?"nighttime calm bias":lowEnergy?"low-energy calm bias":activeMood+" mood palette";
   if(this.settings.random===false){
-   const preferred=this.mood==="curious"?"lookCloser":this.mood==="thoughtful"||this.mood==="puzzled"?"think":this.mood==="sleepy"||lowEnergy?"stretch":this.mood==="pleased"||this.mood==="cheerful"?"nod":"wave";
+   const preferred=activeMood==="curious"?"lookCloser":activeMood==="thoughtful"||activeMood==="puzzled"?"think":activeMood==="sleepy"||lowEnergy?"stretch":activeMood==="pleased"||activeMood==="cheerful"?"nod":"wave";
    const id=available.includes(preferred)?preferred:available[0];
    this.lastMotionId=id;this.lastMotionReason+="; deterministic selection";return id;
   }
