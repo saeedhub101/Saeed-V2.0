@@ -95,7 +95,7 @@ window.saeed.character.onCharacterBehavior?.(e=>{
   const b=e.settings?.characterBehavior||{};
   const frequencyMs=({rare:15000,normal:7000,frequent:3500})[String(b.frequency||"normal")]||7000;
   const eventCooldownMs=Math.max(0,Number(b.eventCooldownSec)||2.5)*1000;
-  const sleepAfterMs=Math.max(60000,Number(b.sleepAfterMin)||20)*60000;
+  const sleepAfterMs=Math.max(1,Number(b.sleepAfterMin)||20)*60000;
   controller()?.setBehavior?.({...b,frequencyMs,eventCooldownMs,sleepAfterMs});
   return;
  }
