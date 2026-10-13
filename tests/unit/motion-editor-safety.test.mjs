@@ -63,3 +63,10 @@ test("motion definitions reject malformed and unbounded keyframes safely",()=>{
  assert.throws(()=>editor.define({...motion("bad-duration"),duration:Infinity}),/duration must be greater than 0/);
  assert.throws(()=>editor.define({...motion("bad-time"),keyframes:[{time:601,pose:{}}]}),/time must be between 0 and 600/);
 });
+
+test("motion duration extends to cover the final keyframe",()=>{
+ const editor=new MotionEditor(new MotionRegistry());
+ const created=editor.define({id:"duration-covers-keys",duration:1,loop:false,keyframes:[{time:0,pose:{hips:{x:0}}},{time:3,pose:{hips:{x:1}}}]});
+ assert.equal(created.duration,3);
+ assert.deepEqual(editor.sample(created,3).hips,{x:1,y:0,z:0});
+});
