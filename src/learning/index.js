@@ -79,8 +79,50 @@ function match(userData,text){
 }
 function exportSkill(userData,id){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);return JSON.stringify(s,null,2)}
 function importSkill(userData,data){return save(userData,typeof data==="string"?JSON.parse(data):data)}
-function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},steps:[],approval:"per-tool"}}}
-function recordStep(session,tool,args){if(!session?.recording)throw new Error("Recorder is not running");if(session.skill.steps.length>=MAX_STEPS)throw new Error("Recorder step limit reached");session.skill.steps.push({tool:String(tool),args:args&&typeof args==="object"?args:{}});return session.skill}
+function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},parameters:[],steps:[],approval:"per-tool"}}}
+function parameterNameFromControl(label,automationId){
+ let raw=String(label||"").trim();
+ if(!raw)raw=String(automationId||"").trim();
+ raw=raw.replace(/^(?:txt|text|input|field|edit|cmb|combo|ddl)[_-]?/i,"").replace(/(?:textBox|textbox|input|edit|comboBox|combo|field)$/i,"");
+ const words=raw.replace(/([a-z0-9])([A-Z])/g,"$1 $2").normalize("NFKD").replace(/[\\u0300-\\u036f]/g,"").match(/[a-z0-9]+/gi)||[];
+ if(!words.length)return null;
+ const name=words.map((word,index)=>index===0?word.toLowerCase():word[0].toUpperCase()+word.slice(1).toLowerCase()).join("");
+ if(!/^[a-z][a-z0-9_]{0,39}$/i.test(name)||["edit","text","textbox","input","field","combobox"].includes(name.toLowerCase()))return null;
+ return name;
+}
+function recordStep(session,tool,args){
+ if(!session?.recording)throw new Error("Recorder is not running");
+ if(session.skill.steps.length>=MAX_STEPS)throw new Error("Recorder step limit reached");
+ const input=args&&typeof args==="object"&&!Array.isArray(args)?{...args}:{};
+ const windowInfo=input._window&&typeof input._window==="object"?input._window:{};
+ delete input._window;
+ session.skill.parameters=Array.isArray(session.skill.parameters)?session.skill.parameters:[];
+ let selectedTool=String(tool),selectedArgs=input;
+ const controlType=String(windowInfo.controlType||""),label=String(windowInfo.control||"").trim(),automationId=String(windowInfo.automationId||"").trim();
+ if(selectedTool==="mouse_click"&&input.button!=="right"&&Number.isInteger(Number(windowInfo.elementIndex))&&Number(windowInfo.elementIndex)>=0&&(label||automationId)){
+  let action=null;
+  if(/\\.Button$/i.test(controlType)||/\\.Hyperlink$/i.test(controlType)||/\\.MenuItem$/i.test(controlType))action="invoke";
+  else if(/\\.Edit$/i.test(controlType)||/\\.Document$/i.test(controlType))action="focus";
+  else if(/\\.ComboBox$/i.test(controlType))action="expand";
+  else if(/\\.CheckBox$/i.test(controlType))action="toggle";
+  else if(/\\.RadioButton$|\\.ListItem$|\\.TabItem$|\\.TreeItem$/i.test(controlType))action="select";
+  if(action){selectedTool="interact_ui_element";selectedArgs={pid:Number(windowInfo.pid)||0,elementIndex:Number(windowInfo.elementIndex),action,expectedName:label,automationId,controlType}}
+ }
+ if(selectedTool==="type_text"&&typeof input.text==="string"&&input.text.length){
+  const isField=/\\.(?:Edit|ComboBox|Document)$/i.test(controlType);
+  const parameterName=isField?parameterNameFromControl(label,automationId):null;
+  if(parameterName){
+   let name=parameterName,number=2;
+   while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>String(alias).toLowerCase()===label.toLowerCase()))name=parameterName+number++;
+   let parameter=session.skill.parameters.find(item=>item.name===name);
+   if(!parameter){parameter={name,description:label||automationId,aliases:[],required:true};session.skill.parameters.push(parameter)}
+   for(const alias of [label,automationId].filter(Boolean))if(!parameter.aliases.some(item=>String(item).toLowerCase()===alias.toLowerCase()))parameter.aliases.push(alias);
+   selectedArgs={...input,text:"{{"+name+"}}"};
+  }
+ }
+ session.skill.steps.push({tool:selectedTool,args:selectedArgs});
+ return session.skill;
+}
 function finishRecording(userData,session){if(!session?.recording)throw new Error("Recorder is not running");session.recording=false;if(!session.skill.trigger.phrases.length)session.skill.trigger.phrases=[normalize(session.skill.name)];return save(userData,session.skill)}
 async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{},variables={}}={}){
  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
