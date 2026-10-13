@@ -39,7 +39,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  window.saeedPrayerSpeak=speakArabicPrayer;
  window.saeedSpeakText=speak;
  function speak(text){
-  if(!text||voiceMuted)return;
+  if(!text||voiceMuted||!ttsReady)return;
   window.saeedShowMessage?.(text);
   if(["openai","groq","elevenlabs"].includes(ttsProvider))return speakApi(text);
   return speakLocal(text);
@@ -74,6 +74,7 @@ function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)ret
  window.saeed.character.onCharacterBehavior?.(e=>{if(e?.type==="idle-thought"&&e.text)speak(e.text)});
  window.saeed.voice.onVoiceSpeak?.(text=>{if(text)speak(String(text));});
  window.saeed.voice.onVoiceMute(m=>{voiceMuted=Boolean(m);if(voiceMuted){stopSpeaking();report("INFO","VOICE MUTE","Saeed output is muted; microphone/input lifecycle remains unchanged")}});
+  window.saeed.voice.onVoiceTts?.(state=>{ttsReady=String(state||"")==="ready";if(!ttsReady)stopSpeaking();report("INFO","TTS LIFECYCLE",ttsReady?"Character audio output is ready":"Character audio output is unavailable",{state:String(state||"unknown")})});
   window.saeed.voice.onVoiceStop(()=>stopSpeaking());
   window.saeed.voice.onMicMode(async mode=>{const m=String(mode||"off");micEnabled=m==="on";try{if(m==="off"){mic.stop();if(rmsSettingsTimer){clearInterval(rmsSettingsTimer);rmsSettingsTimer=null}return}const cfg=await window.saeed.system.getSettings();micInterruptRms=Math.max(0.005,Math.min(0.5,Number(cfg?.micInterruptRms)||0.09));micSpeechRms=Math.max(0.005,Math.min(0.5,Number(cfg?.micSpeechRms)||0.02));realtimeBrainMode=["saeed","api","auto"].includes(cfg?.realtimeBrainMode)?cfg.realtimeBrainMode:"auto";ttsProvider=["openai","groq","elevenlabs"].includes(cfg?.ttsProvider)?cfg.ttsProvider:"local";sttProvider=["openai","groq","elevenlabs"].includes(cfg?.sttProvider)?cfg.sttProvider:"whisper";if(!rmsSettingsTimer)rmsSettingsTimer=setInterval(refreshRmsSettings,1000); await mic.start("on",false)}catch(e){report("ERROR","MIC START FAILURE",e.message,{mode:m});if(m==="on"){try{await window.saeed.voice.setMicMode("off")}catch{}}}});
  window.saeed.voice.onRealtimeState((state,message)=>{if(state==="connected")report("INFO","STT ACTIVE","Realtime speech-to-text connected");else if(state==="error")report("ERROR","REALTIME API ERROR",String(message||state));});

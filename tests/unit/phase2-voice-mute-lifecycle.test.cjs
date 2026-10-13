@@ -37,3 +37,9 @@ test("muted or released TTS drops realtime audio and invalidates pending API pla
  assert.match(renderer,/onRealtimeAudio\(async b=>\{if\(voiceMuted\|\|!ttsReady\)return;const generation=outputGeneration/);
  assert.match(renderer,/generation!==outputGeneration\|\|voiceMuted\|\|!ttsReady\)return/);
 });
+
+test("renderer respects TTS readiness and stops output when the character audio runtime is released",()=>{
+ const renderer=fs.readFileSync(path.join(__dirname,"../../src/renderer/voice/voice-client.js"),"utf8");
+ assert.match(renderer,/if\(!text\|\|voiceMuted\|\|!ttsReady\)return;\s*window\.saeedShowMessage/);
+ assert.match(renderer,/onVoiceTts\?\.\(state=>\{ttsReady=String\(state\|\|""\)==="ready";if\(!ttsReady\)stopSpeaking\(\)/);
+});
