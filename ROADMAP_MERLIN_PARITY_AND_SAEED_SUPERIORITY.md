@@ -7,6 +7,26 @@ Target: `saeedhub101/Saeed-V2.0`, branch `main`. This is a new roadmap; existing
 An initial behavior-parity increment is committed on `main`: mood-weighted anti-repeat motion selection; energy/time-of-day influence on idle motion and cadence; 20-minute default sleep with wake-on-interaction; separate bounded speech and thinking gesture cycles; lifecycle cancellation for those cycles; and behavior diagnostics for intent, mood, energy, recent motion, last event, and motion-selection reason. Existing Arabic/English text reactions and tool-result reactions are retained. This is **partial parity, not complete Merlin parity**: the remaining checklist items below still require implementation and verified acceptance.
 
 ## Product comparison
+## Detailed feature comparison
+
+| Capability | Older Saeed | Saeed-V2.0 target | Merlin the Wizard |
+|---|---|---|---|
+| Character | 3D avatar; Studio for bones, pose, rig building, custom keyframes, shape keys, visemes, lip-sync, outfits/accessories | **Strategic winner**: retain and harden 3D GLB, rig, rest-pose, face, and motion-authoring stack | 2D MS Agent sprites; multiple selectable characters and sprite animation |
+| Autonomous personality | Intent-driven 3D motions and face behavior are part of its design | Existing Arabic/English reactions and 3D behavior controller; expand into complete state/mood/energy engine | **Current behavior reference**: mood-weighted animation palettes, recent-motion suppression, energy/time modulation, sleep/wake, gaze, speaking/thinking cycles |
+| Voice | Multiple STT/LLM/TTS provider options; offline Windows voice; RMS gate and interruption; shared chat/voice brain | Preserve and finish the unified provider/lifecycle architecture; connect voice events to 3D expression and motion timing | Edge Neural/SAPI and provider TTS options, push-to-talk STT, synchronized bubble/audio |
+| AI providers | Documented Claude, OpenAI-compatible services, local Whisper/LLM and offline TTS add-ons | **Potential winner** if provider-independent, local/cloud, memory, and tools are integrated without breaking behavior | Groq, OpenRouter, Ollama, MiniMax, Hermes Agent; convenient switching |
+| Productivity | **Strongest documented breadth**: file operations, Windows UI Automation, browser, Office/PDF/Excel/Word, database, web research, reminders, commands, skill memory, procedures, charts/pump selection, prayer times | Must selectively migrate useful tools into a coherent permissioned tool system; verify which are already present before porting | Smaller built-in tool set: movement/window control, tasks, web search, attachments and screenshots |
+| Memory and learning | Persistent facts, reminders, reusable learned skills and user-written procedures | **Opportunity to win** with durable conversation/user memory plus tool/skill learning and verification | Conversation history and tasks; personality/context features, but narrower documented skill/productivity layer |
+| Extensibility | Add-ons for tools, providers, language, accessories, independent process lifecycle and store | Keep plugin/add-on architecture, add permission review, isolation, lifecycle and diagnostics | Custom character personas, provider registry and extension settings |
+| Desktop interaction | Windows app control, UI Automation, quick launch, permissions and stop-all safety controls | Combine tray/transparent movable 3D companion with robust safe desktop automation | Polished draggable transparent sprite, tray, hotkeys, classic bubble and modern chat panel |
+| Safety/operations | Explicit permission gates, activity logs, stop-all, encrypted API secrets, protected irreversible actions | **Must match or exceed** permission controls, encrypted secrets, audit trail, backup/restore, updater and installer reliability | DPAPI-protected provider keys, asset integrity checks, layered unit/e2e tests |
+| Localization | Documented Arabic/English speech and an Arabic RTL language add-on | **Strategic differentiator**: full Arabic/English behavior, RTL/LTR across chat, settings, tools and voice | Mainly English-oriented product documentation and UI |
+
+### What each currently wins at
+- **Older Saeed wins on breadth of desktop productivity and automation**: Office/PDF/data/browser/files, Windows UI Automation, skill memory, procedures, and domain-specific chart/pump tools. Its README describes these capabilities; V2.0 must inspect current code and port only missing pieces rather than assume every feature is already integrated.
+- **Merlin wins on character behavior cohesion**: its central controller explicitly coordinates intent, mood palettes, energy, time-of-day, anti-repeat, sleep/wake, and separate thinking/speaking cycles.
+- **Saeed-V2.0 should win overall by integration**: a real expressive 3D character plus Merlin-quality autonomous behavior plus Saeed's productivity breadth, persistent memory, Arabic-first experience, provider independence, and reliable commercial packaging. These are target advantages, not a claim that all are complete today.
+
 
 ### Saeed-V2.0 strengths
 - Native 3D GLB character, Three.js/Electron runtime, rig discovery and mapping, rest-pose tools, bone/pose editing, and custom motion direction.
