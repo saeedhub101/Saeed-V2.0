@@ -34,7 +34,7 @@ export class AutonomousBehaviorController{
   this.recent=[];
   this.lastMotionAt=0;
   this.cooldownMs=2500;
-  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:3600000};
+  this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:3600000};
  }
  start(){
   if(this.running)return;
@@ -177,8 +177,8 @@ export class AutonomousBehaviorController{
  }
  react(reaction){
   const now=performance.now();
-  if(now-this.lastReactionAt<REACTION_GAP_MS)return false;
-  this.lastReactionAt=now;
+  if(this.lastReactionId===reaction.id&&now-this.lastReactionAt<REACTION_GAP_MS)return false;
+  this.lastReactionAt=now;this.lastReactionId=reaction.id;
   this.onMoodChanged(reaction.mood,true);
   this.character.face?.expression?.(reaction.expression,.78);
   this.intent="reacting";
