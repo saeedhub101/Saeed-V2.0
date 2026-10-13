@@ -21,7 +21,7 @@ function extractParameters(skill,text){
   for(const alias of aliases){
    const escaped=String(alias).replace(/[\.\*\+\?\^\$\{\}\(\)\|\[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");
    let matchValue=null;
-   try{matchValue=source.match(new RegExp("(?:^|[\\s,;،])"+escaped+"\\s*(?:(?:is|=|:|هو|هي|named|called|with|as|اسمه|اسمها|باسم|اسم)\\s*)?([^,;\\n]+)","i"))}catch{}
+   try{matchValue=source.match(new RegExp("(?:^|[\\s,;،])"+escaped+"\\s*(?:(?:is|=|:|هو|هي|named|called|with|as|اسمه|اسمها|باسم|اسم)\\s*)?([^,;،\\n]+)","i"))}catch{}
    if(matchValue?.[1]){
     const value=String(matchValue[1]).trim().replace(/^(?:(?:named|called|with|as|is|هو|هي|اسمه|اسمها|باسم|اسم)\\s+)/i,"").replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
     if(value){values[parameter.name]=value;break}
