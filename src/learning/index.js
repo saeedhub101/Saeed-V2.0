@@ -26,7 +26,6 @@ function extractParameters(skill,text){
     const value=String(matchValue[1]).trim().replace(/^(?:(?:named|called|with|as|is|هو|هي|اسمه|اسمها|باسم|اسم)\\s+)/i,"").replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
     if(value){values[parameter.name]=value;break}
    }
-   }
   }
  }
  return values;
