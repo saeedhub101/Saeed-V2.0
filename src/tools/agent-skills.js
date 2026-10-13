@@ -5,7 +5,7 @@ function schemas(){return[
 function call(name,args,context){
  if(name!=="agent_skills")return null;
  const api=learning(),dir=context.userDataPath,operation=String(args.operation||"");
- if(operation==="list")return{ok:true,skills:api.list(dir).map(skill=>({id:skill.id,name:skill.name,description:skill.description,triggerPhrases:skill.trigger.phrases,parameters:skill.parameters,stepCount:skill.steps.length,enabled:skill.enabled,outcomes:skill.metadata?.outcomes||{successes:0,failures:0},lastFailure:skill.metadata?.lastFailure||"",updatedAt:skill.updatedAt}))};
+ if(operation==="list")return{ok:true,skills:api.list(dir).map(skill=>({id:skill.id,name:skill.name,description:skill.description,app:skill.metadata?.app||"",keywords:skill.metadata?.keywords||"",verification:skill.metadata?.verification||"",notes:skill.metadata?.notes||"",triggerPhrases:skill.trigger.phrases,parameters:skill.parameters,stepCount:skill.steps.length,enabled:skill.enabled,outcomes:skill.metadata?.outcomes||{successes:0,failures:0},lastFailure:skill.metadata?.lastFailure||"",updatedAt:skill.updatedAt}))};
  if(operation==="create"){
   const name=String(args.name||"").trim(),phrases=Array.isArray(args.triggerPhrases)?args.triggerPhrases.map(api.normalize).filter(Boolean):[],steps=Array.isArray(args.steps)?args.steps:[];
   if(!name||!phrases.length||!steps.length)return{ok:false,error:"Creating a learned workflow requires name, triggerPhrases, and at least one verified step"};
