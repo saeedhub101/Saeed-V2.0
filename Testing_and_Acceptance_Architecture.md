@@ -54,7 +54,7 @@ The following implementation paths and test IDs are active in the current reposi
 - Animation authoring and playback: `character.studio-animation-any-bone-edit-play`, `character.studio-every-button-and-live-animation`, and `performance.create-edit-delete-motion` verify motion creation, editing, registry state, playback-induced bone changes, and cleanup. The generated motion test must observe an actual change in the loaded character.
 - Add-ons and Learning access: `startup.addons-window-opens` and `startup.learning-window-opens` verify the real windows and expected page controls.
 - Optional microphone transcript label: `startup.microphone-transcript-label-toggle-and-render` verifies persisted enable/disable IPC and actual recognized-text label rendering.
-- Workflow policy: Windows builds are manual-only via `workflow_dispatch`. Do not enable automatic builds to execute tests. Run the manual workflow deliberately, then inspect every required report and each check's actual `pass` value.
+- Workflow policy: Windows builds run automatically on pushes to `main` and retain `workflow_dispatch`. Automatic build execution is not itself acceptance; inspect every required report and each check's actual `pass` value.
 
 A test name or report file existing is not a pass. A workflow's overall green status is not sufficient if any required subcheck failed, timed out, or has missing evidence.
 
