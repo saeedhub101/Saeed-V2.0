@@ -103,6 +103,10 @@ export class AutonomousBehaviorController{
   this.sleepTimer=setTimeout(()=>{
    this.sleepTimer=null;
    if(!this.running||!this.visible)return;
+   if(this.intent!=="idle"||performance.now()-this.lastInteraction<Math.max(60000,Number(this.settings.sleepAfterMs)||SLEEP_AFTER_MS)){
+    this.armSleepTimer();
+    return;
+   }
    this.clearCycleTimers();
    this.sleeping=true;
    this.intent="sleeping";
