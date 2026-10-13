@@ -7,7 +7,27 @@ class SettingsStore{
  read(){try{return JSON.parse(fs.readFileSync(this.file,"utf8"))}catch{return{}}}
  decrypt(v){try{return v&&safeStorage.isEncryptionAvailable()?safeStorage.decryptString(Buffer.from(v,"base64")):String(v||"")}catch{return String(v||"")}}
  encrypt(v){try{return v&&safeStorage.isEncryptionAvailable()?safeStorage.encryptString(String(v)).toString("base64"):String(v||"")}catch{return String(v||"")}}
- load(){const raw=this.read();return{...DEFAULTS,...raw,permissions:{...DEFAULT_PERMISSIONS,...(raw.permissions||{})},characterBehavior:{...DEFAULTS.characterBehavior,...(raw.characterBehavior||{})},apiServices:{brain:true,stt:true,tts:true,...(raw.apiServices||{})},micMode:"off",brainMode:["api","local","auto"].includes(String(raw.brainMode||""))?String(raw.brainMode):"auto",apiKey:this.decrypt(raw.apiKey),fallbackApiKey:this.decrypt(raw.fallbackApiKey),sttApiKey:this.decrypt(raw.sttApiKey),ttsApiKey:this.decrypt(raw.ttsApiKey),realtimeApiKey:this.decrypt(raw.realtimeApiKey)}}
+ load(){
+  const raw=this.read(),value={...DEFAULTS,...raw,permissions:{...DEFAULT_PERMISSIONS,...(raw.permissions||{})},characterBehavior:{...DEFAULTS.characterBehavior,...(raw.characterBehavior||{})},apiServices:{brain:true,stt:true,tts:true,...(raw.apiServices||{})},micMode:"off",brainMode:["api","local","auto"].includes(String(raw.brainMode||""))?String(raw.brainMode):"auto",apiKey:this.decrypt(raw.apiKey),fallbackApiKey:this.decrypt(raw.fallbackApiKey),sttApiKey:this.decrypt(raw.sttApiKey),ttsApiKey:this.decrypt(raw.ttsApiKey),realtimeApiKey:this.decrypt(raw.realtimeApiKey)};
+  const allowedProviders=["openai","anthropic","gemini","groq","ollama","openai-compatible"];
+  if(!allowedProviders.includes(String(value.provider)))value.provider=DEFAULTS.provider;
+  if(!allowedProviders.includes(String(value.fallbackProvider)))value.fallbackProvider="";
+  if(!["manual","notify","automatic"].includes(String(value.updateMode)))value.updateMode=DEFAULTS.updateMode;
+  if(!["saeed","api","auto"].includes(String(value.realtimeBrainMode)))value.realtimeBrainMode=DEFAULTS.realtimeBrainMode;
+  value.maxSteps=Number.isFinite(Number(value.maxSteps))?Math.max(1,Math.min(100,Math.trunc(Number(value.maxSteps)))):DEFAULTS.maxSteps;
+  const clamp=(v,f,min,max)=>Number.isFinite(Number(v))?Math.max(min,Math.min(max,Number(v))):f;
+  value.micSpeechRms=clamp(value.micSpeechRms,DEFAULTS.micSpeechRms,0.001,0.5);
+  value.micInterruptRms=clamp(value.micInterruptRms,DEFAULTS.micInterruptRms,value.micSpeechRms,1);
+  for(const key of Object.keys(DEFAULT_PERMISSIONS))if(!["allow","ask","deny"].includes(value.permissions[key]))value.permissions[key]=DEFAULT_PERMISSIONS[key];
+  for(const key of ["breathing","blinking","expressions","speechFace","idle","walking","dancing","greeting","events","random","autonomousMovement","idleThoughts","sleep","eyeTracking"])if(typeof value.characterBehavior[key]!=="boolean")value.characterBehavior[key]=DEFAULTS.characterBehavior[key];
+  value.characterBehavior.frequency=["low","normal","high"].includes(String(value.characterBehavior.frequency))?String(value.characterBehavior.frequency):"normal";
+  value.characterBehavior.eventCooldownSec=clamp(value.characterBehavior.eventCooldownSec,30,5,300);
+  value.characterBehavior.sleepAfterMin=clamp(value.characterBehavior.sleepAfterMin,20,1,1440);
+  value.characterBehavior.renderWakeMs=clamp(value.characterBehavior.renderWakeMs,1200,100,10000);
+  for(const key of ["brain","stt","tts"])value.apiServices[key]=value.apiServices[key]!==false;
+  value.fallbackEnabled=value.fallbackEnabled===true&&Boolean(value.fallbackProvider)&&value.fallbackProvider!==value.provider;
+  return value;
+ }
  providerDefaults(name){return{openai:{baseUrl:"https://api.openai.com/v1",model:"gpt-5"},anthropic:{baseUrl:"https://api.anthropic.com/v1",model:"claude-sonnet-4-5"},gemini:{baseUrl:"https://generativelanguage.googleapis.com/v1beta/openai",model:"gemini-2.5-pro"},groq:{baseUrl:"https://api.groq.com/openai/v1",model:"openai/gpt-oss-120b"},ollama:{baseUrl:"http://localhost:11434/v1",model:"llama3.2"},"openai-compatible":{baseUrl:"",model:""}}[name]||{}}
  apply(previous,input){const next={...previous,...(input||{}),permissions:{...previous.permissions,...(input?.permissions||{})},characterBehavior:{...previous.characterBehavior,...(input?.characterBehavior||{})}};next.brainMode=["api","local","auto"].includes(String(next.brainMode||""))?String(next.brainMode):String(previous.brainMode||"auto");next.apiServices={brain:next.apiServices?.brain!==false,stt:next.apiServices?.stt!==false,tts:next.apiServices?.tts!==false};next.realtimeBrainMode=["saeed","api","auto"].includes(String(next.realtimeBrainMode||""))?String(next.realtimeBrainMode):"auto";next.maxSteps=Math.max(1,Math.min(100,Number(next.maxSteps)||16));
   for(const key of Object.keys(DEFAULT_PERMISSIONS))if(!["allow","ask","deny"].includes(next.permissions?.[key]))next.permissions[key]=DEFAULT_PERMISSIONS[key];

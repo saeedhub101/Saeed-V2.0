@@ -66,3 +66,22 @@ test("character behavior settings are bounded and normalized",t=>{
  assert.equal(next.characterBehavior.renderWakeMs,100);
  assert.equal(next.characterBehavior.blinking,true);
 });
+
+test("settings loaded from disk are normalized before reaching runtime",t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-settings-load-sanitize-"));
+ t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const store=new SettingsStore(dir);
+ fs.writeFileSync(store.file,JSON.stringify({provider:"unknown-provider",updateMode:"instant",maxSteps:9999,micSpeechRms:NaN,micInterruptRms:-1,permissions:{files:"root"},characterBehavior:{frequency:"turbo",blinking:"yes",eventCooldownSec:99999},apiServices:{brain:"yes"}}));
+ const loaded=store.load();
+ assert.equal(loaded.provider,"openai");
+ assert.equal(loaded.updateMode,"manual");
+ assert.equal(loaded.maxSteps,100);
+ assert.equal(loaded.micSpeechRms,0.02);
+ assert.equal(loaded.micInterruptRms,0.02);
+ assert.equal(loaded.permissions.files,"ask");
+ assert.equal(loaded.characterBehavior.frequency,"normal");
+ assert.equal(loaded.characterBehavior.blinking,true);
+ assert.equal(loaded.characterBehavior.eventCooldownSec,300);
+ assert.equal(loaded.apiServices.brain,true);
+ assert.equal(loaded.micMode,"off");
+});
