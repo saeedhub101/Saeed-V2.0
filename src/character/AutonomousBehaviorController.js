@@ -5,11 +5,11 @@ const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
 const REACTION_GAP_MS=1400;
 const TEXT_REACTIONS=[
- {id:"question",pattern:/(?:\\b(why|how|what|when|where|who|which|can you|could you|would you|is it|are you|explain)\\b|كيف|لماذا|ليش|شو|ماذا|متى|أين|وين|هل|اشرح)/i,mood:"curious",motion:"lookCloser",expression:"curious"},
- {id:"excitement",pattern:/(?:\\b(wow|awesome|fantastic|amazing|excited|love it|perfect|yes!)\\b|واو|رائع جدا|ممتاز جدا|يا سلام|مذهل|متحمس)/i,mood:"cheerful",motion:"dance",expression:"happy"},
- {id:"sadness",pattern:/(?:\\b(sad|upset|lonely|bad day|disappointed|sorry to hear)\\b|حزين|زعلان|متضايق|وحيد|يوم سيء|آسف)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
- {id:"affirmation",pattern:/(?:\\b(yes|yeah|yep|correct|exactly|agreed|sure|okay|ok)\\b|نعم|اه|آه|تمام|صحيح|بالضبط|موافق)/i,mood:"pleased",motion:"nod",expression:"happy"},
- {id:"disagreement",pattern:/(?:\\b(no|nope|not really|disagree|incorrect|that's wrong)\\b|لا|مش صحيح|غير صحيح|بالعكس|خطأ)/i,mood:"puzzled",motion:"shake",expression:"confused"},
+ {id:"question",pattern:/(?:\b(why|how|what|when|where|who|which|can you|could you|would you|is it|are you|explain)\b|كيف|لماذا|ليش|شو|ماذا|متى|أين|وين|هل|اشرح)/i,mood:"curious",motion:"lookCloser",expression:"curious"},
+ {id:"excitement",pattern:/(?:\b(wow|awesome|fantastic|amazing|excited|love it|perfect|yes!)\b|واو|رائع جدا|ممتاز جدا|يا سلام|مذهل|متحمس)/i,mood:"cheerful",motion:"dance",expression:"happy"},
+ {id:"sadness",pattern:/(?:\b(sad|upset|lonely|bad day|disappointed|sorry to hear)\b|حزين|زعلان|متضايق|وحيد|يوم سيء|آسف)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
+ {id:"affirmation",pattern:/(?:\b(yes|yeah|yep|correct|exactly|agreed|sure|okay|ok)\b|نعم|اه|آه|تمام|صحيح|بالضبط|موافق)/i,mood:"pleased",motion:"nod",expression:"happy"},
+ {id:"disagreement",pattern:/(?:\b(no|nope|not really|disagree|incorrect|that's wrong)\b|لا|مش صحيح|غير صحيح|بالعكس|خطأ)/i,mood:"puzzled",motion:"shake",expression:"confused"},
  {id:"greeting",pattern:/(?:\b(hello|hi|hey|good morning|good evening)\b|مرحبا|اهلا|أهلا|السلام عليكم|صباح الخير|مساء الخير)/i,mood:"cheerful",motion:"wave",expression:"happy"},
  {id:"thanks",pattern:/(?:\b(thanks|thank you|thx|much appreciated)\b|شكرا|شكرًا|يسلمو|مشكور|ممتاز)/i,mood:"pleased",motion:"nod",expression:"happy"},
  {id:"praise",pattern:/(?:\b(great job|well done|amazing|awesome|brilliant|you are great)\b|رائع|مبدع|أحسنت|احسنت|ممتاز جدا)/i,mood:"mischievous",motion:"dance",expression:"happy"},
