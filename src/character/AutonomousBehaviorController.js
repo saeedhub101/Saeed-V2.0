@@ -24,6 +24,7 @@ export class AutonomousBehaviorController{
   this.running=false;
   this.speakingTimer=null;
   this.thinkingTimer=null;
+  this.reactionTimer=null;
   this.lastEvent="startup";
   this.lastMotionReason="startup";
   this.lastMotionId=null;
@@ -64,7 +65,19 @@ export class AutonomousBehaviorController{
  clearBlinkTimer(){if(this.blinkTimer){clearTimeout(this.blinkTimer);this.blinkTimer=null}}
  clearSpeakingTimer(){if(this.speakingTimer){clearTimeout(this.speakingTimer);this.speakingTimer=null}}
  clearThinkingTimer(){if(this.thinkingTimer){clearTimeout(this.thinkingTimer);this.thinkingTimer=null}}
- clearCycleTimers(){this.clearSpeakingTimer();this.clearThinkingTimer()}
+ clearReactionTimer(){if(this.reactionTimer){clearTimeout(this.reactionTimer);this.reactionTimer=null}}
+ clearCycleTimers(){this.clearSpeakingTimer();this.clearThinkingTimer();this.clearReactionTimer()}
+ scheduleReactionFinish(delay=2200){
+  this.clearReactionTimer();
+  this.reactionTimer=setTimeout(()=>{
+   this.reactionTimer=null;
+   if(this.running&&this.visible&&this.intent==="reacting"){
+    this.intent="idle";
+    this.schedule(900);
+    this.armSleepTimer();
+   }
+  },Math.max(500,Number(delay)||2200));
+ }
  setExpression(name,intensity=.5){if(this.settings.expressions===false)return false;return Boolean(this.character?.face?.expression?.(name,intensity))}
  setSpeechExpression(name,intensity=.5){if(this.settings.speechFace===false)return false;return this.setExpression(name,intensity)}
  configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.settings.speakingCycle===false)this.clearSpeakingTimer();if(this.settings.thinkingCycle===false)this.clearThinkingTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking"&&this.settings.speakingCycle!==false)this.scheduleSpeakingGesture();if(this.intent==="thinking"&&this.settings.thinkingCycle!==false)this.scheduleThinkingGesture()}return {...this.settings}}
@@ -277,7 +290,9 @@ export class AutonomousBehaviorController{
   const contextual=["praise","excitement","confusion","disagreement","farewell"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
   const motion=contextual||reaction.motion;
   const duration=motion==="dance"?2.1:motion==="lookCloser"?1.8:1.25;
-  return this.playMotion(motion,{duration,priority:42});
+  const played=this.playMotion(motion,{duration,priority:42});
+  this.scheduleReactionFinish(duration*1000+350);
+  return played;
  }
  classifyText(text){
   const clean=String(text||"").trim();
@@ -390,6 +405,7 @@ export class AutonomousBehaviorController{
    this.setExpression("happy",.65);
    const motion=this.chooseContextMotion("success")||"nod";
    this.playMotion(motion,{duration:motion==="dance"?1.6:.75,priority:40});
+   this.scheduleReactionFinish(motion==="dance"?2000:1300);
    return true;
   }
   if(type==="tool_error"||type==="tool-failure"){
@@ -398,6 +414,7 @@ export class AutonomousBehaviorController{
    this.onMoodChanged("thoughtful",true);
    this.setExpression("sad",.55);
    this.playMotion("shake",{duration:.7,priority:40});
+   this.scheduleReactionFinish(1200);
    return true;
   }
   if(type==="double-click"||type==="right-click"||type==="summon"){
@@ -406,11 +423,14 @@ export class AutonomousBehaviorController{
    this.setExpression("happy",.7);
    const motion=this.chooseContextMotion("wake")||"wave";
    this.playMotion(motion,{duration:motion==="dance"?1.6:1.2,priority:45});
+   this.scheduleReactionFinish(1900);
    return true;
   }
   if(type==="zoom"||type==="hover"){
+   this.intent="reacting";
    this.setExpression("curious",.5);
    this.playMotion("lookCloser",{duration:1.7,priority:35});
+   this.scheduleReactionFinish(2100);
    return true;
   }
   if(type==="drag-start"){
@@ -424,12 +444,14 @@ export class AutonomousBehaviorController{
   if(type==="drag-end"){
    this.intent="reacting";
    this.playMotion("nod",{duration:.65,priority:30});
-   this.schedule(1200);
+   this.scheduleReactionFinish(1100);
    return true;
   }
   if(type==="app-focus"||type==="wake"){
    if(wasSleeping)return true;
+   this.intent="reacting";
    this.playMotion(this.chooseContextMotion("wake")||"wave",{duration:1,priority:30});
+   this.scheduleReactionFinish(1400);
    return true;
   }
   if(type==="app-blur"||type==="idle-timeout"){
@@ -441,7 +463,7 @@ export class AutonomousBehaviorController{
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
+  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
