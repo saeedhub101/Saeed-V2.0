@@ -56,7 +56,7 @@ public static class SaeedUiNative {
  if($ExpectedName -and $current.Name -cne $ExpectedName) { throw "Element identity changed (name mismatch). Re-inspect before acting." }
  if($AutomationId -and $current.AutomationId -cne $AutomationId) { throw "Element identity changed (AutomationId mismatch). Re-inspect before acting." }
  if($ControlType -and $current.ControlType.ProgrammaticName -cne $ControlType) { throw "Element identity changed (control type mismatch). Re-inspect before acting." }
- if($CheckBounds){$rect=$current.BoundingRectangle;if([Math]::Abs($rect.X-$ExpectedX)-gt 8 -or [Math]::Abs($rect.Y-$ExpectedY)-gt 8 -or [Math]::Abs($rect.Width-$ExpectedWidth)-gt 8 -or [Math]::Abs($rect.Height-$ExpectedHeight)-gt 8){throw "Element bounds changed since inspection. Re-inspect before acting."}}
+ if($CheckBounds){$rect=$current.BoundingRectangle;if([Math]::Abs($rect.X-$ExpectedX) -gt 8 -or [Math]::Abs($rect.Y-$ExpectedY) -gt 8 -or [Math]::Abs($rect.Width-$ExpectedWidth) -gt 8 -or [Math]::Abs($rect.Height-$ExpectedHeight) -gt 8){throw "Element bounds changed since inspection. Re-inspect before acting."}}
  if(-not $current.IsEnabled -and $Action -ne "focus") { throw "Target UI element is disabled." }
  switch($Action) {
   "invoke" { $pattern=$null;if(-not $element.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)){throw "Element does not support InvokePattern."};$pattern.Invoke() }
