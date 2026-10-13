@@ -5749,3 +5749,15 @@ The CharacterController is the single runtime coordinator, but autonomous decisi
 AutonomousBehaviorController owns idle selection, recent-motion suppression, energy/time-aware behavior density, sleep/wake timing, and autonomous event arbitration. It must not be duplicated by renderer code, UI code, Brain, LLM, or a second controller.
 
 The LLM may provide semantic intent; it never selects raw bones or schedules physical movement. User interaction always wins. Autonomous events may be dropped rather than queued when a higher-priority action is active.
+
+
+## Current execution status — 2026-10-13
+
+This document is implementation guidance, not evidence that the product is complete. Saeed V2.0 remains under active development across all four phases. A feature is complete only after implementation and relevant real behavior are demonstrated; a green workflow, source-level assertion, or report file alone is insufficient.
+
+- Work targets `main` only. Preserve existing Markdown files; do not delete them.
+- Automatic Windows builds are the current policy, while retaining `workflow_dispatch` for deliberate runs. This supersedes older manual-only wording.
+- Prioritize actual product development over test-only changes. Keep `npm test`, Electron/build validation, and installer requirements.
+- After substantive product development is complete, the Windows workflow must validate the packaged installer/EXE on Windows, exercise real app journeys and component behavior, and fail when required evidence is missing, timed out, or reports a failed subcheck.
+- Never claim task success when persistence fails, a plan step was not actually started, verification is only tool discovery/connection, or an external action has an ambiguous outcome. Do not automatically replay interrupted external actions.
+- Current checkpoint: GitHub Issue #9, https://github.com/saeedhub101/Saeed-V2.0/issues/9. All four roadmap phases remain active; no overall completion claim is justified until the packaged product is verified.
