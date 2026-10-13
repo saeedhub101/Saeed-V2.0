@@ -88,3 +88,28 @@ test("tool outcomes produce distinct positive and failure reactions",async()=>{
  assert.ok(calls.some(x=>x.motion==="shake"));
  behavior.stop();
 });
+
+
+test("speaking and thinking gesture cycles are observable and cancel on lifecycle end",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const character={
+  mood:"cheerful",
+  moodPalette:()=>["wave","nod","think","dance","stretch","lookCloser","yawn","clap"],
+  animation:{registry:{get:id=>({id})},active:[]},
+  face:{expression:()=>true,blink:()=>true,lookAt:()=>true},
+  play:(id)=>{character.animation.active=[];return true},
+  stopAll:()=>true,
+  engine:{setRestRelativeBoneRotation:()=>true}
+ };
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ assert.equal(behavior.handleEvent({type:"speech-start"}),true);
+ assert.equal(behavior.getStatus().speakingCycle,true);
+ behavior.handleEvent({type:"speech-end"});
+ assert.equal(behavior.getStatus().speakingCycle,false);
+ assert.equal(behavior.handleEvent({type:"thinking"}),true);
+ assert.equal(behavior.getStatus().thinkingCycle,true);
+ behavior.handleEvent({type:"request-cancelled"});
+ assert.equal(behavior.getStatus().thinkingCycle,false);
+ behavior.stop();
+});
