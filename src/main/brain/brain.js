@@ -25,7 +25,7 @@ class Brain{
  }
  async run({text,image=null,history=[],isCurrent=()=>true,signal=null}={}){
   const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
-  const taskEngine=require("./task-engine");let taskRun=null;
+  const taskEngine=require("./task-engine");let taskRun=null,taskPersistenceWarned=false;
   const emit=event=>{
    if(!current())return;
    if(taskRun){
@@ -35,7 +35,7 @@ class Brain{
       const step=[...(saved?.steps||[])].reverse().find(item=>item.tool===String(event.name||""));
       if(step)this.onEvent({type:"task-progress",taskId:taskRun.id,step:{index:step.index,tool:step.tool,status:step.status,startedAt:step.startedAt,finishedAt:step.finishedAt}});
      }
-    }catch{}
+    }catch(error){if(!taskPersistenceWarned){taskPersistenceWarned=true;this.onEvent({type:"diagnostic",level:"ERROR",stage:"TASK PERSISTENCE",message:"Task progress could not be saved: "+String(error?.message||error).replace(/[\\r\\n\\t]+/g," ").slice(0,180)});}}
    }
    this.onEvent(event);
   };
