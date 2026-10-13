@@ -2,13 +2,14 @@ const fs=require("fs"),path=require("path"),{spawn}=require("child_process");
 function file(userData){return path.join(userData,"addons","mcp-servers.json")}
 function read(userData){try{return JSON.parse(fs.readFileSync(file(userData),"utf8"))}catch{return{schemaVersion:2,servers:[]}}}
 function write(userData,data){fs.mkdirSync(path.dirname(file(userData)),{recursive:true});fs.writeFileSync(file(userData),JSON.stringify(data,null,2),"utf8")}
-function validate(s){if(!s?.id||!s?.transport)throw new Error("MCP server requires id and transport");if(!["stdio","streamable-http","sse"].includes(s.transport))throw new Error("Unsupported MCP transport");if(s.transport==="stdio"&&!s.command)throw new Error("stdio MCP server requires command");if(s.transport!=="stdio"&&!/^https:\/\//i.test(String(s.url||"")))throw new Error("Remote MCP servers require an HTTPS URL");return{...s,id:String(s.id),args:Array.isArray(s.args)?s.args.map(String):[],enabled:s.enabled!==false,permissions:s.permissions||{}}}
+function validate(s){if(!s?.id||!s?.transport)throw new Error("MCP server requires id and transport");if(!["stdio","streamable-http","sse"].includes(s.transport))throw new Error("Unsupported MCP transport");if(s.transport==="stdio"&&!s.command)throw new Error("stdio MCP server requires command");if(s.transport!=="stdio"&&!/^https:\/\//i.test(String(s.url||"")))throw new Error("Remote MCP servers require an HTTPS URL");return{...s,id:String(s.id),args:Array.isArray(s.args)?s.args.map(String):[],env:s.env&&typeof s.env==="object"&&!Array.isArray(s.env)?Object.fromEntries(Object.entries(s.env).filter(([key,value])=>/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)&&typeof value==="string")):{},enabled:s.enabled!==false,permissions:s.permissions||{}}}
 function addServer(userData,server){const v=validate(server),d=read(userData);d.schemaVersion=2;d.servers=d.servers.filter(x=>x.id!==v.id);d.servers.push({...v,updatedAt:new Date().toISOString()});write(userData,d);return v}
 function removeServer(userData,id){const d=read(userData);d.servers=d.servers.filter(x=>x.id!==String(id));write(userData,d);return true}
 function listServers(userData){return read(userData).servers}
+function describeServers(userData){return listServers(userData).map(server=>({id:server.id,name:String(server.name||server.id),transport:server.transport,enabled:server.enabled!==false,permissions:{tools:Array.isArray(server.permissions?.tools)?server.permissions.tools.slice(0,100):null,alwaysAsk:server.permissions?.alwaysAsk===true}}))}
 async function rpcStdio(server,requests,options={}){
  return new Promise((resolve,reject)=>{
-  const child=spawn(server.command,server.args,{windowsHide:true,stdio:["pipe","pipe","pipe"]});
+  const child=spawn(server.command,server.args,{windowsHide:true,stdio:["pipe","pipe","pipe"],env:{...process.env,...(server.env||{})}});
   const signal=options.signal||null,timeoutMs=Math.max(1000,Number(options.timeoutMs)||30000);
   let buffer="",seq=0,settled=false,timer=null;
   const responses=new Map();
@@ -126,7 +127,7 @@ async function rpcSse(server,method,params={},options={}){
      let newline;
      while((newline=buffer.indexOf("\n"))>=0){
       let line=buffer.slice(0,newline);buffer=buffer.slice(newline+1);if(line.endsWith("\r"))line=line.slice(0,-1);
-      if(!line){const payload=data.join("\n");if(eventName==="endpoint"&&payload){postEndpoint=new URL(payload,server.url).toString();endpointResolve(postEndpoint)}else if(payload){try{const message=JSON.parse(payload);if(message.id!==undefined&&pending.has(String(message.id))){const waiter=pending.get(String(message.id));pending.delete(String(message.id));if(message.error)waiter.reject(new Error(message.error.message||"MCP error"));else waiter.resolve(message.result)}}catch{}}eventName="message";data=[];continue}
+      if(!line){const payload=data.join("\n");if(eventName==="endpoint"&&payload){postEndpoint=new URL(payload,server.url).toString();const endpointUrl=new URL(postEndpoint),serverUrl=new URL(server.url);if(endpointUrl.origin!==serverUrl.origin||endpointUrl.protocol!=="https:")throw new Error("MCP SSE endpoint must use the configured HTTPS origin");endpointResolve(postEndpoint)}else if(payload){try{const message=JSON.parse(payload);if(message.id!==undefined&&pending.has(String(message.id))){const waiter=pending.get(String(message.id));pending.delete(String(message.id));if(message.error)waiter.reject(new Error(message.error.message||"MCP error"));else waiter.resolve(message.result)}}catch{}}eventName="message";data=[];continue}
       if(line.startsWith(":"))continue;
       const colon=line.indexOf(":"),field=colon<0?line:line.slice(0,colon),value=colon<0?"":line.slice(colon+1).replace(/^ /,"");
       if(field==="event")eventName=value;else if(field==="data")data.push(value);
@@ -163,4 +164,4 @@ async function rpcSse(server,method,params={},options={}){
 }
 async function listTools(userData,id,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);return s.transport==="stdio"?rpcStdio(s,[{method:"tools/list",params:{}}],options):s.transport==="sse"?rpcSse(s,"tools/list",{},options):rpcHttp(s,"tools/list",{},options)}
 async function callTool(userData,id,name,args={},confirm=async()=>false,options={}){const s=listServers(userData).find(x=>x.id===String(id));if(!s||s.enabled===false)throw new Error("MCP server not available: "+id);const signal=options.signal||null;if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const allowed=s.permissions?.tools;if(Array.isArray(allowed)&&!allowed.includes(name))throw new Error("MCP tool is not permitted: "+name);if(s.permissions?.alwaysAsk&&!await confirm({server:id,tool:name,args,signal}))throw new Error("MCP tool permission denied");if(signal?.aborted)throw(signal.reason instanceof Error?signal.reason:new Error("MCP request cancelled"));const p={name,arguments:args};return s.transport==="stdio"?rpcStdio(s,[{method:"tools/call",params:p}],options):s.transport==="sse"?rpcSse(s,"tools/call",p,options):rpcHttp(s,"tools/call",p,options)}
-module.exports={file,addServer,removeServer,listServers,listTools,callTool};
+module.exports={file,addServer,removeServer,listServers,describeServers,listTools,callTool};
