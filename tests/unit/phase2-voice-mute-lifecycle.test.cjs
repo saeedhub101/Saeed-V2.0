@@ -30,3 +30,10 @@ test("unmuting while Character is hidden keeps TTS released until it is shown",(
  assert.match(body,/target\.isVisible\(\)/);
  assert.match(body,/host\.releaseTts\("character hidden"\)/);
 });
+
+test("muted or released TTS drops realtime audio and invalidates pending API playback",()=>{
+ const renderer=fs.readFileSync(path.join(__dirname,"../../src/renderer/voice/voice-client.js"),"utf8");
+ assert.match(renderer,/function stopSpeaking\(\)\{outputGeneration\+\+;speechSuppressed=false;stopRealtimePlayback\(\)/);
+ assert.match(renderer,/onRealtimeAudio\(async b=>\{if\(voiceMuted\|\|!ttsReady\)return;const generation=outputGeneration/);
+ assert.match(renderer,/generation!==outputGeneration\|\|voiceMuted\|\|!ttsReady\)return/);
+});
