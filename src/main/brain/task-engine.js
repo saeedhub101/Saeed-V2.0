@@ -40,17 +40,25 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  if(evidence)step.evidence=safeText(evidence,300);
  return persist(userData,run);
 }
+function isReadOnlyMcpTool(name){
+ const value=String(name||"").toLowerCase().replace(/\\s+/g,"");
+ const readPattern=/(?:^|[_-])(get|list|read|search|find|fetch|query|inspect|describe|status|check|lookup|enumerate|count|show|view|discover|validate|head|stat|select)(?:[_-]|$)/;
+ const writePattern=/(?:^|[_-])(delete|remove|update|create|write|send|submit|post|put|patch|approve|pay|issue|execute|run|start|stop|cancel|purchase|publish|commit|insert|upsert)(?:[_-]|$)/;
+ return Boolean(readPattern.test(value)&&!writePattern.test(value));
+}
 function observe(userData,id,event){
  if(!event||typeof event!=="object")return null;
  const run=get(userData,id);if(!run||run.status!=="running")return run;
  const now=new Date().toISOString(),type=String(event.type||""),toolName=String(event.name||"");
  if(toolName==="task_plan")return run;
- const mutatingTools=new Set(["open_application","open_url","write_file","write_excel","mouse_click","type_text","key_press","interact_ui_element","email_send","mcp_call_tool","complete_task","remove_task"]);
- if(type==="tool"&&mutatingTools.has(toolName))run.lastActionAt=now;
+ const mutatingTools=new Set(["open_application","open_url","write_file","write_excel","mouse_click","type_text","key_press","interact_ui_element","email_send","complete_task","remove_task"]);
+ const externalTool=toolName==="mcp_call_tool"?String(event.args?.tool||""):String(event.args?.tool||"");
+ const mutating=mutatingTools.has(toolName)||(toolName==="mcp_call_tool"&&!isReadOnlyMcpTool(externalTool));
+ if(type==="tool"&&mutating)run.lastActionAt=now;
  if(type==="tool"){
   if(run.steps.length>=MAX_STEPS)return run;
   const name=safeText(event.name,100);
-  run.steps.push({index:run.steps.length+1,tool:name,status:"running",startedAt:now,finishedAt:null,argsShape:Object.keys(event.args&&typeof event.args==="object"?event.args:{}).slice(0,40),resultShape:[],error:""});
+  run.steps.push({index:run.steps.length+1,tool:name,externalTool:toolName==="mcp_call_tool"?safeText(externalTool,120):"",status:"running",startedAt:now,finishedAt:null,argsShape:Object.keys(event.args&&typeof event.args==="object"?event.args:{}).slice(0,40),resultShape:[],error:""});
  }else if(type==="tool_result"||type==="tool_error"){
   const name=safeText(event.name,100);
   let step=null;
@@ -61,7 +69,7 @@ function observe(userData,id,event){
    if(type==="tool_result")for(const previous of run.steps){if(previous!==step&&previous.tool===name&&previous.status==="failed"){previous.status="recovered";previous.recoveredAt=now}}
    if(type==="tool_error")step.error=safeText(event.error,240);
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
-   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)){
+   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)||(name==="mcp_call_tool"&&isReadOnlyMcpTool(step.externalTool))){
     run.verification.attempted=true;
     run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed",afterAction:Boolean(run.lastActionAt&&now>=run.lastActionAt)});
     if(run.verification.evidence.length>30)run.verification.evidence.shift();
