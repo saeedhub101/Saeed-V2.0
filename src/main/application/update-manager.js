@@ -1,10 +1,10 @@
 "use strict";
 function createUpdateManager({app,getAutoUpdater,voiceBroadcast,diagnostic,getSettings=()=>({})}){
- let state="idle",info=null,boundUpdater=null,checking=null,downloadPromise=null;
+ let state="idle",info=null,message="",boundUpdater=null,checking=null,downloadPromise=null;
  const listeners=new Set();
  function publish(...args){voiceBroadcast?.("update:state",state,...args);for(const fn of listeners)try{fn(state,info,...args)}catch{}}
- function setState(next,nextInfo=null){state=String(next||"idle");if(nextInfo!==null&&nextInfo!==undefined)info=nextInfo;publish()}
- function snapshot(){return{state,info,currentVersion:app.getVersion()}}
+ function setState(next,nextInfo=null){state=String(next||"idle");if(nextInfo&&typeof nextInfo==="object")info=nextInfo;else if(typeof nextInfo==="string")message=nextInfo;publish(message)}
+ function snapshot(){return{state,info,message,currentVersion:app.getVersion()}}
  function reportError(stage,error){const message=error?.message||String(error);diagnostic?.("ERROR",stage,message);return message}
  function maybeAutomaticDownload(){if(getSettings()?.updateMode==="automatic"&&state==="available")void download()}
  async function check(){

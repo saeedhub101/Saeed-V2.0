@@ -14,3 +14,15 @@ test("a successful check marks a newer release available even without an event",
 test("a successful check marks the current release as latest",async()=>{const{updater,manager}=fixture("manual","1.0.0");const result=await manager.check();assert.equal(result.state,"latest");assert.equal(result.currentVersion,"1.0.0")});
 test("binding twice does not duplicate updater event handlers",()=>{const{updater,manager}=fixture();const before=updater.listenerCount("update-available");assert.equal(manager.bind(),false);assert.equal(updater.listenerCount("update-available"),before)});
 test("concurrent update checks share one request",async()=>{const{updater,manager}=fixture();let calls=0;let release;updater.checkForUpdates=()=>{calls++;return new Promise(resolve=>{release=()=>resolve({updateInfo:{version:"2.0.0"}})})};const a=manager.check(),b=manager.check();assert.equal(calls,1);release();assert.equal((await a).state,"available");assert.equal((await b).state,"available")});
+
+test("update state messages do not overwrite the update metadata",async()=>{
+ const{manager,updater}=fixture("manual");
+ const result=await manager.check();
+ assert.equal(result.state,"available");
+ assert.equal(result.info.version,"2.0.0");
+ assert.match(result.message,/2\.0\.0/);
+ updater.emit("update-downloaded",{version:"2.0.0"});
+ const ready=manager.snapshot();
+ assert.equal(ready.info.version,"2.0.0");
+ assert.match(ready.message,/ready to install/i);
+});
