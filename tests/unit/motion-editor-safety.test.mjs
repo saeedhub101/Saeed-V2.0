@@ -55,3 +55,11 @@ test("restoring a character profile replaces old custom motions and skips invali
  assert.equal(registry.has("wave"),true);
  assert.equal(registry.has("previous-character-motion"),false);
 });
+
+test("motion definitions reject malformed and unbounded keyframes safely",()=>{
+ const editor=new MotionEditor(new MotionRegistry());
+ assert.throws(()=>editor.define({...motion("bad-frame"),keyframes:[null]}),/Keyframe 0 must be an object/);
+ assert.throws(()=>editor.define({...motion("too-many"),keyframes:Array.from({length:501},(_,time)=>({time,pose:{}}))}),/more than 500 keyframes/);
+ assert.throws(()=>editor.define({...motion("bad-duration"),duration:Infinity}),/duration must be greater than 0/);
+ assert.throws(()=>editor.define({...motion("bad-time"),keyframes:[{time:601,pose:{}}]}),/time must be between 0 and 600/);
+});
