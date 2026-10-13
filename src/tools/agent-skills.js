@@ -1,6 +1,6 @@
 const learning=()=>require("../learning");
 function schemas(){return[
- {type:"function",function:{name:"agent_skills",description:"Manage saved learned workflows. Use list to find skills, get to inspect one, update to correct its name/description/trigger phrases/parameters, enable to activate it, disable to prevent automatic matching, and delete only when the user explicitly requests removal. Preserve existing action steps unless the user specifically asks to change them. Never create a workflow from an unverified guess.",parameters:{type:"object",properties:{operation:{type:"string",enum:["list","get","update","enable","disable","delete"]},skillId:{type:"string",maxLength:64},name:{type:"string",maxLength:160},description:{type:"string",maxLength:500},triggerPhrases:{type:"array",items:{type:"string",minLength:1,maxLength:180},maxItems:20},parameters:{type:"array",maxItems:30,items:{type:"object",properties:{name:{type:"string",pattern:"^[a-z][a-zA-Z0-9_]{0,39}$"},description:{type:"string",maxLength:180},aliases:{type:"array",items:{type:"string",maxLength:100},maxItems:20},required:{type:"boolean"}},required:["name"]}}},required:["operation"]}}}
+ {type:"function",function:{name:"agent_skills",description:"Manage saved learned workflows. Use list to find skills, get to inspect one, update to correct its name/description/trigger phrases/parameters, enable to activate it, disable to prevent automatic matching, and delete only when the user explicitly requests removal. Preserve existing action steps unless the user specifically asks to change them. Never create a workflow from an unverified guess.",parameters:{type:"object",properties:{operation:{type:"string",enum:["list","get","update","replace_step","insert_step","remove_step","move_step","enable","disable","delete"]},skillId:{type:"string",maxLength:64},name:{type:"string",maxLength:160},description:{type:"string",maxLength:500},triggerPhrases:{type:"array",items:{type:"string",minLength:1,maxLength:180},maxItems:20},parameters:{type:"array",maxItems:30,items:{type:"object",properties:{name:{type:"string",pattern:"^[a-z][a-zA-Z0-9_]{0,39}$"},description:{type:"string",maxLength:180},aliases:{type:"array",items:{type:"string",maxLength:100},maxItems:20},required:{type:"boolean"}},required:["name"]}},stepIndex:{type:"integer",minimum:1,maximum:100},toIndex:{type:"integer",minimum:1,maximum:100},step:{type:"object",properties:{tool:{type:"string",minLength:1,maxLength:100,pattern:"^[a-zA-Z][a-zA-Z0-9_]*$"},args:{type:"object"}},required:["tool","args"],additionalProperties:false}},required:["operation"]}}}
 ]}
 function call(name,args,context){
  if(name!=="agent_skills")return null;
@@ -11,6 +11,25 @@ function call(name,args,context){
  if(!skill)return{ok:false,error:"Saved skill not found: "+args.skillId};
  if(operation==="get")return{ok:true,skill};
  if(operation==="enable"||operation==="disable"){const updated=api.setEnabled(dir,skill.id,operation==="enable");return{ok:true,skill:{id:updated.id,name:updated.name,enabled:updated.enabled}}}
+ if(["replace_step","insert_step","remove_step","move_step"].includes(operation)){
+  const index=Number(args.stepIndex),toIndex=Number(args.toIndex);
+  if(!Array.isArray(skill.steps)||!skill.steps.length)return{ok:false,error:"This saved workflow has no action steps"};
+  if(!Number.isInteger(index)||index<1||index>(operation==="insert_step"?skill.steps.length+1:skill.steps.length))return{ok:false,error:"stepIndex is outside the saved workflow"};
+  if(operation==="replace_step"||operation==="insert_step"){
+   const step=args.step;
+   if(!step||typeof step!=="object"||typeof step.tool!=="string"||!step.tool.trim()||!step.args||typeof step.args!=="object"||Array.isArray(step.args))return{ok:false,error:"A replacement step must include a tool name and an arguments object"};
+   const cleanStep={tool:step.tool.trim(),args:step.args};
+   if(operation==="replace_step")skill.steps[index-1]=cleanStep;else skill.steps.splice(index-1,0,cleanStep);
+  }else if(operation==="remove_step"){
+   if(skill.steps.length===1)return{ok:false,error:"Cannot remove the final action step; replace it or delete the workflow explicitly"};
+   skill.steps.splice(index-1,1);
+  }else{
+   if(!Number.isInteger(toIndex)||toIndex<1||toIndex>skill.steps.length)return{ok:false,error:"toIndex is outside the saved workflow"};
+   const [step]=skill.steps.splice(index-1,1);skill.steps.splice(toIndex-1,0,step);
+  }
+  const updated=api.save(dir,skill);
+  return{ok:true,skill:{id:updated.id,name:updated.name,stepCount:updated.steps.length,steps:updated.steps.map((step,i)=>({index:i+1,tool:step.tool,argsKeys:Object.keys(step.args||{})})),updatedAt:updated.updatedAt}};
+ }
  if(operation==="delete")return{ok:api.remove(dir,skill.id),deletedSkillId:skill.id};
  if(operation==="update"){
   if(args.name!==undefined)skill.name=String(args.name).trim();
