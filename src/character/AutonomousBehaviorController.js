@@ -119,6 +119,17 @@ export class AutonomousBehaviorController{
   for(const id of source){roll-=Math.max(.05,Number(weights[id])||1);if(roll<=0){this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);this.lastMotionId=id;return id}}
   const id=source[source.length-1];this.recent=[...this.recent.filter(x=>x!==id),id].slice(-RECENT_LIMIT);this.lastMotionId=id;return id;
  }
+ chooseContextMotion(kind){
+  const palettes={
+   wake:{cheerful:["wave","nod","dance"],curious:["lookCloser","think","wave"],thoughtful:["nod","think"],mischievous:["wave","dance"],pleased:["wave","nod"],sleepy:["nod","stretch"],puzzled:["think","shake"],sad:["nod","think"]},
+   success:{cheerful:["dance","clap","wave","nod"],curious:["clap","nod","lookCloser"],thoughtful:["nod","wave"],mischievous:["dance","clap","wave"],pleased:["dance","clap","nod"],sleepy:["nod","wave"],puzzled:["nod","wave"],sad:["nod","wave"]},
+   failure:{cheerful:["think","shake","lookCloser"],curious:["think","lookCloser","shake"],thoughtful:["think","nod","shake"],mischievous:["shake","think"],pleased:["think","nod"],sleepy:["think","nod"],puzzled:["think","shake","lookCloser"],sad:["think","nod"]},
+   thanks:{cheerful:["nod","wave"],curious:["nod","lookCloser"],thoughtful:["nod"],mischievous:["wave","nod"],pleased:["nod","wave","dance"],sleepy:["nod"],puzzled:["nod"],sad:["nod"]}
+  };
+  const candidates=palettes[kind]?.[this.mood]||palettes[kind]?.cheerful||[];
+  const weights={dance:this.energy>=65?1.6:.45,clap:1.35,wave:1.2,nod:1.15,think:1.1,lookCloser:.95,shake:.8,stretch:.7};
+  return this.chooseWeighted(candidates,weights);
+ }
  chooseIdle(){
   const available=(this.character.moodPalette?.()||[]).filter(id=>this.character.animation?.registry?.get?.(id));
   if(!available.length)return null;
@@ -314,7 +325,8 @@ export class AutonomousBehaviorController{
    this.intent="reacting";
    this.onMoodChanged("pleased",true);
    this.character.face?.expression?.("happy",.65);
-   this.playMotion(Math.random()<.28?"dance":"nod",{duration:.75,priority:40});
+   const motion=this.chooseContextMotion("success")||"nod";
+   this.playMotion(motion,{duration:motion==="dance"?1.6:.75,priority:40});
    return true;
   }
   if(type==="tool_error"||type==="tool-failure"){
@@ -328,7 +340,8 @@ export class AutonomousBehaviorController{
   if(type==="double-click"||type==="right-click"||type==="summon"){
    this.onMoodChanged("cheerful",true);
    this.character.face?.expression?.("happy",.7);
-   this.playMotion("wave",{duration:1.2,priority:45});
+   const motion=this.chooseContextMotion("wake")||"wave";
+   this.playMotion(motion,{duration:motion==="dance"?1.6:1.2,priority:45});
    return true;
   }
   if(type==="zoom"||type==="hover"){
@@ -348,7 +361,7 @@ export class AutonomousBehaviorController{
   }
   if(type==="app-focus"||type==="wake"){
    if(this.sleeping)this.wakeIfSleeping();
-   else this.playMotion("wave",{duration:1,priority:30});
+   else this.playMotion(this.chooseContextMotion("wake")||"wave",{duration:1,priority:30});
    return true;
   }
   if(type==="app-blur"||type==="idle-timeout"){
@@ -360,7 +373,7 @@ export class AutonomousBehaviorController{
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
+  return {running:this.running,visible:this.visible,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
