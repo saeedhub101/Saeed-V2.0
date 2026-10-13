@@ -87,7 +87,7 @@ async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{},va
  const emit=typeof onEvent==="function"?onEvent:()=>{},results=[],resolvedSteps=[];
  const missing=(skill.parameters||[]).filter(parameter=>parameter.required!==false&&!String(variables?.[parameter.name]??"").trim()).map(parameter=>parameter.name);
  if(missing.length)return{ok:false,skill:skill.id,missingParameters:missing};
- for(const step of skill.steps){try{resolvedSteps.push({...step,args:resolveTemplate(step.args||{},variables||{})})}catch(error){return{ok:false,skill:skill.id,missingParameters:[String(error.message||error).replace(/^Missing skill parameter:\\s*/,"")]}}}
+ for(const step of skill.steps){try{resolvedSteps.push({...step,args:resolveTemplate(step.args||{},variables||{})})}catch(error){return{ok:false,skill:skill.id,missingParameters:[String(error.message||error).replace(/^Missing skill parameter:\s*/,"")]}}}
  for(const step of resolvedSteps){
   if(!current())return{ok:false,stale:true,skill:skill.id,results};
   const args=step.args||{};
