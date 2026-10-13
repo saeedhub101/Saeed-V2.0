@@ -70,9 +70,9 @@ function observe(userData,id,event){
  const run=get(userData,id);if(!run||run.status!=="running")return run;
  const now=new Date().toISOString(),type=String(event.type||""),toolName=String(event.name||"");
  if(toolName==="task_plan")return run;
- const mutatingTools=new Set(["open_application","open_url","write_file","write_excel","mouse_click","type_text","key_press","interact_ui_element","email_send","complete_task","remove_task"]);
+ const mutatingTools=new Set(["open_application","open_url","write_file","write_excel","mouse_click","type_text","key_press","interact_ui_element","email_send","complete_task","remove_task","remember","forget","memory_add","knowledge_add","add_task","agent_skills"]);
  const externalTool=toolName==="mcp_call_tool"?String(event.args?.tool||""):String(event.args?.tool||"");
- const mutating=mutatingTools.has(toolName)||(toolName==="mcp_call_tool"&&!isReadOnlyMcpTool(externalTool));
+ const mutating=mutatingTools.has(toolName)&&(toolName!=="agent_skills"||!["list","get"].includes(String(event.args?.operation||"")) )||(toolName==="mcp_call_tool"&&!isReadOnlyMcpTool(externalTool));
  if(type==="tool"&&mutating)run.lastActionAt=now;
  if(type==="tool"){
   if(run.steps.length>=MAX_STEPS)return run;
@@ -88,7 +88,7 @@ function observe(userData,id,event){
    if(type==="tool_result")for(const previous of run.steps){if(previous!==step&&previous.tool===name&&previous.status==="failed"){previous.status="recovered";previous.recoveredAt=now}}
    if(type==="tool_error")step.error=safeText(event.error,240);
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
-   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name)||(name==="mcp_call_tool"&&isReadOnlyMcpTool(step.externalTool))){
+   if(["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page","recall","list_memory","list_tasks","agent_task_details","agent_skills"].includes(name)||(name==="mcp_call_tool"&&isReadOnlyMcpTool(step.externalTool))){
     run.verification.attempted=true;
     run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed",afterAction:Boolean(run.lastActionAt&&now>=run.lastActionAt)});
     if(run.verification.evidence.length>30)run.verification.evidence.shift();
