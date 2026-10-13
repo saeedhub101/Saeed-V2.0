@@ -85,7 +85,8 @@ emergencyStop(){if(!this.emergencyStopped){this.emergencyStopped=true;this.emerg
   if(name==="open_application")return"applications";
   if(name==="character_motion")return"system";
   if(["open_url","web_search","fetch_web_page","network_info"].includes(name))return"network";
-  if(["screenshot","ocr_image","extract_image_table","inspect_image"].includes(name))return"screen";
+  if(["screenshot","ocr_image","extract_image_table","inspect_image","inspect_window_controls"].includes(name))return"screen";
+  if(name==="interact_ui_element")return"mouseKeyboard";
   if(["mouse_move","mouse_click","type_text","key_press"].includes(name))return"mouseKeyboard";
   if(["add_task","list_tasks","complete_task","remember","recall","list_memory","forget","memory_add","memory_search","knowledge_add","agent_task_history","agent_task_details"].includes(name))return"tasksMemory";
   if(["mcp_list_servers","mcp_list_tools","mcp_call_tool"].includes(name))return"mcp";
