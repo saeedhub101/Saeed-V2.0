@@ -99,7 +99,7 @@ function recordStep(session,tool,args){
    while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>String(alias).toLowerCase()===identityAlias))name=parameterName+number++;
    let parameter=session.skill.parameters.find(item=>item.name===name);
    if(!parameter){parameter={name,description:(label&&![ "name","id","date","number","type","value","code","text","email","address"].includes(label.toLowerCase()))?label:automationId||("Field "+String(Number(windowInfo.elementIndex)+1)),aliases:[],required:true};session.skill.parameters.push(parameter)}
-   for(const alias of [label,automationId].filter(Boolean))if(!parameter.aliases.some(item=>String(item).toLowerCase()===alias.toLowerCase()))parameter.aliases.push(alias);
+   const fieldAliases=[label,automationId].filter(Boolean);if(!fieldAliases.length)fieldAliases.push("Field "+String(Number(windowInfo.elementIndex)+1));for(const alias of fieldAliases)if(!parameter.aliases.some(item=>String(item).toLowerCase()===alias.toLowerCase()))parameter.aliases.push(alias);
    selectedArgs={...input,text:"{{"+name+"}}"};
   }
  }
