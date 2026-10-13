@@ -39,21 +39,42 @@ class Brain{
    }
    this.onEvent(event);
   };
-  const finishTask=(answer,status)=>{if(!taskRun)return;try{const saved=taskEngine.get(this.getDir(),taskRun.id);const failed=saved?.steps?.some(step=>step.status==="failed");const incompletePlan=Boolean(saved?.plan?.length&&saved.plan.some(step=>!["completed","skipped"].includes(step.status)));const unverifiedAction=Boolean(saved?.lastActionAt&&!saved?.verification?.evidence?.some(item=>item.afterAction));const finalStatus=status||(failed||incompletePlan||unverifiedAction?"needs_attention":"finished");taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:String(answer||"").slice(0,1000)});this.onEvent({type:"task-finished",taskId:taskRun.id,status:finalStatus})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}};
+  const finishTask=(answer,status)=>{
+   let finalAnswer=String(answer||"");
+   if(!taskRun)return{status:status||"finished",answer:finalAnswer};
+   try{
+    const saved=taskEngine.get(this.getDir(),taskRun.id);
+    const failed=saved?.steps?.some(step=>step.status==="failed");
+    const incompletePlan=Boolean(saved?.plan?.length&&saved.plan.some(step=>!["completed","skipped"].includes(step.status)));
+    const unverifiedAction=Boolean(saved?.lastActionAt&&!saved?.verification?.evidence?.some(item=>item.afterAction));
+    const finalStatus=status||(failed||incompletePlan||unverifiedAction?"needs_attention":"finished");
+    if(!status&&finalStatus==="needs_attention"){
+     if(unverifiedAction)finalAnswer="I attempted the requested actions, but I couldn't verify the final state. I can't confirm completion.";
+     else if(incompletePlan)finalAnswer="The task plan still has unfinished steps, so I can't confirm completion.";
+     else if(failed)finalAnswer="At least one action failed, so I can't confirm completion.";
+    }
+    taskEngine.finish(this.getDir(),taskRun.id,{status:finalStatus,summary:finalAnswer.slice(0,1000)});
+    this.onEvent({type:"task-finished",taskId:taskRun.id,status:finalStatus});
+    return{status:finalStatus,answer:finalAnswer};
+   }catch(error){
+    this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)});
+    return{status:"needs_attention",answer:finalAnswer};
+   }
+  };
   if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   const s=String(text||"").trim(),settings=this.getSettings()||{};
   if(!s)return{handled:true,answer:"Please tell me what you want me to do.",source:"empty"};
   try{taskRun=taskEngine.begin(this.getDir(),s);this.onEvent({type:"task-start",taskId:taskRun.id,goal:s})}catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"TASK PERSISTENCE",message:String(error?.message||error).slice(0,200)})}
   const learned=learning().match(this.getDir(),s);
   if(learned){
-   try{const variables=learning().extractParameters(learned,s);const result=await learning().run(this.getDir(),this.registry,learned,{isCurrent:current,onEvent:emit,variables});if(!current()||result?.stale){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}}if(result?.missingParameters?.length){const missingAnswer="I found the saved skill \""+learned.name+"\" but need these values before executing it: "+result.missingParameters.join(", ")+". Please provide them clearly (for example, field: value).";finishTask(missingAnswer,"needs_attention");return{handled:true,answer:missingAnswer,source:"learned-skill-missing-parameters",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}const learnedAnswer="Done — I followed the learned skill: "+learned.name+".";finishTask(learnedAnswer,result?.ok===false?"needs_attention":undefined);return{handled:true,answer:learnedAnswer,source:"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
+   try{const variables=learning().extractParameters(learned,s);const result=await learning().run(this.getDir(),this.registry,learned,{isCurrent:current,onEvent:emit,variables});if(!current()||result?.stale){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}}if(result?.missingParameters?.length){const missingAnswer="I found the saved skill \""+learned.name+"\" but need these values before executing it: "+result.missingParameters.join(", ")+". Please provide them clearly (for example, field: value).";finishTask(missingAnswer,"needs_attention");return{handled:true,answer:missingAnswer,source:"learned-skill-missing-parameters",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}const learnedAnswer="Done — I followed the learned skill: "+learned.name+".";const finished=finishTask(learnedAnswer,result?.ok===false?"needs_attention":undefined);return{handled:true,answer:finished.answer,source:finished.status==="needs_attention"?"learned-skill-unverified":"learned-skill",event:{type:"learned-skill",skill:learned.id,name:learned.name,result}}}
    catch(e){emit({type:"diagnostic",level:"ERROR",stage:"LEARNED SKILL",message:e.message,meta:{skill:learned.id}})}
   }
   if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
   const route=this.classify(s);
   emit({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTE",message:"Single brain route selected: "+(route.mode==="auto"?"local-first":route.mode),meta:route});
   if(route.mode!=="api"){
-   try{const local=await this.local.tryExecute(s,{isCurrent:current,onEvent:emit});if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};if(local?.handled){finishTask(local.answer);return{handled:true,answer:local.answer,source:"local"}}}
+   try{const local=await this.local.tryExecute(s,{isCurrent:current,onEvent:emit});if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};if(local?.handled){const finished=finishTask(local.answer);return{handled:true,answer:finished.answer,source:finished.status==="needs_attention"?"local-unverified":"local"}}}
    catch(e){emit({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message})}
    if(route.mode==="local"){const fallbackAnswer="I can handle common Windows computer tasks offline, but this request needs the API brain.";finishTask(fallbackAnswer,"needs_attention");return{handled:true,answer:fallbackAnswer,source:"local-fallback"}}
   }
@@ -70,8 +91,8 @@ class Brain{
    finishTask(answer,"needs_attention");return{handled:false,answer,source:"api-provider-error"};
   }
   if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
-  finishTask(answer);
-  return{handled:false,answer,source:"api"};
+  const finished=finishTask(answer);
+  return{handled:false,answer:finished.answer,source:finished.status==="needs_attention"?"api-unverified":"api"};
  }
  async dispose(){try{await this.local?.dispose?.()}catch{}try{await this.api?.dispose?.()}catch{}this.local=null;this.api=null;this.registry=null;this.onEvent=()=>{};return true}
 }
