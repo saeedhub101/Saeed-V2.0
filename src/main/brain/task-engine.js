@@ -104,7 +104,7 @@ function observe(userData,id,event){
    if(type==="tool_result")for(const previous of run.steps){if(previous!==step&&previous.tool===name&&previous.status==="failed"){previous.status="recovered";previous.recoveredAt=now}}
    if(type==="tool_error")step.error=safeText(event.error,240);
    else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
-   if((["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page","recall","list_memory","list_tasks","agent_task_details"].includes(name))||(name==="agent_skills"&&["list","get"].includes(step.operation))||(name==="mcp_call_tool"&&isReadOnlyMcpTool(step.externalTool))||(addonTool&&addonReadOnly)){
+   if((["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name))||(name==="agent_skills"&&["list","get"].includes(step.operation))||(name==="mcp_call_tool"&&isReadOnlyMcpTool(step.externalTool))||(addonTool&&addonReadOnly)){
     run.verification.attempted=true;
     run.verification.evidence.push({at:now,tool:name,result:type==="tool_result"?"returned":"failed",afterAction:Boolean(run.lastActionAt&&now>=run.lastActionAt)});
     if(run.verification.evidence.length>30)run.verification.evidence.shift();
