@@ -7,12 +7,35 @@ function ensure(userData){fs.mkdirSync(root(userData),{recursive:true});return r
 function safeId(id){const v=String(id||"").trim();if(!/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(v))throw new Error("Invalid skill id");return v}
 function fileFor(userData,id){return path.join(root(userData),safeId(id)+".json")}
 function normalize(s){return String(s||"").toLowerCase().normalize("NFKC").replace(/[?!.,،؛:]/g," ").replace(/\s+/g," ").trim()}
-function validate(skill){if(!skill||typeof skill!=="object")throw new Error("Invalid skill");const id=safeId(skill.id||crypto.createHash("sha256").update(String(skill.name||Date.now())).digest("hex").slice(0,12));const phrases=Array.isArray(skill.trigger?.phrases)?skill.trigger.phrases.map(normalize).filter(Boolean):[];if(!phrases.length)throw new Error("At least one trigger phrase is required");if(!Array.isArray(skill.steps)||!skill.steps.length||skill.steps.length>MAX_STEPS)throw new Error("Skill must contain 1-"+MAX_STEPS+" steps");for(const step of skill.steps){if(!step||typeof step.tool!=="string"||!/^[a-z0-9_.-]+$/i.test(step.tool))throw new Error("Invalid skill tool");if(step.args!=null&&(typeof step.args!=="object"||Array.isArray(step.args)))throw new Error("Skill step args must be an object")}return{schemaVersion:2,version:Number(skill.version)||1,id,name:String(skill.name||id),description:String(skill.description||""),trigger:{phrases},steps:skill.steps.map(s=>({tool:String(s.tool),args:s.args||{}})),createdAt:skill.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),enabled:skill.enabled!==false,approval:skill.approval||"per-tool",metadata:skill.metadata||{}}}
+function validate(skill){if(!skill||typeof skill!=="object")throw new Error("Invalid skill");const id=safeId(skill.id||crypto.createHash("sha256").update(String(skill.name||Date.now())).digest("hex").slice(0,12));const phrases=Array.isArray(skill.trigger?.phrases)?skill.trigger.phrases.map(normalize).filter(Boolean):[];if(!phrases.length)throw new Error("At least one trigger phrase is required");if(!Array.isArray(skill.steps)||!skill.steps.length||skill.steps.length>MAX_STEPS)throw new Error("Skill must contain 1-"+MAX_STEPS+" steps");for(const step of skill.steps){if(!step||typeof step.tool!=="string"||!/^[a-z0-9_.-]+$/i.test(step.tool))throw new Error("Invalid skill tool");if(step.args!=null&&(typeof step.args!=="object"||Array.isArray(step.args)))throw new Error("Skill step args must be an object")}const parameters=(Array.isArray(skill.parameters)?skill.parameters:[]).slice(0,30).map(p=>{const name=String(p?.name||"").trim();if(!/^[a-z][a-z0-9_]{0,39}$/i.test(name))throw new Error("Invalid skill parameter name");return{name,description:String(p.description||name).slice(0,180),aliases:[...new Set([name.replace(/([a-z0-9])([A-Z])/g,"$1 $2"),...(Array.isArray(p.aliases)?p.aliases:[])].map(x=>String(x||"").trim()).filter(Boolean))].slice(0,20),required:p.required!==false}});return{schemaVersion:3,version:Number(skill.version)||1,id,name:String(skill.name||id),description:String(skill.description||""),trigger:{phrases},parameters,steps:skill.steps.map(s=>({tool:String(s.tool),args:s.args||{}})),createdAt:skill.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),enabled:skill.enabled!==false,approval:skill.approval||"per-tool",metadata:skill.metadata||{}}}
 function list(userData){ensure(userData);return fs.readdirSync(root(userData),{withFileTypes:true}).filter(x=>x.isFile()&&x.name.endsWith(".json")).flatMap(x=>{try{return[validate(JSON.parse(fs.readFileSync(path.join(root(userData),x.name),"utf8")))]}catch{return[]}})}
 function get(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return null;return validate(JSON.parse(fs.readFileSync(f,"utf8")))}
 function save(userData,skill){const v=validate(skill);ensure(userData);const f=fileFor(userData,v.id),result=writeJsonAtomic(f,v);if(!result.ok)throw new Error("Learned skill persistence failed: "+result.error);const persisted=get(userData,v.id);if(!persisted||persisted.id!==v.id||persisted.steps.length!==v.steps.length)throw new Error("Learned skill persistence verification failed");return persisted}
 function remove(userData,id){const f=fileFor(userData,id);if(!fs.existsSync(f))return false;fs.unlinkSync(f);return true}
 function setEnabled(userData,id,enabled){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);s.enabled=Boolean(enabled);s.updatedAt=new Date().toISOString();return save(userData,s)}
+function extractParameters(skill,text){
+ const source=String(text||""),values={};
+ const parameters=Array.isArray(skill?.parameters)?skill.parameters:[];
+ for(const parameter of parameters){
+  const aliases=[parameter.name,...(parameter.aliases||[])].filter(Boolean).sort((a,b)=>String(b).length-String(a).length);
+  for(const alias of aliases){
+   const escaped=String(alias).replace(/[.*+?^${}()|[\]\\]/g,"\\function match(userData,text){").replace(/\\s+/g,"\\s+");
+   let matchValue=null;
+   try{matchValue=source.match(new RegExp("(?:^|[\\s,;،])"+escaped+"\\s*(?:(?:is|=|:|هو|هي)\\s*)?([^,;\\n]+)","i"))}catch{}
+   if(matchValue?.[1]){
+    const value=String(matchValue[1]).trim().replace(/^[\\s"'“”]+|[\\s"'“”]+$/g,"").replace(/[.؟?!]+$/g,"").trim();
+    if(value){values[parameter.name]=value;break}
+   }
+  }
+ }
+ return values;
+}
+function resolveTemplate(value,variables){
+ if(typeof value==="string")return value.replace(/\\{\\{\\s*([a-z][a-z0-9_]*)\\s*\\}\\}/gi,(_,name)=>{if(!Object.prototype.hasOwnProperty.call(variables||{},name))throw new Error("Missing skill parameter: "+name);return String(variables[name])});
+ if(Array.isArray(value))return value.map(item=>resolveTemplate(item,variables));
+ if(value&&typeof value==="object"){const out={};for(const [key,item] of Object.entries(value))out[key]=resolveTemplate(item,variables);return out}
+ return value;
+}
 function match(userData,text){
  const n=normalize(text);if(!n)return null;
  const skills=list(userData).filter(skill=>skill.enabled!==false);
@@ -42,12 +65,14 @@ function importSkill(userData,data){return save(userData,typeof data==="string"?
 function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},steps:[],approval:"per-tool"}}}
 function recordStep(session,tool,args){if(!session?.recording)throw new Error("Recorder is not running");if(session.skill.steps.length>=MAX_STEPS)throw new Error("Recorder step limit reached");session.skill.steps.push({tool:String(tool),args:args&&typeof args==="object"?args:{}});return session.skill}
 function finishRecording(userData,session){if(!session?.recording)throw new Error("Recorder is not running");session.recording=false;if(!session.skill.trigger.phrases.length)session.skill.trigger.phrases=[normalize(session.skill.name)];return save(userData,session.skill)}
-async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{}}={}){
+async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{},variables={}}={}){
  const current=()=>{try{return typeof isCurrent==="function"?Boolean(isCurrent()):true}catch{return false}};
  const emit=typeof onEvent==="function"?onEvent:()=>{},results=[];
+ const missing=(skill.parameters||[]).filter(parameter=>parameter.required!==false&&!String(variables?.[parameter.name]??"").trim()).map(parameter=>parameter.name);
+ if(missing.length)return{ok:false,skill:skill.id,missingParameters:missing};
  for(const step of skill.steps){
   if(!current())return{ok:false,stale:true,skill:skill.id,results};
-  const args=step.args||{};
+  let args;try{args=resolveTemplate(step.args||{},variables||{})}catch(error){return{ok:false,skill:skill.id,missingParameters:[String(error.message||error).replace(/^Missing skill parameter:\\s*/,"")]}}
   emit({type:"tool",name:step.tool,args:redactToolArgs(step.tool,args)});
   const out=await registry.call(step.tool,args,{isCurrent:current});
   if(!current())return{ok:false,stale:true,skill:skill.id,results};
@@ -57,4 +82,4 @@ async function run(userData,registry,skill,{isCurrent=()=>true,onEvent=()=>{}}={
  }
  return{ok:true,skill:skill.id,results};
 }
-module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,exportSkill,importSkill,beginRecording,recordStep,finishRecording,normalize};
+module.exports={root,ensure,list,get,save,remove,setEnabled,match,run,extractParameters,resolveTemplate,exportSkill,importSkill,beginRecording,recordStep,finishRecording,normalize};
