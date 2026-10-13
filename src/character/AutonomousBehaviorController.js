@@ -1,5 +1,5 @@
 const DEFAULT_IDLE_DELAY=7000;
-const SLEEP_AFTER_MS=60*60*1000;
+const SLEEP_AFTER_MS=20*60*1000;
 const RECENT_LIMIT=4;
 const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
@@ -138,8 +138,10 @@ export class AutonomousBehaviorController{
   if(!this.running||!this.visible||this.sleeping)return;
   this.armBlinkTimer();
   const base=Math.max(1000,Number(delay)||Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY);
+  const energyFactor=Math.max(.65,Math.min(1.35,this.energy/70));
+  const energyAdjusted=delay===DEFAULT_IDLE_DELAY?base/energyFactor:base;
   const jitter=delay===DEFAULT_IDLE_DELAY?(.72+Math.random()*.78):1;
-  this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.round(base*jitter));
+  this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.round(energyAdjusted*jitter));
  }
  evaluateNow(){
   if(!this.running||!this.visible||this.sleeping||this.settings.idle===false)return false;
