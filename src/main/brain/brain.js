@@ -41,7 +41,7 @@ class Brain{
   const route=this.classify(s);
   emit({type:"diagnostic",level:"INFO",stage:"BRAIN ROUTE",message:"Single brain route selected: "+(route.mode==="auto"?"local-first":route.mode),meta:route});
   if(route.mode!=="api"){
-   try{const local=await this.local.tryExecute(s,{isCurrent:current});if(!current())return{handled:true,answer:"",source:"stale",stale:true};if(local?.handled){finishTask(local.answer);return{handled:true,answer:local.answer,source:"local"}}}
+   try{const local=await this.local.tryExecute(s,{isCurrent:current,onEvent:emit});if(!current())return{handled:true,answer:"",source:"stale",stale:true};if(local?.handled){finishTask(local.answer);return{handled:true,answer:local.answer,source:"local"}}}
    catch(e){emit({type:"diagnostic",level:"ERROR",stage:"BRAIN LOCAL",message:e.message})}
    if(route.mode==="local"){const fallbackAnswer="I can handle common Windows computer tasks offline, but this request needs the API brain.";finishTask(fallbackAnswer,"needs_attention");return{handled:true,answer:fallbackAnswer,source:"local-fallback"}}
   }
