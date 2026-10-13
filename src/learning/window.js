@@ -11,3 +11,15 @@ $("save").onclick=async()=>{try{const name=$("name").value.trim(),phrases=$("phr
 $("clear").onclick=()=>{for(const id of ["name","phrases","steps"])$(id).value="";message.textContent=""};$("refresh").onclick=load;
 $("export").onclick=async()=>{if(!selectedSkill){message.textContent="Select a skill first.";return}const data=await window.saeed.learning.export(selectedSkill);const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download=selectedSkill+".json";a.click();URL.revokeObjectURL(a.href)};
 $("import").onclick=()=>$("file").click();$("file").onchange=async()=>{const f=$("file").files[0];if(!f)return;try{await window.saeed.learning.import(await f.text());message.textContent="Skill imported.";load()}catch(e){message.textContent=e.message}$("file").value=""};addEventListener("load",load);
+const taskPrompt=$("taskPrompt"),taskResult=$("taskResult"),runTask=$("runTask");
+runTask.onclick=async()=>{
+ const goal=taskPrompt.value.trim();
+ if(!goal){taskResult.textContent="Describe the task first.";return}
+ runTask.disabled=true;taskResult.textContent="Saeed is analyzing the request and working…";
+ try{
+  const result=await window.saeed.learning.runTask(goal);
+  taskResult.textContent=typeof result==="string"?result:(result?.answer||result?.message||JSON.stringify(result));
+ }catch(error){taskResult.textContent="Task stopped: "+String(error?.message||error)}
+ finally{runTask.disabled=false}
+};
+taskPrompt.addEventListener("keydown",event=>{if((event.ctrlKey||event.metaKey)&&event.key==="Enter")runTask.click()});
