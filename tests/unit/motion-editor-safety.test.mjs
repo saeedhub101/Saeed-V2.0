@@ -70,3 +70,14 @@ test("motion duration extends to cover the final keyframe",()=>{
  assert.equal(created.duration,3);
  assert.deepEqual(editor.sample(created,3).hips,{x:1,y:0,z:0});
 });
+
+test("custom motion enabled state survives export and restore",()=>{
+ const registry=new MotionRegistry();
+ const editor=new MotionEditor(registry);
+ editor.define({...motion("disabled-motion"),enabled:false});
+ assert.equal(editor.list()[0].enabled,false);
+ const restored=new MotionEditor(new MotionRegistry());
+ restored.restore(editor.list());
+ assert.equal(restored.list()[0].enabled,false);
+ assert.equal(restored.registry.get("disabled-motion").enabled,false);
+});
