@@ -50,6 +50,7 @@ const suites = [
   { name: "Incomplete GLB rig visibility tests", args: ["--test", path.join(root, "tests", "unit", "glb-incomplete-rig.test.cjs")] }
 ];
 suites.push({ name: "Persistent learning experience memory tests", args: ["--test", path.join(root, "tests", "unit", "learning-experience-memory.test.cjs")] });
+suites.push({ name: "Agent-created learned workflow tests", args: ["--test", path.join(root, "tests", "unit", "agent-skills-create.test.cjs")] });
 suites.push({ name: "Task engine integrity regression tests", args: ["--test", path.join(root, "tests", "unit", "task-engine-integrity.test.cjs")] });
 suites.push({ name: "Character motion editor safety tests", args: ["--test", path.join(root, "tests", "unit", "motion-editor-safety.test.mjs")] });
 
