@@ -70,7 +70,8 @@ class Brain{
    finishTask(answer,"needs_attention");return{handled:false,answer,source:"api-provider-error"};
   }
   if(!current())return{handled:true,answer:"",source:"stale",stale:true};
-  finishTask(answer);\n  return{handled:false,answer,source:"api"};
+  finishTask(answer);
+  return{handled:false,answer,source:"api"};
  }
  async dispose(){try{await this.local?.dispose?.()}catch{}try{await this.api?.dispose?.()}catch{}this.local=null;this.api=null;this.registry=null;this.onEvent=()=>{};return true}
 }
