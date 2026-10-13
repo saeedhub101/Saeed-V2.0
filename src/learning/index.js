@@ -63,13 +63,13 @@ function match(userData,text){
 function exportSkill(userData,id){const s=get(userData,id);if(!s)throw new Error("Skill not found: "+id);return JSON.stringify(s,null,2)}
 function importSkill(userData,data){return save(userData,typeof data==="string"?JSON.parse(data):data)}
 function beginRecording(userData,name,phrases=[]){ensure(userData);const id=String(name||"skill").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,48)||"skill-"+Date.now();return{recording:true,skill:{schemaVersion:2,version:1,id,name:String(name||id),trigger:{phrases:Array.isArray(phrases)?phrases.map(normalize).filter(Boolean):[]},parameters:[],steps:[],approval:"per-tool"}}}
-function parameterNameFromControl(label,automationId){
- let raw=String(label||"").trim();
- if(!raw||["name","id","date","number","type","value","code","text","email","address"].includes(raw.toLowerCase()))raw=String(automationId||raw).trim();
- raw=raw.replace(/^(?:txt|text|input|field|edit|cmb|combo|ddl)[_-]?/i,"").replace(/(?:textBox|textbox|input|edit|comboBox|combo|field)$/i,"");
- const words=raw.replace(/([a-z0-9])([A-Z])/g,"$1 $2").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").match(/[a-z0-9]+/gi)||[];
- if(!words.length)return null;
- const name=words.map((word,index)=>index===0?word.toLowerCase():word[0].toUpperCase()+word.slice(1).toLowerCase()).join("");
+function parameterNameFromControl(label,automationId,elementIndex){
+ const generic=new Set(["name","id","date","number","type","value","code","text","email","address"]);
+ const wordsFor=value=>String(value||"").trim().replace(/^(?:txt|text|input|field|edit|cmb|combo|ddl)[_-]?/i,"").replace(/(?:textBox|textbox|input|edit|comboBox|combo|field)$/i,"").replace(/([a-z0-9])([A-Z])/g,"$1 $2").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").match(/[a-z0-9]+/gi)||[];
+ let words=wordsFor(label);
+ if(!words.length||generic.has(String(label||"").trim().toLowerCase()))words=wordsFor(automationId);
+ let name=words.map((word,index)=>index===0?word.toLowerCase():word[0].toUpperCase()+word.slice(1).toLowerCase()).join("");
+ if(!name&&Number.isInteger(Number(elementIndex))&&Number(elementIndex)>=0)name="field"+(Number(elementIndex)+1);
  if(!/^[a-z][a-z0-9_]{0,39}$/i.test(name)||["edit","text","textbox","input","field","combobox"].includes(name.toLowerCase()))return null;
  return name;
 }
@@ -93,12 +93,12 @@ function recordStep(session,tool,args){
  }
  if(selectedTool==="type_text"&&typeof input.text==="string"&&input.text.length){
   const isField=/\.(?:Edit|ComboBox|Document)$/i.test(controlType);
-  const parameterName=isField?parameterNameFromControl(label,automationId):null;
+  const parameterName=isField?parameterNameFromControl(label,automationId,Number(windowInfo.elementIndex)):null;
   if(parameterName){
-   let name=parameterName,number=2;const identityAlias=(automationId||label).toLowerCase();
+   let name=parameterName,number=2;const identityAlias=(automationId||label||("element-"+String(windowInfo.elementIndex??"unknown"))).toLowerCase();
    while(session.skill.parameters.some(parameter=>parameter.name===name)&&!(session.skill.parameters.find(parameter=>parameter.name===name)?.aliases||[]).some(alias=>String(alias).toLowerCase()===identityAlias))name=parameterName+number++;
    let parameter=session.skill.parameters.find(item=>item.name===name);
-   if(!parameter){parameter={name,description:(label&&!["name","id","date","number","type","value","code","text","email","address"].includes(label.toLowerCase()))?label:automationId||label,aliases:[],required:true};session.skill.parameters.push(parameter)}
+   if(!parameter){parameter={name,description:(label&&![ "name","id","date","number","type","value","code","text","email","address"].includes(label.toLowerCase()))?label:automationId||("Field "+String(Number(windowInfo.elementIndex)+1)),aliases:[],required:true};session.skill.parameters.push(parameter)}
    for(const alias of [label,automationId].filter(Boolean))if(!parameter.aliases.some(item=>String(item).toLowerCase()===alias.toLowerCase()))parameter.aliases.push(alias);
    selectedArgs={...input,text:"{{"+name+"}}"};
   }
