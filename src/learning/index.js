@@ -76,15 +76,24 @@ function match(userData,text){
  const query=tokens(n);if(query.size<2)return null;
  const ranked=[];
  for(const skill of skills){
-  let best=0;
-  for(const phrase of skill.trigger?.phrases||[]){
+  const triggerPhrases=Array.isArray(skill.trigger?.phrases)?skill.trigger.phrases:[];
+  let triggerScore=0;
+  for(const phrase of triggerPhrases){
    const trigger=tokens(phrase);if(trigger.size<2)continue;
    let overlap=0;for(const token of trigger)if(query.has(token))overlap++;
    const recall=overlap/trigger.size,precision=overlap/query.size;
-   const score=0.75*recall+0.25*precision;
-   if(score>best)best=score;
+   triggerScore=Math.max(triggerScore,0.75*recall+0.25*precision);
   }
-  if(best>=0.78)ranked.push({skill,score:best});
+  const metadata=skill.metadata&&typeof skill.metadata==="object"?skill.metadata:{};
+  const parameterTerms=(skill.parameters||[]).flatMap(parameter=>[parameter.name,...(parameter.aliases||[])]).join(" ");
+  const context=tokens([skill.name,skill.description,metadata.app,metadata.keywords,parameterTerms].filter(Boolean).join(" "));
+  let contextOverlap=0;for(const token of query)if(context.has(token))contextOverlap++;
+  const contextScore=contextOverlap/Math.max(1,query.size);
+  const stats=metadata.outcomes||{};
+  const successes=Math.max(0,Number(stats.successes)||0),failures=Math.max(0,Number(stats.failures)||0);
+  const qualityPenalty=failures>successes?0.10:0;
+  const score=Math.max(0,Math.min(1,triggerScore*0.9+contextScore*0.1-qualityPenalty));
+  if(score>=0.78)ranked.push({skill,score});
  }
  ranked.sort((a,b)=>b.score-a.score);
  if(!ranked.length||ranked.length>1&&ranked[0].score-ranked[1].score<0.15)return null;
