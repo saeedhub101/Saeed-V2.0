@@ -10,6 +10,7 @@ class SettingsStore{
  load(){
   const raw=this.read(),value={...DEFAULTS,...raw,permissions:{...DEFAULT_PERMISSIONS,...(raw.permissions||{})},characterBehavior:{...DEFAULTS.characterBehavior,...(raw.characterBehavior||{})},apiServices:{brain:true,stt:true,tts:true,...(raw.apiServices||{})},micMode:"off",brainMode:["api","local","auto"].includes(String(raw.brainMode||""))?String(raw.brainMode):"auto",apiKey:this.decrypt(raw.apiKey),fallbackApiKey:this.decrypt(raw.fallbackApiKey),sttApiKey:this.decrypt(raw.sttApiKey),ttsApiKey:this.decrypt(raw.ttsApiKey),realtimeApiKey:this.decrypt(raw.realtimeApiKey)};
   const allowedProviders=["openai","anthropic","gemini","groq","ollama","openai-compatible"];
+  if(!["local","openai","groq","elevenlabs","hakim"].includes(String(value.ttsProvider)))value.ttsProvider=DEFAULTS.ttsProvider;
   if(!allowedProviders.includes(String(value.provider)))value.provider=DEFAULTS.provider;
   if(!allowedProviders.includes(String(value.fallbackProvider)))value.fallbackProvider="";
   if(!["manual","notify","automatic"].includes(String(value.updateMode)))value.updateMode=DEFAULTS.updateMode;
