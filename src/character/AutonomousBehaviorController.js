@@ -11,16 +11,16 @@ const TEXT_REACTIONS=[
  {id:"affection",pattern:/(?:\b(i appreciate you|you are the best|love you|proud of you)\b|أحبك|بحبك|أقدرك|فخور بك|انت الأفضل|أنت الأفضل)/i,mood:"pleased",motion:"wave",expression:"happy"},
  {id:"boredom",pattern:/(?:\b(bored|boring|nothing to do|i'm tired of this)\b|طفشان|مللت|ممل|زهقان|لا يوجد شيء أفعله)/i,mood:"sleepy",motion:"stretch",expression:"sleepy"},
  {id:"question",pattern:/(?:\b(why|how|what|when|where|who|which|can you|could you|would you|is it|are you|explain)\b|كيف|لماذا|ليش|شو|ماذا|متى|أين|وين|هل|اشرح)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
+ {id:"confusion",pattern:/(?:\b(i don't understand|i do not understand|confused|what do you mean)\b|مش فاهم|مش فاهمة|لم أفهم|ماذا تقصد)/i,mood:"curious",motion:"think",expression:"confused"},
  {id:"excitement",pattern:/(?:\b(wow|awesome|fantastic|amazing|excited|love it|perfect|yes!)\b|واو|رائع جدا|ممتاز جدا|يا سلام|مذهل|متحمس)/i,mood:"cheerful",motion:"dance",expression:"happy"},
  {id:"sadness",pattern:/(?:\b(sad|upset|lonely|bad day|disappointed|sorry to hear)\b|حزين|زعلان|متضايق|وحيد|يوم سيء|آسف)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
  {id:"affirmation",pattern:/(?:\b(yes|yeah|yep|correct|exactly|agreed|sure|okay|ok)\b|نعم|اه|آه|تمام|صحيح|بالضبط|موافق)/i,mood:"pleased",motion:"nod",expression:"happy"},
  {id:"disagreement",pattern:/(?:\b(no|nope|not really|disagree|incorrect|that's wrong)\b|لا|مش صحيح|غير صحيح|بالعكس|خطأ)/i,mood:"puzzled",motion:"shake",expression:"confused"},
  {id:"greeting",pattern:/(?:\b(hello|hi|hey|good morning|good evening)\b|مرحبا|اهلا|أهلا|السلام عليكم|صباح الخير|مساء الخير)/i,mood:"cheerful",motion:"wave",expression:"happy"},
- {id:"thanks",pattern:/(?:\b(thanks|thank you|thx|much appreciated)\b|شكرا|شكرًا|يسلمو|مشكور|ممتاز)/i,mood:"pleased",motion:"nod",expression:"happy"},
+ {id:"thanks",pattern:/(?:\b(thanks|thank you|thx|much appreciated)\b|شكرا|شكرًا|يسلمو|مشكور)/i,mood:"pleased",motion:"nod",expression:"happy"},
  {id:"praise",pattern:/(?:\b(great job|well done|amazing|awesome|brilliant|you are great)\b|رائع|مبدع|أحسنت|احسنت|ممتاز جدا)/i,mood:"mischievous",motion:"dance",expression:"happy"},
  {id:"frustration",pattern:/(?:\b(doesn't work|does not work|broken|wrong|annoying|frustrated|failed|error)\b|ما اشتغل|لا يعمل|خطأ|غلط|فاشل|مزعج)/i,mood:"thoughtful",motion:"think",expression:"confused"},
  {id:"farewell",pattern:/(?:\b(bye|goodbye|see you|good night)\b|تصبح على خير|مع السلامة|الى اللقاء|إلى اللقاء)/i,mood:"pleased",motion:"wave",expression:"happy"},
- {id:"confusion",pattern:/(?:\b(i don't understand|i do not understand|confused|what do you mean)\b|مش فاهم|مش فاهمة|لم أفهم|ماذا تقصد)/i,mood:"curious",motion:"think",expression:"confused"}
 ];
 
 export class AutonomousBehaviorController{
@@ -243,7 +243,7 @@ export class AutonomousBehaviorController{
   if(ok)this.intent="attending";
   return ok;
  }
- onUserInteraction(event={}){this.touch();return this.handleEvent(event)}
+ onUserInteraction(event={}){return this.handleEvent(event)}
  onStateChanged(state){
   if(state?.intent){
    const next=String(state.intent).toLowerCase();
