@@ -26,10 +26,10 @@ class Brain{
  }
  async run({text,image=null,history=[],isCurrent=()=>true,signal=null,forceApi=false}={}){
   const current=()=>{try{return !signal?.aborted&&(typeof isCurrent==="function"?Boolean(isCurrent()):true)}catch{return false}};
-  const taskEngine=require("./task-engine");let taskRun=null,taskPersistenceWarned=false;const experienceTools=[];let experienceFailureTool="";
+  const taskEngine=require("./task-engine");let taskRun=null,taskPersistenceWarned=false;const experienceTools=[],experienceSteps=[];let experienceFailureTool="";
   const emit=event=>{
    if(!current())return;
-   if(event?.type==="tool"&&typeof event.name==="string"&&event.name!=="task_plan")experienceTools.push(event.name);
+   if(event?.type==="tool"&&typeof event.name==="string"&&event.name!=="task_plan"){experienceTools.push(event.name);experienceSteps.push({name:event.name,fields:Object.keys(event.args&&typeof event.args==="object"?event.args:{})});}
    if(event?.type==="tool_error"&&typeof event.name==="string")experienceFailureTool=event.name;
    if(taskRun){
     try{
@@ -63,10 +63,10 @@ class Brain{
     try{
      const memory=experienceMemory();
      if(actualStatus==="finished"&&!failed&&!incompletePlan&&!unverifiedAction&&verifiedAfterLastAction){
-      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,outcome:"success",verified:true});
+      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,steps:experienceSteps,outcome:"success",verified:true});
       if(learned.saved)this.onEvent({type:"learning-experience",outcome:"success",id:learned.id,goal:s,toolCount:experienceTools.length});
      }else if(actualStatus==="needs_attention"&&experienceFailureTool&&experienceTools.length>=2){
-      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,outcome:"failure",failureTool:experienceFailureTool,verified:false});
+      const learned=memory.record(this.getDir(),{goal:s,tools:experienceTools,steps:experienceSteps,outcome:"failure",failureTool:experienceFailureTool,verified:false});
       if(learned.saved)this.onEvent({type:"learning-experience",outcome:"failure",id:learned.id,goal:s,toolCount:experienceTools.length});
      }
     }catch(error){this.onEvent({type:"diagnostic",level:"WARN",stage:"EXPERIENCE LEARNING",message:"Task experience could not be saved: "+String(error?.message||error).replace(/[\\r\\n\\t]+/g," ").slice(0,180)});}
