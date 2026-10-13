@@ -39,6 +39,7 @@ export class AutonomousBehaviorController{
   this.sleeping=false;
   this.recent=[];
   this.lastMotionAt=0;
+  this.lastCasualMotionAt=0;
   this.cooldownMs=2500;
   this.mood="cheerful";this.baseMood="cheerful";this.moodUntil=0;this.lastReactionAt=0;this.lastReactionId=null;this.lastGazeAt=0;this.eventCounts=new Map();this.breathTime=0;this.settings={idle:true,blinking:true,expressions:true,speechFace:true,eyeTracking:true,autonomousMovement:true,random:true,idleThoughts:true,events:true,greeting:true,dancing:true,sleep:true,speakingCycle:true,thinkingCycle:true,frequencyMs:7000,eventCooldownMs:2500,sleepAfterMs:SLEEP_AFTER_MS};
  }
@@ -248,13 +249,20 @@ export class AutonomousBehaviorController{
   if(this.character?.authoring)return false;
   const active=[...(this.character?.animation?.active||[])];
   for(const item of active){if(Number(item?.priority??0)<=20&&item?.m?.id)this.character.animation.stop(item.m.id)}
+  this.lastCasualMotionAt=0;
   return active.length>0;
  }
  playMotion(motion,options={}){
   const registry=this.character?.animation?.registry;
   if(registry?.get&&!registry.get(motion)){this.lastMotionReason="skipped: unregistered motion "+String(motion);return false}
+  const priority=Number(options.priority??0),now=performance.now();
+  if(priority<=20){
+   if(now-this.lastCasualMotionAt<2500){this.lastMotionReason="skipped: casual-motion throttle";return false}
+   if((this.character?.animation?.active||[]).length>=2){this.lastMotionReason="skipped: casual-motion queue limit";return false}
+  }
   const ok=Boolean(this.character?.play?.(motion,options));
-  this.lastMotionReason=ok?"played "+String(motion)+" at priority "+String(options.priority??0):"skipped: motion controller rejected "+String(motion);
+  if(ok&&priority<=20)this.lastCasualMotionAt=now;
+  this.lastMotionReason=ok?"played "+String(motion)+" at priority "+String(priority):"skipped: motion controller rejected "+String(motion);
   return ok;
  }
  react(reaction){
