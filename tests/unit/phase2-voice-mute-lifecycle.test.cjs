@@ -43,3 +43,12 @@ test("renderer respects TTS readiness and stops output when the character audio 
  assert.match(renderer,/if\(!text\|\|voiceMuted\|\|!ttsReady\)return;\s*window\.saeedShowMessage/);
  assert.match(renderer,/onVoiceTts\?\.\(state=>\{ttsReady=String\(state\|\|""\)==="ready";if\(!ttsReady\)stopSpeaking\(\)/);
 });
+
+test("delayed local TTS and stale utterance callbacks cannot restart or cancel newer speech",()=>{
+ const renderer=fs.readFileSync(path.join(__dirname,"../../src/renderer/voice/voice-client.js"),"utf8");
+ assert.match(renderer,/pendingSpeechStarts=new Set\(\)/);
+ assert.match(renderer,/for\(const timer of pendingSpeechStarts\)clearTimeout\(timer\)/);
+ assert.match(renderer,/generation===outputGeneration&&!voiceMuted&&ttsReady\)window\.speechSynthesis\.speak\(u\)/);
+ assert.match(renderer,/u\.onend=\(\)=>\{if\(generation!==outputGeneration\)return/);
+ assert.match(renderer,/src\.onended=\(\)=>\{mic\.audioSources\.delete\(src\);if\(generation!==outputGeneration\)return/);
+});
