@@ -10,7 +10,7 @@ const TEXT_REACTIONS=[
  {id:"empathy",pattern:/(?:\b(having a hard time|rough day|i feel terrible|i feel bad|i am struggling|i'm struggling)\b|يوم صعب|أشعر بالسوء|تعبان نفسيا|أعاني|الأمور صعبة)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
  {id:"celebration",pattern:/(?:\b(i did it|we did it|finally worked|it worked|problem solved|we made it)\b|نجحت|زبطت|اشتغل|انحلت المشكلة|حليناها|أخيرا نجح)/i,mood:"cheerful",motion:"clap",expression:"happy"},
  {id:"curiosity",pattern:/(?:\b(i wonder|interesting|tell me more|i am curious|i'm curious)\b|مثير للاهتمام|احكيلي أكثر|أخبرني المزيد|عندي فضول|غريب فعلا)/i,mood:"curious",motion:"lookCloser",expression:"surprised"},
- {id:"worry",pattern:/(?:\b(worried|anxious|nervous|scared|afraid|concerned|i am stressed|i'm stressed)\b|قلقان|قلقة|متوتر|متوترة|خائف|خايف|خايفة|أشعر بالقلق|حاسس بضغط)/i,mood:"thoughtful",motion:"think",expression:"sad"},
+
  {id:"urgency",pattern:/(?:\b(urgent|asap|emergency|quickly|hurry|right now)\b|بسرعة|مستعجل|ضروري جدا|حالا|فورا)/i,mood:"puzzled",motion:"lookCloser",expression:"surprised"},
  {id:"apology",pattern:/(?:\b(i am sorry|i'm sorry|my apologies|forgive me|sorry about that)\b|آسف|اسف|أعتذر|اعتذر|سامحني|حقك علي)/i,mood:"thoughtful",motion:"nod",expression:"sad"},
  {id:"encouragement",pattern:/(?:\b(you can do it|keep going|don't give up|well try again|you've got this)\b|تقدر|استمر|لا تستسلم|حاول مرة أخرى|أنت قادر)/i,mood:"cheerful",motion:"nod",expression:"happy"},
