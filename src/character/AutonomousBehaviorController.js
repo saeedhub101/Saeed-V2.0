@@ -117,7 +117,7 @@ export class AutonomousBehaviorController{
   },Math.max(60000,Number(this.settings.sleepAfterMs)||SLEEP_AFTER_MS));
  }
  chooseWeighted(candidates,weights={}){
-  const available=[...new Set((candidates||[]).filter(id=>typeof id==="string"&&this.character?.animation?.registry?.get?.(id)&&!(this.settings.dancing===false&&id==="dance")))];
+  const available=[...new Set((candidates||[]).filter(id=>typeof id==="string"&&this.character?.animation?.registry?.get?.(id)&&!(this.settings.dancing===false&&id==="dance")&&!(this.settings.walking===false&&["walk","walking","step","run"].includes(String(id).toLowerCase()))))];
   if(!available.length)return null;
   const fresh=available.filter(id=>!this.recent.includes(id));
   const source=fresh.length?fresh:available;
@@ -146,7 +146,7 @@ export class AutonomousBehaviorController{
   const lowEnergy=this.energy<40||night,highEnergy=this.energy>=70;
   const calm=new Set(["nod","think","yawn","stretch","lookCloser"]);
   const pool=lowEnergy?available.filter(id=>calm.has(id)):available;
-  const weights={wave:1.1,nod:1.2,think:this.settings.idleThoughts===false?.05:1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
+  const weights={wave:1.1,nod:1.2,think:this.settings.idleThoughts===false ? .05 : 1.1,stretch:1,lookCloser:1.15,yawn:lowEnergy?1.8:.35,crackBack:.8,crackFingers:.85,dance:night?.2:(highEnergy&&morning?1.45:.7)};
   if(this.mood==="curious"){weights.lookCloser=(weights.lookCloser||1)*1.8;weights.think=(weights.think||1)*1.25}
   if(this.mood==="pleased"||this.mood==="cheerful"){weights.wave=(weights.wave||1)*1.35;weights.nod=(weights.nod||1)*1.2}
   if(this.mood==="thoughtful"||this.mood==="sad"||this.mood==="sleepy"){weights.yawn=(weights.yawn||1)*1.25;weights.dance=(weights.dance||1)*.25}
