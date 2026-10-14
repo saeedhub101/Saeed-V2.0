@@ -97,7 +97,7 @@ export class AutonomousBehaviorController{
  setSpeechExpression(name,intensity=.5){if(this.settings.speechFace===false)return false;return this.setExpression(name,intensity)}
  expressionForMood(){return ({cheerful:"happy",curious:"surprised",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"})[this.mood]||"neutral"}
  configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.settings.speakingCycle===false)this.clearSpeakingTimer();if(this.settings.thinkingCycle===false)this.clearThinkingTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking"&&this.settings.speakingCycle!==false)this.scheduleSpeakingGesture();if(this.intent==="thinking"&&this.settings.thinkingCycle!==false)this.scheduleThinkingGesture()}return {...this.settings}}
- armBlinkTimer(){this.clearBlinkTimer();if(!this.running||this.paused||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||this.paused||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
+ armBlinkTimer(){this.clearBlinkTimer();if(!this.running||this.paused||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||this.paused||!this.visible||!this.windowFocused||this.userBusy||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
  setPaused(value){
   const paused=Boolean(value);
   if(this.paused===paused)return true;
@@ -113,6 +113,7 @@ export class AutonomousBehaviorController{
   if(busy){
    this.clearTimer();
    this.clearSleepTimer();
+   this.clearBlinkTimer();
    this.clearCycleTimers();
    this.interruptLowPriorityMotions();
    if(!["speaking","thinking","doing","reacting","being-moved"].includes(this.intent)){this.intent="busy";}
@@ -127,7 +128,7 @@ export class AutonomousBehaviorController{
   const focused=Boolean(value);
   if(this.windowFocused===focused)return true;
   this.windowFocused=focused;
-  if(!focused){this.clearTimer();this.clearSleepTimer();this.clearCycleTimers();this.interruptLowPriorityMotions();this.lastMotionReason="paused: application window unfocused";return true;}
+  if(!focused){this.clearTimer();this.clearSleepTimer();this.clearBlinkTimer();this.clearCycleTimers();this.interruptLowPriorityMotions();this.lastMotionReason="paused: application window unfocused";return true;}
   if(this.running&&this.visible&&!this.sleeping&&!this.userBusy){this.schedule(1200);this.armSleepTimer();if(this.intent==="speaking")this.scheduleSpeakingGesture();if(this.intent==="thinking")this.scheduleThinkingGesture();}
   return true;
  }
@@ -410,7 +411,13 @@ export class AutonomousBehaviorController{
  }
  handleEvent(event){
   const type=typeof event==="string"?event:String(event?.type||"").toLowerCase();
-  if(!this.running||this.paused||!this.visible)return false;
+  if(!this.running||!this.visible)return false;
+  if(this.paused){
+   if(["speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","chat-end","assistant-cancelled","request-cancelled"].includes(type)){this.clearCycleTimers();this.intent="idle";return true;}
+   if(type==="speech-start"||type==="assistant-speech-start"){this.clearCycleTimers();this.intent="speaking";return true;}
+   if(type==="thinking"||type==="assistant-thinking"||type==="tool-progress"){this.clearCycleTimers();this.intent="thinking";return true;}
+   return false;
+  }
   this.lastEvent=type;
   this.eventCounts.set(type,(this.eventCounts.get(type)||0)+1);
   const lifecycleEvents=["speech-start","assistant-speech-start","speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","thinking","assistant-thinking","chat-end","assistant-cancelled","request-cancelled","app-focus","wake"];
