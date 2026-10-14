@@ -161,5 +161,11 @@ test("busy-state suppresses casual motion and resumes the autonomous scheduler",
  assert.equal(behavior.handleEvent({type:"user-busy-end"}),true);
  assert.equal(behavior.getStatus().userBusy,false);
  assert.equal(behavior.getStatus().activeTimers.idle,true);
+ assert.equal(behavior.setWindowFocused(false),true);
+ assert.equal(behavior.getStatus().windowFocused,false);
+ behavior.schedule(1000);
+ assert.equal(behavior.getStatus().activeTimers.idle,false);
+ assert.equal(behavior.setWindowFocused(true),true);
+ assert.equal(behavior.getStatus().windowFocused,true);
  behavior.stop();
 });
