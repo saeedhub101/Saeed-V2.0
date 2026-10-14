@@ -127,9 +127,9 @@ jobs:
         timeout-minutes: 5
         run: |
           $ErrorActionPreference = "Stop"
-          $exe = "dist\\win-unpacked\\Saeed AI.exe"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe)) { throw "Character behavior check cannot start: packaged executable is missing: $exe" }
-          $report = Join-Path $PWD "dist\\ci-character-behavior.json"
+          $report = Join-Path $PWD "dist\ci-character-behavior.json"
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-character-behavior.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-character-behavior.stderr.log"
           $userData = Join-Path $env:RUNNER_TEMP "saeed-character-behavior-user-data"
