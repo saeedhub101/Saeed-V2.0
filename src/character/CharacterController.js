@@ -416,7 +416,7 @@ export class CharacterController{
  destroy(){this.rigReady=false;this.binding=false;this.lastBindingResult=null;this.clearIdleTimer();this.autonomous?.destroy?.();this.animation?.stopAll?.();this.engine?.setAnimationTick?.(null);if(this.frame){cancelAnimationFrame(this.frame);this.frame=null}this.visible=false;this.engine=null;return true}
  status(){
   let a=this.engine?.getCharacterPoseStatus?.()||{},mapped=this.engine?.getBoneMap?.()||{};
-  if(a.loaded&&!Object.keys(mapped).length){
+  if(a.loaded&&(!this.characterId||!Object.keys(mapped).length)){
    try{this.onCharacterLoaded?.()}catch{}
    a=this.engine?.getCharacterPoseStatus?.()||a;
    mapped=this.engine?.getBoneMap?.()||mapped;
