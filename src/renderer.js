@@ -42,6 +42,7 @@ let busy=false,pendingImage=null,attachments=[];
 let realtimeConnected=false;
 async function send(){
  if(busy)return;let t=$("input").value.trim();if(!t&&!attachments.length)return;
+ void window.saeed.character.characterController({action:"behaviorEvent",event:{type:"user-input",text:t}}).catch(()=>{});
  if(attachments.length){t=(t?t+"\n\n":"")+"[مرفقات]\n"+attachments.map(a=>"--- "+a.name+" ---\n"+a.text).join("\n");attachments=[];renderAttachments()}
  busy=true;$("input").value="";add("user",t);$("status").textContent="يفكر...";
  const image=pendingImage;pendingImage=null;
@@ -50,6 +51,10 @@ async function send(){
  finally{busy=false;$("status").textContent="جاهز";refreshChatTabs()}
 }
 function renderAttachments(){$("attachments").textContent=attachments.length?attachments.map(a=>a.name).join(" • "):""}
+const chatInput=$("input");
+function setCharacterBusy(value){void window.saeed.character.characterController({action:"setUserBusy",value:Boolean(value)}).catch(()=>{})}
+chatInput?.addEventListener("focus",()=>setCharacterBusy(true));
+chatInput?.addEventListener("blur",()=>setCharacterBusy(false));
 $("send").onclick=send;
 $("togglePanel").onclick=()=>window.saeed.chat.minimizeChat();
 const chatPanel=$("panel");window.saeed.chat.setChatMousePassthrough(false);$("input").ondblclick=()=>window.saeed.chat.showChat();
