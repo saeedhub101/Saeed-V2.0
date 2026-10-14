@@ -182,7 +182,7 @@ async function runCiRestPoseRestart(mode){
  try{fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+"\n","utf8")}catch(error){report.passed=false;report.error=String(error?.stack||error);console.error("Could not write rest-pose restart report:",report.error)}
  console.log("REST_POSE_RESTART_"+String(mode).toUpperCase()+"="+(report.passed?"PASS":"FAIL"));
  console.log(JSON.stringify(report,null,2));
- setTimeout(()=>app.exit(report.passed?0:1),150);
+ setTimeout(async()=>{try{await session.defaultSession.flushStorageData()}catch(error){console.error("CI storage flush failed:",error?.message||String(error))}app.exit(report.passed?0:1)},150);
 }
 
 async function runCiProductAcceptance(){
@@ -360,7 +360,7 @@ async function runCiProductAcceptance(){
  try{fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+"\n","utf8")}catch(error){report.passed=false;report.error=String(error?.stack||error);console.error("Could not write packaged acceptance report:",report.error)}
  console.log("PACKAGED_RUNTIME_ACCEPTANCE="+(report.passed?"PASS":"FAIL"));
  console.log(JSON.stringify(report,null,2));
- setTimeout(()=>app.exit(report.passed?0:1),150);
+ setTimeout(async()=>{try{await session.defaultSession.flushStorageData()}catch(error){console.error("CI storage flush failed:",error?.message||String(error))}app.exit(report.passed?0:1)},150);
 }
 
 
@@ -508,7 +508,7 @@ async function runCiCharacterRigBuilder(mode){
  try{fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify(report,null,2)+"\n","utf8")}catch(error){report.passed=false;report.error=String(error?.stack||error);console.error("Could not write Character Engine/Rig Builder report:",report.error)}
  console.log("CHARACTER_ENGINE_RIG_BUILDER_"+String(mode).toUpperCase()+"="+(report.passed?"PASS":"FAIL"));
  console.log(JSON.stringify(report,null,2));
- setTimeout(()=>app.exit(report.passed?0:1),200);
+ setTimeout(async()=>{try{await session.defaultSession.flushStorageData()}catch(error){console.error("CI storage flush failed:",error?.message||String(error))}app.exit(report.passed?0:1)},200);
 }
 
 async function createWindow(){await createCharacterWindow()}
