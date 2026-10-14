@@ -260,23 +260,23 @@ export class AutonomousBehaviorController{
  }
  evaluateNow(){
   if(!this.running||!this.visible||!this.windowFocused||this.sleeping||this.userBusy||this.settings.idle===false)return false;
-  if(this.settings.autonomousMovement===false){this.schedule(DEFAULT_IDLE_DELAY);return false;}
+  if(this.settings.autonomousMovement===false){this.schedule();return false;}
   this.decayEnergy();
   if(["speaking","thinking","doing","being-moved"].includes(this.intent)){
-   this.schedule(DEFAULT_IDLE_DELAY);
+   this.schedule();
    return false;
   }
   this.restoreMoodIfDue();
-  if(this.character.animation?.active?.length){this.schedule(DEFAULT_IDLE_DELAY);return false}
+  if(this.character.animation?.active?.length){this.schedule();return false}
   if(performance.now()-this.lastMotionAt<this.cooldownMs){this.schedule(this.cooldownMs);return false}
   const id=this.chooseIdle();
-  if(!id){this.schedule(DEFAULT_IDLE_DELAY);return false}
+  if(!id){this.schedule();return false}
   this.intent="idle";
   this.lastMotionAt=performance.now();
   const intensity=Math.max(.25,Math.min(1,this.energy/70));
   const played=this.character.play(id,{priority:10,intensity});
   if(played&&this.settings.autonomousMovement!==false&&this.settings.eyeTracking!==false&&Math.random()<.68)this.lookAround();
-  this.schedule(DEFAULT_IDLE_DELAY);
+  this.schedule();
   return Boolean(played);
  }
  lookAround(){
