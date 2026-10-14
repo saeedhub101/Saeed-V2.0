@@ -688,6 +688,40 @@ function buildProceduralRig(templateName="full",options={}){
  }catch(error){for(const item of created){try{item.skinned.parent?.remove(item.skinned);item.originalParent?.add(item.mesh)}catch{}try{item.skinned.geometry?.dispose()}catch{}}try{rootBone.parent?.remove(rootBone)}catch{}getSceneBones();render();return{ok:false,error:error?.stack||error?.message||String(error)}}
 }
 
+
+function getDeformationSnapshot(maxSamples=2400){
+ if(!model)return{ok:false,error:"No character model is loaded",meshes:[],samples:[]};
+ model.updateMatrixWorld(true);
+ const meshes=[],samples=[];let vertexCount=0,weightedVertices=0,invalidWeightSums=0,nonFiniteWeights=0,nonFinitePositions=0,skinnedMeshCount=0;
+ const cap=Math.max(100,Math.min(10000,Number(maxSamples)||2400));
+ model.traverse(mesh=>{
+  if(!mesh.isSkinnedMesh||!mesh.geometry?.attributes?.position)return;
+  skinnedMeshCount++;mesh.skeleton?.update?.();
+  const g=mesh.geometry,pos=g.attributes.position,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,count=pos.count;
+  vertexCount+=count;
+  if(si&&sw){
+   for(let i=0;i<count;i++){
+    const sum=sw.getX(i)+sw.getY(i)+sw.getZ(i)+sw.getW(i);
+    if(!Number.isFinite(sum))nonFiniteWeights++;
+    else if(Math.abs(sum-1)>.06||sum<.94||sum>1.06)invalidWeightSums++;
+    if(sw.getX(i)>.001||sw.getY(i)>.001||sw.getZ(i)>.001||sw.getW(i)>.001)weightedVertices++;
+   }
+  }
+  const stride=Math.max(1,Math.ceil(count/(cap/Math.max(1,model.children.length))));
+  const vector=new THREE.Vector3();let sampled=0;
+  for(let i=0;i<count;i+=stride){
+   let v;
+   try{v=mesh.getVertexPosition(i,vector)}catch{v=vector.fromBufferAttribute(pos,i)}
+   if(!v||![v.x,v.y,v.z].every(Number.isFinite)){nonFinitePositions++;continue}
+   samples.push({key:String(mesh.name||"mesh")+":"+i,p:[Number(v.x),Number(v.y),Number(v.z)]});sampled++;
+  }
+  meshes.push({name:String(mesh.name||""),vertices:count,sampled,hasSkinIndex:Boolean(si),hasSkinWeight:Boolean(sw),boneCount:mesh.skeleton?.bones?.length||0});
+ });
+ const coords=samples.map(s=>s.p),flat=coords.flat(),finiteBounds=flat.length>0&&flat.every(Number.isFinite);
+ const bounds=finiteBounds?{min:[0,1,2].map(axis=>Math.min(...coords.map(p=>p[axis]))),max:[0,1,2].map(axis=>Math.max(...coords.map(p=>p[axis])))}:null;
+ return{ok:skinnedMeshCount>0&&samples.length>0,skinnedMeshCount,meshCount:meshes.length,meshes,vertexCount,sampleCount:samples.length,weightedVertices,invalidWeightSums,nonFiniteWeights,nonFinitePositions,finiteBounds,bounds,samples};
+}
+
 function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}const previous=model;model=null;if(previous){try{root.remove(previous)}catch{}try{dispose(previous)}catch(error){traceGlb("destroy-model-dispose-error",{error:error?.message||String(error)})}}rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}try{renderer.forceContextLoss?.()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
@@ -731,7 +765,7 @@ window.saeedCharacterRuntime.engine={
  getBoneRotation,getBonePosition,getBoneEditorRotation,setBoneRotation,setBonePosition,setBoneEditorRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,fixTPoseArmsDown,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,
- getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,setEditorRotation,getEditorRotation,
+ getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,getDeformationSnapshot,setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,

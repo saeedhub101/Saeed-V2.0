@@ -122,6 +122,67 @@ jobs:
 
       - name: Build Windows installer and unpacked runtime
         run: npm run dist
+
+      - name: character ebgine, rig builder
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\\win-unpacked\\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Character Engine/Rig Builder test cannot start: packaged EXE is missing." }
+          node scripts/create-ci-static-humanoid-glb.js dist/ci-static-humanoid.glb
+          if ($LASTEXITCODE -ne 0 -or !(Test-Path "dist/ci-static-humanoid.glb")) { throw "Could not generate the static humanoid GLB fixture." }
+          $userData = Join-Path $env:RUNNER_TEMP "saeed-character-rig-user-data"
+          $state = Join-Path $env:RUNNER_TEMP "saeed-character-rig-restart-state.json"
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_USER_DATA = $userData
+          $env:SAEED_CI_RIG_FIXTURE = (Resolve-Path "dist/ci-static-humanoid.glb").Path
+          $env:SAEED_CI_RIG_STATE = $state
+          $env:SAEED_CI_RIG_REPORT = (Join-Path $PWD "dist/ci-character-rig-builder-save.json")
+          $env:SAEED_CI_RIG_SCREENSHOT_BEFORE = (Join-Path $PWD "dist/ci-character-rig-builder-before.png")
+          $env:SAEED_CI_RIG_SCREENSHOT_AFTER = (Join-Path $PWD "dist/ci-character-rig-builder-after.png")
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-character-rig-save.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-character-rig-save.stderr.log"
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-character-rig-builder-save" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline = (Get-Date).AddMinutes(4)
+          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Character Engine/Rig Builder save test timed out." }
+          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+          $saveReport = "dist/ci-character-rig-builder-save.json"
+          if (!(Test-Path $saveReport)) { throw "Character Engine/Rig Builder save report is missing. $outText $errText" }
+          $saved = Get-Content $saveReport -Raw | ConvertFrom-Json
+          $failed = @($saved.checks | Where-Object { !$_.passed })
+          if ($proc.ExitCode -ne 0 -or !$saved.passed -or $failed.Count -gt 0 -or $saved.checks.Count -lt 15) {
+            Write-Host $outText; Write-Host $errText; Write-Host (Get-Content $saveReport -Raw)
+            throw "Character Engine/Rig Builder save test failed: exit=$($proc.ExitCode), checks=$($saved.checks.Count), failures=$($failed.Count)."
+          }
+          foreach ($shot in @("dist/ci-character-rig-builder-before.png","dist/ci-character-rig-builder-after.png")) {
+            if (!(Test-Path $shot) -or (Get-Item $shot).Length -lt 1000) { throw "Visual deformation screenshot missing or invalid: $shot" }
+          }
+          Write-Host "CHARACTER_ENGINE_RIG_BUILDER_SAVE=PASS ($($saved.checks.Count) real-runtime checks)"
+          Write-Host (Get-Content $saveReport -Raw)
+          $env:SAEED_CI_RIG_REPORT = (Join-Path $PWD "dist/ci-character-rig-builder-verify.json")
+          $env:SAEED_CI_RIG_SCREENSHOT_RESTART = (Join-Path $PWD "dist/ci-character-rig-builder-restart.png")
+          $verifyOut = Join-Path $env:RUNNER_TEMP "saeed-character-rig-verify.stdout.log"
+          $verifyErr = Join-Path $env:RUNNER_TEMP "saeed-character-rig-verify.stderr.log"
+          $verify = Start-Process -FilePath $exe -ArgumentList "--ci-character-rig-builder-verify" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $verifyOut -RedirectStandardError $verifyErr
+          $verifyDeadline = (Get-Date).AddMinutes(4)
+          while (!$verify.HasExited -and (Get-Date) -lt $verifyDeadline) { Start-Sleep -Seconds 1 }
+          if (!$verify.HasExited) { & taskkill.exe /PID $verify.Id /T /F | Out-Null; throw "Character Engine/Rig Builder restart verification timed out." }
+          $verifyText = if (Test-Path $verifyOut) { Get-Content $verifyOut -Raw } else { "" }
+          $verifyError = if (Test-Path $verifyErr) { Get-Content $verifyErr -Raw } else { "" }
+          $verifyReport = "dist/ci-character-rig-builder-verify.json"
+          if (!(Test-Path $verifyReport)) { throw "Character Engine/Rig Builder restart report is missing. $verifyText $verifyError" }
+          $restored = Get-Content $verifyReport -Raw | ConvertFrom-Json
+          $restartFailed = @($restored.checks | Where-Object { !$_.passed })
+          if ($verify.ExitCode -ne 0 -or !$restored.passed -or $restartFailed.Count -gt 0 -or $restored.checks.Count -lt 6) {
+            Write-Host $verifyText; Write-Host $verifyError; Write-Host (Get-Content $verifyReport -Raw)
+            throw "Character Engine/Rig Builder restart verification failed: exit=$($verify.ExitCode), checks=$($restored.checks.Count), failures=$($restartFailed.Count)."
+          }
+          Write-Host "CHARACTER_ENGINE_RIG_BUILDER_RESTART=PASS ($($restored.checks.Count) real-runtime checks)"
+          Write-Host (Get-Content $verifyReport -Raw)
+
       - name: Character, behavior
         shell: pwsh
         timeout-minutes: 5
@@ -276,6 +337,9 @@ jobs:
             dist/latest.yml
             dist/ci-product-acceptance.json
             dist/ci-character-behavior.json
+            dist/ci-character-rig-builder-*.json
+            dist/ci-character-rig-builder-*.png
+            dist/ci-static-humanoid.glb
             dist/ci-rest-pose-save.json
             dist/ci-rest-pose-verify.json
             THIRD_PARTY_NOTICES.txt

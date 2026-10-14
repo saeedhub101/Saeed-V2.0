@@ -5,7 +5,7 @@ async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
  const lightweight=action==="status"||action==="listMotions"||action==="setUserBusy"||action==="behaviorEvent";
- const needsBones=action==="fixTPose"||action==="setAxisFix"||action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
+ const needsBones=action==="buildProceduralRig"||action==="fixTPose"||action==="setAxisFix"||action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
  const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
@@ -20,7 +20,7 @@ async function executeCharacterCommand(command={}){
    try{
     const engineStatus=engine?.getCharacterPoseStatus?.();
     const names=engine?.getAvailableBoneNames?.()||[];
-    if(engineStatus?.loaded&&names.length){
+    if(engineStatus?.loaded&&(names.length||action==="buildProceduralRig")){
      if(requiresRig){
       const current=c.status?.();
       if(current?.characterLoaded&&!Object.keys(current?.autoRig||{}).length){
@@ -39,7 +39,7 @@ async function executeCharacterCommand(command={}){
  try{
   const finalPose=engine?.getCharacterPoseStatus?.()||{};
   const finalNames=engine?.getAvailableBoneNames?.()||[];
-  if(!finalPose?.loaded||!finalNames.length)characterDiagnostic("ERROR","CHARACTER SKELETON UNAVAILABLE","Authoritative Character Engine has no exposed GLB skeleton bones",{action,loaded:Boolean(finalPose?.loaded),boneCount:finalNames.length,pose:finalPose});
+  if((!finalPose?.loaded||!finalNames.length)&&action!=="buildProceduralRig")characterDiagnostic("ERROR","CHARACTER SKELETON UNAVAILABLE","Authoritative Character Engine has no exposed GLB skeleton bones",{action,loaded:Boolean(finalPose?.loaded),boneCount:finalNames.length,pose:finalPose});
   if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
   if(x.action==="stop"){const ok=c.stop(x.motion);return{ok,status:c.status()}}
   if(x.action==="stopAll"){const ok=c.stopAll();return{ok,status:c.status()}}
