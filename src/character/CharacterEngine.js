@@ -692,10 +692,12 @@ function buildProceduralRig(templateName="full",options={}){
 function getDeformationSnapshot(maxSamples=2400){
  if(!model)return{ok:false,error:"No character model is loaded",meshes:[],samples:[]};
  model.updateMatrixWorld(true);
- const meshes=[],samples=[];let vertexCount=0,weightedVertices=0,invalidWeightSums=0,nonFiniteWeights=0,nonFinitePositions=0,skinnedMeshCount=0;
+ const meshes=[],samples=[];let vertexCount=0,weightedVertices=0,invalidWeightSums=0,nonFiniteWeights=0,nonFinitePositions=0,skinnedMeshCount=0,meshCount=0;
  const cap=Math.max(100,Math.min(10000,Number(maxSamples)||2400));
  model.traverse(mesh=>{
-  if(!mesh.isSkinnedMesh||!mesh.geometry?.attributes?.position)return;
+  if(!mesh.isMesh||!mesh.geometry?.attributes?.position)return;
+  meshCount++;
+  if(!mesh.isSkinnedMesh)return;
   skinnedMeshCount++;mesh.skeleton?.update?.();
   const g=mesh.geometry,pos=g.attributes.position,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,count=pos.count;
   vertexCount+=count;
@@ -719,7 +721,7 @@ function getDeformationSnapshot(maxSamples=2400){
  });
  const coords=samples.map(s=>s.p),flat=coords.flat(),finiteBounds=flat.length>0&&flat.every(Number.isFinite);
  const bounds=finiteBounds?{min:[0,1,2].map(axis=>Math.min(...coords.map(p=>p[axis]))),max:[0,1,2].map(axis=>Math.max(...coords.map(p=>p[axis])))}:null;
- return{ok:skinnedMeshCount>0&&samples.length>0,skinnedMeshCount,meshCount:meshes.length,meshes,vertexCount,sampleCount:samples.length,weightedVertices,invalidWeightSums,nonFiniteWeights,nonFinitePositions,finiteBounds,bounds,samples};
+ return{ok:skinnedMeshCount>0&&samples.length>0,skinnedMeshCount,meshCount,meshes,vertexCount,sampleCount:samples.length,weightedVertices,invalidWeightSums,nonFiniteWeights,nonFinitePositions,finiteBounds,bounds,samples};
 }
 
 function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}const previous=model;model=null;if(previous){try{root.remove(previous)}catch{}try{dispose(previous)}catch(error){traceGlb("destroy-model-dispose-error",{error:error?.message||String(error)})}}rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}try{renderer.forceContextLoss?.()}catch{}renderQueued=false;return true}

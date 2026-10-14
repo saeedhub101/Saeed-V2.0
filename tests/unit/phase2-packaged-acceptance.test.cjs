@@ -5,6 +5,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 const root=path.join(__dirname,"..","..");
 const runtime=fs.readFileSync(path.join(root,"src/main/runtime.js"),"utf8");
+const engine=fs.readFileSync(path.join(root,"src/character/CharacterEngine.js"),"utf8");
 const client=fs.readFileSync(path.join(root,"src/character/client.js"),"utf8");
 const workflow=fs.readFileSync(path.join(root,".github/workflows/build-windows-electron.yml"),"utf8");
 
@@ -87,7 +88,7 @@ test("Character Engine/Rig Builder gate runs immediately after EXE packaging and
  assert.ok(build>=0&&gate>build&&next>gate,"Character Engine/Rig Builder gate must immediately follow EXE packaging");
  assert.equal(workflow.slice(build,next).match(/- name:/g)?.length,2,"No unrelated workflow step may be placed before the rig gate");
  for(const token of ["--ci-character-rig-builder-save","--ci-character-rig-builder-verify","ci-character-rig-builder-save.json","ci-character-rig-builder-verify.json","ci-character-rig-builder-before.png","ci-character-rig-builder-after.png","create-ci-static-humanoid-glb.js","CHARACTER_ENGINE_RIG_BUILDER_RESTART=PASS"])assert.ok(workflow.includes(token),"missing workflow gate contract: "+token);
- for(const token of ["runCiCharacterRigBuilder","procedural-rig-restored-after-new-process","saved-rest-pose-survives-full-app-restart","custom-motion-survives-full-app-restart","joint-deformation-leftForeArm","skin-weight-quality-within-tolerance","visual-render-changes-after-joint-pose","getDeformationSnapshot"])assert.ok(runtime.includes(token)||engine.includes(token),"missing runtime deformation/persistence check: "+token);
+ for(const token of ["runCiCharacterRigBuilder","procedural-rig-restored-after-new-process","saved-rest-pose-survives-full-app-restart","custom-motion-survives-full-app-restart","joint-deformation-","leftForeArm","leftUpperArm","leftThigh","leftShin","skin-weight-quality-within-tolerance","visual-render-changes-after-joint-pose","getDeformationSnapshot"])assert.ok(runtime.includes(token)||engine.includes(token),"missing runtime deformation/persistence check: "+token);
  assert.ok(engine.includes("function getDeformationSnapshot("),"renderer must expose sampled skinned-vertex data, not only a visible-window assertion");
  assert.ok(client.includes('action==="buildProceduralRig"'),"rig builder must bypass pre-existing-skeleton readiness gates");
 });

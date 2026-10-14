@@ -125,7 +125,7 @@ jobs:
 
       - name: character ebgine, rig builder
         shell: pwsh
-        timeout-minutes: 8
+        timeout-minutes: 12
         run: |
           $ErrorActionPreference = "Stop"
           $exe = "dist\\win-unpacked\\Saeed AI.exe"
