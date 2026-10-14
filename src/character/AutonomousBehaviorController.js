@@ -33,6 +33,7 @@ export class AutonomousBehaviorController{
  constructor(character){
   this.character=character;
   this.running=false;
+  this.paused=false;
   // Treat the character as focused at startup; explicit lifecycle events can pause/resume it.
   this.speakingTimer=null;
   this.thinkingTimer=null;
@@ -96,7 +97,15 @@ export class AutonomousBehaviorController{
  setSpeechExpression(name,intensity=.5){if(this.settings.speechFace===false)return false;return this.setExpression(name,intensity)}
  expressionForMood(){return ({cheerful:"happy",curious:"surprised",thoughtful:"thinking",mischievous:"happy",pleased:"happy",sleepy:"sleepy",puzzled:"confused",sad:"sad"})[this.mood]||"neutral"}
  configure(settings={}){this.settings={...this.settings,...settings};this.cooldownMs=Math.max(0,Number(this.settings.eventCooldownMs)||2500);this.clearBlinkTimer();this.clearSleepTimer();if(this.settings.speakingCycle===false)this.clearSpeakingTimer();if(this.settings.thinkingCycle===false)this.clearThinkingTimer();if(this.running){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking"&&this.settings.speakingCycle!==false)this.scheduleSpeakingGesture();if(this.intent==="thinking"&&this.settings.thinkingCycle!==false)this.scheduleThinkingGesture()}return {...this.settings}}
- armBlinkTimer(){this.clearBlinkTimer();if(!this.running||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
+ armBlinkTimer(){this.clearBlinkTimer();if(!this.running||this.paused||!this.visible||this.sleeping||this.settings.blinking===false)return;const delay=3500+Math.random()*2500;this.blinkTimer=setTimeout(()=>{this.blinkTimer=null;if(!this.running||this.paused||!this.visible||this.sleeping)return;this.character.face?.blink?.();this.armBlinkTimer()},delay)}
+ setPaused(value){
+  const paused=Boolean(value);
+  if(this.paused===paused)return true;
+  this.paused=paused;
+  if(paused){this.clearTimer();this.clearSleepTimer();this.clearBlinkTimer();this.clearCycleTimers();this.lastMotionReason="paused: character animation disabled";return true;}
+  if(this.running&&this.visible){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking")this.scheduleSpeakingGesture();if(this.intent==="thinking")this.scheduleThinkingGesture();this.schedule(1200);}
+  return true;
+ }
  setUserBusy(value){
   const busy=Boolean(value);
   if(this.userBusy===busy)return true;
@@ -164,7 +173,7 @@ export class AutonomousBehaviorController{
  }
  armSleepTimer(){
   this.clearSleepTimer();
-  if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.settings.sleep===false)return;
+  if(!this.running||this.paused||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.settings.sleep===false)return;
   this.sleepTimer=setTimeout(()=>{
    this.sleepTimer=null;
    if(!this.running||!this.visible)return;
@@ -247,7 +256,7 @@ export class AutonomousBehaviorController{
  }
  schedule(delay){
   this.clearTimer();
-  if(!this.running||!this.visible||!this.windowFocused||this.sleeping||this.userBusy)return;
+  if(!this.running||this.paused||!this.visible||!this.windowFocused||this.sleeping||this.userBusy)return;
   this.armBlinkTimer();
   const supplied=Number(delay);
   const configured=Math.max(1000,Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY);
@@ -259,7 +268,7 @@ export class AutonomousBehaviorController{
   this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.round(energyAdjusted*jitter));
  }
  evaluateNow(){
-  if(!this.running||!this.visible||!this.windowFocused||this.sleeping||this.userBusy||this.settings.idle===false)return false;
+  if(!this.running||this.paused||!this.visible||!this.windowFocused||this.sleeping||this.userBusy||this.settings.idle===false)return false;
   if(this.settings.autonomousMovement===false){this.schedule();return false;}
   this.decayEnergy();
   if(["speaking","thinking","doing","being-moved"].includes(this.intent)){
@@ -374,7 +383,7 @@ export class AutonomousBehaviorController{
  }
  scheduleSpeakingGesture(){
   this.clearSpeakingTimer();
-  if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="speaking"||this.settings.speakingCycle===false)return;
+  if(!this.running||this.paused||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="speaking"||this.settings.speakingCycle===false)return;
   const energyFactor=this.settings.energyModulation===false?1:Math.max(.1,Math.min(1,this.energy/100));
   const base=6000+(1-energyFactor)*3000;
   const span=6000*(.7+energyFactor*.6);
@@ -389,7 +398,7 @@ export class AutonomousBehaviorController{
  }
  scheduleThinkingGesture(){
   this.clearThinkingTimer();
-  if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="thinking"||this.settings.thinkingCycle===false)return;
+  if(!this.running||this.paused||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="thinking"||this.settings.thinkingCycle===false)return;
   const delay=2800+Math.random()*2200;
   this.thinkingTimer=setTimeout(()=>{
    this.thinkingTimer=null;
@@ -401,7 +410,7 @@ export class AutonomousBehaviorController{
  }
  handleEvent(event){
   const type=typeof event==="string"?event:String(event?.type||"").toLowerCase();
-  if(!this.running||!this.visible)return false;
+  if(!this.running||this.paused||!this.visible)return false;
   this.lastEvent=type;
   this.eventCounts.set(type,(this.eventCounts.get(type)||0)+1);
   const lifecycleEvents=["speech-start","assistant-speech-start","speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","thinking","assistant-thinking","chat-end","assistant-cancelled","request-cancelled","app-focus","wake"];
