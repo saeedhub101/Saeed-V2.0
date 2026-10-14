@@ -129,6 +129,10 @@ jobs:
           $ErrorActionPreference = "Stop"
           $exe = "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe)) { throw "Character behavior check cannot start: packaged executable is missing: $exe" }
+          Write-Host "Running character interaction unit checks..."
+          node --test tests/unit/character-behavior-context.test.cjs
+          if ($LASTEXITCODE -ne 0) { throw "Character interaction unit checks failed." }
+          Write-Host "CHARACTER_INTERACTION_UNIT=PASS"
           $report = Join-Path $PWD "dist\ci-character-behavior.json"
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-character-behavior.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-character-behavior.stderr.log"
