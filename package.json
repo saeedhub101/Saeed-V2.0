@@ -12,10 +12,10 @@
   "dependencies": {
     "three": "0.180.0",
     "ws": "8.18.3",
-    "electron-updater": "6.6.2"
+    "electron-updater": "6.8.10"
   },
   "devDependencies": {
-    "electron-builder": "26.15.3",
+    "electron-builder": "26.17.0",
     "electron": "38.8.6"
   },
   "build": {
