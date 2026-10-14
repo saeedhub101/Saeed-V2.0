@@ -70,8 +70,13 @@ export class CharacterController{
   try{
    const names=this.engine?.getAvailableBoneNames?.()||[];
    if(!names.length){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"No skeleton bones are available",mappedBoneCount:0,sceneBoneCount:0};return this.lastBindingResult;}
-   const profileId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
-   const profile=this.profiles.load(profileId)||{};
+   const profileKey=this.engine?.getCharacterProfileKey?.()||"saeed";
+   const profileId=this.profiles.idFor(names,profileKey);
+   const currentProfile=this.profiles.load(profileId);
+   const legacyProfileId=this.profiles.legacyIdFor?.(names,profileKey);
+   const legacyProfile=!currentProfile&&legacyProfileId?this.profiles.load(legacyProfileId):null;
+   const profile=currentProfile||legacyProfile||{};
+   if(legacyProfile){try{this.profiles.save(profileId,legacyProfile)}catch{}}
    const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
    const engineMap=this.engine?.getCharacterRigAutoMap?.()||{};
    let mapping=Object.keys(engineMap).length?{...engineMap}:null;
