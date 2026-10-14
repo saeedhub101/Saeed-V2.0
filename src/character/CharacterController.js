@@ -167,7 +167,9 @@ export class CharacterController{
  }
  setAxisFix(slot,fix={}){
   const key=String(slot||"").trim();
-  if(!key||!this.retargeter.setAxisFix?.(key,fix))return false;
+  if(!key)return false;
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok||!this.retargeter.setAxisFix?.(key,fix))return false;
   if(this.characterId)this.profiles.save(this.characterId,{axisFixes:this.retargeter.status().axisFixes});
   return true;
  }
