@@ -87,3 +87,16 @@ A behavior-parity increment is committed on `main`: mood-weighted anti-repeat mo
 - Sleep/wake, mood, energy, and settings stay coherent during long idle periods.
 - Diagnostics explain intent and motion decisions.
 - Existing Markdown files remain untouched; this roadmap is new.
+
+
+## Independent 3D behavior engine update — 2026-10-14
+
+The dedicated behavior controller remains the single owner of Saeed's autonomous character state. The detailed architecture and acceptance contract now lives in `CHARACTER_BEHAVIOR_ENGINE.md` (no dependency on external character assets or runtimes).
+
+Implemented in source on `main`:
+- Added a public busy-state gate (`setUserBusy`, `user-busy-start`, `user-busy-end`, `system-busy`, `system-active`) that suppresses idle scheduling while occupied, interrupts casual low-priority gestures, and resumes on an explicit active/wake event.
+- Increased recent-motion suppression history from four to six entries to reduce short-cycle repetition.
+- Exposed the busy-state command through the character command API without waiting for rig readiness.
+- Documented semantic event flow, mood/energy/time modulation, non-intrusive cadence, lifecycle cancellation, 3D retargeting, and runtime acceptance criteria.
+
+**Not yet claimed:** this source change does not prove visual equivalence or realistic motion on the packaged GLB. The app must still be launched and observed on Windows; busy-state producers must send explicit busy/active events when they can reliably identify those states. Do not infer global user activity from character-window focus loss. Realtime was not modified.
