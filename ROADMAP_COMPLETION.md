@@ -52,3 +52,11 @@ This roadmap is the execution plan, not a claim that any listed feature is alrea
 - Existing Markdown documents must be preserved. This roadmap is a new file; update existing docs only when needed to keep them accurate.
 - Do not report overall completion until Phase 1 and Phase 2 exit conditions are satisfied.
 - Check current repository state and workflow logs before each substantial change. Treat a green build as one piece of evidence, not the final acceptance verdict.
+
+
+## 3D character interaction and autonomous motion — 2026-10-14
+
+- [x] Independent behavior controller owns semantic intent, mood/energy, randomized idle cadence, recent-motion suppression, sleep/wake, gaze, blinking, breathing, speaking/thinking cycles, and contextual reactions.
+- [x] Chat and Brain lifecycle events route to the 3D behavior controller; chat TTS now emits explicit speech lifecycle events.
+- [x] Busy-state gating, double-click handling, and focus/blur lifecycle events added to prevent low-priority idle gestures from competing with active work.
+- [ ] Packaged Windows runtime acceptance on the real Saeed GLB: verify animation quality, timing, bone retargeting, no queue buildup, and non-intrusive long-idle behavior. Do not mark this complete from CI status alone.
