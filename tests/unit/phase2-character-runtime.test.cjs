@@ -69,8 +69,8 @@ test("failed character persistence restores the previous or last persisted GLB",
 });
 
 test("character status rebinds an already-mapped rig when profile state is not initialized after restart",()=>{
- const start=source.indexOf(" status(){");
- const end=source.indexOf("\n update(dt)",start);
+ const start=source.indexOf("status(){");
+ const end=source.indexOf("\n }\nwindow.saeedCharacterRuntime",start);
  const body=source.slice(start,end);
  assert.ok(start>=0&&end>start);
  assert.match(body,/a\.loaded&&\(!this\.characterId\|\|!Object\.keys\(mapped\)\.length\)/);
