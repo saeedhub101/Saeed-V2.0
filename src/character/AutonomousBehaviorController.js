@@ -343,7 +343,7 @@ export class AutonomousBehaviorController{
    if((this.character?.animation?.active||[]).length>=2){this.lastMotionReason="skipped: casual-motion queue limit";return false}
   }
   const ok=Boolean(this.character?.play?.(motion,options));
-  if(ok&&priority<=20)this.lastCasualMotionAt=now;
+  if(ok){this.lastMotionId=String(motion);if(priority<=20)this.lastCasualMotionAt=now;}
   this.lastMotionReason=ok?"played "+String(motion)+" at priority "+String(priority):"skipped: motion controller rejected "+String(motion);
   return ok;
  }
@@ -582,7 +582,7 @@ export class AutonomousBehaviorController{
   if(type==="idle-timeout")return this.setUserBusy(true);
   return false;
  }
- update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
+ update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&!this.paused&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
   return {running:this.running,paused:this.paused,visible:this.visible,windowFocused:this.windowFocused,userBusy:this.userBusy,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,interactionCooldowns:Object.fromEntries(this.interactionCooldowns),eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
