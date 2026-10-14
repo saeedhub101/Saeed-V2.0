@@ -33,6 +33,9 @@ export class AutonomousBehaviorController{
  constructor(character){
   this.character=character;
   this.running=false;
+  // Treat the character as focused at startup; renderer focus events can pause/resume it later.
+  this.windowFocused=true;
+  this.userBusy=false;
   this.speakingTimer=null;
   this.thinkingTimer=null;
   this.reactionTimer=null;
