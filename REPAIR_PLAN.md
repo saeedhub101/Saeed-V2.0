@@ -1,3 +1,7 @@
+## Current status correction — 2026-10-14
+
+The codebase already contains the major runtime systems listed in older repair notes. Treat historical unchecked items as superseded wherever current source includes the implementation; do not recreate character, voice, Brain, task, memory, or provider systems from scratch. Recent source changes fixed renderer voice diagnostics, added query-relevant memory retrieval, and persisted voice mute even before Brain initialization. Runtime/package acceptance is separate from implementation status. **Do not modify Realtime in this work.** Remaining concrete enhancements include safe process isolation for third-party add-ons and audio-timed phoneme/lip synchronization.
+
 # Saeed V2.0 — Current Repair Plan
 
 **Status:** Active cross-phase conformance work  
