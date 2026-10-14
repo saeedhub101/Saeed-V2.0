@@ -55,6 +55,7 @@ User / Brain / Voice / Tool lifecycle
 - `AnimationController`: layered motion playback, blending, priority, and animation ticking.
 - `motions.js`: reusable 3D motion definitions; add/adjust motion definitions here instead of adding bone manipulation to Brain code.
 - `src/main/application/brain-host.js`: translates Brain thinking/tool/result/answer/task lifecycle events into character behavior events while retaining the general agent event stream.
+- `src/main/ipc/chat-ipc.js`: normalizes direct chat completion into the controller's `assistant-message` event so a finished reply triggers the intended contextual response.
 - `src/renderer.js`: sends the submitted user message to the behavior controller and pauses casual idle motion while the chat input is focused; blur resumes autonomous scheduling.
 - `client.js` and `src/main/character/character-host.js`: expose behavior-event and busy-state commands without requiring a complete rig map first.
 
