@@ -177,7 +177,7 @@ test("negated emotions and reassuring phrases do not trigger contradictory react
  assert.equal(behavior.classifyText("I'm not curious"),null);
  assert.equal(behavior.classifyText("No problem, I'm not angry"),null);
  assert.equal(behavior.classifyText("Don't worry, I'm not upset"),null);
- assert.equal(behavior.classifyText("I'm excited"),null === behavior.classifyText("I'm excited") ? null : behavior.classifyText("I'm excited").id);
+ assert.equal(behavior.classifyText("I'm excited")?.id,"excitement");
  behavior.stop();
 });
 test("autonomous behavior starts focused and schedules idle motion without a prior focus event",async()=>{
