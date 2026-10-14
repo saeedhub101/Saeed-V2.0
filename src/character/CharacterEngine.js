@@ -205,6 +205,10 @@ function validateRig(mapping={}){
 function resetCharacterPose(){getSceneBones();for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){if([p.rotation?.qx,p.rotation?.qy,p.rotation?.qz,p.rotation?.qw].every(Number.isFinite))target.quaternion.set(p.rotation.qx,p.rotation.qy,p.rotation.qz,p.rotation.qw);else target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}render();}
 function captureAuthoritativeRestPose(normalization=lastRestPose){getSceneBones();boneRest=new Map();for(const [name,list] of boneGroups){const b=list[0];if(b)boneRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w},position:{x:b.position.x,y:b.position.y,z:b.position.z}})}lastRestPose={...(normalization||{}),saved:true};for(const [slot,b] of rig){const p=boneRest.get(String(b.name));if(p)base.set(slot,{x:p.rotation.x,y:p.rotation.y,z:p.rotation.z})}return snapshotBoneRotations();}
 function applyCharacterPose(pose={},retargeter=null){
+ // Match the reference pose engine: every frame starts from the current authoritative
+ // rest pose, then applies model-space motion deltas. Never accumulate yesterday's pose.
+ retargeter?.resetAll?.();
+ for(const [slot,b] of rig){const list=boneGroups.get(String(b.name))||[b];for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);}
  for(const [slot,r] of Object.entries(pose)){
   const b=rig.get(slot);if(!b)continue;
   const applied=Boolean(retargeter?.apply?.(slot,r));
