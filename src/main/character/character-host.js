@@ -99,7 +99,8 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   }
   if(!win||win.isDestroyed()){const error="Character window could not be created";diagnostic("ERROR","CHARACTER WINDOW",error,{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error};}
   if(!ipcMain){const error="Character command IPC is unavailable";diagnostic("ERROR","CHARACTER IPC",error,{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error,diagnostic:{stage:"ipc",action:command?.action}};}
-  try{win.webContents.setBackgroundThrottling(false)}catch{}
+  // Keep Chromium background throttling enabled even while commands are issued. The hidden character must retain its authoritative rig without continuously driving the GPU.
+  try{win.webContents.setBackgroundThrottling(true)}catch{}
   // Every controller operation starts from a real Skeleton→Rig READY state.
   // Bone edits remain direct once readiness is established; readiness never rebinds
   // an already valid rig during the actual edit operation.
