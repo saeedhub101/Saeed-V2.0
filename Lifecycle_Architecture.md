@@ -878,7 +878,7 @@ Shutdown must be deterministic and idempotent.
 
 ## 33. Acceptance Contract
 
-Lifecycle implementation is not complete because it compiles.
+Compilation alone does not prove lifecycle correctness. **Source implementation status (2026-10-14): تم الانتهاء من تنفيذ المسارات الأساسية** for voice mute/mic mode, brain request cancellation, stale conversation suppression, character hide/release, and tool abort/emergency stop. Keep remaining lifecycle checklist items tied to a concrete reproducible runtime defect; do not reopen these implemented paths solely because an old checklist is unchecked.
 
 Runtime acceptance must verify:
 
