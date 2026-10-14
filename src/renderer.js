@@ -46,7 +46,6 @@ let busy=false,pendingImage=null,attachments=[];
 let realtimeConnected=false;
 async function send(){
  if(busy)return;let t=$("input").value.trim();if(!t&&!attachments.length)return;
- void window.saeed.character.characterController({action:"behaviorEvent",event:{type:"user-input",text:t}}).catch(()=>{});
  if(attachments.length){t=(t?t+"\n\n":"")+"[مرفقات]\n"+attachments.map(a=>"--- "+a.name+" ---\n"+a.text).join("\n");attachments=[];renderAttachments()}
  busy=true;$("input").value="";add("user",t);$("status").textContent="يفكر...";
  const image=pendingImage;pendingImage=null;
