@@ -20,11 +20,13 @@ export class CharacterController{
  writeAnimationEnabled(value){try{localStorage.setItem("saeed.character.animations.enabled",value?"1":"0")}catch{}}
  setAnimationEnabled(value){
   const enabled=value!==false;this.animationEnabled=enabled;this.writeAnimationEnabled(enabled);
+  this.autonomous?.setPaused?.(!enabled||this.animationPaused);
   if(!enabled){this.animationPaused=false;this.clearIdleTimer();this.stopAll();return enabled}
   if(this.visible&&!this.animationPaused)this.startIdleScheduler(1200);return enabled;
  }
  setAnimationPaused(value){
   const paused=Boolean(value);this.animationPaused=paused;
+  this.autonomous?.setPaused?.(paused||!this.animationEnabled);
   if(paused){this.clearIdleTimer();this.animation.stopAll();this.idleBusy=false;this.engine?.wakeRender?.();return true}
   if(this.animationEnabled&&this.visible)this.startIdleScheduler(1200);return this.animationPaused;
  }
