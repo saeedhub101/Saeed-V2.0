@@ -16,6 +16,13 @@ const semanticStart = source.indexOf(" semantic(intent,options={}){");
 const semanticEnd = source.indexOf("\n}\nwindow.saeedCharacterRuntime", semanticStart);
 const semanticBody = source.slice(semanticStart, semanticEnd);
 
+test("motion deltas are transformed from character/model space through the live parent world rotation and current rest quaternion",()=>{
+ const retargeter=fs.readFileSync(path.join(__dirname,"../../src/character/CharacterRetargeter.js"),"utf8");
+ assert.match(retargeter,/parentWorld\.clone\(\)\.invert\(\)\.multiply\(modelDelta\)\.multiply\(parentWorld\)/);
+ assert.match(retargeter,/bone\.quaternion\.copy\(localDelta\)\.multiply\(rest\.quaternion\)/);
+ assert.doesNotMatch(retargeter,/canonicalToLocal\|\|new THREE\.Quaternion\(\),qLocal/);
+});
+
 test("playing an explicit or autonomous gesture does not terminate the autonomous scheduler", () => {
   assert.ok(playStart >= 0 && playEnd > playStart, "CharacterController.play method must exist");
   assert.doesNotMatch(playBody, /this\.autonomous\?\.stop\?\.\(\)/);
