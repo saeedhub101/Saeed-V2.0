@@ -25,6 +25,11 @@ test("autonomous character focus lifecycle is wired without inferring inactivity
  assert.doesNotMatch(controller,/window\.addEventListener\("blur",/);
  assert.match(behavior,/this\.windowFocused=true/);
  assert.match(behavior,/if\(!this\.running\|\|!this\.visible\|\|!this\.windowFocused\|\|this\.sleeping\|\|this\.userBusy\)return/);
+ assert.match(behavior,/if\(!focused\)\{this\.clearTimer\(\);this\.clearSleepTimer\(\);this\.clearCycleTimers\(\)/);
+ assert.match(behavior,/if\(this\.intent==="speaking"\)this\.scheduleSpeakingGesture\(\)/);
+ assert.match(behavior,/if\(this\.intent==="thinking"\)this\.scheduleThinkingGesture\(\)/);
+ assert.match(behavior,/this\.intent!=="speaking"\|\|this\.settings\.speakingCycle===false\)return/);
+ assert.match(behavior,/this\.intent!=="thinking"\|\|this\.settings\.thinkingCycle===false\)return/);
 });
 
 test("Character IPC serializes logical rig names instead of cyclic THREE.Bone objects",()=>{
