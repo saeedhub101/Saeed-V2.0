@@ -1,6 +1,6 @@
 const DEFAULT_IDLE_DELAY=7000;
 const SLEEP_AFTER_MS=20*60*1000;
-const RECENT_LIMIT=4;
+const RECENT_LIMIT=6;
 const MIN_ENERGY=20;
 const MOOD_DURATION_MS=26000;
 const REACTION_GAP_MS=1400;
@@ -101,13 +101,14 @@ export class AutonomousBehaviorController{
   this.userBusy=busy;
   if(busy){
    this.clearTimer();
-   this.clearCycleTimers();
-   if(!["speaking","thinking","doing","reacting","being-moved"].includes(this.intent))this.intent="busy";
+   this.clearSleepTimer();
+   this.interruptLowPriorityMotions();
+   if(!["speaking","thinking","doing","reacting","being-moved"].includes(this.intent)){this.clearCycleTimers();this.intent="busy";}
    this.lastMotionReason="paused: user/system activity";
    return true;
   }
   if(this.intent==="busy")this.intent="idle";
-  if(this.running&&this.visible&&!this.sleeping)this.schedule(1200);
+  if(this.running&&this.visible&&!this.sleeping){this.armBlinkTimer();this.armSleepTimer();this.schedule(1200);}
   return true;
  }
  setVisible(value){
