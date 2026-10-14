@@ -104,7 +104,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Could not clone whisper.cpp." }
           if (!(Test-Path "build\\whisper-src\\LICENSE")) { throw "whisper.cpp license file is missing." }
           Copy-Item "build\\whisper-src\\LICENSE" (Join-Path $root "WHISPER-CPP-LICENSE.txt") -Force
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           if ($LASTEXITCODE -ne 0) { throw "Whisper CMake configure failed." }
           cmake --build build\whisper-src\build --config Release --target whisper-cli
           if ($LASTEXITCODE -ne 0) { throw "Whisper CLI build failed." }
