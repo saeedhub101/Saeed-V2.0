@@ -38,9 +38,9 @@ User / Brain / Voice / Tool lifecycle
 
 - **User input:** classify common Arabic and English signals such as greetings, thanks, questions, confusion, frustration, encouragement, urgency, and celebration. Pick a fitting expression and motion rather than using one generic response.
 - **Thinking:** enter a distinct thinking intent, interrupt low-priority idle movement, and use a restrained, independently scheduled thinking gesture cycle.
-- **Speaking:** enter speaking intent, apply the configured speech expression, and schedule sparse gestures while speech is active. Speech-end, mute, cancellation, and chat-end clear the relevant timers.
+- **Speaking:** both character-window speech and chat-window TTS send explicit speech-start/speech-end events. The engine enters speaking intent, applies the configured speech expression, and schedules sparse gestures only while audio is active. Speech-end, mute, cancellation, and chat-end clear the relevant timers.
 - **Tool outcomes:** success and failure use different mood and motion choices; they do not assume that a tool succeeded merely because it was invoked.
-- **Direct interaction:** hover, zoom, drag, summon, and wake events receive bounded reactions. Pointer tracking is throttled to avoid processing every mouse event.
+- **Direct interaction:** hover, double-click, right-click, zoom, drag, app focus, and wake events receive bounded reactions. Pointer tracking is throttled to avoid processing every mouse event; window blur pauses casual idle motion, and focus restores scheduling.
 - **Mood:** temporary reactions expire and restore the user's/base mood. Mood palettes influence choices without overriding explicit speaking/thinking states.
 - **Energy and time:** energy decays slowly, recovers with interaction, and biases motion density/intensity. Late-night behavior is calmer; sleep restores energy.
 - **Sleep/wake:** prolonged true idle can enter a sleep pose. Meaningful interaction wakes the character and cancels stale idle scheduling.
