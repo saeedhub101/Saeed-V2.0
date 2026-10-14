@@ -253,7 +253,7 @@ const MORPH_ALIASES={
  smile:["smile","mouthsmile","happy","joy"],sad:["sad","frown","sorrow"],angry:["angry","anger"],surprise:["surprise","surprised","shock"],browup:["browup","browraise","browinnerup"],browdown:["browdown","browlower"],
  jawopen:["jawopen","mouthopen"],tongueout:["tongueout","tongue"],cheekpuff:["cheekpuff","puffcheeks"]
 };
-const normalizeMorphName=value=>String(value||"").toLowerCase().replace(/^(viseme_|vrc\\.v_|fcl_mth_|mth_|mouth_|face_)/,"").replace(/[^a-z0-9]/g,"");
+const normalizeMorphName=value=>String(value||"").toLowerCase().replace(/^(viseme_|vrc\.v_|fcl_mth_|mth_|mouth_|face_)/,"").replace(/[^a-z0-9]/g,"");
 function setMorph(name,value=0){
  const key=String(name||"").toLowerCase(),normalized=normalizeMorphName(key);
  let lists=morphs.has(key)?[morphs.get(key)]:[];
