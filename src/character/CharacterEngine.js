@@ -627,6 +627,20 @@ function buildProceduralRig(templateName="full",options={}){
  const arm=side=>{const k=side>0?"left":"right";return[B(k+"Shoulder","chest",P(.03*side,.80)),B(k+"UpperArm",k+"Shoulder",P(.10*side,.80)),B(k+"ForeArm",k+"UpperArm",P(.29*side,.80)),B(k+"Hand",k+"ForeArm",P(.46*side,.80))]};
  const leg=side=>{const k=side>0?"left":"right";return[B(k+"Thigh","hips",P(.05*side,.50)),B(k+"Shin",k+"Thigh",P(.05*side,.27)),B(k+"Foot",k+"Shin",P(.05*side,.05))]};
  const defs=template==="full"?[...body,...arm(1),...arm(-1),...leg(1),...leg(-1)]:template==="upper"?[...body,...arm(1),...arm(-1)]:template==="arms"?[B("chest",null,P(0,.70)),...arm(1),...arm(-1)]:[B("neck",null,P(0,.82)),B("head","neck",P(0,.88))];
+ if(options.face===true && (template==="full"||template==="upper"||template==="head")){
+  if(!defs.some(b=>b.name==="head"))defs.push(B("head",null,P(0,.88)));
+  defs.push(B("jaw","head",P(0,.905,.02)),B("leftEye","head",P(.018,.935,.045)),B("rightEye","head",P(-.018,.935,.045)));
+ }
+ if(options.fingers===true && (template==="full"||template==="upper"||template==="arms")){
+  for(const side of ["left","right"]){const sign=side==="left"?1:-1;let parent=side+"Hand";
+   for(const finger of ["Thumb","Index","Middle","Ring","Pinky"]){for(let joint=1;joint<=4;joint++){
+    const name=side+finger+joint;const x=finger==="Thumb"?.475+(joint-1)*.014:.48+(joint-1)*.022;
+    const z=(finger==="Thumb"?.025:finger==="Index"?.012:finger==="Middle"?.004:finger==="Ring"?-.004:-.012)+(finger==="Thumb"?(joint-1)*.006:0);
+    defs.push(B(name,parent,P(sign*x,.80,z)));parent=name;
+   }parent=side+"Hand";
+   }
+  }
+ }
  const rootBone=new THREE.Bone();rootBone.name="proceduralRoot";rootBone.position.copy(P(0,0,0));
  const nodes=new Map([["proceduralRoot",rootBone]]),worldPositions=new Map([["proceduralRoot",rootBone.position.clone()]]);
  const pending=defs.slice();let guard=0;
