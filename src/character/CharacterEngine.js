@@ -389,7 +389,8 @@ function display(parsed){
   try{root.remove(previous)}catch{}
   dispose(previous);
  }
- traceGlb("display-success",{generation:loadGeneration,boneCount:boneGroups.size,meshCount:countSceneMeshes(next),skinnedMeshCount:countSceneSkinnedMeshes(next)});
+ const proceduralRigRestored=getSceneBones().length?false:restoreSavedProceduralRig();
+ traceGlb("display-success",{generation:loadGeneration,boneCount:boneGroups.size,meshCount:countSceneMeshes(next),skinnedMeshCount:countSceneSkinnedMeshes(next),proceduralRigRestored});
  ensureControllerBinding();
 }
 function countSceneMeshes(target){let n=0;target?.traverse?.(o=>{if(o?.isMesh||o?.isSkinnedMesh)n++});return n;}
@@ -611,8 +612,11 @@ function snapshotBoneRotations(){
  return out;
 }
 
+function proceduralRigFingerprint(target=model){if(!target)return"";const meshes=[];target.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh)meshes.push([String(o.name||""),Number(o.geometry?.attributes?.position?.count)||0])});meshes.sort((a,b)=>a[0].localeCompare(b[0])||a[1]-b[1]);const b=new THREE.Box3().setFromObject(target);return JSON.stringify({meshes,b:[b.min.x,b.min.y,b.min.z,b.max.x,b.max.y,b.max.z].map(v=>Number(v.toFixed(3)))})}
+function restoreSavedProceduralRig(){try{if(!model||getSceneBones().length)return false;const saved=JSON.parse(localStorage.getItem("saeed.character.proceduralRig.v1")||"null");if(!saved||saved.fingerprint!==proceduralRigFingerprint(model))return false;const result=buildProceduralRig(saved.template,saved.options||{});if(!result?.ok)throw new Error(result?.error||"Rig restore failed");traceGlb("procedural-rig-restored",{template:saved.template,bones:result.createdBoneCount});return true}catch(error){window.saeed?.system?.reportDiagnostic?.("WARN","PROCEDURAL RIG RESTORE",error?.stack||error?.message||String(error));return false}}
 function buildProceduralRig(templateName="full",options={}){
  if(!model)return{ok:false,error:"Load a character mesh first."};
+ const originalFingerprint=proceduralRigFingerprint(model);
  const meshes=[];let existingSkinned=0;
  model.traverse(o=>{if(o.isSkinnedMesh)existingSkinned++;else if(o.isMesh)meshes.push(o)});
  if(existingSkinned)return{ok:false,error:"This character already has a skinned rig. Use Auto Map to bind existing bones; procedural rig building is only for static meshes."};
@@ -662,7 +666,8 @@ function buildProceduralRig(templateName="full",options={}){
   for(const mesh of meshes){const geometry=mesh.geometry.clone();geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverseModel,mesh.matrixWorld));skinGeometry(geometry);const skinned=new THREE.SkinnedMesh(geometry,mesh.material);skinned.name=mesh.name;skinned.frustumCulled=false;model.add(skinned);skinned.bind(skeleton);const originalParent=mesh.parent;originalParent.remove(mesh);created.push({mesh,skinned,originalParent})}
   getSceneBones();captureAuthoritativeRestPose(lastRestPose);autoMapRig();fit();render();
   const mapped=Object.keys(getBoneMap()).length;
-  const result={ok:true,template,createdBoneCount:bones.length,meshCount:created.length,mappedSlots:mapped,bones:defs.map(b=>b.name),warning:"Generated skeleton weights are approximate. Inspect elbows, shoulders, hips and knees in Character Studio before saving this character rig."};
+  let persisted=false;try{localStorage.setItem("saeed.character.proceduralRig.v1",JSON.stringify({version:1,template,options:{face:options.face===true,fingers:options.fingers===true},fingerprint:originalFingerprint}));persisted=true}catch(error){window.saeed?.system?.reportDiagnostic?.("WARN","PROCEDURAL RIG SAVE",error?.message||String(error))}
+  const result={ok:true,template,createdBoneCount:bones.length,meshCount:created.length,mappedSlots:mapped,persisted,bones:defs.map(b=>b.name),warning:"Generated skeleton weights are approximate. Inspect elbows, shoulders, hips and knees in Character Studio before saving this character rig."};
   window.saeed?.system?.reportDiagnostic?.("INFO","PROCEDURAL RIG BUILT","A procedural skeleton and approximate skin weights were created for a static character mesh",result);
   return result;
  }catch(error){for(const item of created){try{item.skinned.parent?.remove(item.skinned);item.originalParent?.add(item.mesh)}catch{}try{item.skinned.geometry?.dispose()}catch{}}try{rootBone.parent?.remove(rootBone)}catch{}getSceneBones();render();return{ok:false,error:error?.stack||error?.message||String(error)}}
