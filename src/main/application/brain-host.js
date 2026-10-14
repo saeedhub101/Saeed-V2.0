@@ -53,7 +53,22 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
     confirm
    });
    if(emergencyStopped)registry.emergencyStop?.();
-   agent=new ConversationAgent({registry,onEvent:e=>{diagnosticFromAgent(e);voiceBroadcast("agent:event",e)},requestStepIncrease});
+   agent=new ConversationAgent({registry,onEvent:e=>{
+      diagnosticFromAgent(e);
+      voiceBroadcast("agent:event",e);
+      const type=String(e?.type||"");
+      const behaviorType=({
+       "thinking":"thinking",
+       "tool":"tool",
+       "tool_result":"tool_result",
+       "tool_error":"tool_error",
+       "task-start":"thinking",
+       "task-finished":"chat-end",
+       "answer":"assistant-message",
+       "assistant-response":"assistant-message"
+      })[type];
+      if(behaviorType)voiceBroadcast("character:behavior",{type:behaviorType,text:e?.text||e?.answer||e?.message||"",status:e?.status,name:e?.name});
+     },requestStepIncrease});
    setAgent(agent);
    setVoiceMuted(Boolean(agent.settings.voiceMuted));
    lastActivity=Date.now();
