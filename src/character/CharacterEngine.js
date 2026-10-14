@@ -263,8 +263,20 @@ function setMorph(name,value=0){
   for(const [morphName,list] of morphs){const candidate=normalizeMorphName(morphName);if(aliases.some(alias=>candidate===normalizeMorphName(alias))&&!matched.includes(list))matched.push(list)}
   lists=matched;
  }
- if(!lists.length)return false;
  const v=Math.max(0,Math.min(1,Number(value)||0));
+ if(!lists.length){
+  // Keep speech animation functional for GLBs exported without facial morph targets.
+  // Jaw motion is only a fallback for mouth-opening visemes; blinking/emotions still
+  // require their actual morph targets and are never faked by moving unrelated bones.
+  const mouthOpen=["aa","a","ah","ae","mouthopen","jawopen"].includes(normalized);
+  if(!mouthOpen)return false;
+  const jaw=rig.get("jaw")||[...boneGroups.entries()].find(([name])=>/^(jaw|mandible)$/i.test(name))?.[1]?.[0];
+  if(!jaw)return false;
+  const rest=base.get("jaw")||{x:jaw.rotation.x,y:jaw.rotation.y,z:jaw.rotation.z};
+  jaw.rotation.set(rest.x+v*.28,rest.y,rest.z);
+  render();
+  return true;
+ }
  for(const list of lists)for(const [m,i] of list)m.morphTargetInfluences[i]=v;
  render();
  return true;
