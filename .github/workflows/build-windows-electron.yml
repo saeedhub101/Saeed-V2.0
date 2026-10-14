@@ -38,6 +38,8 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Run current product preflight
+        id: preflight
+        continue-on-error: true
         run: npm test
 
       - name: Generate npm third-party license notices
@@ -72,6 +74,8 @@ jobs:
           Copy-Item $icon (Join-Path $iconDir "saeed.ico") -Force
 
       - name: Pre-package Electron startup smoke test
+        id: startup_smoke
+        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -124,6 +128,8 @@ jobs:
         run: npm run dist
 
       - name: character ebgine, rig builder
+        id: character_rig
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -186,6 +192,8 @@ jobs:
           Write-Host (Get-Content $verifyReport -Raw)
 
       - name: Character, behavior
+        id: character_behavior
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 5
         run: |
@@ -224,6 +232,8 @@ jobs:
           Write-Host (Get-Content $report -Raw)
 
       - name: Verify packaged runtime acceptance
+        id: packaged_acceptance
+        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -256,6 +266,8 @@ jobs:
           Write-Host (Get-Content $report -Raw)
 
       - name: Verify rest pose survives a full application restart
+        id: rest_pose
+        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -299,6 +311,8 @@ jobs:
           Remove-Item $state -Force -ErrorAction SilentlyContinue
 
       - name: brain, learning
+        id: brain_learning
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -332,6 +346,8 @@ jobs:
           Invoke-SaeedAcceptance "--ci-brain-learning-verify" "dist/ci-brain-learning-verify.json" "BRAIN_LEARNING_RESTART" 6
 
       - name: lifecycle
+        id: lifecycle
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -361,6 +377,8 @@ jobs:
           Write-Host (Get-Content $report -Raw)
 
       - name: ram, cpu
+        id: ram_cpu
+        continue-on-error: true
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -443,6 +461,26 @@ jobs:
             dist/icons/*
             dist/addons/*.zip
             ci-reports/current-acceptance.json
+
+      - name: Summarize all validation failures
+        if: always()
+        shell: pwsh
+        run: |
+          $failed = @()
+          if ("preflight" -and "preflight" -ne "" -and "${{ steps.preflight.outcome }}" -eq "failure") { $failed += "preflight" }
+          if ("startup_smoke" -and "startup_smoke" -ne "" -and "${{ steps.startup_smoke.outcome }}" -eq "failure") { $failed += "startup_smoke" }
+          if ("character_rig" -and "character_rig" -ne "" -and "${{ steps.character_rig.outcome }}" -eq "failure") { $failed += "character_rig" }
+          if ("character_behavior" -and "character_behavior" -ne "" -and "${{ steps.character_behavior.outcome }}" -eq "failure") { $failed += "character_behavior" }
+          if ("packaged_acceptance" -and "packaged_acceptance" -ne "" -and "${{ steps.packaged_acceptance.outcome }}" -eq "failure") { $failed += "packaged_acceptance" }
+          if ("rest_pose" -and "rest_pose" -ne "" -and "${{ steps.rest_pose.outcome }}" -eq "failure") { $failed += "rest_pose" }
+          if ("brain_learning" -and "brain_learning" -ne "" -and "${{ steps.brain_learning.outcome }}" -eq "failure") { $failed += "brain_learning" }
+          if ("lifecycle" -and "lifecycle" -ne "" -and "${{ steps.lifecycle.outcome }}" -eq "failure") { $failed += "lifecycle" }
+          if ("ram_cpu" -and "ram_cpu" -ne "" -and "${{ steps.ram_cpu.outcome }}" -eq "failure") { $failed += "ram_cpu" }
+          if ($failed.Count -gt 0) {
+            Write-Host "VALIDATION_FAILURES=$($failed -join ',')"
+            throw "Validation completed with $($failed.Count) failing stage(s). See every stage report and logs above."
+          }
+          Write-Host "ALL_VALIDATION_STAGES=PASS"
 
       - name: Publish official release
         if: success() && inputs.publish_release == true
