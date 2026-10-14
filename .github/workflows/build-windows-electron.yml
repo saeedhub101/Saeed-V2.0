@@ -185,6 +185,97 @@ jobs:
           Write-Host "CHARACTER_ENGINE_RIG_BUILDER_RESTART=PASS ($($restored.checks.Count) real-runtime checks)"
           Write-Host (Get-Content $verifyReport -Raw)
 
+      - name: brain, learning
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Brain/learning acceptance cannot start: packaged EXE is missing." }
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_USER_DATA = Join-Path $env:RUNNER_TEMP "saeed-brain-learning-user-data"
+          $env:SAEED_CI_BRAIN_STATE = Join-Path $env:RUNNER_TEMP "saeed-brain-learning-state.json"
+          function Invoke-SaeedAcceptance([string]$Argument, [string]$Report, [string]$Name, [int]$MinimumChecks) {
+            $env:SAEED_CI_BRAIN_LEARNING_REPORT = (Join-Path $PWD $Report)
+            $stdout = Join-Path $env:RUNNER_TEMP "$Name.stdout.log"
+            $stderr = Join-Path $env:RUNNER_TEMP "$Name.stderr.log"
+            $proc = Start-Process -FilePath $exe -ArgumentList $Argument -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+            $deadline = (Get-Date).AddMinutes(3)
+            while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+            if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "$Name timed out." }
+            $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+            $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+            if (!(Test-Path $Report)) { throw "$Name report missing. $outText $errText" }
+            $result = Get-Content $Report -Raw | ConvertFrom-Json
+            $failed = @($result.checks | Where-Object { !$_.passed })
+            if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0 -or $result.checks.Count -lt $MinimumChecks) {
+              Write-Host $outText; Write-Host $errText; Write-Host (Get-Content $Report -Raw)
+              throw "$Name failed: exit=$($proc.ExitCode), checks=$($result.checks.Count), failures=$($failed.Count)."
+            }
+            Write-Host "$Name=PASS ($($result.checks.Count) runtime checks)"
+            Write-Host (Get-Content $Report -Raw)
+          }
+          Invoke-SaeedAcceptance "--ci-brain-learning-save" "dist/ci-brain-learning-save.json" "BRAIN_LEARNING_SAVE" 6
+          Invoke-SaeedAcceptance "--ci-brain-learning-verify" "dist/ci-brain-learning-verify.json" "BRAIN_LEARNING_RESTART" 6
+
+      - name: lifecycle
+        shell: pwsh
+        timeout-minutes: 12
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Lifecycle acceptance cannot start: packaged EXE is missing." }
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_USER_DATA = Join-Path $env:RUNNER_TEMP "saeed-lifecycle-user-data"
+          $env:SAEED_CI_LIFECYCLE_REPORT = (Join-Path $PWD "dist/ci-lifecycle-report.json")
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-lifecycle.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-lifecycle.stderr.log"
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-lifecycle" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline = (Get-Date).AddMinutes(9)
+          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Lifecycle acceptance timed out." }
+          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+          $report = "dist/ci-lifecycle-report.json"
+          if (!(Test-Path $report)) { throw "Lifecycle report missing. $outText $errText" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          $failed = @($result.checks | Where-Object { !$_.passed })
+          if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0 -or $result.checks.Count -lt 20) {
+            Write-Host $outText; Write-Host $errText; Write-Host (Get-Content $report -Raw)
+            throw "Lifecycle acceptance failed: exit=$($proc.ExitCode), checks=$($result.checks.Count), failures=$($failed.Count)."
+          }
+          Write-Host "LIFECYCLE_ACCEPTANCE=PASS ($($result.checks.Count) runtime checks)"
+          Write-Host (Get-Content $report -Raw)
+
+      - name: ram, cpu
+        shell: pwsh
+        timeout-minutes: 8
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "RAM/CPU acceptance cannot start: packaged EXE is missing." }
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_USER_DATA = Join-Path $env:RUNNER_TEMP "saeed-resource-user-data"
+          $env:SAEED_CI_RESOURCE_REPORT = (Join-Path $PWD "dist/ci-ram-cpu-report.json")
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-resource.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-resource.stderr.log"
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-ram-cpu" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline = (Get-Date).AddMinutes(6)
+          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "RAM/CPU acceptance timed out." }
+          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+          $report = "dist/ci-ram-cpu-report.json"
+          if (!(Test-Path $report)) { throw "RAM/CPU report missing. $outText $errText" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          $failed = @($result.checks | Where-Object { !$_.passed })
+          if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0 -or $result.checks.Count -lt 10 -or $result.resourceSamples.Count -lt 8) {
+            Write-Host $outText; Write-Host $errText; Write-Host (Get-Content $report -Raw)
+            throw "RAM/CPU acceptance failed: exit=$($proc.ExitCode), checks=$($result.checks.Count), failures=$($failed.Count), samples=$($result.resourceSamples.Count)."
+          }
+          Write-Host "RAM_CPU_ACCEPTANCE=PASS ($($result.checks.Count) checks; $($result.resourceSamples.Count) resource states)"
+          Write-Host (Get-Content $report -Raw)
+
       - name: Character, behavior
         shell: pwsh
         timeout-minutes: 5
@@ -341,6 +432,9 @@ jobs:
             dist/ci-character-behavior.json
             dist/ci-character-rig-builder-*.json
             dist/ci-character-rig-builder-*.png
+dist/ci-brain-learning-*.json
+dist/ci-lifecycle-report.json
+dist/ci-ram-cpu-report.json
             dist/ci-static-humanoid.glb
             dist/ci-rest-pose-save.json
             dist/ci-rest-pose-verify.json
