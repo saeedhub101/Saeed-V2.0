@@ -175,6 +175,24 @@ function normalizeHumanoidRestPose(){
  if(vertical<.45)return{detected:"laydown",normalized:false,corrected:false,reason:"Character is not upright; GLB rest pose preserved"};
  return{detected:"glb-rest-pose",normalized:true,corrected:false,stillTPose:false,reason:"GLB rest pose preserved; no automatic arm or hand rotation applied"};
 }
+function fixTPoseArmsDown(){
+ if(!model)return{ok:false,error:"Character GLB is not loaded"};
+ getSceneBones();
+ const changed=[];
+ const down=side=>new THREE.Vector3(side==="left"?.12:-.12,-1,0).normalize();
+ for(const side of ["left","right"]){
+  const upper=rig.get(side+"UpperArm")||findNamedBone(side,"upper");
+  const fore=rig.get(side+"ForeArm")||findNamedBone(side,"fore");
+  if(upper&&aimBoneChild(upper,down(side))){changed.push(upper.name);model.updateWorldMatrix(true,true)}
+  if(fore&&aimBoneChild(fore,down(side))){changed.push(fore.name);model.updateWorldMatrix(true,true)}
+ }
+ if(!changed.length)return{ok:false,error:"No arm bones with child joints were found; bind the upper-arm and forearm bones first",changed};
+ const normalization={detected:"arms-down",normalized:true,corrected:true,stillTPose:false,algorithm:"world-child-direction",changed};
+ captureAuthoritativeRestPose(normalization);
+ resetCharacterPose();
+ traceGlb("rest-pose-fix-t-pose",{changed,normalization});
+ return{ok:true,changed,normalization,restPose:snapshotBoneRotations()};
+}
 function validateRig(mapping={}){
  const required=["hips","head","leftUpperArm","rightUpperArm","leftThigh","rightThigh"];
  const optional=["spine","chest","neck","leftForeArm","rightForeArm","leftHand","rightHand","leftShin","rightShin","leftFoot","rightFoot","jaw","leftEye","rightEye"];
