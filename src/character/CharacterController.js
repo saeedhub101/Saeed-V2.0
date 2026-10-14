@@ -92,6 +92,7 @@ export class CharacterController{
    const valid=mappedBoneCount>0&&Object.values(mapped).every(b=>available.has(String(b?.name||b)));
    if(!bound||!valid){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"Engine rig binding did not resolve mapped bones to the current skeleton",mappedBoneCount,sceneBoneCount:names.length,mapping};return this.lastBindingResult;}
    this.retargeter.bind(mapped,this.retargeter.status().calibration);
+   for(const [slot,fix] of Object.entries(profile.axisFixes||{}))this.retargeter.setAxisFix?.(slot,fix);
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
    this.animation.stopAll();
@@ -148,6 +149,27 @@ export class CharacterController{
    }catch(error){persistenceError=error?.message||String(error)}
   }else persistenceError="No character profile ID was available to persist the rest pose";
   return {...restPose,persisted,profileId:this.characterId,persistenceError,storageKey:"saeed.character.profiles.v1",persistedProfile: persistedProfile ? {updatedAt:persistedProfile.updatedAt||null} : null};
+ }
+ fixTPose(){
+  const ready=this.ensureRigBound({authoring:true});
+  if(!ready.ok)return{ok:false,error:ready.error||"Character rig is not ready"};
+  this.beginAuthoring();
+  const result=this.engine?.fixTPoseArmsDown?.();
+  if(!result?.ok)return result||{ok:false,error:"T-pose correction is unavailable"};
+  const mapped=this.engine?.getBoneMap?.()||{};
+  const retargetStatus=this.retargeter?.status?.()||{};
+  this.retargeter.bind(mapped,retargetStatus.calibration||{});
+  for(const [slot,fix] of Object.entries(retargetStatus.axisFixes||{}))this.retargeter.setAxisFix?.(slot,fix);
+  this.animation.bindRig(mapped,this.retargeter);
+  const saved=this.saveRestPose();
+  if(!saved?.persisted)return{...result,ok:false,error:saved?.persistenceError||"Corrected rest pose could not be persisted",persisted:false};
+  return{...result,persisted:true,profileId:saved.profileId};
+ }
+ setAxisFix(slot,fix={}){
+  const key=String(slot||"").trim();
+  if(!key||!this.retargeter.setAxisFix?.(key,fix))return false;
+  if(this.characterId)this.profiles.save(this.characterId,{axisFixes:this.retargeter.status().axisFixes});
+  return true;
  }
  normalizeRestPose(){
   const ready=this.ensureRigBound({authoring:true});
