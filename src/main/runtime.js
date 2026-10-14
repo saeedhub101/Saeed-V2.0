@@ -442,13 +442,12 @@ async function runCiCharacterRigBuilder(mode){
     check("joint-deformation-"+joint.bone,passed,jointResults[jointResults.length-1]);
     await characterHost.command({action:"setBoneRotation",bone:joint.bone,rotation:{x:0,y:0,z:0}});
    }
-   const elbow=await characterHost.command({action:"setBoneRotation",bone:"leftForeArm",rotation:{x:0,y:0,z:.62}});
-   await wait(150);
-   await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.wakeRender?.(1800);true");
-   await wait(400);
+   const visibleJoint=await characterHost.command({action:"setBoneRotation",bone:"head",rotation:{x:.42,y:0,z:0}});
+   await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.wakeRender?.(2200);true");
+   await wait(650);
    const posed=await getSnapshot(),deform=displacement(afterBuild,posed),afterShot=await capture("after"),visual=imageDiff(beforeShot,afterShot);
    check("vertex-positions-change-under-skinning",deform.matchedSamples>0&&deform.displacedVertices>0&&deform.maxDisplacement>.003,{...deform});
-   check("visual-render-changes-after-joint-pose",elbow?.ok===true&&visual.fraction>.001&&visual.changedPixels>50,{...visual,before:beforeShot.file,after:afterShot.file});
+   check("visual-render-changes-after-joint-pose",visibleJoint?.ok===true&&visual.fraction>.001&&visual.changedPixels>50,{...visual,bone:"head",before:beforeShot.file,after:afterShot.file});
    const weightQuality=afterBuild.vertexCount>0?afterBuild.invalidWeightSums/afterBuild.vertexCount:1;
    check("skin-weight-quality-within-tolerance",afterBuild.vertexCount>0&&weightQuality<=.01&&afterBuild.nonFiniteWeights===0&&afterBuild.nonFinitePositions===0,{invalidWeightSums:afterBuild.invalidWeightSums,vertexCount:afterBuild.vertexCount,invalidRatio:weightQuality});
    const motionId="ci-avatar-agent-wave-persistence";
