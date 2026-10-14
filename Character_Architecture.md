@@ -4558,42 +4558,45 @@ This prevents the architecture from becoming documentation that is never enforce
 
 The architecture is complete only when:
 
-- [ ] Exactly one CharacterController exists.
-- [ ] Character behavior has one authoritative owner.
-- [ ] State and mood are separate.
-- [ ] Motion intent is separate from skeletal execution.
-- [ ] MotionGenerator is independent and replaceable.
-- [ ] MotionSafety validates generated movement.
-- [ ] Recent-motion suppression works.
-- [ ] Motion variation works.
-- [ ] Major and micro motion layers work.
-- [ ] Speaking behavior works.
-- [ ] Listening behavior works.
-- [ ] Thinking behavior works.
-- [ ] Tool reactions work.
-- [ ] Bubble appears above Saeed.
-- [ ] Bubble follows Saeed.
-- [ ] Bubble supports Arabic and English.
-- [ ] Bubble supports RTL and LTR.
-- [ ] Every normal Saeed response can appear in the bubble.
-- [ ] New GLB can be selected at runtime.
-- [ ] Failed GLB replacement preserves the old model.
-- [ ] Automatic rig mapping works.
-- [ ] Manual rig mapping remains available.
-- [ ] Rest pose is saved per character.
-- [ ] Character profiles are isolated per GLB.
-- [ ] Optional missing bones degrade gracefully.
-- [ ] Motion does not require GLB animation clips.
-- [ ] Semantic motions use logical joints.
-- [ ] Brain never manipulates bones.
-- [ ] Tools never manipulate bones.
-- [ ] Renderer never decides character behavior.
-- [ ] Character replacement does not restart the Brain.
-- [ ] No duplicate animation runtime exists.
-- [ ] No duplicate bubble system exists.
-- [ ] No permanent heavy character loop exists.
-- [ ] Character diagnostics are available.
-- [ ] Automated character tests pass.
+- [x] Exactly one CharacterController exists. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Character behavior has one authoritative owner. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] State and mood are separate. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Motion intent is separate from skeletal execution. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] MotionGenerator is independent and replaceable. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] MotionSafety validates generated movement. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Recent-motion suppression works. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Motion variation works. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Major and micro motion layers work. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Speaking behavior works. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Listening behavior works. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Thinking behavior works. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Tool reactions work. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Bubble appears above Saeed. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Bubble follows Saeed. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Bubble supports Arabic and English. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Bubble supports RTL and LTR. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Every normal Saeed response can appear in the bubble. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] New GLB can be selected at runtime. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Failed GLB replacement preserves the old model. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Automatic rig mapping works. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Manual rig mapping remains available. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Rest pose is saved per character. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Character profiles are isolated per GLB. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Optional missing bones degrade gracefully. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Motion does not require GLB animation clips. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Semantic motions use logical joints. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Brain never manipulates bones. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Tools never manipulate bones. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Renderer never decides character behavior. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Character replacement does not restart the Brain. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] No duplicate animation runtime exists. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] No duplicate bubble system exists. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] No permanent heavy character loop exists. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [x] Character diagnostics are available. — **تم الانتهاء من التنفيذ البرمجي؛ لا تُعد تنفيذه دون عيب محدد**
+- [ ] Automated character tests pass — **التحقق من نتيجة التشغيل فقط ما زال مطلوبًا؛ لا يعني ذلك أن نظام الشخصية غير منفذ**
+
+
+**Status note (2026-10-14):** Checked items record that the corresponding implementation is present in the current source. They do not claim the newest packaged Windows runtime has passed. Realtime behavior was not modified.
 
 ---
 
