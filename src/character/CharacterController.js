@@ -91,8 +91,7 @@ export class CharacterController{
    const available=new Set(names.map(String));
    const valid=mappedBoneCount>0&&Object.values(mapped).every(b=>available.has(String(b?.name||b)));
    if(!bound||!valid){this.rigReady=false;this.lastBindingResult={loaded:false,reason:"Engine rig binding did not resolve mapped bones to the current skeleton",mappedBoneCount,sceneBoneCount:names.length,mapping};return this.lastBindingResult;}
-   this.retargeter.bind(mapped,this.retargeter.status().calibration);
-   for(const [slot,fix] of Object.entries(profile.axisFixes||{}))this.retargeter.setAxisFix?.(slot,fix);
+   this.retargeter.bind(mapped,this.retargeter.status().calibration,profile.axisFixes||{});
    this.fingers.bind(names);
    this.animation.bindRig(mapped,this.retargeter);
    this.animation.stopAll();
@@ -124,8 +123,7 @@ export class CharacterController{
   const mapped=this.engine?.getBoneMap?.()||{};
   if(!Object.keys(mapped).length)return false;
   const state=this.retargeter?.status?.()||{};
-  this.retargeter.bind(mapped,state.calibration||{});
-  for(const [slot,fix] of Object.entries(state.axisFixes||{}))this.retargeter.setAxisFix?.(slot,fix);
+  this.retargeter.bind(mapped,state.calibration||{},state.axisFixes||{});
   this.animation.bindRig(mapped,this.retargeter);
   return true;
  }
