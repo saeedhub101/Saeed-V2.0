@@ -4,7 +4,7 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="listMotions"||action==="setUserBusy";
+ const lightweight=action==="status"||action==="listMotions"||action==="setUserBusy"||action==="behaviorEvent";
  const needsBones=action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
@@ -78,6 +78,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="setBoneEditorRotation"){const ok=engine?.setBoneEditorRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneEditorRotation?.(String(x.bone||""))||null}};
   if(x.action==="resetBoneToRest"){const bone=String(x.bone||"");const rotation=c.resetBoneToRest?.(bone);return{ok:Boolean(rotation),rotation:rotation||null,status:c.status()}};
   if(x.action==="setUserBusy"){const busy=c.setUserBusy?.(x.value===true);return{ok:Boolean(busy),userBusy:c.autonomous?.getStatus?.().userBusy===true,status:c.status()}}
+  if(x.action==="behaviorEvent"){const handled=c.handleEvent?.(x.event||{});return{ok:Boolean(handled),status:c.status()}}
   if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}}
   if(x.action==="calibrateJoint"){const ok=c.calibrateJoint?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),calibration:c.retargeter?.status?.().calibration||{},status:c.status()}}
   if(x.action==="snapshotRestPose")return{ok:true,bones:engine?.snapshotBoneRotations?.()||{}};
