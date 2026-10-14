@@ -127,7 +127,8 @@ jobs:
           $cmakeText = [regex]::Replace($cmakeText, 'cmake_minimum_required\(VERSION\s+[0-9.]+', 'cmake_minimum_required(VERSION 3.10', 1)
           if ($cmakeText -notmatch 'cmake_minimum_required\(VERSION 3.10') { throw "Could not modernize the upstream CMake minimum version." }
           if ($cmakeText -notmatch 'if\(POLICY CMP0194\)') {
-            $cmakeText = $cmakeText -replace '(cmake_minimum_required\(VERSION 3.10[^\r\n]*\))', '$1' + "`nif(POLICY CMP0194)`n  cmake_policy(SET CMP0194 NEW)`nendif()"
+            $policyBlock = "`nif(POLICY CMP0194)`n  cmake_policy(SET CMP0194 NEW)`nendif()"
+            $cmakeText = [regex]::Replace($cmakeText, '(cmake_minimum_required\(VERSION 3\.10[^\r\n]*\))', { param($match) $match.Groups[1].Value + $policyBlock }, 1)
           }
           Set-Content -Path $cmakeLists -Value $cmakeText -NoNewline
           cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
