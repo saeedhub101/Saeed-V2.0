@@ -1,3 +1,7 @@
+## Current implementation inventory — 2026-10-14
+
+**تم الانتهاء من التنفيذ البرمجي** for the Brain/task engine, shared Chat/Voice history, tool/permission registry, local/cloud provider routing, persistent user facts and query-relevant memory retrieval, add-on/MCP integration, Windows automation and document tools, voice mute/mic lifecycle, GLB character loading and rig mapping, rest-pose persistence, motion editing/playback, behavior settings, backup/restore, and updater foundations. Do not rebuild these systems merely because older items below describe them as work to do. Fix concrete defects in the existing implementation. Current source fixes include the renderer voice diagnostic bridge, query-relevant memory context, and mute-state persistence before agent initialization. **Realtime implementation is explicitly out of scope for these changes and remains unchanged.** Add-on process isolation and phoneme-timed lip-sync remain real enhancement areas; they must not be labelled completed until implemented.
+
 # Saeed V2.0 — Completion Roadmap (Two Phases)
 
 **Status date:** 2026-10-13  
