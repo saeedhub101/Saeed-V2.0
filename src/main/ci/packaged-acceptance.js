@@ -95,7 +95,7 @@ async function runLifecycle(deps){
   const micOn=await setMicMode("on");
   check("mic-on-activates-brain-and-stt-mode",micOn===true&&getCurrentMicMode()==="on"&&ensureBrainHost().isActive(),{micOn:Boolean(micOn),micMode:getCurrentMicMode(),brainActive:ensureBrainHost().isActive()});
   const micOff=await setMicMode("off");await pause(120);
-  check("mic-off-stops-stt-and-releases-idle-brain",micOff===true&&getCurrentMicMode()==="off"&&!ensureBrainHost().isActive()&&!ensureVoiceHost().getVoiceRuntime(),{micOff:Boolean(micOff),micMode:getCurrentMicMode(),brainActive:ensureBrainHost().isActive(),sttRuntimeActive:Boolean(ensureVoiceHost().getVoiceRuntime())});
+  check("mic-off-stops-stt-and-releases-idle-brain",micOff===true&&getCurrentMicMode()==="off"&&!ensureBrainHost().isActive()&&!ensureVoiceHost().isVoiceRuntimeActive(),{micOff:Boolean(micOff),micMode:getCurrentMicMode(),brainActive:ensureBrainHost().isActive(),sttRuntimeActive:Boolean(ensureVoiceHost().getVoiceRuntime())});
   await closeEverything();
   check("final-idle-leaves-only-tray",windows().length===0,{windowCount:windows().length,windows:windows().map(w=>w.getTitle())});
  }catch(error){report.error=String(error?.stack||error);check("lifecycle-exception",false,{error:report.error})}
