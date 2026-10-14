@@ -68,7 +68,7 @@ function updatePlanStep(userData,id,index,status,evidence=""){
  if(next==="completed"&&!String(evidence||"").trim())throw new Error("A completed plan step requires verification evidence");
  if(next==="completed"){
   const started=Date.parse(step.startedAt||"");
-  const observed=Number.isFinite(started)&&(run.steps||[]).some(item=>item.status==="returned"&&Number.isFinite(Date.parse(item.finishedAt||""))&&Date.parse(item.finishedAt)>=started);
+  const observed=Number.isFinite(started)&&(run.steps||[]).some(item=>item.status==="returned"&&item.usefulResult===true&&Number.isFinite(Date.parse(item.finishedAt||""))&&Date.parse(item.finishedAt)>=started);
   if(!observed)throw new Error("A plan step requires an observed successful tool result after it starts; text alone is not verification");
  }
  const now=new Date().toISOString();step.status=next;
@@ -109,7 +109,7 @@ function observe(userData,id,event){
    step.finishedAt=now;
    if(type==="tool_result")for(const previous of run.steps){if(previous!==step&&previous.tool===name&&previous.status==="failed"){previous.status="recovered";previous.recoveredAt=now}}
    if(type==="tool_error")step.error=safeText(event.error,240);
-   else step.resultShape=Object.keys(event.result&&typeof event.result==="object"?event.result:{}).slice(0,40);
+   else{const result=event.result,keys=result&&typeof result==="object"&&!Array.isArray(result)?Object.keys(result).filter(key=>!["ok","status","source","durationMs"].includes(key)&&result[key]!==null&&result[key]!==undefined&&result[key]!==""&&result[key]!==false):[];step.resultShape=Object.keys(result&&typeof result==="object"?result:{}).slice(0,40);step.usefulResult=typeof result==="string"?Boolean(result.trim()):Array.isArray(result)?result.length>0:Boolean(keys.length)}
    if((["read_file","list_directory","inspect_document","extract_pdf_text","read_excel","active_window","list_windows","inspect_window_controls","screenshot","ocr_image","inspect_image","fetch_web_page"].includes(name))||(name==="agent_skills"&&["list","get"].includes(step.operation))||(name==="mcp_call_tool"&&isReadOnlyMcpTool(step.externalTool))||(addonTool&&addonReadOnly)){
     run.verification.attempted=true;
     const result=event.result,meaningfulKeys=result&&typeof result==="object"&&!Array.isArray(result)?Object.keys(result).filter(key=>!["ok","status","source","durationMs"].includes(key)&&result[key]!==null&&result[key]!==undefined&&result[key]!==""&&result[key]!==false):[];
