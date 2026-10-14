@@ -637,22 +637,21 @@ function buildProceduralRig(templateName="full",options={}){
  const boneIndex=new Map(bones.map((b,i)=>[b,i]));
  const skinGeometry=(geometry)=>{
   const pos=geometry.attributes.position,count=pos.count,idx=new Uint16Array(count*4),weights=new Float32Array(count*4);
-  const distance=(p,s)=>{const ab=s.b.clone().sub(s.a),ap=p.clone().sub(s.a),t=THREE.MathUtils.clamp(ap.dot(ab)/s.len2,0,1);return p.distanceTo(s.a.add(ab.multiplyScalar(t)))};
+  const distance=(p,s)=>{const ab=s.b.clone().sub(s.a),ap=p.clone().sub(s.a),t=THREE.MathUtils.clamp(ap.dot(ab)/s.len2,0,1);return p.distanceTo(s.a.clone().add(ab.multiplyScalar(t)))};
   for(let v=0;v<count;v++){const p=new THREE.Vector3(pos.getX(v),pos.getY(v),pos.getZ(v));let influences=[],sum=0;for(const seg of segments){const d=distance(p,seg);if(d<seg.radius){const w=(1-d/seg.radius)**2;influences.push([seg.index,w]);sum+=w}}const rootWeight=Math.max(0,1-sum);if(rootWeight>0)influences.push([0,rootWeight]);influences.sort((a,b)=>b[1]-a[1]);influences=influences.slice(0,4);const total=influences.reduce((n,x)=>n+x[1],0)||1;for(let j=0;j<4;j++){idx[v*4+j]=influences[j]?.[0]??0;weights[v*4+j]=influences[j]?influences[j][1]/total:(j===0?1:0)}}
   geometry.setAttribute("skinIndex",new THREE.Uint16BufferAttribute(idx,4));geometry.setAttribute("skinWeight",new THREE.Float32BufferAttribute(weights,4));
  };
  model.add(rootBone);
- const inverseModel=new THREE.Matrix4().copy(model.matrixWorld).invert(),created=[];
+ const inverseModel=new THREE.Matrix4().copy(model.matrixWorld).invert(),created=[],skeleton=new THREE.Skeleton(bones);
  try{
   model.updateMatrixWorld(true);
-  for(const mesh of meshes){const geometry=mesh.geometry.clone();geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverseModel,mesh.matrixWorld));skinGeometry(geometry);const skinned=new THREE.SkinnedMesh(geometry,mesh.material);skinned.name=mesh.name;skinned.frustumCulled=false;mesh.parent.add(skinned);skinned.bind(new THREE.Skeleton(bones));mesh.parent.remove(mesh);created.push({mesh,skinned})}
-  const skeleton=new THREE.Skeleton(bones);for(const item of created)item.skinned.bind(skeleton);
+  for(const mesh of meshes){const geometry=mesh.geometry.clone();geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverseModel,mesh.matrixWorld));skinGeometry(geometry);const skinned=new THREE.SkinnedMesh(geometry,mesh.material);skinned.name=mesh.name;skinned.frustumCulled=false;model.add(skinned);skinned.bind(skeleton);const originalParent=mesh.parent;originalParent.remove(mesh);created.push({mesh,skinned,originalParent})}
   getSceneBones();captureAuthoritativeRestPose(lastRestPose);autoMapRig();fit();render();
   const mapped=Object.keys(getBoneMap()).length;
   const result={ok:true,template,createdBoneCount:bones.length,meshCount:created.length,mappedSlots:mapped,bones:defs.map(b=>b.name),warning:"Generated skeleton weights are approximate. Inspect elbows, shoulders, hips and knees in Character Studio before saving this character rig."};
   window.saeed?.system?.reportDiagnostic?.("INFO","PROCEDURAL RIG BUILT","A procedural skeleton and approximate skin weights were created for a static character mesh",result);
   return result;
- }catch(error){for(const item of created){try{item.skinned.parent?.remove(item.skinned);item.mesh.parent?.add(item.mesh)}catch{}try{item.skinned.geometry?.dispose()}catch{}}try{rootBone.parent?.remove(rootBone)}catch{}getSceneBones();render();return{ok:false,error:error?.stack||error?.message||String(error)}}
+ }catch(error){for(const item of created){try{item.skinned.parent?.remove(item.skinned);item.originalParent?.add(item.mesh)}catch{}try{item.skinned.geometry?.dispose()}catch{}}try{rootBone.parent?.remove(rootBone)}catch{}getSceneBones();render();return{ok:false,error:error?.stack||error?.message||String(error)}}
 }
 
 function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}const previous=model;model=null;if(previous){try{root.remove(previous)}catch{}try{dispose(previous)}catch(error){traceGlb("destroy-model-dispose-error",{error:error?.message||String(error)})}}rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}try{renderer.forceContextLoss?.()}catch{}renderQueued=false;return true}
