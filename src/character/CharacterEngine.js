@@ -246,11 +246,26 @@ function collectMorphs(){
   }
  });
 }
+const MORPH_ALIASES={
+ aa:["aa","a","ah","ae","mouthopen","jawopen"],ee:["ee","e","eh","ih","i"],oo:["oo","ou","u","uw"],oh:["oh","o","ow"],
+ fv:["fv","f","v","th"],mbp:["mbp","m","b","p"],th:["th","dh"],sh:["sh","zh"],ch:["ch","jh"],j:["j"],
+ blink:["blink","blinkboth","eyeclose","eyesclosed","eyeclosed"],blinkl:["blinkl","blinkleft","lefteyeclose","eyeclosel"],blinkr:["blinkr","blinkright","righteyeclose","eyecloser"],
+ smile:["smile","mouthsmile","happy","joy"],sad:["sad","frown","sorrow"],angry:["angry","anger"],surprise:["surprise","surprised","shock"],browup:["browup","browraise","browinnerup"],browdown:["browdown","browlower"],
+ jawopen:["jawopen","mouthopen"],tongueout:["tongueout","tongue"],cheekpuff:["cheekpuff","puffcheeks"]
+};
+const normalizeMorphName=value=>String(value||"").toLowerCase().replace(/^(viseme_|vrc\\.v_|fcl_mth_|mth_|mouth_|face_)/,"").replace(/[^a-z0-9]/g,"");
 function setMorph(name,value=0){
- const list=morphs.get(String(name||"").toLowerCase());
- if(!list)return false;
+ const key=String(name||"").toLowerCase(),normalized=normalizeMorphName(key);
+ let lists=morphs.has(key)?[morphs.get(key)]:[];
+ if(!lists.length){
+  const aliases=MORPH_ALIASES[normalized]||[normalized];
+  const matched=[];
+  for(const [morphName,list] of morphs){const candidate=normalizeMorphName(morphName);if(aliases.some(alias=>candidate===normalizeMorphName(alias))&&!matched.includes(list))matched.push(list)}
+  lists=matched;
+ }
+ if(!lists.length)return false;
  const v=Math.max(0,Math.min(1,Number(value)||0));
- for(const [m,i] of list)m.morphTargetInfluences[i]=v;
+ for(const list of lists)for(const [m,i] of list)m.morphTargetInfluences[i]=v;
  render();
  return true;
 }
