@@ -169,3 +169,14 @@ test("busy-state suppresses casual motion and resumes the autonomous scheduler",
  assert.equal(behavior.getStatus().windowFocused,true);
  behavior.stop();
 });
+
+test("autonomous behavior starts focused and schedules idle motion without a prior focus event",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const behavior=new AutonomousBehaviorController({animation:{registry:{get:id=>({id})},active:[]},play:()=>true,moodPalette:()=>["nod"]});
+ assert.equal(behavior.getStatus().windowFocused,true);
+ behavior.running=true;
+ behavior.schedule(1000);
+ assert.equal(behavior.getStatus().activeTimers.idle,true);
+ behavior.stop();
+ behavior.destroy?.();
+});
