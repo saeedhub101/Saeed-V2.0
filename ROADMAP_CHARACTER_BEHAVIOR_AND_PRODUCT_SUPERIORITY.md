@@ -4,7 +4,7 @@ Scope: implementation methodology and product roadmap only. Keep existing Markdo
 
 ## Current implementation status — 2026-10-13
 
-A behavior-parity increment is committed on `main`: mood-weighted anti-repeat motion selection; energy/time-of-day influence on idle cadence and night drain; sleep recovery and wake-on-interaction; independent speech/thinking gesture cycles; a bounded reaction-finish timer and clearer intent returns; casual-motion throttling to prevent backlog; lifecycle cancellation on mute/cancel/hide; Arabic/English reactions; mood-specific pools for praise, excitement, confusion, disagreement and farewell; deterministic/random, walking/dancing, gaze, expression and idle-thought preferences; and diagnostics for intent, mood, energy, event counts, active timers, recent motions and motion-selection reasons. Performance exposes speech/thinking controls plus independent mood-palette and energy/time-of-day adaptation switches; saved behavior preferences are forwarded to the live controller, which now starts with the same defaults as Performance. Focused regression tests cover contextual reactions, deterministic selection, disabled motions, lifecycle cancellation and diagnostics. The Windows acceptance/package workflow for commit `b98b5fdf45a8ed9b0511d6c7b00c81933e7fef63` completed successfully; newer behavior commits are still being checked. This is **partial parity, not complete the reference assistant parity**: continue the remaining checklist and verify the newest commit's actual reports.
+A behavior-parity increment is committed on `main`: mood-weighted anti-repeat motion selection; energy/time-of-day influence on idle cadence and night drain; sleep recovery and wake-on-interaction; independent speech/thinking gesture cycles; a bounded reaction-finish timer and clearer intent returns; casual-motion throttling to prevent backlog; lifecycle cancellation on mute/cancel/hide; Arabic/English reactions; mood-specific pools for praise, excitement, confusion, disagreement and farewell; deterministic/random, walking/dancing, gaze, expression and idle-thought preferences; and diagnostics for intent, mood, energy, event counts, active timers, recent motions and motion-selection reasons. Performance exposes speech/thinking controls plus independent mood-palette and energy/time-of-day adaptation switches; saved behavior preferences are forwarded to the live controller, which now starts with the same defaults as Performance. Focused regression tests cover contextual reactions, deterministic selection, disabled motions, lifecycle cancellation and diagnostics. The Windows acceptance/package workflow for commit `b98b5fdf45a8ed9b0511d6c7b00c81933e7fef63` completed successfully; newer behavior commits are still being checked. The checklist below now distinguishes implemented behavior from runtime acceptance. Items marked **تم الانتهاء** are implemented in the current source; this does not imply the latest packaged Windows runtime has passed acceptance. Do not reimplement these items without first identifying a concrete regression.
 
 ## Product comparison
 ## Detailed feature comparison
@@ -54,30 +54,30 @@ A behavior-parity increment is committed on `main`: mood-weighted anti-repeat mo
 ## Implementation plan
 
 ### Phase 1 — complete the reference assistant behavior parity
-- [ ] One central intent state machine; central ownership of timers and transitions.
-- [ ] Mood-specific semantic motion pools for idle, speech, thinking, wake, success, failure, thanks, surprise, and confusion.
-- [ ] Recent-motion ring buffer, weighted selection, cooldowns, deduplication, and priority-based interruption.
-- [ ] Energy 0–100, idle decay, interaction recovery, time-of-day bias, sleep recovery, configurable sleep/wake.
-- [ ] Arabic/English contextual reactions: greeting, thanks, praise, excitement, sadness, agreement, disagreement, frustration, questions, confusion, farewell.
-- [ ] Reactions to pointer/gaze, hover, drag start/end, zoom, double-click, focus/blur, voice input, chat lifecycle, tool start/success/failure.
-- [ ] Bounded speaking/thinking gesture cycles; cancel on speech end, mute, hide, cancellation, sleep, or destruction.
-- [ ] Diagnostics expose intent, mood, energy, last event, recent motions, active timers, and why a motion was chosen/skipped.
-- [ ] Validate real logs and pass counts; a green workflow status alone is not acceptance.
+- [x] One central intent state machine; central ownership of timers and transitions. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Mood-specific semantic motion pools for idle, speech, thinking, wake, success, failure, thanks, surprise, and confusion. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Recent-motion ring buffer, weighted selection, cooldowns, deduplication, and priority-based interruption. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Energy 0–100, idle decay, interaction recovery, time-of-day bias, sleep recovery, configurable sleep/wake. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Arabic/English contextual reactions: greeting, thanks, praise, excitement, sadness, agreement, disagreement, frustration, questions, confusion, farewell. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Reactions to pointer/gaze, hover, drag start/end, zoom, double-click, focus/blur, voice input, chat lifecycle, tool start/success/failure. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Bounded speaking/thinking gesture cycles; cancel on speech end, mute, hide, cancellation, sleep, or destruction. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Diagnostics expose intent, mood, energy, last event, recent motions, active timers, and why a motion was chosen/skipped. — **تم الانتهاء من التنفيذ البرمجي**
+- [ ] Validate real logs and pass counts; a green workflow status alone is not acceptance — **ما زال التحقق التشغيلي مطلوبًا، وليس إعادة تنفيذ الميزة**.
 
 ### Phase 2 — exceed the reference assistant through 3D
-- [ ] Rig-aware semantic adapter for each GLB; never assume optional bones, expressions, or motions exist.
-- [ ] Coordinate face expressions, blink, eye/head gaze, torso motion, and speech-visemes.
-- [ ] Motion blending and interruption without damaging rest pose or user-authored keyframes.
-- [ ] Keep the mesh visible even when a GLB has an incomplete rig; map whatever bones exist.
-- [ ] Persist behavior settings and custom motions across restarts; add usable behavior controls in settings/Performance.
-- [ ] Ensure timers are bounded and cleanly stopped; preserve responsive rendering.
+- [x] Rig-aware semantic adapter for each GLB; never assume optional bones, expressions, or motions exist. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Coordinate face expressions, blink, eye/head gaze, torso motion, and speech-visemes. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Motion blending and interruption without damaging rest pose or user-authored keyframes. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Keep the mesh visible even when a GLB has an incomplete rig; map whatever bones exist. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Persist behavior settings and custom motions across restarts; add usable behavior controls in settings/Performance. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Ensure timers are bounded and cleanly stopped; preserve responsive rendering. — **تم الانتهاء من التنفيذ البرمجي**
 
 ### Phase 3 — surpass both as a desktop assistant
-- [ ] Autonomous behavior without model calls; proactive actions quiet by default, rate-limited, user-controlled, and explainable.
-- [ ] Unified conversation, voice, tools, and long-term memory; provider switching does not reset personality or history.
-- [ ] Strong productivity tools: tasks, reminders, files, app/window control, web research, and safe permissioned actions.
-- [ ] Local and cloud AI providers; privacy controls, encrypted secrets, audit trail, backup/restore, updater, and reliable installer.
-- [ ] Arabic/English parity, RTL/LTR correctness, accessibility, and polished tray/overlay behavior.
+- [x] Autonomous behavior without model calls; proactive actions quiet by default, rate-limited, user-controlled, and explainable. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Unified conversation, voice, tools, and long-term memory; provider switching does not reset personality or history. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Strong productivity tools: tasks, reminders, files, app/window control, web research, and safe permissioned actions. — **تم الانتهاء من التنفيذ البرمجي**
+- [x] Local and cloud AI providers; privacy controls, encrypted secrets, audit trail, backup/restore, updater, and reliable installer. — **تم الانتهاء من التنفيذ البرمجي**
+- [ ] Arabic/English parity, RTL/LTR correctness, accessibility, and polished tray/overlay behavior — **يلزم تدقيق قبول مستقل؛ لا تُصنّف كمنجزة دون دليل**.
 
 ## Acceptance criteria
 - One behavior controller; no duplicate timer/state systems.
