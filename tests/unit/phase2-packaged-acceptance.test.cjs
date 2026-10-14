@@ -17,6 +17,16 @@ test("packaged acceptance launches after startup and exits from a machine-readab
  assert.match(workflow,/PACKAGED_RUNTIME_ACCEPTANCE=PASS/);
 });
 
+test("autonomous character focus lifecycle is wired without inferring inactivity from blur",()=>{
+ const controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
+ const behavior=fs.readFileSync(path.join(root,"src/character/AutonomousBehaviorController.js"),"utf8");
+ assert.match(controller,/setWindowFocused:v=>controller\.autonomous\?\.setWindowFocused\?\.\(v\)/);
+ assert.match(controller,/window\.addEventListener\("focus",\(\)=>window\.saeedCharacterRuntime\?\.controller\?\.setWindowFocused\?\.\(true\)\)/);
+ assert.doesNotMatch(controller,/window\.addEventListener\("blur",/);
+ assert.match(behavior,/this\.windowFocused=true/);
+ assert.match(behavior,/if\(!this\.running\|\|!this\.visible\|\|!this\.windowFocused\|\|this\.sleeping\|\|this\.userBusy\)return/);
+});
+
 test("Character IPC serializes logical rig names instead of cyclic THREE.Bone objects",()=>{
  const start=client.indexOf('if(x.action==="getRig")');
  const end=client.indexOf("\n",start);
