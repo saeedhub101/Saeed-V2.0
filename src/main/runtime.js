@@ -245,6 +245,24 @@ async function runCiProductAcceptance(){
    const firstMoved=played?.ok===true&&changedMotionBones.length===motionSlots.length&&motionSlots.length>0;
    check("generated-motion-changes-real-bone",firstMoved,{mappedBoneCount:motionSlots.length,changedBoneCount:changedMotionBones.length,unchangedBones:motionSlots.filter(({bone})=>!changedMotionBones.some(item=>item.bone===bone)).map(item=>item.bone),representativeBone:motionBone,before:initialMotionRotations[motionBone]||null,after:motionFirstRotations[motionBone]||null});
    check("generated-motion-changes-all-mapped-bones",firstMoved,{mappedSlots:motionSlots.map(item=>item.slot),mappedBones:motionSlots.map(item=>item.bone),changedBones:changedMotionBones.map(item=>item.bone)});
+   // Keep the same stored motion, change and persist one real mapped bone's rest pose,
+   // then replay that unchanged motion. This detects stale/original-pose retargeting.
+   await characterHost.command({action:"stopAll"});
+   const restProbeBone=motionSlots[0]?.bone||"";
+   const restBeforeStatus=await characterHost.command({action:"status"});
+   const restBefore=restBeforeStatus?.status?.actualBones?.[restProbeBone]?.rotation||null;
+   const restChanged=Boolean(restProbeBone&&restBefore)&&await characterHost.command({action:"setBoneRotation",bone:restProbeBone,rotation:{x:Number(restBefore.x)+0.22,y:Number(restBefore.y),z:Number(restBefore.z)}});
+   const restSaved=restChanged?.ok===true?await characterHost.command({action:"saveRestPose"}):{ok:false,error:restChanged?.error||"Could not change mapped bone rest pose"};
+   check("rest-pose-change-is-persisted",restSaved?.ok===true&&restSaved?.persisted===true&&restSaved?.restPose?.persisted===true,{bone:restProbeBone,persisted:Boolean(restSaved?.persisted),error:restSaved?.restPose?.persistenceError||restSaved?.error||null});
+   await characterHost.command({action:"stopAll"});
+   const replaySameMotion=restSaved?.ok===true?await characterHost.command({action:"play",motion:motionId,options:{priority:100,blend:0.01}}):{ok:false};
+   await wait(300);
+   const afterRestRebind=await characterHost.command({action:"status"});
+   const afterRestRotations=Object.fromEntries(motionSlots.map(({bone})=>[bone,afterRestRebind?.status?.actualBones?.[bone]?.rotation||null]));
+   const beforeProbe=motionFirstRotations[restProbeBone],afterProbe=afterRestRotations[restProbeBone];
+   const restPoseChangedMotion=Boolean(replaySameMotion?.ok&&beforeProbe&&afterProbe)&&["x","y","z"].some(axis=>Math.abs(Number(afterProbe[axis])-Number(beforeProbe[axis]))>0.06);
+   check("rest-pose-change-rebinds-existing-motion",restPoseChangedMotion,{bone:restProbeBone,motionId,rotationBeforeRestChange:beforeProbe||null,rotationAfterRestChange:afterProbe||null,delta:beforeProbe&&afterProbe?{x:Number(afterProbe.x)-Number(beforeProbe.x),y:Number(afterProbe.y)-Number(beforeProbe.y),z:Number(afterProbe.z)-Number(beforeProbe.z)}:null,playSucceeded:Boolean(replaySameMotion?.ok)});
+   if(replaySameMotion?.ok)motionFirstRotations=afterRestRotations;
    await characterHost.command({action:"stopAll"});
    const edited=motionSlots.length?await characterHost.command({action:"defineMotion",motion:makeCiMotion(-0.55)}):{ok:false};
    const playedEdited=edited?.ok===true?await characterHost.command({action:"play",motion:motionId,options:{priority:100,blend:0.01}}):{ok:false};
