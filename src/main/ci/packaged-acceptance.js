@@ -19,8 +19,11 @@ async function runBrainLearning(mode,deps){
   check("brain-initializes-in-packaged-exe",Boolean(agent)&&host.isActive(),{active:host.isActive(),agentType:agent?.constructor?.name||typeof agent});
   check("agent-has-registered-tools",tools.length>=5,{toolCount:tools.length,tools:tools.slice(0,35)});
   const uiPath=path.join(app.getAppPath(),"src","addons","window.html");
+  const uiScriptPath=path.join(app.getAppPath(),"src","addons","window.js");
   const ui=fs.readFileSync(uiPath,"utf8");
-  check("add-on-screen-has-search-category-and-direct-add-action",ui.includes('id="search"')&&ui.includes('id="categories"')&&ui.includes("Add add-on"),{uiPath,hasSearch:ui.includes('id="search"'),hasCategories:ui.includes('id="categories"'),hasDirectAdd:ui.includes("Add add-on")});
+  const uiScript=fs.readFileSync(uiScriptPath,"utf8");
+  const hasSearch=ui.includes('id="search"'),hasCategories=ui.includes('id="categories"'),hasDirectAdd=uiScript.includes("Add add-on");
+  check("add-on-screen-has-search-category-and-direct-add-action",hasSearch&&hasCategories&&hasDirectAdd,{uiPath,uiScriptPath,hasSearch,hasCategories,hasDirectAdd});
   if(mode==="save"){
    const task=tasks.begin(userData,"CI brain/learning persistence contract");
    tasks.setPlan(userData,task.id,[{title:"Verify task plan persistence",successCriteria:"Task plan can be read back from disk"}]);
@@ -51,7 +54,9 @@ async function runBrainLearning(mode,deps){
   }else throw new Error("Unsupported brain/learning mode: "+mode);
  }catch(error){report.error=String(error?.stack||error);check("brain-learning-exception",false,{error:report.error})}
  try{await ensureBrainHost().releaseBrain?.()}catch(error){diagnostic?.("WARN","CI BRAIN RELEASE",error?.message||String(error))}
- return finish();
+ const result=finish();
+ setTimeout(()=>{try{app.exit(result.passed?0:1)}catch{}},150);
+ return result;
 }
 async function runLifecycle(deps){
  const {app,BrowserWindow,getState,setWindow,characterApi,showPerformance,showSettings,showLearning,showAddons,showStatus,show3DStatus,showRestPoseEditor,showNormalizeHumanoidRestPose,ensureChatHost,ensureBrain,ensureBrainHost,getAgent,setMicMode,getCurrentMicMode,ensureVoiceHost,diagnostic,stopCpuMonitoring}=deps;
@@ -104,7 +109,9 @@ async function runLifecycle(deps){
   check("final-idle-leaves-only-tray",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,windows:windows().map(w=>w.getTitle())});
  }catch(error){report.error=String(error?.stack||error);check("lifecycle-exception",false,{error:report.error})}
  try{stopCpuMonitoring()}catch{}
- return finish();
+ const result=finish();
+ setTimeout(()=>{try{app.exit(result.passed?0:1)}catch{}},150);
+ return result;
 }
 async function runResource(deps){
  const {app,BrowserWindow,getState,characterApi,showPerformance,ensureChatHost,ensureBrain,ensureBrainHost,getAgent,setMicMode,getCurrentMicMode,ensureVoiceHost,getResourceService,characterHost}=deps;
@@ -129,10 +136,15 @@ async function runResource(deps){
   const micOn=await setMicMode("on");await sample("character-and-mic-on");
   check("resource-mic-state-reached",micOn===true&&getCurrentMicMode()==="on"&&ensureBrainHost().isActive(),{micOn:Boolean(micOn),micMode:getCurrentMicMode(),brainActive:ensureBrainHost().isActive()});
   await setMicMode("off");await sample("mic-off-brain-released");
-  await characterApi.hideCharacter();const last=await sample("final-tray-only");
+  await characterApi.hideCharacter();
+  // Allow renderer/GPU work to settle before measuring tray-only idle.
+  await wait(1800);
+  const last=await sample("final-tray-only");
   check("final-resource-state-has-no-windows",last.windows.every(w=>!w.title||w.title===getState().characterWin?.getTitle())&&visibleWindows().length===0&&featureWindows().length===0,{windows:last.windows.map(w=>w.title),visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,processCount:last.saeedTotal?.processCount});
  }catch(error){report.error=String(error?.stack||error);check("resource-monitor-exception",false,{error:report.error})}
  report.resourceSamples=samples;
- return finish();
+ const result=finish();
+ setTimeout(()=>{try{app.exit(result.passed?0:1)}catch{}},150);
+ return result;
 }
 module.exports={runBrainLearning,runLifecycle,runResource};
