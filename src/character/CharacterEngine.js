@@ -36,7 +36,7 @@ const viewSettings={
 };
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,renderTimer=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,renderHoldUntil=0;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,lastDrawFrameAt=0,renderHoldUntil=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
 function traceGlb(stage,detail={}){const entry={at:new Date().toISOString(),stage,...detail};glbTrace.push(entry);if(glbTrace.length>200)glbTrace.splice(0,glbTrace.length-200);if(String(stage).toLowerCase().includes("error")||String(stage).toLowerCase().includes("fail")){try{window.saeed?.system?.reportDiagnostic?.("ERROR","3D ENGINE TRACE",detail?.error||stage,{domain:"3D",traceStage:stage,trace:entry})}catch{}}}
 let lastRestPose={detected:"unknown",normalized:false};
@@ -346,35 +346,37 @@ function fit(){
 function render(){
  if(renderQueued||document.hidden)return;
  renderQueued=true;
- // Cap continuous character rendering at 30 FPS to reduce idle and animation GPU load.
- renderTimer=setTimeout(()=>{
-  renderTimer=null;
-  if(document.hidden){renderQueued=false;return}
-  animationFrame=requestAnimationFrame((now)=>{
-   animationFrame=null;
-   renderQueued=false;
-   if(lastFrameAt){const dt=Number(now)-Number(lastFrameAt);if(dt>0)renderFps=1000/dt}
-   lastFrameAt=Number(now)||lastFrameAt;
-   let keepAnimating=Date.now()<renderHoldUntil;
-   if(animationTick){try{keepAnimating=animationTick(now)||keepAnimating}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.message||String(error))}}
-   try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now()}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError)}
-   if(keepAnimating)render();
-  });
- },1000/30);
+ animationFrame=requestAnimationFrame((now)=>{
+  animationFrame=null;
+  renderQueued=false;
+  if(lastFrameAt){const dt=Number(now)-Number(lastFrameAt);if(dt>0)renderFps=1000/dt}
+  lastFrameAt=Number(now)||lastFrameAt;
+  let keepAnimating=Date.now()<renderHoldUntil;
+  if(animationTick){try{keepAnimating=animationTick(now)||keepAnimating}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.stack||error?.message||String(error))}}
+  // Keep animation updates on requestAnimationFrame for correct motion timing, but
+  // submit WebGL frames at 24 FPS to reduce GPU load during movement.
+  const shouldDraw=!lastDrawFrameAt||Number(now)-lastDrawFrameAt>=1000/24;
+  if(shouldDraw){
+   try{
+    renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now();
+    if(lastDrawFrameAt&&Number(now)>lastDrawFrameAt)renderFps=1000/(Number(now)-lastDrawFrameAt);
+    lastDrawFrameAt=Number(now)||lastDrawFrameAt;
+   }catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError)}
+  }
+  if(keepAnimating)render();
+ });
 }
 function suspendRender(){
  renderHoldUntil=0;
- if(renderTimer){clearTimeout(renderTimer);renderTimer=null}
  if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null}
  renderQueued=false;
  return true;
 }
 function renderImmediate(){
- if(renderTimer){clearTimeout(renderTimer);renderTimer=null}
  if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null}
  renderQueued=false;
  if(document.hidden)return false;
- try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now();return true}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-immediate-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError);return false}
+ try{renderer.render(scene,camera);renderCount++;lastRenderAt=Date.now();lastDrawFrameAt=performance.now();return true}catch(error){loadError=String(error?.stack||error?.message||error);traceGlb("render-immediate-error",{error:loadError});window.saeed3DBootstrap&&(window.saeed3DBootstrap.error=loadError);window.saeed.system.reportDiagnostic?.("ERROR","3D RENDER",loadError);return false}
 }
 function setAnimationTick(callback){animationTick=typeof callback==="function"?callback:null;if(animationTick)renderHoldUntil=Date.now()+8000;return true}
 function wakeRender(ms=8000){if(document.hidden)return false;renderHoldUntil=Math.max(renderHoldUntil,Date.now()+Math.max(1000,Number(ms)||8000));renderImmediate();render();return true}
@@ -758,7 +760,7 @@ function getDeformationSnapshot(maxSamples=2400){
  return{ok:skinnedMeshCount>0&&samples.length>0,skinnedMeshCount,meshCount,meshes,vertexCount,sampleCount:samples.length,weightedVertices,invalidWeightSums,nonFiniteWeights,nonFinitePositions,finiteBounds,bounds,samples};
 }
 
-function destroyEngine(){loadGeneration++;activeLoad=false;if(renderTimer){clearTimeout(renderTimer);renderTimer=null;}if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}const previous=model;model=null;if(previous){try{root.remove(previous)}catch{}try{dispose(previous)}catch(error){traceGlb("destroy-model-dispose-error",{error:error?.message||String(error)})}}rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}try{renderer.forceContextLoss?.()}catch{}renderQueued=false;return true}
+function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}const previous=model;model=null;if(previous){try{root.remove(previous)}catch{}try{dispose(previous)}catch(error){traceGlb("destroy-model-dispose-error",{error:error?.message||String(error)})}}rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}try{renderer.forceContextLoss?.()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
  get3DStatus:()=>{
