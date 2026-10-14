@@ -6,7 +6,32 @@
  function stopRealtimePlayback(){if(!mic)return;try{for(const src of mic.audioSources||[])src.stop()}catch{}if(mic.audioSources)mic.audioSources.clear();mic.nextPlayTime=0}
  function stopSpeaking(){outputGeneration++;speechSuppressed=false;stopRealtimePlayback();window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-end");if("speechSynthesis"in window)window.speechSynthesis.cancel();if(speechTimer){clearInterval(speechTimer);speechTimer=null}for(const timer of pendingSpeechStarts)clearTimeout(timer);pendingSpeechStarts.clear();["aa","ee","oo","oh","fv","mbp"].forEach(v=>window.saeedCharacterRuntime?.engine?.setCharacterViseme?.(v,0))}
 function interruptAssistantSpeech(reason="user speech"){if(!speechSuppressed)return;speechInterruptAt=performance.now();speechInterruptFrames=0;speechSuppressed=false;stopSpeaking();try{window.saeed.voice.cancelRealtime?.()}catch{};report("INFO","TTS INTERRUPTED","Assistant speech stopped because user speech was detected",{reason})}
- function speakLocal(text){if(!text||!("speechSynthesis"in window)||voiceMuted)return;stopSpeaking();speechSuppressed=true;const generation=outputGeneration;const clean=String(text).replace(/[ *_#]/g,""),u=new SpeechSynthesisUtterance(clean);const arabicText=/[\u0600-\u06FF]/.test(clean);u.lang=arabicText?"ar-JO":"en-US";const voices=window.speechSynthesis.getVoices?.()||[];const preferred=voices.find(v=>String(v.lang||"").toLowerCase().startsWith(arabicText?"ar":"en"));if(preferred)u.voice=preferred;u.rate=.98;u.pitch=arabicText?1.03:1;const chars=Array.from(clean);let pos=0;u.onstart=()=>{if(generation!==outputGeneration||voiceMuted||!ttsReady)return;speechSuppressed=true;window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-start");window.saeedCharacterRuntime?.controller?.play?.("talk");speechTimer=setInterval(()=>{window.saeedCharacterRuntime?.engine?.wakeRender?.(350);if(pos>=chars.length){clearInterval(speechTimer);speechTimer=null;return}const ch=chars[pos++],v=phonemeMap[ch.toLowerCase()]||"aa";["aa","ee","oo","oh","fv","mbp"].forEach(x=>window.saeedCharacterRuntime?.engine?.setCharacterViseme?.(x,0));if(!/\s/.test(ch))window.saeedCharacterRuntime?.engine?.setCharacterViseme?.(v,.72)},Math.max(45,70/u.rate))};u.onend=()=>{if(generation!==outputGeneration)return;speechSuppressed=false;stopSpeaking();window.saeedCharacterRuntime?.controller?.play?.("idle")};u.onerror=e=>{if(generation!==outputGeneration)return;const kind=String(e?.error||"").toLowerCase();speechSuppressed=false;if(kind==="interrupted"||kind==="canceled"||kind==="cancelled"){report("INFO","TTS LOCAL INTERRUPTED","Local TTS speech was cancelled",{reason:kind});}else report("ERROR","TTS LOCAL ERROR",e?.error||"Local TTS failed");stopSpeaking();window.saeedCharacterRuntime?.controller?.play?.("idle")};const startTimer=setTimeout(()=>{pendingSpeechStarts.delete(startTimer);if(generation===outputGeneration&&!voiceMuted&&ttsReady)window.speechSynthesis.speak(u)},20);pendingSpeechStarts.add(startTimer)}
+ function speakLocal(text){
+  if(!text||!("speechSynthesis"in window)||voiceMuted)return;
+  stopSpeaking();speechSuppressed=true;const generation=outputGeneration;
+  const clean=String(text).replace(/[ *_#]/g,""),u=new SpeechSynthesisUtterance(clean),arabicText=/[\u0600-\u06FF]/.test(clean);
+  const voices=window.speechSynthesis.getVoices?.()||[],preferred=voices.find(v=>String(v.lang||"").toLowerCase().startsWith(arabicText?"ar":"en"));
+  u.lang=arabicText?"ar-JO":"en-US";if(preferred)u.voice=preferred;u.rate=.98;u.pitch=arabicText?1.03:1;
+  const chars=Array.from(clean);let fallbackPos=0,boundarySeen=false;
+  const applyViseme=index=>{const ch=chars[index],v=phonemeMap[String(ch||"").toLowerCase()]||"aa";["aa","ee","oo","oh","fv","mbp"].forEach(x=>window.saeedCharacterRuntime?.engine?.setCharacterViseme?.(x,0));if(ch&&!/\s/.test(ch))window.saeedCharacterRuntime?.engine?.setCharacterViseme?.(v,.72)};
+  u.onstart=()=>{
+   if(generation!==outputGeneration||voiceMuted||!ttsReady)return;
+   speechSuppressed=true;window.saeedCharacterRuntime?.controller?.handleEvent?.("speech-start");window.saeedCharacterRuntime?.controller?.play?.("talk");
+   speechTimer=setInterval(()=>{if(boundarySeen){clearInterval(speechTimer);speechTimer=null;return}window.saeedCharacterRuntime?.engine?.wakeRender?.(350);if(fallbackPos>=chars.length){clearInterval(speechTimer);speechTimer=null;return}applyViseme(fallbackPos++)},Math.max(45,70/u.rate));
+  };
+  // Prefer the speech engine's real boundary timing; retain the character-timed fallback for voices that omit boundary events.
+  u.onboundary=event=>{
+   if(generation!==outputGeneration||voiceMuted||!ttsReady)return;
+   const index=Math.max(0,Math.min(chars.length-1,Number(event?.charIndex)||0));if(!chars.length)return;
+   boundarySeen=true;if(speechTimer){clearInterval(speechTimer);speechTimer=null}
+   let cursor=index,end=index+1;while(end<chars.length&&!/\s/.test(chars[end]))end++;
+   applyViseme(cursor++);
+   speechTimer=setInterval(()=>{if(generation!==outputGeneration||voiceMuted||!ttsReady||cursor>=end){clearInterval(speechTimer);speechTimer=null;return}applyViseme(cursor++)},Math.max(45,70/u.rate));
+  };
+  u.onend=()=>{if(generation!==outputGeneration)return;speechSuppressed=false;stopSpeaking();window.saeedCharacterRuntime?.controller?.play?.("idle")};
+  u.onerror=e=>{if(generation!==outputGeneration)return;const kind=String(e?.error||"").toLowerCase();speechSuppressed=false;if(kind==="interrupted"||kind==="canceled"||kind==="cancelled")report("INFO","TTS LOCAL INTERRUPTED","Local TTS speech was cancelled",{reason:kind});else report("ERROR","TTS LOCAL ERROR",e?.error||"Local TTS failed");stopSpeaking();window.saeedCharacterRuntime?.controller?.play?.("idle")};
+  const startTimer=setTimeout(()=>{pendingSpeechStarts.delete(startTimer);if(generation===outputGeneration&&!voiceMuted&&ttsReady)window.speechSynthesis.speak(u)},20);pendingSpeechStarts.add(startTimer);
+ }
  async function speakApi(text){
   if(!text||!ttsReady||voiceMuted)return;
   stopSpeaking();speechSuppressed=true;const generation=outputGeneration;
