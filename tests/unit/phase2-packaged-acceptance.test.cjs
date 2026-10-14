@@ -44,6 +44,8 @@ test("character animation pause stops every autonomous timer and resumes the cur
  assert.match(controller,/this\.autonomous\?\.setPaused\?\.\(paused\|\|!this\.animationEnabled\)/);
  assert.match(behavior,/if\(this\.paused\)\{\s*if\(\["speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","chat-end","assistant-cancelled","request-cancelled"\]/);
  assert.match(behavior,/return \{running:this\.running,paused:this\.paused,visible:this\.visible/);
+ assert.match(behavior,/if\(this\.running&&!this\.paused&&this\.settings\.breathing!==false&&!this\.sleeping&&this\.visible\)/);
+ assert.match(behavior,/if\(ok\)\{this\.lastMotionId=String\(motion\);if\(priority<=20\)this\.lastCasualMotionAt=now;\}/);
  assert.ok(behavior.includes('id:"anger",pattern:')&&behavior.includes("not angry"));
  assert.ok(behavior.includes('id:"sadness",pattern:')&&behavior.includes("not sad"));
  assert.ok(behavior.includes('id:"curiosity",pattern:')&&behavior.includes("not curious"));
