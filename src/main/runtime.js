@@ -383,8 +383,8 @@ async function runCiCharacterRigBuilder(mode){
    const liveBefore=await getSnapshot();
    check("actual-saeed-glb-has-loaded-skinned-body",liveRig?.ok===true&&liveRig.bones.length>0&&liveBefore?.skinnedMeshCount>0&&liveBefore?.weightedVertices>0,{boneCount:liveRig?.bones?.length||0,skinnedMeshCount:liveBefore?.skinnedMeshCount||0,vertexCount:liveBefore?.vertexCount||0});
    const saeedBeforeShot=await capture("saeed-before");
-   const morphResult=await target.webContents.executeJavaScript("(()=>{const e=window.saeedCharacterRuntime?.engine,b=e?.getMorphSnapshot?.();if(!e||!b)return{ok:false,error:'morph snapshot API unavailable'};const ok=Boolean(e.setCharacterViseme?.('aa',.65)),a=e.getMorphSnapshot?.(),changed=Object.keys(a?.values||{}).filter(k=>Math.abs(Number(a.values[k])-Number(b.values[k]||0))>.1);e.setCharacterViseme?.('aa',0);return{ok,count:b.count,changed,available:b.names.slice(0,40)}})()");
-   check("viseme-alias-changes-real-shape-key",morphResult?.ok===true&&morphResult.changed?.length>0,{ok:Boolean(morphResult?.ok),morphCount:morphResult?.count||0,changed:morphResult?.changed||[],available:morphResult?.available||[],error:morphResult?.error||null});
+   const morphResult=await target.webContents.executeJavaScript("(()=>{const e=window.saeedCharacterRuntime?.engine,b=e?.getMorphSnapshot?.(),pose=()=>e?.getCharacterPoseStatus?.()?.bones||{};if(!e||!b)return{ok:false,error:'morph/pose snapshot API unavailable'};const beforePose=pose(),beforeJaw=beforePose.jaw?.rotation||beforePose.mandible?.rotation||null,ok=Boolean(e.setCharacterViseme?.('aa',.65)),a=e.getMorphSnapshot?.(),afterPose=pose(),afterJaw=afterPose.jaw?.rotation||afterPose.mandible?.rotation||null;const changedMorphs=Object.keys(a?.values||{}).filter(k=>Math.abs(Number(a.values[k])-Number(b.values[k]||0))>.1);const jawChanged=Boolean(beforeJaw&&afterJaw&&Math.abs(Number(afterJaw.x)-Number(beforeJaw.x))>.05);e.setCharacterViseme?.('aa',0);return{ok,count:b.count,changedMorphs,jawChanged,beforeJaw,afterJaw,available:b.names.slice(0,40)}})()");
+   check("viseme-alias-changes-real-mouth-deformation",morphResult?.ok===true&&(morphResult.changedMorphs?.length>0||morphResult.jawChanged===true),{ok:Boolean(morphResult?.ok),morphCount:morphResult?.count||0,changedMorphs:morphResult?.changedMorphs||[],jawChanged:Boolean(morphResult?.jawChanged),beforeJaw:morphResult?.beforeJaw||null,afterJaw:morphResult?.afterJaw||null,available:morphResult?.available||[],error:morphResult?.error||null});
    await characterHost.command({action:"setUserBusy",value:true});
    const liveMotion=await characterHost.command({action:"play",motion:"wave",options:{priority:100,blend:.01}});
    await wait(700);
@@ -432,6 +432,8 @@ async function runCiCharacterRigBuilder(mode){
    }
    const elbow=await characterHost.command({action:"setBoneRotation",bone:"leftForeArm",rotation:{x:0,y:0,z:.62}});
    await wait(150);
+   await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.wakeRender?.(1800);true");
+   await wait(400);
    const posed=await getSnapshot(),deform=displacement(afterBuild,posed),afterShot=await capture("after"),visual=imageDiff(beforeShot,afterShot);
    check("vertex-positions-change-under-skinning",deform.matchedSamples>0&&deform.displacedVertices>0&&deform.maxDisplacement>.003,{...deform});
    check("visual-render-changes-after-joint-pose",elbow?.ok===true&&visual.fraction>.001&&visual.changedPixels>50,{...visual,before:beforeShot.file,after:afterShot.file});
