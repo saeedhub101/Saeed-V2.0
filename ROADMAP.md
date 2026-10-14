@@ -260,3 +260,62 @@ This document must be read as implementation guidance, not evidence that the pro
 - After substantive product development is complete, the Windows workflow must validate the packaged installer/EXE on Windows, exercise real app journeys and component behavior, and fail when required evidence is missing, timed out, or reports a failed subcheck.
 - The task engine must never claim success when persistence fails, a plan step was not actually started, verification is only tool discovery/connection, or an external action has an ambiguous outcome. Interrupted external actions are not replayed automatically.
 - The current checkpoint is GitHub Issue #9: https://github.com/saeedhub101/Saeed-V2.0/issues/9. All four roadmap phases remain active; no overall completion claim is authorized until the packaged product is verified.
+
+---
+
+## Current checkpoint and architecture — 2026-10-14
+
+This checkpoint supersedes older dated progress notes where they conflict. It records the source layout and evidence known at this commit; it is not a declaration that the product is finished.
+
+### Repository and working rules
+
+- Canonical repository: `saeedhub101/Saeed-V2.0`.
+- All implementation changes go directly to `main`; do not create feature branches.
+- Preserve Markdown files unless a specific documentation update is requested. This roadmap update is explicitly requested.
+- Automatic Windows build is enabled on pushes to `main`; manual `workflow_dispatch` remains available.
+- Product implementation comes before test-only churn. Keep `npm test`, Electron startup/build validation, and Windows installer validation. A green Actions status is not sufficient: inspect suite-level pass/fail evidence and packaged-app results.
+
+### Current architecture map
+
+- **Electron shell and lifecycle:** `src/main.js` → `src/main/runtime.js`; composition in `src/main/application/runtime-composition.js`; windows in `src/main/application/window-manager.js`; tray/system controls in `src/main/application/system-controls.js`.
+- **Core / Brain / conversation:** `src/main/brain/brain.js`, `src/main/application/brain-host.js`, `src/main/conversation/conversation-agent.js`. One active Brain and one authoritative conversation/history; Chat and microphone are channels into the same system.
+- **Tools and permissions:** `src/tools/registry.js` and `src/tools/`; requests must use the same validation → permission → execution → verification path. Add-ons cannot bypass permissions.
+- **Secure renderer boundary:** `src/preload.js` exposes namespaced `window.saeed` APIs; renderer code must not own privileged operations.
+- **Character / 3D:** Character lifecycle and GLB delivery in `src/main/character/character-host.js`; authoritative renderer/runtime uses CharacterEngine and CharacterController. A partial or incomplete rig must not prevent the mesh from appearing. Mapping, pose save/read-back, motion editing/playback and diagnostics still require real packaged-runtime proof.
+- **Voice:** `src/main/voice/voice-host.js` and `src/main/voice/voice-runtime.js` coordinate microphone/STT/TTS/Realtime lifecycle; provider IPC is in `src/main/ipc/voice-ipc.js`; renderer playback/lip-sync and interruption logic is in `src/renderer/voice/voice-client.js`. Microphone starts OFF; mute blocks spoken output; TTS follows Character visibility and mute state.
+- **Settings and credentials:** `src/main/services/settings-store.js` persists settings and secret fields; clearing API keys must preserve unrelated preferences and remove all supported key fields.
+- **Build and acceptance:** `.github/workflows/build-windows-electron.yml` runs `npm ci`, `npm test`, Electron startup, Whisper runtime build, installer/package checks, runtime acceptance and artifact reporting. Missing, timed-out or failed subchecks must remain failures.
+- **Current TTS providers include** local speech plus OpenAI, Groq, ElevenLabs and Hakim. Hakim uses its speech endpoint with the configured voice ID; real network playback still depends on a valid user API key and must be verified in the app.
+
+### Verified recent implementation checkpoints
+
+- Voice mute guard was moved ahead of message display and provider playback in `src/renderer/voice/voice-client.js` (commit `02ab59cc81e449071320b0a2e93a0b23e3b5b73d`).
+- API-key clearing now merges existing settings, clears `apiKey`, `sttApiKey`, `ttsApiKey`, `realtimeApiKey`, and `fallbackApiKey`, and persists settings (commit `5d986ab243277c6ae4640d5ff2bf69bc0192554f`).
+- These source changes are not proof of a successful packaged release. Hakim playback has not been verified against a live account in this repository checkpoint.
+
+### Build failure checkpoint — run 38464380604
+
+The failed Windows run stopped at **Run current product preflight** because `npm test` exited with code 1. The concrete failing test was `tests/unit/phase2-voice-mute-lifecycle.test.cjs`, subtest “renderer respects TTS readiness and stops output when the character audio runtime is released”. Its assertion expected the mute/readiness guard immediately before `window.saeedShowMessage`. The failure log contains the pre-fix renderer source; current `main` now has the guard directly before the message display. The workflow skipped installer packaging because preflight correctly failed. This must be confirmed by the next run on the updated commit; do not mark the build repaired until the new run and its internal reports confirm it.
+
+### Remaining development roadmap — two delivery stages
+
+#### Stage 1 — Finish core product behavior and integration
+
+1. Close remaining functional gaps in Core/Brain, provider routing, shared Chat/Voice history, settings persistence, cancellation, error reporting and API credential lifecycle.
+2. Finish the Character runtime path: reliable GLB mesh display for complete/partial rigs, useful bone mapping, visible diagnostics, persisted rest pose across restart, and editable/replayable motion keyframes.
+3. Finish voice behavior: microphone OFF at startup, mute immediately stops and invalidates playback, STT/TTS providers handle errors and timeouts, Hakim and other configured providers play the correct audio format, and visemes/Character speaking state always clean up after success, interruption or failure.
+4. Complete user-facing integrations already represented in the app (Performance settings, Chat, tray, Add-ons and Learning) with consistent lifecycle ownership and no duplicate service/renderer owners.
+5. Fix product defects directly; do not substitute more test scaffolding for missing functionality.
+
+**Stage 1 exit evidence:** relevant product flows work in the running application; settings and rest pose survive restart; actual API and local-provider error paths are visible; no required IPC/UI control is inert.
+
+#### Stage 2 — Ship-ready Windows product and release
+
+1. Repair and keep the automatic Windows pipeline green for the right reasons: all configured suites execute, real failing subchecks fail the job, and logs/artifacts preserve machine-readable diagnostics.
+2. Build and inspect the actual NSIS installer and unpacked app, bundled GLB/assets, Whisper runtime, add-ons, updater metadata and third-party notices.
+3. Install and launch the packaged application in a clean Windows profile; verify startup/tray/show-hide/quit, Chat, mic default-off, mute, provider failures, tools/permissions, memory and clean shutdown.
+4. Validate 3D in the packaged app: visible mesh, partial-rig behavior, mapping counts, pose persistence through full process restart, motion editing/playback and actionable errors when resources are unavailable.
+5. Complete updater/release flow, security/permission boundaries, backup/restore, RTL/LTR and final distribution readiness.
+6. Publish only after the installer and runtime acceptance evidence pass. Do not infer completion from source checks or workflow color alone.
+
+**Overall status:** active development. Stage completion and product completion remain unconfirmed until the required runtime and packaged acceptance evidence is recorded.
