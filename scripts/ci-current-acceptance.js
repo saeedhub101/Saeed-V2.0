@@ -84,7 +84,8 @@ function main() {
   check("package-and-version-identity", (() => {
     const pkg = JSON.parse(read("package.json"));
     const version = read("VERSION").replace(/[\uFEFF\u200B\r\n ]/g, "");
-    return /^\d+\.\d+$/.test(version) && pkg.version === version + ".0" && pkg.main === "src/main.js";
+    const expectedPackageVersion = /^\d+\.\d+$/.test(version) ? version + ".0" : version;
+    return /^\d+\.\d+(?:\.\d+)?$/.test(version) && pkg.version === expectedPackageVersion && pkg.build?.buildVersion === pkg.version && pkg.main === "src/main.js";
   })(), { package: exists("package.json"), versionFile: exists("VERSION") });
 
   const required = [
