@@ -170,6 +170,16 @@ test("busy-state suppresses casual motion and resumes the autonomous scheduler",
  behavior.stop();
 });
 
+test("negated emotions and reassuring phrases do not trigger contradictory reactions",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const behavior=new AutonomousBehaviorController({animation:{registry:{get:id=>({id})},active:[]},play:()=>true,moodPalette:()=>["nod"]});
+ assert.equal(behavior.classifyText("I'm not sad"),null);
+ assert.equal(behavior.classifyText("I'm not curious"),null);
+ assert.equal(behavior.classifyText("No problem, I'm not angry"),null);
+ assert.equal(behavior.classifyText("Don't worry, I'm not upset"),null);
+ assert.equal(behavior.classifyText("I'm excited"),null === behavior.classifyText("I'm excited") ? null : behavior.classifyText("I'm excited").id);
+ behavior.stop();
+});
 test("autonomous behavior starts focused and schedules idle motion without a prior focus event",async()=>{
  const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
  const behavior=new AutonomousBehaviorController({animation:{registry:{get:id=>({id})},active:[]},play:()=>true,moodPalette:()=>["nod"]});
