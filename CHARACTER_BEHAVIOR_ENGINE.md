@@ -54,7 +54,9 @@ User / Brain / Voice / Tool lifecycle
 - `CharacterController`: sole public character behavior API; coordinates controller state with the authoritative loaded GLB and registered motions.
 - `AnimationController`: layered motion playback, blending, priority, and animation ticking.
 - `motions.js`: reusable 3D motion definitions; add/adjust motion definitions here instead of adding bone manipulation to Brain code.
-- `client.js`: forwards character commands and semantic behavior events into the controller.
+- `src/main/application/brain-host.js`: translates Brain thinking/tool/result/answer/task lifecycle events into character behavior events while retaining the general agent event stream.
+- `src/renderer.js`: sends the submitted user message to the behavior controller and pauses casual idle motion while the chat input is focused; blur resumes autonomous scheduling.
+- `client.js` and `src/main/character/character-host.js`: expose behavior-event and busy-state commands without requiring a complete rig map first.
 
 ## Rules for future changes
 
