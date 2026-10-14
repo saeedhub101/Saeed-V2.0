@@ -315,15 +315,16 @@ async function runCiProductAcceptance(){
   check("unmute-restores-tts",voice.getVoiceMuted()===false&&voice.getTtsReady()===true&&voice.getCurrentMicMode()==="off",{muted:voice.getVoiceMuted(),micMode:voice.getCurrentMicMode(),ttsReady:voice.getTtsReady()});
   await hideCharacter();await wait(80);
   voice.setVoiceMuted(true);voice.setVoiceMuted(false);
-  check("unmute-while-hidden-keeps-tts-released",voice.getVoiceMuted()===false&&voice.getTtsReady()===false&&!target.isVisible(),{muted:voice.getVoiceMuted(),ttsReady:voice.getTtsReady(),visible:target.isVisible()});
+  const characterVisible=()=>{const current=getState().characterWin;return Boolean(current&&!current.isDestroyed()&&current.isVisible())};
+  check("unmute-while-hidden-keeps-tts-released",voice.getVoiceMuted()===false&&voice.getTtsReady()===false&&!characterVisible(),{muted:voice.getVoiceMuted(),ttsReady:voice.getTtsReady(),visible:characterVisible()});
   await showCharacter();await wait(120);
-  check("show-after-hidden-unmute-restores-tts",target.isVisible()&&voice.getTtsReady()===true,{visible:target.isVisible(),ttsReady:voice.getTtsReady()});
+  check("show-after-hidden-unmute-restores-tts",characterVisible()&&voice.getTtsReady()===true,{visible:characterVisible(),ttsReady:voice.getTtsReady()===true});
 
   for(let i=1;i<=3;i++){
    await hideCharacter();await wait(80);
-   check("hide-character-"+i,!target.isVisible(),{visible:target.isVisible()});
+   check("hide-character-"+i,!characterVisible(),{visible:characterVisible()});
    await showCharacter();await wait(120);
-   check("show-character-"+i,target.isVisible(),{visible:target.isVisible()});
+   check("show-character-"+i,characterVisible(),{visible:characterVisible()});
   }
   const verifyFeaturePage=async(name,title,open,key,probe)=>{
    try{
