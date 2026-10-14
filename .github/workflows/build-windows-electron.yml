@@ -1,4 +1,4 @@
-name: Saeed AI — Current Product Acceptance and Windows Build
+name: Saeed AI — Current Product Acceptance, Windows Build and Release
 
 on:
   push:
