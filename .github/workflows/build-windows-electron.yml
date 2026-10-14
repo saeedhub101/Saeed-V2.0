@@ -34,6 +34,24 @@ jobs:
           node-version: 22.14.0
           cache: npm
 
+      - name: Refresh and commit npm lockfile when dependency versions change
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "npm lockfile regeneration failed." }
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m "chore(deps): refresh npm lockfile"
+            if ($LASTEXITCODE -ne 0) { throw "Could not commit regenerated npm lockfile." }
+            git push origin HEAD:main
+            if ($LASTEXITCODE -ne 0) { throw "Could not push regenerated npm lockfile to main." }
+          }
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
 
@@ -104,7 +122,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Could not clone whisper.cpp." }
           if (!(Test-Path "build\\whisper-src\\LICENSE")) { throw "whisper.cpp license file is missing." }
           Copy-Item "build\\whisper-src\\LICENSE" (Join-Path $root "WHISPER-CPP-LICENSE.txt") -Force
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+          $cmakeLists = "build\\whisper-src\\CMakeLists.txt"
+          $cmakeText = Get-Content $cmakeLists -Raw
+          $cmakeText = [regex]::Replace($cmakeText, 'cmake_minimum_required\\(VERSION\\s+[0-9.]+', 'cmake_minimum_required(VERSION 3.10', 1)
+          if ($cmakeText -notmatch 'cmake_minimum_required\\(VERSION 3.10') { throw "Could not modernize the upstream CMake minimum version." }
+          if ($cmakeText -notmatch 'if\\(POLICY CMP0194\\)') {
+            $cmakeText = $cmakeText -replace '(cmake_minimum_required\\(VERSION 3.10[^\\r\\n]*\\))', '$1' + "`nif(POLICY CMP0194)`n  cmake_policy(SET CMP0194 NEW)`nendif()"
+          }
+          Set-Content -Path $cmakeLists -Value $cmakeText -NoNewline
+          cmake -S build\\whisper-src -B build\\whisper-src\\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
           if ($LASTEXITCODE -ne 0) { throw "Whisper CMake configure failed." }
           cmake --build build\whisper-src\build --config Release --target whisper-cli
           if ($LASTEXITCODE -ne 0) { throw "Whisper CLI build failed." }
