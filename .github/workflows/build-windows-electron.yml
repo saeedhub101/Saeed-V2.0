@@ -122,6 +122,40 @@ jobs:
 
       - name: Build Windows installer and unpacked runtime
         run: npm run dist
+      - name: Character, behavior
+        shell: pwsh
+        timeout-minutes: 5
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\\win-unpacked\\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Character behavior check cannot start: packaged executable is missing: $exe" }
+          $report = Join-Path $PWD "dist\\ci-character-behavior.json"
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-character-behavior.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-character-behavior.stderr.log"
+          $userData = Join-Path $env:RUNNER_TEMP "saeed-character-behavior-user-data"
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_ACCEPTANCE_REPORT = $report
+          $env:SAEED_CI_USER_DATA = $userData
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-acceptance" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline = (Get-Date).AddSeconds(180)
+          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Character, behavior check timed out after 180 seconds." }
+          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+          if (!(Test-Path $report)) { throw "Character, behavior report is missing. $outText $errText" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          $failed = @($result.checks | Where-Object { !$_.passed })
+          if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0 -or $result.checks.Count -lt 10) {
+            Write-Host "CHARACTER_BEHAVIOR=FAIL"
+            Write-Host $outText
+            Write-Host $errText
+            Write-Host (Get-Content $report -Raw)
+            throw "Character, behavior failed: exit=$($proc.ExitCode), checks=$($result.checks.Count), failed=$($failed.Count)."
+          }
+          Write-Host "CHARACTER_BEHAVIOR=PASS ($($result.checks.Count) runtime checks)"
+          Write-Host $outText
+          Write-Host (Get-Content $report -Raw)
+
       - name: Verify packaged runtime acceptance
         shell: pwsh
         run: |
@@ -237,6 +271,7 @@ jobs:
             dist/*.sha256
             dist/latest.yml
             dist/ci-product-acceptance.json
+            dist/ci-character-behavior.json
             dist/ci-rest-pose-save.json
             dist/ci-rest-pose-verify.json
             THIRD_PARTY_NOTICES.txt
