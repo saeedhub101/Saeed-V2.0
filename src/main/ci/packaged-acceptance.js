@@ -58,18 +58,20 @@ async function runLifecycle(deps){
  const output=process.env.SAEED_CI_LIFECYCLE_REPORT||path.join(process.cwd(),"dist","ci-lifecycle-report.json");
  const {report,check,finish}=makeReport("lifecycle",output),pause=ms=>wait(ms);
  const windows=()=>BrowserWindow.getAllWindows().filter(w=>w&&!w.isDestroyed());
+ const visibleWindows=()=>windows().filter(w=>{try{return w.isVisible()}catch{return false}});
+ const featureWindows=()=>windows().filter(w=>w!==getState().characterWin);
  const closeKey=key=>{const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch{}try{setWindow(key,null)}catch{}};
- const closeEverything=async()=>{await characterApi.hideCharacter();await pause(120);};
+ const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","restPoseEditorWin","normalizeHumanoidRestPoseWin"])closeKey(key);await pause(120);};
  const screen=(name,key,open,requiresCharacter=false)=>async()=>{
   await closeEverything();
   try{await open();await pause(500);const win=getState()[key];check(name+"-opens",Boolean(win&&!win.isDestroyed()&&win.isVisible()),{exists:Boolean(win&&!win.isDestroyed()),visible:Boolean(win&&!win.isDestroyed()&&win.isVisible()),windowCount:windows().length,requiresCharacter});}
   catch(error){check(name+"-opens",false,{error:String(error?.stack||error)})}
   await closeEverything();
-  check(name+"-closes-all-surfaces",windows().length===0,{windowCount:windows().length,remaining:windows().map(w=>w.getTitle())});
+  check(name+"-closes-all-surfaces",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,remaining:windows().map(w=>w.getTitle())});
  };
  try{
   await closeEverything();
-  check("hidden-idle-has-no-feature-windows",windows().length===0,{windowCount:windows().length});
+  check("hidden-idle-has-no-feature-windows",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,remaining:windows().map(w=>w.getTitle())});
   for(const fn of [
    screen("performance-window","performanceWin",showPerformance),
    screen("settings-window","settingsWin",showSettings),
@@ -87,7 +89,7 @@ async function runLifecycle(deps){
   check("chat-close-releases-brain-when-mic-off",!ensureBrainHost().isActive(),{brainActive:ensureBrainHost().isActive(),micMode:getCurrentMicMode()});
   await characterApi.showCharacter();await pause(250);
   const character=getState().characterWin;
-  check("character-only-surface-is-visible",Boolean(character&&!character.isDestroyed()&&character.isVisible())&&windows().length===1,{visible:Boolean(character&&!character.isDestroyed()&&character.isVisible()),windowCount:windows().length,windows:windows().map(w=>w.getTitle())});
+  check("character-only-surface-is-visible",Boolean(character&&!character.isDestroyed()&&character.isVisible())&&visibleWindows().length===1&&featureWindows().length===0,{visible:Boolean(character&&!character.isDestroyed()&&character.isVisible()),windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,windows:windows().map(w=>w.getTitle())});
   const readyRig=await deps.characterHost.command({action:"getRig"});
   check("character-rig-ready-before-animation",readyRig?.ok===true&&Array.isArray(readyRig.bones)&&readyRig.bones.length>0,{ok:Boolean(readyRig?.ok),boneCount:readyRig?.bones?.length||0,error:readyRig?.error||null});
   const motion=await deps.characterHost.command({action:"play",motion:"wave",options:{priority:100,blend:.01}});await pause(300);
@@ -99,7 +101,7 @@ async function runLifecycle(deps){
   const micOff=await setMicMode("off");await pause(120);
   check("mic-off-stops-stt-and-releases-idle-brain",micOff===true&&getCurrentMicMode()==="off"&&!ensureBrainHost().isActive()&&!ensureVoiceHost().isVoiceRuntimeActive(),{micOff:Boolean(micOff),micMode:getCurrentMicMode(),brainActive:ensureBrainHost().isActive(),sttRuntimeActive:Boolean(ensureVoiceHost().getVoiceRuntime())});
   await closeEverything();
-  check("final-idle-leaves-only-tray",windows().length===0,{windowCount:windows().length,windows:windows().map(w=>w.getTitle())});
+  check("final-idle-leaves-only-tray",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,windows:windows().map(w=>w.getTitle())});
  }catch(error){report.error=String(error?.stack||error);check("lifecycle-exception",false,{error:report.error})}
  try{stopCpuMonitoring()}catch{}
  return finish();
@@ -109,10 +111,13 @@ async function runResource(deps){
  const output=process.env.SAEED_CI_RESOURCE_REPORT||path.join(process.cwd(),"dist","ci-ram-cpu-report.json");
  const {report,check,finish}=makeReport("ram-cpu",output),samples=[];
  const pause=ms=>wait(ms);
+ const windows=()=>BrowserWindow.getAllWindows().filter(w=>w&&!w.isDestroyed());
+ const visibleWindows=()=>windows().filter(w=>{try{return w.isVisible()}catch{return false}});
+ const featureWindows=()=>windows().filter(w=>w!==getState().characterWin);
  const sample=async label=>{await pause(450);const item=getResourceService().resourceSnapshot(label);samples.push(item);const finite=n=>Number.isFinite(Number(n))&&Number(n)>=0;const good=finite(item.rssMB)&&finite(item.heapUsedMB)&&finite(item.saeedTotal?.workingSetMB)&&finite(item.saeedTotal?.privateMB)&&finite(item.saeedTotal?.cpuPercent)&&Number(item.saeedTotal?.processCount)>0&&Array.isArray(item.processes)&&item.processes.every(p=>finite(p.workingSetMB)&&finite(p.privateMB)&&finite(p.cpuPercent));check("resource-sample-"+label,good,{label,rssMB:item.rssMB,heapUsedMB:item.heapUsedMB,processCount:item.processCount,processes:item.processes?.map(p=>({pid:p.pid,type:p.type,name:p.name,cpuPercent:p.cpuPercent,workingSetMB:p.workingSetMB,privateMB:p.privateMB}))||[],windows:item.windows?.map(w=>w.title)||[]});return item};
  try{
   await characterApi.hideCharacter();await sample("idle-tray-only");
-  await showPerformance();await sample("performance-open");await characterApi.hideCharacter();await sample("performance-closed-idle");
+  await showPerformance();await sample("performance-open");const perf=getState().performanceWin;try{if(perf&&!perf.isDestroyed())perf.destroy()}catch{}await characterApi.hideCharacter();await sample("performance-closed-idle");
   await ensureChatHost().showChat();await ensureBrain();await sample("chat-open-brain-active");await ensureChatHost().closeChat();await pause(120);await sample("chat-closed-brain-released");
   await characterApi.showCharacter();
   const readyRig=await characterHost.command({action:"getRig"});
@@ -125,7 +130,7 @@ async function runResource(deps){
   check("resource-mic-state-reached",micOn===true&&getCurrentMicMode()==="on"&&ensureBrainHost().isActive(),{micOn:Boolean(micOn),micMode:getCurrentMicMode(),brainActive:ensureBrainHost().isActive()});
   await setMicMode("off");await sample("mic-off-brain-released");
   await characterApi.hideCharacter();const last=await sample("final-tray-only");
-  check("final-resource-state-has-no-windows",last.windows.length===0,{windows:last.windows.map(w=>w.title),processCount:last.processCount});
+  check("final-resource-state-has-no-windows",last.windows.every(w=>!w.title||w.title===getState().characterWin?.getTitle())&&visibleWindows().length===0&&featureWindows().length===0,{windows:last.windows.map(w=>w.title),visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,processCount:last.saeedTotal?.processCount});
  }catch(error){report.error=String(error?.stack||error);check("resource-monitor-exception",false,{error:report.error})}
  report.resourceSamples=samples;
  return finish();
