@@ -1,6 +1,6 @@
 (()=>{
  const cleanText=t=>String(t||"").replace(/^[\s\.,!?؟،؛:。]+/u,"").trim();
- const report=(level,stage,message,meta)=>window.saeed?.reportDiagnostic?.(level,stage,message,meta);
+ const report=(level,stage,message,meta)=>{try{const fn=window.saeed?.system?.reportDiagnostic;if(typeof fn==="function")return fn(level,stage,message,meta);return false}catch{return false}};
  let outputGeneration=0,mic=null,realtimeAssistant="",speechTimer=null,pendingSpeechStarts=new Set(),lastMicReport=0,micEnabled=false,voiceMuted=false,ttsReady=true,speechSuppressed=false,speechInterruptAt=0,speechInterruptFrames=0,micInterruptRms=0.09,micSpeechRms=0.02,lastRealtimeUserText="",lastRealtimeUserAt=0,realtimeBrainMode="auto",ttsProvider="local",sttProvider="whisper";
  const phonemeMap={a:"aa",e:"ee",i:"ee",o:"oh",u:"oo",y:"ee",b:"mbp",m:"mbp",p:"mbp",f:"fv",v:"fv",q:"oh",w:"oo",j:"ee",ا:"aa",أ:"aa",إ:"aa",آ:"aa",ع:"aa",ح:"aa",ه:"aa",ة:"aa",ي:"ee",ى:"ee",ب:"mbp",م:"mbp",پ:"mbp",ف:"fv",ڤ:"fv",و:"oo",ؤ:"oo",ق:"oh",ك:"ee",ج:"ee",ش:"ee",س:"ee",ز:"ee",ت:"ee",د:"ee",ن:"ee",ل:"ee",ر:"ee",ث:"ee",ذ:"ee",ص:"ee",ض:"ee",ط:"ee",ظ:"ee",غ:"oh",خ:"oh"};
  function stopRealtimePlayback(){if(!mic)return;try{for(const src of mic.audioSources||[])src.stop()}catch{}if(mic.audioSources)mic.audioSources.clear();mic.nextPlayTime=0}
