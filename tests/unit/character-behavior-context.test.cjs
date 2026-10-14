@@ -146,3 +146,20 @@ test("character behavior preferences keep deterministic idle active and filter d
  assert.equal(behavior.chooseIdle(),"nod");
  behavior.stop();
 });
+
+
+test("busy-state suppresses casual motion and resumes the autonomous scheduler",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const character={mood:"cheerful",moodPalette:()=>["wave","nod","think"],animation:{registry:{get:id=>({id})},active:[]},face:{expression:()=>true,blink:()=>true,lookAt:()=>true},play:()=>true,stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}};
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ behavior.schedule(1000);
+ assert.equal(behavior.setUserBusy(true),true);
+ assert.equal(behavior.getStatus().userBusy,true);
+ assert.equal(behavior.getStatus().activeTimers.idle,false);
+ assert.equal(behavior.evaluateNow(),false);
+ assert.equal(behavior.handleEvent({type:"user-busy-end"}),true);
+ assert.equal(behavior.getStatus().userBusy,false);
+ assert.equal(behavior.getStatus().activeTimers.idle,true);
+ behavior.stop();
+});
