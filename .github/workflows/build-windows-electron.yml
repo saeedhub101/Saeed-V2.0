@@ -140,6 +140,8 @@ jobs:
           $env:SAEED_CI_RIG_STATE = $state
           $env:SAEED_CI_RIG_REPORT = (Join-Path $PWD "dist/ci-character-rig-builder-save.json")
           $env:SAEED_CI_RIG_SCREENSHOT_BEFORE = (Join-Path $PWD "dist/ci-character-rig-builder-before.png")
+          $env:SAEED_CI_RIG_SCREENSHOT_SAEED_BEFORE = (Join-Path $PWD "dist/ci-character-rig-builder-saeed-before.png")
+          $env:SAEED_CI_RIG_SCREENSHOT_SAEED_AFTER = (Join-Path $PWD "dist/ci-character-rig-builder-saeed-after.png")
           $env:SAEED_CI_RIG_SCREENSHOT_AFTER = (Join-Path $PWD "dist/ci-character-rig-builder-after.png")
           $stdout = Join-Path $env:RUNNER_TEMP "saeed-character-rig-save.stdout.log"
           $stderr = Join-Path $env:RUNNER_TEMP "saeed-character-rig-save.stderr.log"

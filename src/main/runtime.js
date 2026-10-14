@@ -370,13 +370,30 @@ async function runCiCharacterRigBuilder(mode){
  const near=(a,b,t=.035)=>Number.isFinite(Number(a))&&Number.isFinite(Number(b))&&Math.abs(Number(a)-Number(b))<=t;
  const getTarget=()=>{const state=getState();return state?.characterWin&&!state.characterWin.isDestroyed()?state.characterWin:null};
  const getSnapshot=async()=>{const win=getTarget();if(!win)throw new Error("Character renderer window is unavailable");return await win.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.getDeformationSnapshot?.(2400)||null")};
- const capture=async name=>{const win=getTarget();if(!win)throw new Error("Character renderer window is unavailable for visual capture");const image=await win.webContents.capturePage();const file=process.env["SAEED_CI_RIG_SCREENSHOT_"+name.toUpperCase()]||path.join(process.cwd(),"dist","ci-character-rig-builder-"+name+".png");fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,image.toPNG());return{file,width:image.getSize().width,height:image.getSize().height,bitmap:image.toBitmap()}};
+ const capture=async name=>{const win=getTarget();if(!win)throw new Error("Character renderer window is unavailable for visual capture");const image=await win.webContents.capturePage();const envKey="SAEED_CI_RIG_SCREENSHOT_"+name.toUpperCase().replace(/[^A-Z0-9]/g,"_");const file=process.env[envKey]||path.join(process.cwd(),"dist","ci-character-rig-builder-"+name+".png");fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,image.toPNG());return{file,width:image.getSize().width,height:image.getSize().height,bitmap:image.toBitmap()}};
  const imageDiff=(a,b)=>{if(a.bitmap.length!==b.bitmap.length||!a.bitmap.length)return{changedPixels:0,fraction:0};let changed=0,total=a.bitmap.length/4;for(let i=0;i<a.bitmap.length;i+=4){if(Math.abs(a.bitmap[i]-b.bitmap[i])>18||Math.abs(a.bitmap[i+1]-b.bitmap[i+1])>18||Math.abs(a.bitmap[i+2]-b.bitmap[i+2])>18||Math.abs(a.bitmap[i+3]-b.bitmap[i+3])>18)changed++}return{changedPixels:changed,totalPixels:total,fraction:changed/total}};
  const displacement=(a,b)=>{const map=new Map((a?.samples||[]).map(s=>[s.key,s.p]));let count=0,sum=0,max=0,finite=0;for(const item of b?.samples||[]){const p=map.get(item.key);if(!p||!item.p||p.length!==3)continue;const d=Math.hypot(item.p[0]-p[0],item.p[1]-p[1],item.p[2]-p[2]);if(!Number.isFinite(d))continue;finite++;if(d>.001)count++;sum+=d;max=Math.max(max,d)}return{matchedSamples:finite,displacedVertices:count,meanDisplacement:finite?sum/finite:0,maxDisplacement:max}};
  try{
   const target=getTarget();check("packaged-character-renderer-created",Boolean(target),{exists:Boolean(target)});
   if(!target)throw new Error("Character renderer window did not start");
   if(mode==="save"){
+
+   await wait(350);
+   const liveRig=await characterHost.command({action:"getRig"});
+   const liveBefore=await getSnapshot();
+   check("actual-saeed-glb-has-loaded-skinned-body",liveRig?.ok===true&&liveRig.bones.length>0&&liveBefore?.skinnedMeshCount>0&&liveBefore?.weightedVertices>0,{boneCount:liveRig?.bones?.length||0,skinnedMeshCount:liveBefore?.skinnedMeshCount||0,vertexCount:liveBefore?.vertexCount||0});
+   const saeedBeforeShot=await capture("saeed-before");
+   const morphResult=await target.webContents.executeJavaScript("(()=>{const e=window.saeedCharacterRuntime?.engine,b=e?.getMorphSnapshot?.();if(!e||!b)return{ok:false,error:'morph snapshot API unavailable'};const ok=Boolean(e.setCharacterViseme?.('aa',.65)),a=e.getMorphSnapshot?.(),changed=Object.keys(a?.values||{}).filter(k=>Math.abs(Number(a.values[k])-Number(b.values[k]||0))>.1);e.setCharacterViseme?.('aa',0);return{ok,count:b.count,changed,available:b.names.slice(0,40)}})()");
+   check("viseme-alias-changes-real-shape-key",morphResult?.ok===true&&morphResult.changed?.length>0,{ok:Boolean(morphResult?.ok),morphCount:morphResult?.count||0,changed:morphResult?.changed||[],available:morphResult?.available||[],error:morphResult?.error||null});
+   await characterHost.command({action:"setUserBusy",value:true});
+   const liveMotion=await characterHost.command({action:"play",motion:"wave",options:{priority:100,blend:.01}});
+   await wait(700);
+   const liveAfter=await getSnapshot(),liveDelta=displacement(liveBefore,liveAfter),saeedAfterShot=await capture("saeed-after"),saeedVisual=imageDiff(saeedBeforeShot,saeedAfterShot);
+   check("actual-saeed-motion-deforms-real-skinned-vertices",liveMotion?.ok===true&&liveDelta.displacedVertices>0&&liveDelta.maxDisplacement>.003,{ok:Boolean(liveMotion?.ok),...liveDelta});
+   check("actual-saeed-body-visually-changes-during-motion",liveMotion?.ok===true&&saeedVisual.fraction>.001&&saeedVisual.changedPixels>50,{...saeedVisual,before:saeedBeforeShot.file,after:saeedAfterShot.file});
+   await characterHost.command({action:"stopAll"});
+   await characterHost.command({action:"setUserBusy",value:false});
+
    const fixture=process.env.SAEED_CI_RIG_FIXTURE;
    if(!fixture||!fs.existsSync(fixture))throw new Error("SAEED_CI_RIG_FIXTURE must point to a generated static humanoid GLB");
    const loaded=await characterHost.replaceCharacterForCi(fixture);

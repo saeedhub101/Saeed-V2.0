@@ -689,6 +689,13 @@ function buildProceduralRig(templateName="full",options={}){
 }
 
 
+
+function getMorphSnapshot(){
+ const values={};
+ for(const [name,list] of morphs){let value=0;for(const [mesh,index] of list){const n=Number(mesh?.morphTargetInfluences?.[index]);if(Number.isFinite(n))value=Math.max(value,n)}values[name]=value}
+ return{count:Object.keys(values).length,names:Object.keys(values),values};
+}
+
 function getDeformationSnapshot(maxSamples=2400){
  if(!model)return{ok:false,error:"No character model is loaded",meshes:[],samples:[]};
  model.updateMatrixWorld(true);
@@ -767,7 +774,7 @@ window.saeedCharacterRuntime.engine={
  getBoneRotation,getBonePosition,getBoneEditorRotation,setBoneRotation,setBonePosition,setBoneEditorRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,fixTPoseArmsDown,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,
- getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,getDeformationSnapshot,setEditorRotation,getEditorRotation,
+ getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,getDeformationSnapshot,getMorphSnapshot,setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
