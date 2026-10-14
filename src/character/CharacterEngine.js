@@ -272,8 +272,8 @@ function setMorph(name,value=0){
   if(!mouthOpen)return false;
   const jaw=rig.get("jaw")||[...boneGroups.entries()].find(([name])=>/(jaw|mandible)/i.test(name))?.[1]?.[0];
   if(!jaw)return false;
-  const rest=base.get("jaw")||{x:jaw.rotation.x,y:jaw.rotation.y,z:jaw.rotation.z};
-  jaw.rotation.set(rest.x+v*.28,rest.y,rest.z);
+  const rest=base.get("jaw")||boneRest.get(jaw.name)?.rotation||{x:jaw.rotation.x,y:jaw.rotation.y,z:jaw.rotation.z};
+  jaw.rotation.set((Number(rest.x)||0)+v*.28,Number(rest.y)||0,Number(rest.z)||0);
   render();
   return true;
  }

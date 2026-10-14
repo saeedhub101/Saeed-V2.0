@@ -85,9 +85,11 @@ async function runLifecycle(deps){
   check("chat-open-keeps-brain-active-with-mic-off",ensureBrainHost().isActive()&&getCurrentMicMode()==="off",{brainActive:ensureBrainHost().isActive(),micMode:getCurrentMicMode(),chatExists:Boolean(ensureChatHost().getChatWindow())});
   await ensureChatHost().closeChat();await pause(120);
   check("chat-close-releases-brain-when-mic-off",!ensureBrainHost().isActive(),{brainActive:ensureBrainHost().isActive(),micMode:getCurrentMicMode()});
-  await characterApi.showCharacter();await pause(450);
+  await characterApi.showCharacter();await pause(250);
   const character=getState().characterWin;
   check("character-only-surface-is-visible",Boolean(character&&!character.isDestroyed()&&character.isVisible())&&windows().length===1,{visible:Boolean(character&&!character.isDestroyed()&&character.isVisible()),windowCount:windows().length,windows:windows().map(w=>w.getTitle())});
+  const readyRig=await deps.characterHost.command({action:"getRig"});
+  check("character-rig-ready-before-animation",readyRig?.ok===true&&Array.isArray(readyRig.bones)&&readyRig.bones.length>0,{ok:Boolean(readyRig?.ok),boneCount:readyRig?.bones?.length||0,error:readyRig?.error||null});
   const motion=await deps.characterHost.command({action:"play",motion:"wave",options:{priority:100,blend:.01}});await pause(300);
   check("animation-starts-on-demand",motion?.ok===true,{ok:Boolean(motion?.ok),error:motion?.error||null});
   await deps.characterHost.command({action:"stopAll"});
@@ -112,7 +114,10 @@ async function runResource(deps){
   await characterApi.hideCharacter();await sample("idle-tray-only");
   await showPerformance();await sample("performance-open");await characterApi.hideCharacter();await sample("performance-closed-idle");
   await ensureChatHost().showChat();await ensureBrain();await sample("chat-open-brain-active");await ensureChatHost().closeChat();await pause(120);await sample("chat-closed-brain-released");
-  await characterApi.showCharacter();await sample("character-visible-idle");
+  await characterApi.showCharacter();
+  const readyRig=await characterHost.command({action:"getRig"});
+  check("resource-character-rig-ready",readyRig?.ok===true&&Array.isArray(readyRig.bones)&&readyRig.bones.length>0,{ok:Boolean(readyRig?.ok),boneCount:readyRig?.bones?.length||0,error:readyRig?.error||null});
+  await sample("character-visible-idle");
   const motion=await characterHost.command({action:"play",motion:"wave",options:{priority:100,blend:.01}});await sample("character-animation-running");await characterHost.command({action:"stopAll"});
   check("resource-animation-state-reached",motion?.ok===true,{ok:Boolean(motion?.ok),error:motion?.error||null});
   await ensureBrain();const agent=getAgent();agent.settings={...agent.settings,permissions:{...(agent.settings?.permissions||{}),microphone:"allow"}};
