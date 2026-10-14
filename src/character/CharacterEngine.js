@@ -610,6 +610,51 @@ function snapshotBoneRotations(){
  for(const b of getSceneBones())out[b.name]={x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w,position:{x:b.position.x,y:b.position.y,z:b.position.z}};
  return out;
 }
+
+function buildProceduralRig(templateName="full",options={}){
+ if(!model)return{ok:false,error:"Load a character mesh first."};
+ const meshes=[];let existingSkinned=0;
+ model.traverse(o=>{if(o.isSkinnedMesh)existingSkinned++;else if(o.isMesh)meshes.push(o)});
+ if(existingSkinned)return{ok:false,error:"This character already has a skinned rig. Use Auto Map to bind existing bones; procedural rig building is only for static meshes."};
+ if(!meshes.length)return{ok:false,error:"No mesh found to rig."};
+ const template=["full","upper","arms","head"].includes(String(templateName))?String(templateName):"full";
+ model.updateMatrixWorld(true);
+ const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());
+ const H=Math.max(size.y,0.001),toLocal=new THREE.Matrix4().copy(model.matrixWorld).invert();
+ const P=(x,y,z=0)=>new THREE.Vector3(center.x+x*H,box.min.y+y*H,center.z+z*H).applyMatrix4(toLocal);
+ const B=(name,parent,pos)=>({name,parent,pos});
+ const body=[B("hips",null,P(0,.53)),B("spine","hips",P(0,.60)),B("chest","spine",P(0,.70)),B("neck","chest",P(0,.82)),B("head","neck",P(0,.88))];
+ const arm=side=>{const k=side>0?"left":"right";return[B(k+"Shoulder","chest",P(.03*side,.80)),B(k+"UpperArm",k+"Shoulder",P(.10*side,.80)),B(k+"ForeArm",k+"UpperArm",P(.29*side,.80)),B(k+"Hand",k+"ForeArm",P(.46*side,.80))]};
+ const leg=side=>{const k=side>0?"left":"right";return[B(k+"Thigh","hips",P(.05*side,.50)),B(k+"Shin",k+"Thigh",P(.05*side,.27)),B(k+"Foot",k+"Shin",P(.05*side,.05))]};
+ const defs=template==="full"?[...body,...arm(1),...arm(-1),...leg(1),...leg(-1)]:template==="upper"?[...body,...arm(1),...arm(-1)]:template==="arms"?[B("chest",null,P(0,.70)),...arm(1),...arm(-1)]:[B("neck",null,P(0,.82)),B("head","neck",P(0,.88))];
+ const rootBone=new THREE.Bone();rootBone.name="proceduralRoot";rootBone.position.copy(P(0,0,0));
+ const nodes=new Map([["proceduralRoot",rootBone]]),worldPositions=new Map([["proceduralRoot",rootBone.position.clone()]]);
+ const pending=defs.slice();let guard=0;
+ while(pending.length&&guard++<defs.length+2){let progress=false;for(let i=pending.length-1;i>=0;i--){const d=pending[i],parentName=d.parent||"proceduralRoot";if(!nodes.has(parentName))continue;const b=new THREE.Bone();b.name=d.name;const p=d.pos.clone();b.position.copy(p).sub(worldPositions.get(parentName));nodes.get(parentName).add(b);nodes.set(d.name,b);worldPositions.set(d.name,p);pending.splice(i,1);progress=true}if(!progress)break}
+ if(pending.length)return{ok:false,error:"Rig template contains unresolved parent bones."};
+ const bones=[...nodes.values()],segments=[];
+ for(let index=1;index<bones.length;index++){const b=bones[index],a=worldPositions.get(b.name),child=b.children.find(x=>x.isBone),end=child?worldPositions.get(child.name):a.clone().add(a.clone().sub(worldPositions.get(b.parent.name)).multiplyScalar(.5));const delta=end.clone().sub(a),len2=Math.max(1e-8,delta.lengthSq());segments.push({index,a,b:end,len2,radius:Math.min(Math.max(.025*H,Math.sqrt(len2)*1.6),Math.max(.04*H,H*.12))})}
+ const boneIndex=new Map(bones.map((b,i)=>[b,i]));
+ const skinGeometry=(geometry)=>{
+  const pos=geometry.attributes.position,count=pos.count,idx=new Uint16Array(count*4),weights=new Float32Array(count*4);
+  const distance=(p,s)=>{const ab=s.b.clone().sub(s.a),ap=p.clone().sub(s.a),t=THREE.MathUtils.clamp(ap.dot(ab)/s.len2,0,1);return p.distanceTo(s.a.add(ab.multiplyScalar(t)))};
+  for(let v=0;v<count;v++){const p=new THREE.Vector3(pos.getX(v),pos.getY(v),pos.getZ(v));let influences=[],sum=0;for(const seg of segments){const d=distance(p,seg);if(d<seg.radius){const w=(1-d/seg.radius)**2;influences.push([seg.index,w]);sum+=w}}const rootWeight=Math.max(0,1-sum);if(rootWeight>0)influences.push([0,rootWeight]);influences.sort((a,b)=>b[1]-a[1]);influences=influences.slice(0,4);const total=influences.reduce((n,x)=>n+x[1],0)||1;for(let j=0;j<4;j++){idx[v*4+j]=influences[j]?.[0]??0;weights[v*4+j]=influences[j]?influences[j][1]/total:(j===0?1:0)}}
+  geometry.setAttribute("skinIndex",new THREE.Uint16BufferAttribute(idx,4));geometry.setAttribute("skinWeight",new THREE.Float32BufferAttribute(weights,4));
+ };
+ model.add(rootBone);
+ const inverseModel=new THREE.Matrix4().copy(model.matrixWorld).invert(),created=[];
+ try{
+  model.updateMatrixWorld(true);
+  for(const mesh of meshes){const geometry=mesh.geometry.clone();geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inverseModel,mesh.matrixWorld));skinGeometry(geometry);const skinned=new THREE.SkinnedMesh(geometry,mesh.material);skinned.name=mesh.name;skinned.frustumCulled=false;mesh.parent.add(skinned);skinned.bind(new THREE.Skeleton(bones));mesh.parent.remove(mesh);created.push({mesh,skinned})}
+  const skeleton=new THREE.Skeleton(bones);for(const item of created)item.skinned.bind(skeleton);
+  getSceneBones();captureAuthoritativeRestPose(lastRestPose);autoMapRig();fit();render();
+  const mapped=Object.keys(getBoneMap()).length;
+  const result={ok:true,template,createdBoneCount:bones.length,meshCount:created.length,mappedSlots:mapped,bones:defs.map(b=>b.name),warning:"Generated skeleton weights are approximate. Inspect elbows, shoulders, hips and knees in Character Studio before saving this character rig."};
+  window.saeed?.system?.reportDiagnostic?.("INFO","PROCEDURAL RIG BUILT","A procedural skeleton and approximate skin weights were created for a static character mesh",result);
+  return result;
+ }catch(error){for(const item of created){try{item.skinned.parent?.remove(item.skinned);item.mesh.parent?.add(item.mesh)}catch{}try{item.skinned.geometry?.dispose()}catch{}}try{rootBone.parent?.remove(rootBone)}catch{}getSceneBones();render();return{ok:false,error:error?.stack||error?.message||String(error)}}
+}
+
 function destroyEngine(){loadGeneration++;activeLoad=false;if(pendingLoad?.resolve)pendingLoad.resolve({ok:false,generation:pendingLoad.generation,error:"Character engine destroyed before GLB load completed"});if(pendingLoad?.reject)pendingLoad.reject(new Error("Character engine destroyed before GLB load completed"));pendingLoad=null;animationTick=null;if(animationFrame){cancelAnimationFrame(animationFrame);animationFrame=null;}const previous=model;model=null;if(previous){try{root.remove(previous)}catch{}try{dispose(previous)}catch(error){traceGlb("destroy-model-dispose-error",{error:error?.message||String(error)})}}rig.clear();base.clear();boneGroups.clear();boneRest.clear();morphs.clear();try{root.clear()}catch{}try{renderer.dispose()}catch{}try{renderer.forceContextLoss?.()}catch{}renderQueued=false;return true}
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
 window.saeedCharacterRuntime.engine={
@@ -653,7 +698,7 @@ window.saeedCharacterRuntime.engine={
  getBoneRotation,getBonePosition,getBoneEditorRotation,setBoneRotation,setBonePosition,setBoneEditorRotation,getRestBoneRotation,resetBoneToRest,setBoneTransform,snapshotBoneRotations,applyRestPoseSnapshot,normalizeHumanoidRestPose,fixTPoseArmsDown,captureAuthoritativeRestPose,createVirtualControlBone,setRestRelativeBoneRotation,
  getCharacterProfileKey:()=>String(window.saeedCharacterRuntime.characterName||"Saeed").trim(),
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,
- getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),setEditorRotation,getEditorRotation,
+ getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
  getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
