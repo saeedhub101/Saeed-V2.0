@@ -68,6 +68,14 @@ test("failed character persistence restores the previous or last persisted GLB",
  assert.match(hostSource,/previous saved asset was restored/);
 });
 
+test("character status rebinds an already-mapped rig when profile state is not initialized after restart",()=>{
+ const start=source.indexOf(" status(){");
+ const end=source.indexOf("\n update(dt)",start);
+ const body=source.slice(start,end);
+ assert.ok(start>=0&&end>start);
+ assert.match(body,/a\.loaded&&\(!this\.characterId\|\|!Object\.keys\(mapped\)\.length\)/);
+ assert.match(body,/this\.onCharacterLoaded\?\.\(\)/);
+});
 test("custom motion profiles are not restored until the incoming rig is successfully bound",()=>{
  const bindStart=source.indexOf(" bindCurrentCharacter(){");
  const bindEnd=source.indexOf("\n autoMap()",bindStart);
