@@ -432,9 +432,9 @@ jobs:
             dist/ci-character-behavior.json
             dist/ci-character-rig-builder-*.json
             dist/ci-character-rig-builder-*.png
-dist/ci-brain-learning-*.json
-dist/ci-lifecycle-report.json
-dist/ci-ram-cpu-report.json
+            dist/ci-brain-learning-*.json
+            dist/ci-lifecycle-report.json
+            dist/ci-ram-cpu-report.json
             dist/ci-static-humanoid.glb
             dist/ci-rest-pose-save.json
             dist/ci-rest-pose-verify.json
