@@ -452,7 +452,7 @@ function installCharacterController(){
   semantic:(i,o)=>controller.semantic(i,o),defineMotion:d=>controller.defineMotion(d),deleteMotion:id=>controller.deleteMotion(id),
   listMotions:()=>controller.listMotions(),getRig:()=>({bones:engine.getAvailableBoneNames?.()||[],mapping:Object.fromEntries(Object.entries(engine.getBoneMap?.()||{}).map(([slot,bone])=>[slot,bone?.name||bone])),status:controller.status()}),status:()=>{const ready=engine.getCharacterPoseStatus?.();const mapped=engine.getBoneMap?.()||{};if(ready?.loaded&&!Object.keys(mapped).length)controller.onCharacterLoaded?.();return controller.status()},register:def=>controller.animation.register(def),
   setMood:v=>controller.setMood(v),setBehavior:(v={})=>{controller.behavior={...controller.behavior,...v};controller.autonomous?.configure?.(controller.behavior);if(v.idle===false)controller.clearIdleTimer();else controller.startIdleScheduler(controller.behavior.frequencyMs);return {...controller.behavior}},setBoneRotation:(n,r)=>controller.setBoneRotation(n,r),bindSlot:(s,n)=>controller.bindSlot(s,n),calibrateJoint:(s,r)=>controller.calibrateJoint(s,r),getMood:()=>controller.getMood(),moodPalette:()=>controller.moodPalette(),
-  setVisible:v=>controller.setVisible(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
+  setVisible:v=>controller.setVisible(v),setWindowFocused:v=>controller.autonomous?.setWindowFocused?.(v),handleEvent:e=>controller.handleEvent(e),touch:()=>controller.touch()
  };
  controller.setVisible(!document.hidden);
  const ready=engine.getCharacterPoseStatus?.();
@@ -464,4 +464,6 @@ window.addEventListener("saeed-character-engine-ready",installCharacterControlle
 window.addEventListener("DOMContentLoaded",()=>installCharacterController());
 window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
 document.addEventListener("visibilitychange",()=>window.saeedCharacterRuntime?.controller?.setVisible(!document.hidden));
+window.addEventListener("focus",()=>window.saeedCharacterRuntime?.controller?.setWindowFocused?.(true));
+window.addEventListener("blur",()=>window.saeedCharacterRuntime?.controller?.setWindowFocused?.(false));
 window.addEventListener("beforeunload",()=>{try{window.saeedCharacterRuntime?.controller?.destroy?.()}catch{}});
