@@ -7,6 +7,12 @@
 
 Build and release Saeed V2.0 as a complete Windows AI desktop companion: a persistent 3D character with shared Chat/Voice conversation, autonomous behavior, Brain, tools, permissions, computer interaction, learning, add-ons, diagnostics, and a production-ready packaged application.
 
+## Current source audit — 2026-10-14
+
+**Implementation status correction:** Do not treat older unchecked lists or historical notes below as proof that these features are absent. The current `main` source contains the Brain/task engine, shared Chat/Voice conversation history, permissions and tool registry, local/cloud provider routing, persistent user facts and vector-memory storage, add-on/MCP registration, Windows automation and Office/PDF tools, voice lifecycle controls, GLB character runtime, rig mapping, rest-pose persistence, motion editing/playback, behavior controls, backup/restore, and updater foundations. The renderer voice diagnostic bridge and query-relevant memory retrieval were corrected in this audit. Voice mute persistence still requires a source correction and verification before being called fixed. **Realtime code and behavior are intentionally unchanged in this work.**
+
+Use **تم الانتهاء من التنفيذ البرمجي** when the feature exists in source; reserve **تم التحقق تشغيليًا** for behavior demonstrated by current runtime evidence. Do not reopen completed implementation work without a concrete defect or regression.
+
 ## Phase model
 
 **Execution status:** Phases 1, 2, 3, and 4 are all active parts of the current product-development roadmap. Their active status does not mean every acceptance criterion is complete; completion must be recorded only when the corresponding implementation and test evidence exists.
@@ -237,13 +243,13 @@ Cross-cutting security, lifecycle and verification are implemented with the feat
 - Added SMTP authentication verification, socket cleanup, request-cancellation checks, and corrected OAuth SASL control-byte encoding.
 - Added local protocol regression coverage for POP3, SMTP, server-profile persistence, command-injection rejection, cancellation, and message redaction. The suite is included in `npm test` and the manual no-build Phase 1–3 verification workflow.
 
-**Acceptance status: pending execution.** Source-level parsing and contract checks are not substitutes for running the regression suite and inspecting its results. Do not mark the email capability or any product phase complete until the manual verification and Windows packaged E2E reports pass.
+**Implementation status: تم الانتهاء من التنفيذ الأساسي.** Email profiles, IMAP/POP3 reading, SMTP sending, and permission checks exist in the current source. Remaining work is operational acceptance of real provider configurations and packaged behavior; do not reimplement the email capability.
 
 ### Optional microphone transcript label
 
 - Provide a persistent toggle in Performance → Voice settings, the character right-click menu, and the tray for the optional transcript bubble beneath Saeed.
 - When enabled, show the recognized text from the user's microphone input so the user can verify speech-to-text accuracy.
-- Persist the toggle, display transcription failures/empty results clearly, and leave microphone capture OFF at startup. Source wiring is implemented; packaged runtime verification remains pending.
+- **تم الانتهاء من التنفيذ البرمجي:** Persist the transcript toggle, surface transcription failures/empty results, and keep microphone capture OFF at startup. Packaged runtime acceptance remains a separate verification item.
 
 ### Add-ons and Learning access
 
