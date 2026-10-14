@@ -105,7 +105,7 @@ class Brain{
   if(settings.apiServices?.brain===false){const disabledAnswer="API Brain is disabled in Performance settings. Enable API Brain or switch Agent to Local only.";finishTask(disabledAnswer,"needs_attention");return{handled:true,answer:disabledAnswer,source:"api-disabled"}}
   let answer;
   try{
-   answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),taskRunId:taskRun?.id||null,memoryContext:()=>String(this.memoryContext()||"")+experienceMemory().promptText(this.getDir(),s),saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
+   answer=await this.api.run({text:s,image,settings,history,registry:this.registry,onEvent:emit,dir:this.getDir(),taskRunId:taskRun?.id||null,memoryContext:()=>String(this.memoryContext(s)||"")+experienceMemory().promptText(this.getDir(),s),saveHistory:this.saveHistory,baseStepLimit:this.baseStepLimit,askForMoreSteps:this.requestStepIncrease,providerDefaults:this.providerDefaults,isCurrent:current,signal});
   }catch(error){
    if(!current()){finishTask("", "cancelled");return{handled:true,answer:"",source:"stale",stale:true}};
    const detail=String(error?.message||error||"Unknown provider error").replace(/[\r\n\t]+/g," ").slice(0,240);
