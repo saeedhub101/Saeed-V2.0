@@ -245,14 +245,17 @@ export class AutonomousBehaviorController{
   this.lastMotionReason=useEnergy&&night?"nighttime calm bias":lowEnergy?"low-energy calm bias":activeMood+" mood palette";
   return this.chooseWeighted(pool.length?pool:available,weights);
  }
- schedule(delay=DEFAULT_IDLE_DELAY){
+ schedule(delay){
   this.clearTimer();
   if(!this.running||!this.visible||!this.windowFocused||this.sleeping||this.userBusy)return;
   this.armBlinkTimer();
-  const base=Math.max(1000,Number(delay)||Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY);
+  const supplied=Number(delay);
+  const configured=Math.max(1000,Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY);
+  const base=Math.max(1000,Number.isFinite(supplied)&&supplied>0?supplied:configured);
+  const usesConfiguredCadence=delay==null||!Number.isFinite(supplied)||supplied<=0||supplied===DEFAULT_IDLE_DELAY;
   const energyFactor=this.settings.energyModulation===false?1:Math.max(.65,Math.min(1.35,this.energy/70));
-  const energyAdjusted=delay===DEFAULT_IDLE_DELAY?base/energyFactor:base;
-  const jitter=delay===DEFAULT_IDLE_DELAY?(.72+Math.random()*.78):1;
+  const energyAdjusted=usesConfiguredCadence?base/energyFactor:base;
+  const jitter=usesConfiguredCadence?(.72+Math.random()*.78):1;
   this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.round(energyAdjusted*jitter));
  }
  evaluateNow(){
