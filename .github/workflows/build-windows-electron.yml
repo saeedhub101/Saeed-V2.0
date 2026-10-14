@@ -39,7 +39,6 @@ jobs:
 
       - name: Run current product preflight
         id: preflight
-        continue-on-error: true
         run: npm test
 
       - name: Generate npm third-party license notices
@@ -75,7 +74,6 @@ jobs:
 
       - name: Pre-package Electron startup smoke test
         id: startup_smoke
-        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -106,7 +104,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Could not clone whisper.cpp." }
           if (!(Test-Path "build\\whisper-src\\LICENSE")) { throw "whisper.cpp license file is missing." }
           Copy-Item "build\\whisper-src\\LICENSE" (Join-Path $root "WHISPER-CPP-LICENSE.txt") -Force
-          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF
+          cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           if ($LASTEXITCODE -ne 0) { throw "Whisper CMake configure failed." }
           cmake --build build\whisper-src\build --config Release --target whisper-cli
           if ($LASTEXITCODE -ne 0) { throw "Whisper CLI build failed." }
@@ -129,7 +127,6 @@ jobs:
 
       - name: character ebgine, rig builder
         id: character_rig
-        continue-on-error: true
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -193,7 +190,6 @@ jobs:
 
       - name: Character, behavior
         id: character_behavior
-        continue-on-error: true
         shell: pwsh
         timeout-minutes: 5
         run: |
@@ -233,7 +229,6 @@ jobs:
 
       - name: Verify packaged runtime acceptance
         id: packaged_acceptance
-        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -267,7 +262,6 @@ jobs:
 
       - name: Verify rest pose survives a full application restart
         id: rest_pose
-        continue-on-error: true
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -312,7 +306,6 @@ jobs:
 
       - name: brain, learning
         id: brain_learning
-        continue-on-error: true
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -347,7 +340,6 @@ jobs:
 
       - name: lifecycle
         id: lifecycle
-        continue-on-error: true
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -378,7 +370,6 @@ jobs:
 
       - name: ram, cpu
         id: ram_cpu
-        continue-on-error: true
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -483,19 +474,36 @@ jobs:
           Write-Host "ALL_VALIDATION_STAGES=PASS"
 
       - name: Publish official release
-        if: success() && inputs.publish_release == true
+        if: success() && (inputs.publish_release == true || (github.event_name == 'push' && contains(github.event.head_commit.message, '[release]')))
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           VERSION="$(tr -d '\r\n ' < VERSION)"
-          TAG="v${VERSION}"
-          echo "Release request accepted for ${TAG}"
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            gh release upload "${TAG}" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml dist/addons/*.zip --clobber
-          else
-            gh release create "${TAG}" dist/*.exe dist/*.blockmap dist/*.sha256 dist/latest.yml dist/addons/*.zip \
-              --title "Saeed AI ${VERSION}" \
-              --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}." \
-              --target "${{ github.sha }}"
+          APP_VERSION="$(node -p "require('./package.json').version")"
+          if [[ -z "$VERSION" || "$VERSION" != "$APP_VERSION" ]]; then
+            echo "Release blocked: VERSION ($VERSION) does not match package.json ($APP_VERSION)." >&2
+            exit 1
           fi
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release blocked: $TAG already exists; refusing to overwrite a published release." >&2
+            exit 1
+          fi
+          shopt -s nullglob
+          installers=(dist/*.exe)
+          blockmaps=(dist/*.blockmap)
+          addons=(dist/addons/*.zip)
+          if (( ${#installers[@]} == 0 )); then echo "Release blocked: no Windows installer found." >&2; exit 1; fi
+          if [[ ! -s dist/latest.yml ]]; then echo "Release blocked: dist/latest.yml is missing or empty." >&2; exit 1; fi
+          if (( ${#addons[@]} < 4 )); then echo "Release blocked: expected all four add-on bundles." >&2; exit 1; fi
+          for file in "${installers[@]}" "${blockmaps[@]}" "${addons[@]}"; do
+            [[ -s "$file" ]] || { echo "Release blocked: missing/empty asset $file" >&2; exit 1; }
+          done
+          sha256sum "${installers[@]}" > dist/SHA256SUMS
+          sha256sum -c dist/SHA256SUMS
+          gh release create "$TAG" "${installers[@]}" "${blockmaps[@]}" dist/SHA256SUMS dist/latest.yml "${addons[@]}" \
+            --title "Saeed AI ${VERSION}" \
+            --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}. Published only after every required validation stage succeeded." \
+            --target "${{ github.sha }}"
