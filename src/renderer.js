@@ -11,8 +11,12 @@ function welcomeHtml(){return '<div class="welcome"><div class="suggestions"><bu
 function bindSuggestions(){document.querySelectorAll(".suggestions button").forEach(b=>b.onclick=()=>{$("input").value=b.dataset.prompt||"";send()})}
 function resetMessages(){messages.innerHTML=welcomeHtml();bindSuggestions()}
 function renderHistory(history=[]){messages.innerHTML="";if(!history.length){resetMessages();return}for(const m of history){if((m?.role==="user"||m?.role==="assistant")&&typeof m.content==="string")add(m.role,m.content)}}
-let chatSpeechAudio=null,chatSpeechContext=null,chatSpeechMuted=false;
-function stopChatSpeech(){try{window.speechSynthesis?.cancel?.()}catch{}try{chatSpeechAudio?.stop?.()}catch{}chatSpeechAudio=null;try{chatSpeechContext?.close?.()}catch{}chatSpeechContext=null}
+let chatSpeechAudio=null,chatSpeechContext=null,chatSpeechMuted=false,chatSpeechActive=false;
+function setChatSpeechActive(active,text=""){
+ const next=Boolean(active);if(chatSpeechActive===next)return;chatSpeechActive=next;
+ void window.saeed.character.characterController({action:"behaviorEvent",event:{type:next?"speech-start":"speech-end",text:String(text||""),source:"chat-tts"}}).catch(()=>{});
+}
+function stopChatSpeech(){setChatSpeechActive(false);try{window.speechSynthesis?.cancel?.()}catch{}try{chatSpeechAudio?.stop?.()}catch{}chatSpeechAudio=null;try{chatSpeechContext?.close?.()}catch{}chatSpeechContext=null}
 async function speakChatText(text){
  const clean=String(text||"").trim();if(!clean)return;
  const settings=await window.saeed.system.getSettings().catch(()=>({}));chatSpeechMuted=Boolean(settings?.voiceMuted);if(chatSpeechMuted)return;
@@ -22,11 +26,11 @@ async function speakChatText(text){
   try{
    const result=await window.saeed.voice.ttsSpeak(clean);
    if(result?.ok){
-	const bytes=Uint8Array.from(atob(result.base64),c=>c.charCodeAt(0));chatSpeechContext=new AudioContext();await chatSpeechContext.resume();const buffer=await chatSpeechContext.decodeAudioData(bytes.buffer.slice(0));chatSpeechAudio=chatSpeechContext.createBufferSource();chatSpeechAudio.buffer=buffer;chatSpeechAudio.connect(chatSpeechContext.destination);chatSpeechAudio.onended=stopChatSpeech;chatSpeechAudio.start();return;
+    const bytes=Uint8Array.from(atob(result.base64),c=>c.charCodeAt(0));chatSpeechContext=new AudioContext();await chatSpeechContext.resume();const buffer=await chatSpeechContext.decodeAudioData(bytes.buffer.slice(0));chatSpeechAudio=chatSpeechContext.createBufferSource();chatSpeechAudio.buffer=buffer;chatSpeechAudio.connect(chatSpeechContext.destination);chatSpeechAudio.onended=()=>{setChatSpeechActive(false);stopChatSpeech()};setChatSpeechActive(true,clean);chatSpeechAudio.start();return;
    }
   }catch(error){window.saeed.system.reportDiagnostic?.("ERROR","CHAT TTS",error.message)}
  }
- if("speechSynthesis"in window){const utterance=new SpeechSynthesisUtterance(clean);utterance.lang=settings?.language==="ar"?"ar-SA":"en-US";window.speechSynthesis.speak(utterance)}
+ if("speechSynthesis"in window){const utterance=new SpeechSynthesisUtterance(clean);utterance.lang=settings?.language==="ar"?"ar-SA":"en-US";utterance.onstart=()=>setChatSpeechActive(true,clean);utterance.onend=()=>{setChatSpeechActive(false);chatSpeechAudio=null};utterance.onerror=()=>{setChatSpeechActive(false);chatSpeechAudio=null};window.speechSynthesis.speak(utterance)}
 }
 window.saeed.voice.onVoiceSpeak?.(speakChatText);
 window.saeed.voice.onVoiceMute?.(muted=>{chatSpeechMuted=Boolean(muted);if(chatSpeechMuted)stopChatSpeech()});
