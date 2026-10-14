@@ -33,9 +33,7 @@ export class AutonomousBehaviorController{
  constructor(character){
   this.character=character;
   this.running=false;
-  // Treat the character as focused at startup; renderer focus events can pause/resume it later.
-  this.windowFocused=true;
-  this.userBusy=false;
+  // Treat the character as focused at startup; explicit lifecycle events can pause/resume it.
   this.speakingTimer=null;
   this.thinkingTimer=null;
   this.reactionTimer=null;
@@ -106,21 +104,22 @@ export class AutonomousBehaviorController{
   if(busy){
    this.clearTimer();
    this.clearSleepTimer();
+   this.clearCycleTimers();
    this.interruptLowPriorityMotions();
-   if(!["speaking","thinking","doing","reacting","being-moved"].includes(this.intent)){this.clearCycleTimers();this.intent="busy";}
+   if(!["speaking","thinking","doing","reacting","being-moved"].includes(this.intent)){this.intent="busy";}
    this.lastMotionReason="paused: user/system activity";
    return true;
   }
   if(this.intent==="busy")this.intent="idle";
-  if(this.running&&this.visible&&this.windowFocused&&!this.sleeping){this.armBlinkTimer();this.armSleepTimer();this.schedule(1200);}
+  if(this.running&&this.visible&&this.windowFocused&&!this.sleeping){this.armBlinkTimer();this.armSleepTimer();if(this.intent==="speaking")this.scheduleSpeakingGesture();if(this.intent==="thinking")this.scheduleThinkingGesture();this.schedule(1200);}
   return true;
  }
  setWindowFocused(value){
   const focused=Boolean(value);
   if(this.windowFocused===focused)return true;
   this.windowFocused=focused;
-  if(!focused){this.clearTimer();this.clearSleepTimer();this.interruptLowPriorityMotions();this.lastMotionReason="paused: application window unfocused";return true;}
-  if(this.running&&this.visible&&!this.sleeping&&!this.userBusy){this.schedule(1200);this.armSleepTimer();}
+  if(!focused){this.clearTimer();this.clearSleepTimer();this.clearCycleTimers();this.interruptLowPriorityMotions();this.lastMotionReason="paused: application window unfocused";return true;}
+  if(this.running&&this.visible&&!this.sleeping&&!this.userBusy){this.schedule(1200);this.armSleepTimer();if(this.intent==="speaking")this.scheduleSpeakingGesture();if(this.intent==="thinking")this.scheduleThinkingGesture();}
   return true;
  }
  setVisible(value){
@@ -372,14 +371,14 @@ export class AutonomousBehaviorController{
  }
  scheduleSpeakingGesture(){
   this.clearSpeakingTimer();
-  if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking"||this.settings.speakingCycle===false)return;
+  if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="speaking"||this.settings.speakingCycle===false)return;
   const energyFactor=this.settings.energyModulation===false?1:Math.max(.1,Math.min(1,this.energy/100));
   const base=6000+(1-energyFactor)*3000;
   const span=6000*(.7+energyFactor*.6);
   const delay=base+Math.random()*span;
   this.speakingTimer=setTimeout(()=>{
    this.speakingTimer=null;
-   if(!this.running||!this.visible||this.sleeping||this.intent!=="speaking")return;
+   if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="speaking")return;
    const id=this.chooseWeighted(["talkGesture","nod","lookCloser","wave"],{talkGesture:1.5,nod:1.2,lookCloser:.8,wave:.45});
    if(id&&(!this.character?.animation?.active||this.character.animation.active.length<2))this.playMotion(id,{duration:id==="talkGesture" ? .9 : .7,priority:18});
    this.scheduleSpeakingGesture();
@@ -387,11 +386,11 @@ export class AutonomousBehaviorController{
  }
  scheduleThinkingGesture(){
   this.clearThinkingTimer();
-  if(!this.running||!this.visible||this.sleeping||this.intent!=="thinking"||this.settings.thinkingCycle===false)return;
+  if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="thinking"||this.settings.thinkingCycle===false)return;
   const delay=2800+Math.random()*2200;
   this.thinkingTimer=setTimeout(()=>{
    this.thinkingTimer=null;
-   if(!this.running||!this.visible||this.sleeping||this.intent!=="thinking")return;
+   if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.intent!=="thinking")return;
    const id=this.chooseWeighted(["think","lookCloser","nod"],{think:1.5,lookCloser:1.1,nod:.4});
    if(id)this.playMotion(id,{duration:id==="lookCloser"?1.2:.85,priority:26});
    this.scheduleThinkingGesture();
