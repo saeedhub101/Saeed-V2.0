@@ -111,7 +111,7 @@ export class AutonomousBehaviorController{
   return true;
  }
  setVisible(value){
-  this.visible=value!==false&&String(value)==="visible";
+  this.visible=value!==false&&String(value)!=="hidden";
   if(!this.visible){this.stop();return true}
   if(!this.running)this.start();
   this.schedule(1800);
