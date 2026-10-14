@@ -162,7 +162,7 @@ export class AutonomousBehaviorController{
  }
  armSleepTimer(){
   this.clearSleepTimer();
-  if(!this.running||!this.visible||this.sleeping||this.settings.sleep===false)return;
+  if(!this.running||!this.visible||!this.windowFocused||this.userBusy||this.sleeping||this.settings.sleep===false)return;
   this.sleepTimer=setTimeout(()=>{
    this.sleepTimer=null;
    if(!this.running||!this.visible)return;
