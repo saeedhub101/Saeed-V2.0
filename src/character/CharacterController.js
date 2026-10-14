@@ -120,6 +120,15 @@ export class CharacterController{
   this.rigReady=true;
   return{...result,ok:true,mapping:bound.mapping||result.mapping, mappedBoneCount:bound.mappedBoneCount,sceneBoneCount:names.length};
  }
+ rebindMotionToRestPose(){
+  const mapped=this.engine?.getBoneMap?.()||{};
+  if(!Object.keys(mapped).length)return false;
+  const state=this.retargeter?.status?.()||{};
+  this.retargeter.bind(mapped,state.calibration||{});
+  for(const [slot,fix] of Object.entries(state.axisFixes||{}))this.retargeter.setAxisFix?.(slot,fix);
+  this.animation.bindRig(mapped,this.retargeter);
+  return true;
+ }
  saveRestPose(){
   const pose=this.engine?.getCharacterPoseStatus?.()||{};
   const names=this.engine?.getAvailableBoneNames?.()||[];
@@ -130,6 +139,7 @@ export class CharacterController{
   if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
   this.engine?.captureAuthoritativeRestPose?.(normalization);
+  this.rebindMotionToRestPose();
   const bones=this.engine?.snapshotBoneRotations?.()||{};
   const authoritativeNormalization=this.engine?.getRestPoseNormalization?.()||normalization;
   const restPose={normalization:authoritativeNormalization,bones};
@@ -156,11 +166,6 @@ export class CharacterController{
   this.beginAuthoring();
   const result=this.engine?.fixTPoseArmsDown?.();
   if(!result?.ok)return result||{ok:false,error:"T-pose correction is unavailable"};
-  const mapped=this.engine?.getBoneMap?.()||{};
-  const retargetStatus=this.retargeter?.status?.()||{};
-  this.retargeter.bind(mapped,retargetStatus.calibration||{});
-  for(const [slot,fix] of Object.entries(retargetStatus.axisFixes||{}))this.retargeter.setAxisFix?.(slot,fix);
-  this.animation.bindRig(mapped,this.retargeter);
   const saved=this.saveRestPose();
   if(!saved?.persisted)return{...result,ok:false,error:saved?.persistenceError||"Corrected rest pose could not be persisted",persisted:false};
   return{...result,persisted:true,profileId:saved.profileId};
@@ -179,6 +184,7 @@ export class CharacterController{
   const normalization=this.engine?.normalizeHumanoidRestPose?.()||null;
   if(!normalization?.normalized)return normalization;
   this.engine?.captureAuthoritativeRestPose?.(normalization);
+  this.rebindMotionToRestPose();
   if(!this.characterId){
    const names=this.engine?.getAvailableBoneNames?.()||[];
    if(names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
