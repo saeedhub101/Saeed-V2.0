@@ -1,6 +1,6 @@
 {
   "name": "saeed-ai",
-  "version": "4.4.0",
+  "version": "4.4.1",
   "description": "Saeed AI 4.4 desktop agent — 3D core with removable add-ons",
   "main": "src/main.js",
   "scripts": {
@@ -39,7 +39,7 @@
       "allowToChangeInstallationDirectory": true,
       "include": "build/installer.nsh"
     },
-    "buildVersion": "4.4.0",
+    "buildVersion": "4.4.1",
     "icon": "assets/saeed.png",
     "extraResources": [
       {
