@@ -34,6 +34,16 @@ test("autonomous character focus lifecycle is wired without inferring inactivity
  assert.match(behavior,/const base=Math\.max\(1000,Number\.isFinite\(supplied\)&&supplied>0\?supplied:configured\)/);
 });
 
+test("character animation pause stops every autonomous timer and resumes the current behavior",()=>{
+ const controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
+ const behavior=fs.readFileSync(path.join(root,"src/character/AutonomousBehaviorController.js"),"utf8");
+ assert.match(behavior,/setPaused\(value\)/);
+ assert.match(behavior,/if\(!this\.running\|\|this\.paused\|\|!this\.visible\|\|!this\.windowFocused\|\|this\.sleeping\|\|this\.userBusy\)return/);
+ assert.match(behavior,/if\(this\.paused\)\{this\.clearTimer\(\);this\.clearSleepTimer\(\);this\.clearBlinkTimer\(\);this\.clearCycleTimers\(\)/);
+ assert.match(controller,/this\.autonomous\?\.setPaused\?\.\(!enabled\|\|this\.animationPaused\)/);
+ assert.match(controller,/this\.autonomous\?\.setPaused\?\.\(paused\|\|!this\.animationEnabled\)/);
+});
+
 test("Character IPC serializes logical rig names instead of cyclic THREE.Bone objects",()=>{
  const start=client.indexOf('if(x.action==="getRig")');
  const end=client.indexOf("\n",start);
