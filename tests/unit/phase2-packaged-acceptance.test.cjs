@@ -30,6 +30,8 @@ test("autonomous character focus lifecycle is wired without inferring inactivity
  assert.match(behavior,/if\(this\.intent==="thinking"\)this\.scheduleThinkingGesture\(\)/);
  assert.match(behavior,/this\.intent!=="speaking"\|\|this\.settings\.speakingCycle===false\)return/);
  assert.match(behavior,/this\.intent!=="thinking"\|\|this\.settings\.thinkingCycle===false\)return/);
+ assert.match(behavior,/const configured=Math\.max\(1000,Number\(this\.settings\.frequencyMs\)\|\|DEFAULT_IDLE_DELAY\)/);
+ assert.match(behavior,/const base=Math\.max\(1000,Number\.isFinite\(supplied\)&&supplied>0\?supplied:configured\)/);
 });
 
 test("Character IPC serializes logical rig names instead of cyclic THREE.Bone objects",()=>{
