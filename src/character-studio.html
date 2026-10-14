@@ -93,7 +93,7 @@ async function syncPreviewFromController({captureRest=false,reset=false}={}){
  while(Date.now()<deadline){
   const response=await cmd({action:"status"});status=response?.status||response||{};remote=status.actualBones||{};
   const overlap=bones.reduce((n,b)=>n+(remote[b.name]?1:0),0);
-  if(status.characterLoaded&&overlap>0)break;
+  if(status.characterLoaded&&status.rigReady&&overlap>0)break;
   await new Promise(resolve=>setTimeout(resolve,250));
  }
  let synced=0;
