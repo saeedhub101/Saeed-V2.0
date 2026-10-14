@@ -49,7 +49,7 @@ class Brain{
     const saved=taskEngine.get(this.getDir(),taskRun.id);
     const failed=saved?.steps?.some(step=>step.status==="failed");
     const incompletePlan=Boolean(saved?.plan?.length&&saved.plan.some(step=>!["completed","skipped"].includes(step.status)));
-    const verifiedAfterLastAction=Boolean(saved?.lastActionAt&&saved?.verification?.evidence?.some(item=>item.result==="returned"&&Number.isFinite(Date.parse(item.at))&&Date.parse(item.at)>=Date.parse(saved.lastActionAt)));
+    const verifiedAfterLastAction=Boolean(saved?.lastActionAt&&saved?.verification?.evidence?.some(item=>item.result==="returned"&&item.usefulResult===true&&Number.isFinite(Date.parse(item.at))&&Date.parse(item.at)>=Date.parse(saved.lastActionAt)));
     const unverifiedAction=Boolean(saved?.lastActionAt&&!verifiedAfterLastAction);
     const finalStatus=taskPersistenceWarned?"needs_attention":(status||(failed||incompletePlan||unverifiedAction?"needs_attention":"finished"));
     if(finalStatus==="needs_attention"){
