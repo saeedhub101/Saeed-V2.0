@@ -40,6 +40,7 @@ export class AutonomousBehaviorController{
   this.lastMotionReason="startup";
   this.lastMotionId=null;
   this.visible=true;
+  this.windowFocused=true;
   this.userBusy=false;
   this.timer=null;
   this.sleepTimer=null;
@@ -108,7 +109,15 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(this.intent==="busy")this.intent="idle";
-  if(this.running&&this.visible&&!this.sleeping){this.armBlinkTimer();this.armSleepTimer();this.schedule(1200);}
+  if(this.running&&this.visible&&this.windowFocused&&!this.sleeping){this.armBlinkTimer();this.armSleepTimer();this.schedule(1200);}
+  return true;
+ }
+ setWindowFocused(value){
+  const focused=Boolean(value);
+  if(this.windowFocused===focused)return true;
+  this.windowFocused=focused;
+  if(!focused){this.clearTimer();this.clearSleepTimer();this.interruptLowPriorityMotions();this.lastMotionReason="paused: application window unfocused";return true;}
+  if(this.running&&this.visible&&!this.sleeping&&!this.userBusy){this.schedule(1200);this.armSleepTimer();}
   return true;
  }
  setVisible(value){
@@ -236,7 +245,7 @@ export class AutonomousBehaviorController{
  }
  schedule(delay=DEFAULT_IDLE_DELAY){
   this.clearTimer();
-  if(!this.running||!this.visible||this.sleeping||this.userBusy)return;
+  if(!this.running||!this.visible||!this.windowFocused||this.sleeping||this.userBusy)return;
   this.armBlinkTimer();
   const base=Math.max(1000,Number(delay)||Number(this.settings.frequencyMs)||DEFAULT_IDLE_DELAY);
   const energyFactor=this.settings.energyModulation===false?1:Math.max(.65,Math.min(1.35,this.energy/70));
@@ -245,7 +254,7 @@ export class AutonomousBehaviorController{
   this.timer=setTimeout(()=>{this.timer=null;this.evaluateNow()},Math.round(energyAdjusted*jitter));
  }
  evaluateNow(){
-  if(!this.running||!this.visible||this.sleeping||this.userBusy||this.settings.idle===false)return false;
+  if(!this.running||!this.visible||!this.windowFocused||this.sleeping||this.userBusy||this.settings.idle===false)return false;
   if(this.settings.autonomousMovement===false){this.schedule(DEFAULT_IDLE_DELAY);return false;}
   this.decayEnergy();
   if(["speaking","thinking","doing","being-moved"].includes(this.intent)){
@@ -534,20 +543,21 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="app-focus"||type==="wake"){
-   this.setUserBusy(false);
+   this.setWindowFocused(true);
    if(wasSleeping)return true;
    this.intent="reacting";
    this.playMotion(this.chooseContextMotion("wake")||"wave",{duration:1,priority:30});
    this.scheduleReactionFinish(1400);
    return true;
   }
-  if(type==="app-blur"||type==="idle-timeout")return this.setUserBusy(true);
+  if(type==="app-blur")return this.setWindowFocused(false);
+  if(type==="idle-timeout")return this.setUserBusy(true);
   return false;
  }
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,visible:this.visible,userBusy:this.userBusy,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,interactionCooldowns:Object.fromEntries(this.interactionCooldowns),eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
+  return {running:this.running,visible:this.visible,windowFocused:this.windowFocused,userBusy:this.userBusy,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,interactionCooldowns:Object.fromEntries(this.interactionCooldowns),eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
