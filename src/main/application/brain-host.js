@@ -92,6 +92,6 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
  }
  function emergencyStop(){emergencyStopped=true;registry?.emergencyStop?.();return{stopped:true,active:Boolean(agent)}}
  function resumeEmergencyStop(){emergencyStopped=false;registry?.resumeAfterEmergencyStop?.();return{stopped:false,active:Boolean(agent)}}
- return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,notifyLifecycle,evaluateLifecycle,emergencyStop,resumeEmergencyStop,isEmergencyStopped:()=>emergencyStopped,isActive:()=>Boolean(agent)};
+ return{ensureBrain,releaseBrain,touchActivity,beginRequest,endRequest,notifyLifecycle,evaluateLifecycle,emergencyStop,resumeEmergencyStop,isEmergencyStopped:()=>emergencyStopped,isActive:()=>Boolean(agent),getCapabilities:()=>registry?.schemas?.().map(x=>x?.function?.name).filter(Boolean)||[]};
 }
 module.exports={createBrainHost};
