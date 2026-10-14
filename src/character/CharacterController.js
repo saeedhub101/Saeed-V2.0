@@ -74,9 +74,9 @@ export class CharacterController{
    const profileId=this.profiles.idFor(names,profileKey);
    const currentProfile=this.profiles.load(profileId);
    const legacyProfileId=this.profiles.legacyIdFor?.(names,profileKey);
-   const legacyProfile=!currentProfile&&legacyProfileId?this.profiles.load(legacyProfileId):null;
+   const legacyProfile=!currentProfile?(legacyProfileId?this.profiles.load(legacyProfileId):null)||this.profiles.findCompatible?.(names)?.profile:null;
    const profile=currentProfile||legacyProfile||{};
-   if(legacyProfile){try{this.profiles.save(profileId,legacyProfile)}catch{}}
+   if(legacyProfile&&!currentProfile){try{this.profiles.save(profileId,legacyProfile)}catch{}}
    const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
    const engineMap=this.engine?.getCharacterRigAutoMap?.()||{};
    let mapping=Object.keys(engineMap).length?{...engineMap}:null;
