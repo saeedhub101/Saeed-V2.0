@@ -465,5 +465,4 @@ window.addEventListener("DOMContentLoaded",()=>installCharacterController());
 window.addEventListener("saeed-character-loaded",()=>window.saeedCharacterRuntime?.controller?.onCharacterLoaded?.());
 document.addEventListener("visibilitychange",()=>window.saeedCharacterRuntime?.controller?.setVisible(!document.hidden));
 window.addEventListener("focus",()=>window.saeedCharacterRuntime?.controller?.setWindowFocused?.(true));
-window.addEventListener("blur",()=>window.saeedCharacterRuntime?.controller?.setWindowFocused?.(false));
 window.addEventListener("beforeunload",()=>{try{window.saeedCharacterRuntime?.controller?.destroy?.()}catch{}});
