@@ -5764,3 +5764,10 @@ This document is implementation guidance, not evidence that the product is compl
 - After substantive product development is complete, the Windows workflow must validate the packaged installer/EXE on Windows, exercise real app journeys and component behavior, and fail when required evidence is missing, timed out, or reports a failed subcheck.
 - Never claim task success when persistence fails, a plan step was not actually started, verification is only tool discovery/connection, or an external action has an ambiguous outcome. Do not automatically replay interrupted external actions.
 - Current checkpoint: GitHub Issue #9, https://github.com/saeedhub101/Saeed-V2.0/issues/9. All four roadmap phases remain active; no overall completion claim is justified until the packaged product is verified.
+
+
+## Autonomous 3D behavior parity — 2026-10-14
+
+The character behavior state machine and integration contract are documented in `CHARACTER_BEHAVIOR_ENGINE.md`. The controller owns idle cadence, mood/energy weighting, anti-repeat selection, sleep/wake, gaze/blink/breathing, semantic reactions, speaking/thinking cycles, and interaction cooldowns. Brain and chat events are translated into semantic character events; the 3D renderer applies registered motion definitions through the animation controller and rig retargeting layer.
+
+Implemented in source: chat TTS now signals speech start/end (including cancellation and mute), double-click and window focus/blur are explicit events, and busy-state gating suspends low-priority idle movement without suppressing active speaking/thinking reactions. Realtime transport was not modified. Visual quality still requires validation against the bundled GLB's actual rig and rest pose.
