@@ -345,7 +345,7 @@ async function runCiProductAcceptance(){
   try{
    const enabled=composition.setTranscriptLabelEnabled(true);
    await wait(100);
-   const rendered=await target.webContents.executeJavaScript("(()=>{window.saeedShowTranscript(\'CI recognized speech\');const e=document.getElementById(\'saeedTranscriptLabel\');return{text:e?.textContent||\'\',hidden:!!e?.hidden}})()");
+   const rendered=await getState().characterWin.webContents.executeJavaScript("(()=>{window.saeedShowTranscript(\'CI recognized speech\');const e=document.getElementById(\'saeedTranscriptLabel\');return{text:e?.textContent||\'\',hidden:!!e?.hidden}})()");
    check("microphone-transcript-label-toggle-and-render",enabled===true&&rendered?.text==="CI recognized speech"&&rendered?.hidden===false,{enabled:Boolean(enabled),text:rendered?.text||"",hidden:rendered?.hidden!==false});
   }catch(error){check("microphone-transcript-label-toggle-and-render",false,{error:error?.message||String(error)})}
   finally{
