@@ -67,7 +67,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
        "answer":"assistant-message",
        "assistant-response":"assistant-message"
       })[type];
-      if(behaviorType)voiceBroadcast("character:behavior",{type:behaviorType,text:e?.text||e?.answer||e?.message||"",status:e?.status,name:e?.name});
+      if(behaviorType)voiceBroadcast("character:behavior",{type:behaviorType,text:String(e?.text||e?.answer||e?.message?.content||e?.message||e?.content||""),status:e?.status,name:e?.name});
      },requestStepIncrease});
    setAgent(agent);
    setVoiceMuted(Boolean(agent.settings.voiceMuted));
