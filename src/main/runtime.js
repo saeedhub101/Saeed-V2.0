@@ -205,6 +205,10 @@ async function runCiProductAcceptance(){
   const originalRestRotation=restPoseInitialBone?.rotation?{x:Number(restPoseInitialBone.rotation.x),y:Number(restPoseInitialBone.rotation.y),z:Number(restPoseInitialBone.rotation.z)}:null;
   const originalRestPosition=restPoseInitialBone?.position?{x:Number(restPoseInitialBone.position.x),y:Number(restPoseInitialBone.position.y),z:Number(restPoseInitialBone.position.z)}:null;
   const desiredRestRotation={x:0.123,y:0.087,z:-0.061};
+  // Keep autonomous gestures from racing the rest-pose persistence/reload assertion.
+  // The production character remains autonomous; only this deterministic acceptance window is paused.
+  const restPosePause=await characterHost.command({action:"setAnimationPaused",paused:true});
+  check("rest-pose-reload-paused-autonomous-motion",restPosePause?.ok===true&&restPosePause?.paused===true,{ok:Boolean(restPosePause?.ok),paused:Boolean(restPosePause?.paused),error:restPosePause?.error||null});
   const editedBone=restPoseBone?await characterHost.command({action:"setBoneRotation",bone:restPoseBone,rotation:desiredRestRotation}):{ok:false,error:"No bone available"};
   const editRotation=editedBone?.rotation||{};
   const boneEditPassed=editedBone?.ok===true&&["x","y","z"].every(axis=>Number.isFinite(Number(editRotation[axis]))&&Math.abs(Number(editRotation[axis])-desiredRestRotation[axis])<0.02);
@@ -212,10 +216,12 @@ async function runCiProductAcceptance(){
   const rest=await characterHost.command({action:"saveRestPose"});
   check("rest-pose-persistent-readback",rest?.ok===true&&rest?.persisted===true&&rest?.restPose?.persisted===true,{persisted:Boolean(rest?.persisted),profileId:rest?.restPose?.profileId||null,error:rest?.restPose?.persistenceError||null});
   await hideCharacter();await wait(100);await showCharacter();await wait(250);
+  const reloadPause=await characterHost.command({action:"setAnimationPaused",paused:true});
   const restoredBone=restPoseBone?await characterHost.command({action:"boneRotation",bone:restPoseBone}):{ok:false};
   const restoredRotation=restoredBone?.rotation||{};
-  const restPoseReloadPassed=restoredBone?.ok===true&&["x","y","z"].every(axis=>Number.isFinite(Number(restoredRotation[axis]))&&Math.abs(Number(restoredRotation[axis]))<0.03);
-  check("rest-pose-reapplied-after-character-runtime-reload",restPoseReloadPassed,{bone:restPoseBone,editorDelta:restoredRotation,ok:Boolean(restoredBone?.ok)});
+  const restPoseReloadPassed=reloadPause?.ok===true&&restoredBone?.ok===true&&["x","y","z"].every(axis=>Number.isFinite(Number(restoredRotation[axis]))&&Math.abs(Number(restoredRotation[axis]))<0.03);
+  check("rest-pose-reapplied-after-character-runtime-reload",restPoseReloadPassed,{bone:restPoseBone,editorDelta:restoredRotation,ok:Boolean(restoredBone?.ok),pauseOk:Boolean(reloadPause?.ok)});
+  await characterHost.command({action:"setAnimationPaused",paused:false});
   const invalidCandidatePath=path.join(app.getPath("userData"),"ci-invalid-character-candidate.glb");
   try{
    fs.writeFileSync(invalidCandidatePath,Buffer.from("not-a-valid-glb"));
