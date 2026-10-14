@@ -77,6 +77,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="setBonePosition"){const ok=engine?.setBonePosition?.(String(x.bone||""),x.position||{});return{ok:Boolean(ok),position:engine?.getBonePosition?.(String(x.bone||""))||null}};
   if(x.action==="setBoneEditorRotation"){const ok=engine?.setBoneEditorRotation?.(String(x.bone||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneEditorRotation?.(String(x.bone||""))||null}};
   if(x.action==="resetBoneToRest"){const bone=String(x.bone||"");const rotation=c.resetBoneToRest?.(bone);return{ok:Boolean(rotation),rotation:rotation||null,status:c.status()}};
+  if(x.action==="setUserBusy"){const busy=c.setUserBusy?.(x.value===true);return{ok:Boolean(busy),userBusy:c.autonomous?.getStatus?.().userBusy===true,status:c.status()}}
   if(x.action==="setBehavior"){const behavior=c.setBehavior?.(x.value||{})||{};return{ok:true,behavior,status:c.status()}}
   if(x.action==="calibrateJoint"){const ok=c.calibrateJoint?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),calibration:c.retargeter?.status?.().calibration||{},status:c.status()}}
   if(x.action==="snapshotRestPose")return{ok:true,bones:engine?.snapshotBoneRotations?.()||{}};
