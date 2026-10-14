@@ -270,7 +270,7 @@ function setMorph(name,value=0){
   // require their actual morph targets and are never faked by moving unrelated bones.
   const mouthOpen=["aa","a","ah","ae","mouthopen","jawopen"].includes(normalized);
   if(!mouthOpen)return false;
-  const jaw=rig.get("jaw")||[...boneGroups.entries()].find(([name])=>/^(jaw|mandible)$/i.test(name))?.[1]?.[0];
+  const jaw=rig.get("jaw")||[...boneGroups.entries()].find(([name])=>/(jaw|mandible)/i.test(name))?.[1]?.[0];
   if(!jaw)return false;
   const rest=base.get("jaw")||{x:jaw.rotation.x,y:jaw.rotation.y,z:jaw.rotation.z};
   jaw.rotation.set(rest.x+v*.28,rest.y,rest.z);
