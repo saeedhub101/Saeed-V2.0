@@ -82,7 +82,7 @@ Complete:
 - single-instance behavior;
 - release metadata.
 
-Automatic CI builds remain disabled unless deliberately enabled later.
+**تم الانتهاء — build policy:** Automatic Windows builds run on pushes to `main`; `workflow_dispatch` remains available. Do not describe CI builds as disabled.
 
 ## 6. Release gates
 
