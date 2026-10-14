@@ -81,6 +81,7 @@ test("rig diagnostics can enumerate skeleton bones before automatic or manual ma
  const gate=hostSource.slice(hostSource.indexOf("const skeletonOnlyActions="),hostSource.indexOf("const requestId="));
  assert.match(gate,/getRig/);
  assert.match(gate,/const requiresRig=!skeletonOnlyActions\.has\(actionName\)/);
+ assert.match(hostSource,/allowNoBones:actionName==="buildProceduralRig"/);
 });
 
 test("rig editor API exposes bone names instead of renderer object references",()=>{
