@@ -66,17 +66,19 @@ for (const suite of suites) {
     cwd: root,
     stdio: "inherit",
     env: process.env,
-    windowsHide: true
+    windowsHide: true,
+    timeout: 60000
   });
+  const timedOut = result.error?.code === "ETIMEDOUT";
   const code = result.error ? 1 : (Number.isInteger(result.status) ? result.status : 1);
-  results.push({ name: suite.name, code, error: result.error?.message || null });
+  results.push({ name: suite.name, code, timedOut, error: result.error?.message || null });
   console.log("=== " + (code === 0 ? "PASS" : "FAIL") + ": " + suite.name + " (exit " + code + ") ===");
 }
 
 const failed = results.filter(result => result.code !== 0);
 console.log("");
 console.log("=== SUITE SUMMARY ===");
-for (const result of results) console.log((result.code === 0 ? "PASS " : "FAIL ") + result.name + (result.error ? " — " + result.error : ""));
+for (const result of results) console.log((result.code === 0 ? "PASS " : "FAIL ") + result.name + (result.timedOut ? " — TIMED OUT after 60000ms" : "") + (result.error ? " — " + result.error : ""));
 if (failed.length) {
   console.error(failed.length + " suite(s) failed; all configured suites were executed.");
   process.exitCode = 1;
