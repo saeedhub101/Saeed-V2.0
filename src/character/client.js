@@ -20,7 +20,7 @@ async function executeCharacterCommand(command={}){
    try{
     const engineStatus=engine?.getCharacterPoseStatus?.();
     const names=engine?.getAvailableBoneNames?.()||[];
-    if(engineStatus?.loaded&&(names.length||["buildProceduralRig","meshList","setMeshVisibility","morphList","setMorph","availableAccessories","accessoriesList","setAccessory"].includes(action))){
+    if(engineStatus?.loaded&&(names.length||["buildProceduralRig","glbClipList","playGlbClip","stopGlbClip","meshList","setMeshVisibility","morphList","setMorph","availableAccessories","accessoriesList","setAccessory"].includes(action))){
      if(requiresRig){
       const current=c.status?.();
       if(current?.characterLoaded&&!Object.keys(current?.autoRig||{}).length){
@@ -39,7 +39,7 @@ async function executeCharacterCommand(command={}){
  try{
   const finalPose=engine?.getCharacterPoseStatus?.()||{};
   const finalNames=engine?.getAvailableBoneNames?.()||[];
-  if((!finalPose?.loaded||!finalNames.length)&&action!=="buildProceduralRig")characterDiagnostic("ERROR","CHARACTER SKELETON UNAVAILABLE","Authoritative Character Engine has no exposed GLB skeleton bones",{action,loaded:Boolean(finalPose?.loaded),boneCount:finalNames.length,pose:finalPose});
+  if((!finalPose?.loaded||!finalNames.length)&&!["buildProceduralRig","glbClipList","playGlbClip","stopGlbClip","meshList","setMeshVisibility","morphList","setMorph","availableAccessories","accessoriesList","setAccessory"].includes(action))characterDiagnostic("ERROR","CHARACTER SKELETON UNAVAILABLE","Authoritative Character Engine has no exposed GLB skeleton bones",{action,loaded:Boolean(finalPose?.loaded),boneCount:finalNames.length,pose:finalPose});
   if(x.action==="glbClipList")return{ok:true,clips:engine?.listGlbAnimations?.()||[]};
   if(x.action==="playGlbClip"){c.stopAll?.();return engine?.playGlbAnimation?.(String(x.name??x.index??""),x.options||{})||{ok:false,error:"Embedded GLB animation playback unavailable"}}
   if(x.action==="stopGlbClip")return engine?.stopGlbAnimation?.()||{ok:false,error:"Embedded GLB animation playback unavailable"}
