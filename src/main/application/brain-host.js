@@ -67,7 +67,21 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
        "answer":"assistant-message",
        "assistant-response":"assistant-message"
       })[type];
-      if(behaviorType)voiceBroadcast("character:behavior",{type:behaviorType,text:String(e?.text||e?.answer||e?.message?.content||e?.message||e?.content||""),status:e?.status,name:e?.name});
+      if(behaviorType){
+       const toolName=String(e?.name||"");
+       const result=e?.result&&typeof e.result==="object"?e.result:null;
+       // Only send outcome metadata to the character renderer; never forward tool payloads or file contents.
+       voiceBroadcast("character:behavior",{
+        type:behaviorType,
+        text:String(e?.text||e?.answer||e?.message?.content||e?.message||e?.content||"").slice(0,500),
+        status:e?.status,
+        name:toolName,
+        sourceType:type,
+        success:type==="tool_result"?e?.result?.ok!==false:type==="tool_error"?false:undefined,
+        error:type==="tool_error"?String(e?.error||e?.message||"Tool failed").slice(0,240):undefined,
+        resultMeta:type==="tool_result"?{ok:result?.ok!==false,kind:result?.kind||result?.type||null,hasData:Boolean(result&&Object.keys(result).some(k=>!["ok","status","kind","type"].includes(k)))}:undefined
+       });
+      }
      },requestStepIncrease});
    setAgent(agent);
    setVoiceMuted(Boolean(agent.settings.voiceMuted));
