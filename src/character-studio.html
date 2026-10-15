@@ -29,7 +29,7 @@ h3{font-size:13px;margin:13px 0 8px;color:var(--text)}.field{display:grid;gap:5p
 @media(max-width:1000px){main{grid-template-columns:minmax(0,1fr) minmax(340px,42vw)}.tabs button{min-width:72px;padding:7px 5px}}
 @media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:minmax(300px,48vh) minmax(320px,1fr) 100px}.viewer{grid-column:1;grid-row:1;border:0}.side{grid-column:1;grid-row:2;border-left:0}.bottom{grid-column:1;grid-row:3;grid-template-columns:1fr}.diag{display:none}}
 </style></head>
-<body><header><div><h1>Character Setting</h1><div class="sub">Live character • pose editing • second-by-second motion timeline • rig and face settings</div></div><button id="close" class="close">×</button></header>
+<body><header><div><h1>Character Setting</h1><div class="sub">Live character • pose editing • second-by-second motion timeline • rig and face settings</div></div><div class="headerActions"><button id="openFeatures" class="close" style="width:auto;padding:0 10px;font-size:12px">All Features</button><button id="close" class="close">×</button></div></header>
 <main>
 <section class="viewer"><canvas id="studio3d"></canvas><div class="hint" id="hint">Waiting for character… Click a bone to select it.</div><div class="viewerbar"><button id="front">Front</button><button id="resetCam">Reset View</button><button id="showBones">Bones: ON</button><span class="small" id="viewerStatus"></span></div></section>
 <aside class="side">
@@ -313,4 +313,4 @@ $("swapXZ").onclick=()=>updateAxisFix("xz");$("swapYZ").onclick=()=>updateAxisFi
 try{init();}catch(error){studioDiagnostic("ERROR","STUDIO INITIALIZATION",error?.stack||error?.message||String(error),{stage:"init"});}
 void cmd({action:"beginAuthoring"}).then(()=>refresh()).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));renderMotionTimeline();
 
-</script></body></html>
+</script><script>document.getElementById("openFeatures")?.addEventListener("click",async()=>{try{await window.saeed.system.showSettings()}catch(error){try{await window.saeed.system.reportDiagnostic?.("ERROR","FEATURE NAVIGATION",error?.message||String(error))}catch{}}})</script></body></html>
