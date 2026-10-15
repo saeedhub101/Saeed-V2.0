@@ -158,14 +158,6 @@ Do not introduce permanent loops merely to simplify implementation.
 9. Engine events crossing into Character are semantic or technical state events, not arbitrary behavior commands.
 10. All engine resources have an owner and disposal path.
 
+## Verification status
 
-## Current execution status — 2026-10-13
-
-This document is implementation guidance, not evidence that the product is complete. Saeed V2.0 remains under active development across all four phases. A feature is complete only after implementation and relevant real behavior are demonstrated; a green workflow, source-level assertion, or report file alone is insufficient.
-
-- Work targets `main` only. Preserve existing Markdown files; do not delete them.
-- Automatic Windows builds are the current policy, while retaining `workflow_dispatch` for deliberate runs. This supersedes older manual-only wording.
-- Prioritize actual product development over test-only changes. Keep `npm test`, Electron/build validation, and installer requirements.
-- After substantive product development is complete, the Windows workflow must validate the packaged installer/EXE on Windows, exercise real app journeys and component behavior, and fail when required evidence is missing, timed out, or reports a failed subcheck.
-- Never claim task success when persistence fails, a plan step was not actually started, verification is only tool discovery/connection, or an external action has an ambiguous outcome. Do not automatically replay interrupted external actions.
-- Current checkpoint: GitHub Issue #9, https://github.com/saeedhub101/Saeed-V2.0/issues/9. All four roadmap phases remain active; no overall completion claim is justified until the packaged product is verified.
+This document defines the architecture contract; it does not certify runtime success. See Testing_and_Acceptance_Architecture.md for evidence requirements. Feature completion must be described separately from unit/static checks and packaged Windows runtime acceptance.
