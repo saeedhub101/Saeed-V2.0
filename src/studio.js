@@ -1011,8 +1011,14 @@ function panelPrimitiveAccessories() {
   const offset=[0,0.1,0].map(v=>h('input',{type:'number',step:0.01,value:v}));
   const customList=h('div',{});
   const draw=()=>customList.replaceChildren(...cfg.customAccessories.map(d=>h('div',{class:'box'},
-    h('div',{class:'row'},h('strong',{class:'grow'},d.name),h('label',{class:'chk'},h('input',{type:'checkbox',checked:!!cfg.accessories[d.id]?.on,onchange:e=>{cfg.accessories[d.id]={...(cfg.accessories[d.id]||{}),on:e.target.checked};save({accessories:cfg.accessories});applyAcc();}}),'Enabled')),
-    h('div',{class:'btns'},h('button',{onclick:()=>{delete cfg.accessories[d.id];cfg.customAccessories=cfg.customAccessories.filter(x=>x.id!==d.id);save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();}},'Delete accessory')))));
+    h('div',{class:'row'},h('strong',{class:'grow'},d.name),h('label',{class:'chk'},h('input',{type:'checkbox',checked:!!cfg.accessories[d.id]?.on,onchange:e=>{
+      cfg.accessories[d.id]={...(cfg.accessories[d.id]||{}),on:e.target.checked};save({accessories:cfg.accessories});applyAcc();
+      api.command({action:'setAccessory',definition:d,enabled:e.target.checked,state:{...(cfg.accessories[d.id]||{}),bone:d.bone}}).then(r=>{if(r?.ok===false)flash(r.error||'Saeed could not apply this accessory.');}).catch(error=>flash(error?.message||String(error)));
+    }}),'Enabled')),
+    h('div',{class:'btns'},h('button',{onclick:()=>{
+      api.command({action:'setAccessory',definition:d,enabled:false,state:{}}).catch(error=>flash(error?.message||String(error)));
+      delete cfg.accessories[d.id];cfg.customAccessories=cfg.customAccessories.filter(x=>x.id!==d.id);save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();
+    }},'Delete accessory')))));
   return h('div',{},h('h3',{},'Create a primitive accessory'),
     h('p',{class:'muted'},'Create a box, sphere, cylinder, cone, ring or plane and attach it to a logical character bone. Accessories are stored in the Character Setting profile.'),
     h('div',{class:'row'},h('span',{class:'lbl'},'Name'),name),
@@ -1023,7 +1029,8 @@ function panelPrimitiveAccessories() {
       const id='custom_'+Date.now().toString(36),n=name.value.trim()||'Accessory',s=Math.max(0.01,Math.min(2,+size.value||0.12));
       const dims=shape.value==='sphere'?[s]:shape.value==='torus'?[s,s*0.18]:shape.value==='plane'?[s*2,s*2]:shape.value==='cone'||shape.value==='cylinder'?[s,s*2]:[s,s,s];
       const d={id,name:n,bone:bone.value,parts:[{shape:shape.value,color:color.value,size:dims,position:[0,0,0]}],offset:offset.map(x=>+x.value||0),rotation:[0,0,0],scale:1};
-      cfg.customAccessories.push(d);cfg.accessories[id]={on:true,offset:d.offset,rot:[0,0,0],scale:1};save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();flash('Accessory created.');
+      cfg.customAccessories.push(d);cfg.accessories[id]={on:true,offset:d.offset,rot:[0,0,0],scale:1};save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();
+      api.command({action:'setAccessory',definition:d,enabled:true,state:{on:true,bone:d.bone,offset:d.offset,rot:[0,0,0],scale:1}}).then(r=>{if(r?.ok===false)flash('Preview created, but Saeed could not attach it: '+(r.error||'unknown error'));else flash('Accessory created on Saeed and in the preview.');}).catch(error=>flash('Preview created, but live accessory failed: '+(error?.message||String(error))));
     }},'Create and attach')),
     h('h3',{},'Saved custom accessories'),customList,
     h('button',{class:'btn',onclick:()=>setTab('acc')},'Open installed accessories and mesh visibility'));
