@@ -158,6 +158,9 @@ jobs:
         timeout-minutes: 12
         run: |
           $ErrorActionPreference = "Stop"
+          Write-Host "=== UI screen and button-route audit (after EXE creation) ==="
+          node scripts/ci-ui-functional-coverage.js
+          if ($LASTEXITCODE -ne 0) { throw "UI screen/button route audit failed immediately after EXE creation." }
           $exe = "dist\win-unpacked\Saeed AI.exe"
           if (!(Test-Path $exe)) { throw "Screen-by-screen acceptance cannot start: packaged EXE is missing." }
           $env:SAEED_CI_SMOKE = "1"
