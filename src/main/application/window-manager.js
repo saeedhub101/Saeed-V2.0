@@ -24,7 +24,6 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","REST POSE EDITOR",e.message)}
  }
- async function showNormalizeHumanoidRestPose(){return showRestPoseEditor();}
 
  async function showSettings(){
   try{
@@ -57,6 +56,6 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","ADDONS WINDOW",e.message)}
  }
- return {showPerformance,showSettings,showLearning,showAddons,showRestPoseEditor,showNormalizeHumanoidRestPose};
+ return {showPerformance,showSettings,showLearning,showAddons,showRestPoseEditor};
 }
 module.exports={createWindowManager};
