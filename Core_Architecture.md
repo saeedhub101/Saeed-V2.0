@@ -219,3 +219,8 @@ If these questions cannot be answered, the feature is not ready for implementati
 ## Verification status
 
 This document defines the architecture contract; it does not certify runtime success. See Testing_and_Acceptance_Architecture.md for evidence requirements. Feature completion must be described separately from unit/static checks and packaged Windows runtime acceptance.
+
+## Security boundary
+
+LLM output expresses intent; it never grants permission. All tools and consequential actions must pass through the single Tool Registry and permission policy, with validated inputs, minimal context, structured results and cancellation where appropriate. Optional add-ons must remain isolated, lazy and subordinate to Core. Credentials belong in secure credential storage, never source, ordinary settings, transcripts or unredacted logs. External providers receive only task-relevant data; unexpected background network access is prohibited. Emergency Stop must cancel active high-impact automation without deleting persistent user data. Security requirements require implementation review and runtime evidence; this contract alone does not certify compliance.
+
