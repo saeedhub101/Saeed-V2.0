@@ -23,3 +23,7 @@ runTask.onclick=async()=>{
  finally{runTask.disabled=false}
 };
 taskPrompt.addEventListener("keydown",event=>{if((event.ctrlKey||event.metaKey)&&event.key==="Enter")runTask.click()});
+
+// Visible route back to the centralized feature directory.
+const openFeaturesButton=document.getElementById("openFeatures");
+if(openFeaturesButton)openFeaturesButton.addEventListener("click",async()=>{try{await window.saeed.system.showSettings()}catch(error){console.error("Open Features failed:",error);try{await window.saeed.system.reportDiagnostic?.("ERROR","FEATURE NAVIGATION",error?.message||String(error))}catch{}}});
