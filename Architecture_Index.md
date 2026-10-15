@@ -1,101 +1,35 @@
-# Saeed V2.0 — Architecture Documentation Index
+# Saeed V2.0 — Documentation and Architecture Index
 
-**Status:** Authoritative documentation map  
-**Version:** 2.0
+**Purpose:** one authoritative map for product and architecture documentation. Keep this index short; implementation details belong in the owning contract, not duplicated across plans.
 
-## 1. Documentation hierarchy
+## Authority order
 
-1. Character_Architecture.md — authoritative character behavior and 3D runtime contract.
-2. Lifecycle_Architecture.md — authoritative resource lifetime and application lifecycle contract.
-3. Voice_Conversation_Architecture.md — authoritative conversation and voice-channel contract.
-4. Core_Architecture.md — authoritative application-shell, Brain, routing, tools and capability boundaries.
-5. Engine_Architecture.md — authoritative runtime, rendering, asset and engine integration contract.
-6. Security_Architecture.md — authoritative permissions, secrets, isolation and trust boundaries.
-7. Testing_and_Acceptance_Architecture.md — authoritative verification and release gates.
-8. README.md — concise project entry point and current code-path map; it summarizes constraints but does not supersede the authoritative domain documents.
+1. **Architecture contracts** define intended ownership, behavior and invariants.
+2. **Source code** is the implementation truth. If code and documentation differ, identify and resolve the discrepancy; do not assume either is correct without inspection.
+3. **Automated results** prove only the checks they actually execute.
+4. **Packaged Windows runtime evidence** determines whether end-user behavior and release acceptance have been demonstrated.
+5. README.md is the entry point; ROADMAP.md tracks the product baseline and remaining acceptance work. Neither overrides a domain contract.
 
-## 2. Domain ownership
+## Domain owners
 
-Character behavior, state, mood, energy, autonomy, motion, rigging, retargeting, face, fingers, bubbles and character capabilities belong to Character_Architecture.md.
+| Document | Authority |
+|---|---|
+| Character_Architecture.md | Character intent, state, mood, rig, motion, GLB clips and Character/Engine boundary |
+| CHARACTER_BEHAVIOR_ENGINE.md | Autonomous behavior policy, event arbitration, idle cadence and behavior acceptance |
+| Engine_Architecture.md | Three.js, rendering, camera, model/GLB loading and low-level 3D resources |
+| Lifecycle_Architecture.md | Startup, lazy loading, parent/child lifetimes, hide/show, shutdown and resource release |
+| Voice_Conversation_Architecture.md | Chat/Mic parity, shared conversation, STT/TTS, audio providers and mute semantics |
+| Core_Architecture.md | Brain lifecycle, local-first routing, model/API escalation, tools and capabilities |
+| Security_Architecture.md | Permissions, credentials, trust boundaries and consequential actions |
+| Naming_and_Ownership_Architecture.md | Canonical runtime owners, file naming and anti-duplication rules |
+| Testing_and_Acceptance_Architecture.md | Test evidence, packaged-runtime acceptance and release gates |
+| ROADMAP.md | Current baseline, outstanding validation and release sequence |
 
-Creation, destruction, ownership, shutdown, startup, resource lifetime and idle timeouts belong to Lifecycle_Architecture.md.
+## Change protocol
 
-Chat, Mic, STT, TTS, Realtime, shared history and provider independence belong to Voice_Conversation_Architecture.md.
-
-Application shell, Brain, local-first routing, LLM escalation, Tool Registry, permissions and plugins belong to Core_Architecture.md.
-
-Three.js/browser runtime, GLB loading, render scheduling, GPU/resource handling and asset integration belong to Engine_Architecture.md.
-
-Secrets, permissions, process isolation, plugin trust, network boundaries, logging and emergency stop belong to Security_Architecture.md.
-
-Verification, regression, runtime tests and release gates belong to Testing_and_Acceptance_Architecture.md.
-
-## 3. Documentation rules
-
-- Architecture documents remain implementation-agnostic unless implementation detail is itself an architectural constraint.
-- Do not encode transient filenames as architecture.
-- Do not duplicate ownership definitions.
-- Every responsibility has one authoritative owner.
-- A new subsystem requires an explicit ownership decision.
-- A feature is incomplete until its lifecycle, security and test requirements are documented.
-- Code must conform to the documents; documentation must not be weakened merely to excuse violating code.
-
-## 4. Change protocol
-
-1. Identify the architectural domain.
-2. Read the owning document.
-3. Identify affected ownership boundaries.
-4. Update the relevant contract.
-5. Update affected tests and acceptance requirements.
-6. Implement.
-7. Run static and runtime verification.
-8. Update this index only when a new authoritative document is added.
-
-## 5. Global architectural law
-
-> One responsibility, one owner, one source of truth, one lifecycle.
-
-Saeed V2.0 is one runtime with strict boundaries between Character, Core, Conversation, Engine and optional capabilities.
-
-
-## 6. Execution planning
-
-The following are non-authoritative execution plans. ROADMAP.md and PHASE_1–4 describe product development; REPAIR_PLAN.md is limited to the current Phase 1 repair/conformance work:
-
-- ROADMAP.md
-- REPAIR_PLAN.md
-- PHASE_1_FOUNDATION.md
-- PHASE_2_RUNTIME.md
-- PHASE_3_INTELLIGENCE.md
-- PHASE_4_PRODUCT.md
-
-Planning documents may sequence work and identify missing implementation, but they may not weaken or override an authoritative architecture contract.
-
-## 7. Pre-Build Rule
-
-No packaged build is considered meaningful until the active phase's static and architecture checks are addressed. Runtime acceptance remains required according to Testing_and_Acceptance_Architecture.md.
-
-
-## 4. Current code paths
-
-- Startup/composition: `src/main.js` → `src/main/runtime.js` → `src/main/application/runtime-composition.js`.
-- Tray and window manager: `src/main/application/system-controls.js`, `src/main/application/window-manager.js`.
-- Renderer IPC boundary: `src/preload.js`.
-- Character 3D runtime and authoring: `src/character/CharacterEngine.js`, `src/character/CharacterController.js`, `src/character-studio.html`.
-- Voice renderer and host: `src/renderer/voice/voice-client.js`, `src/main/voice/voice-host.js`.
-- Add-ons / Learning: `src/addons/window.html`, `src/learning/window.html`.
-- Verification: `scripts/ci-foundation-contract.js`, `scripts/ci-architecture-contract.js`, `scripts/ci-animation-health.js`, `src/main/ci-e2e.js`, `.github/workflows/build-windows-electron.yml`.
-
-Update these paths only after verifying the actual imports and file locations. Keep all original architecture requirements intact when refreshing implementation references.
-
-
-## Current execution status — 2026-10-13
-
-This document must be read as implementation guidance, not evidence that the product is complete. Saeed V2.0 remains under active development across all four phases. A feature is complete only after its implementation and relevant real behavior are demonstrated; a green workflow, source-level assertion, or report file alone is not sufficient.
-
-- Work targets `main` only. Existing Markdown files are preserved and maintained; none are to be deleted.
-- Automatic Windows builds are the current policy, while retaining `workflow_dispatch` for deliberate runs. This supersedes older manual-only wording in this repository.
-- Development work takes priority over adding test-only changes. Keep `npm test`, Electron/build validation, and installer requirements.
-- After substantive product development is complete, the Windows workflow must validate the packaged installer/EXE on Windows, exercise real app journeys and component behavior, and fail when required evidence is missing, timed out, or reports a failed subcheck.
-- The task engine must never claim success when persistence fails, a plan step was not actually started, verification is only tool discovery/connection, or an external action has an ambiguous outcome. Interrupted external actions are not replayed automatically.
-- The current checkpoint is GitHub Issue #9: https://github.com/saeedhub101/Saeed-V2.0/issues/9. All four roadmap phases remain active; no overall completion claim is authorized until the packaged product is verified.
+- Update the contract that owns the behavior; update this index only when ownership or document structure changes.
+- Avoid parallel plans, dated progress diaries, duplicate roadmaps and copied status blocks. Closed implementation plans should be removed or summarized in the roadmap, not left looking active.
+- Mark work as **implemented**, **automatically checked**, or **verified in the packaged app** accurately; these states are not interchangeable.
+- Keep runtime ownership aligned with the code. Startup should not eagerly activate Chat, Brain, STT, tools or optional add-ons.
+- Keep the application cohesive: split modules only where ownership or lifecycle becomes clearer, not for file-count reduction alone.
+- Product changes target main. Do not add Rust/Cargo checks to this JavaScript/Node.js/Electron application.
