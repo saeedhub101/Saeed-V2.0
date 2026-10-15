@@ -152,6 +152,37 @@ jobs:
       - name: Build Windows installer and unpacked runtime
         run: npm run dist
 
+      - name: Screen-by-screen UI acceptance (packaged EXE)
+        id: lifecycle
+        shell: pwsh
+        timeout-minutes: 12
+        run: |
+          $ErrorActionPreference = "Stop"
+          $exe = "dist\win-unpacked\Saeed AI.exe"
+          if (!(Test-Path $exe)) { throw "Screen-by-screen acceptance cannot start: packaged EXE is missing." }
+          $env:SAEED_CI_SMOKE = "1"
+          $env:SAEED_CI_USER_DATA = Join-Path $env:RUNNER_TEMP "saeed-lifecycle-user-data"
+          $env:SAEED_CI_LIFECYCLE_REPORT = (Join-Path $PWD "dist/ci-screen-by-screen-report.json")
+          $stdout = Join-Path $env:RUNNER_TEMP "saeed-lifecycle.stdout.log"
+          $stderr = Join-Path $env:RUNNER_TEMP "saeed-lifecycle.stderr.log"
+          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-lifecycle" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $deadline = (Get-Date).AddMinutes(9)
+          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Screen-by-screen acceptance timed out." }
+          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
+          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
+          $report = "dist/ci-screen-by-screen-report.json"
+          if (!(Test-Path $report)) { throw "Screen-by-screen report missing. $outText $errText" }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          $failed = @($result.checks | Where-Object { !$_.passed })
+          if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0 -or $result.checks.Count -lt 20) {
+            Write-Host $outText; Write-Host $errText; Write-Host (Get-Content $report -Raw)
+            throw "Screen-by-screen acceptance failed: exit=$($proc.ExitCode), checks=$($result.checks.Count), failures=$($failed.Count)."
+          }
+          Write-Host "SCREEN_BY_SCREEN_ACCEPTANCE=PASS ($($result.checks.Count) runtime checks)"
+          Write-Host (Get-Content $report -Raw)
+
+
       - name: Character Engine, Rig Builder
         id: character_rig
         shell: pwsh
@@ -386,36 +417,6 @@ jobs:
           Invoke-SaeedAcceptance "--ci-brain-learning-save" "dist/ci-brain-learning-save.json" "BRAIN_LEARNING_SAVE" 6
           Invoke-SaeedAcceptance "--ci-brain-learning-verify" "dist/ci-brain-learning-verify.json" "BRAIN_LEARNING_RESTART" 6
 
-      - name: lifecycle
-        id: lifecycle
-        shell: pwsh
-        timeout-minutes: 12
-        run: |
-          $ErrorActionPreference = "Stop"
-          $exe = "dist\win-unpacked\Saeed AI.exe"
-          if (!(Test-Path $exe)) { throw "Lifecycle acceptance cannot start: packaged EXE is missing." }
-          $env:SAEED_CI_SMOKE = "1"
-          $env:SAEED_CI_USER_DATA = Join-Path $env:RUNNER_TEMP "saeed-lifecycle-user-data"
-          $env:SAEED_CI_LIFECYCLE_REPORT = (Join-Path $PWD "dist/ci-lifecycle-report.json")
-          $stdout = Join-Path $env:RUNNER_TEMP "saeed-lifecycle.stdout.log"
-          $stderr = Join-Path $env:RUNNER_TEMP "saeed-lifecycle.stderr.log"
-          $proc = Start-Process -FilePath $exe -ArgumentList "--ci-lifecycle" -WorkingDirectory $PWD -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
-          $deadline = (Get-Date).AddMinutes(9)
-          while (!$proc.HasExited -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
-          if (!$proc.HasExited) { & taskkill.exe /PID $proc.Id /T /F | Out-Null; throw "Lifecycle acceptance timed out." }
-          $outText = if (Test-Path $stdout) { Get-Content $stdout -Raw } else { "" }
-          $errText = if (Test-Path $stderr) { Get-Content $stderr -Raw } else { "" }
-          $report = "dist/ci-lifecycle-report.json"
-          if (!(Test-Path $report)) { throw "Lifecycle report missing. $outText $errText" }
-          $result = Get-Content $report -Raw | ConvertFrom-Json
-          $failed = @($result.checks | Where-Object { !$_.passed })
-          if ($proc.ExitCode -ne 0 -or !$result.passed -or $failed.Count -gt 0 -or $result.checks.Count -lt 20) {
-            Write-Host $outText; Write-Host $errText; Write-Host (Get-Content $report -Raw)
-            throw "Lifecycle acceptance failed: exit=$($proc.ExitCode), checks=$($result.checks.Count), failures=$($failed.Count)."
-          }
-          Write-Host "LIFECYCLE_ACCEPTANCE=PASS ($($result.checks.Count) runtime checks)"
-          Write-Host (Get-Content $report -Raw)
-
       - name: ram, cpu
         id: ram_cpu
         shell: pwsh
@@ -491,6 +492,7 @@ jobs:
             dist/ci-character-rig-builder-*.png
             dist/ci-brain-learning-*.json
             dist/ci-lifecycle-report.json
+            dist/ci-screen-by-screen-report.json
             dist/ci-ram-cpu-report.json
             dist/ci-static-humanoid.glb
             dist/ci-rest-pose-save.json
