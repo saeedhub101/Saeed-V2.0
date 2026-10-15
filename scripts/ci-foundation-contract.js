@@ -9,6 +9,7 @@ const canonical=["src/main","src/renderer","src/character","src/tools","src/addo
 for(const p of canonical)must(exists(p),"Missing canonical foundation path: "+p);
 
 must(!exists("src/avatar.js"),"Legacy src/avatar.js still exists");
+const windowManager=read("src/main/application/window-manager.js");
 const currentRuntime=read("src/main/runtime.js");
 const characterSettingsIpc=read("src/main/ipc/app-ipc.js");
 const characterSettingsPreload=read("src/preload.js");
@@ -19,7 +20,6 @@ must(!exists("src/studio.js")&&!exists("src/studio.css")&&!characterSettingsPrel
 
 must(exists("src/addons/window.html")&&exists("src/addons/window.js"),"Add-ons / Plug-ins page assets are missing");
 must(exists("src/learning/window.html")&&exists("src/learning/window.js"),"Learning / Teach Mode page assets are missing");
-const windowManager=read("src/main/application/window-manager.js");
 const trayControls=read("src/main/application/system-controls.js");
 must(windowManager.includes('path.join(rootPath,"addons","window.html")'),"Add-ons page is not connected to the current window manager path");
 must(windowManager.includes('path.join(rootPath,"learning","window.html")'),"Learning page is not connected to the current window manager path");
