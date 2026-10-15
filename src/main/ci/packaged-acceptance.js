@@ -134,10 +134,10 @@ async function runResource(deps){
   check("resource-animation-state-reached",motion?.ok===true,{ok:Boolean(motion?.ok),error:motion?.error||null});
   await ensureBrain();const agent=getAgent();agent.settings={...agent.settings,permissions:{...(agent.settings?.permissions||{}),microphone:"allow"}};
   const micOn=await setMicMode("on");
-  const micModeImmediately=getCurrentMicMode(),brainActiveImmediately=ensureBrainHost().isActive();
+  const micModeImmediately=getCurrentMicMode(),brainActiveImmediately=ensureBrainHost().isActive(),micDiagnosticsImmediately=ensureVoiceHost().getMicModeDiagnostics?.()||null;
   await sample("character-and-mic-on");
-  const micModeAfterSample=getCurrentMicMode(),brainActiveAfterSample=ensureBrainHost().isActive();
-  check("resource-mic-state-reached",micOn===true&&micModeImmediately==="on"&&brainActiveImmediately&&micModeAfterSample==="on"&&brainActiveAfterSample,{micOn:Boolean(micOn),micModeImmediately,brainActiveImmediately,micMode:micModeAfterSample,brainActive:brainActiveAfterSample});
+  const micModeAfterSample=getCurrentMicMode(),brainActiveAfterSample=ensureBrainHost().isActive(),micDiagnosticsAfterSample=ensureVoiceHost().getMicModeDiagnostics?.()||null;
+  check("resource-mic-state-reached",micOn===true&&micModeImmediately==="on"&&brainActiveImmediately&&micModeAfterSample==="on"&&brainActiveAfterSample,{micOn:Boolean(micOn),micModeImmediately,brainActiveImmediately,micMode:micModeAfterSample,brainActive:brainActiveAfterSample,micDiagnosticsImmediately,micDiagnosticsAfterSample});
   await setMicMode("off");await sample("mic-off-brain-released");
   await characterApi.hideCharacter();
   // Allow renderer/GPU work to settle before measuring tray-only idle.
