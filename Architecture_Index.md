@@ -25,6 +25,13 @@
 | Testing_and_Acceptance_Architecture.md | Test evidence, packaged-runtime acceptance and release gates |
 | ROADMAP.md | Current baseline, outstanding validation and release sequence |
 
+## Focused feature guides
+
+- docs/تعليمات ربط الانيميشن.md — Arabic trace of the motion pipeline, ownership boundaries and GLB semantic-intent mapping.
+- src/learning/README.md — learned-skill data format, ToolRegistry routing and safety boundaries.
+
+These guides explain feature workflows; they do not override the architecture contracts above.
+
 ## Change protocol
 
 - Update the contract that owns the behavior; update this index only when ownership or document structure changes.
