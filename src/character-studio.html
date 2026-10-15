@@ -188,7 +188,7 @@ function renderMeshVisibility(){
 async function refreshMeshVisibility(){
  const result=await cmd({action:"meshList"});if(!result?.ok){msg("meshStatus",result?.error||"Could not read meshes from the loaded GLB.","warn");return}
  meshRows=Array.isArray(result.meshes)?result.meshes:[];meshProfileKey="saeed.character.meshVisibility.v1:"+String(result.status?.profileId||"default");
- const hidden=readHiddenMeshNames();for(const name of hidden){if(meshRows.some(m=>m.name===name))await cmd({action:"setMeshVisibility",name,visible:false})}
+ let hidden=readHiddenMeshNames();try{if(localStorage.getItem(meshProfileKey)===null){hidden=new Set(meshRows.filter(m=>m.visible===false).map(m=>m.name));saveHiddenMeshNames(hidden)}}catch{}for(const name of hidden){if(meshRows.some(m=>m.name===name))await cmd({action:"setMeshVisibility",name,visible:false)}
  renderMeshVisibility();msg("meshStatus","Loaded "+meshRows.length+" named mesh groups from the current GLB.","ok")
 }
 $("refreshMeshes").addEventListener("click",refreshMeshVisibility);
