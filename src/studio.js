@@ -1056,7 +1056,7 @@ function panelPrimitiveAccessories() {
 const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest, boneEdit: panelBoneTransform, faceHands: panelFaceHands, motionExchange: panelMotionExchange, primitiveAcc: panelPrimitiveAccessories };
 
 window.addEventListener('beforeunload', () => {
-  if (AUTHORING_TABS.has(tab)) { try { void api.command({ action: 'endAuthoring' }); } catch {} }
+  if (AUTHORING_TABS.has(tab)) { try { void api.command({ action: 'endAuthoring' }).catch(() => {}); } catch {} }
 });
 $('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));
 $('frontView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); };
@@ -1089,5 +1089,8 @@ let last = performance.now();
   renderer.render(scene, camera);
 })(performance.now());
 
+if (!PANELS[tab]) tab = 'bones';
+if (AUTHORING_TABS.has(tab)) api.command({ action: 'beginAuthoring' }).catch(error => flash('Could not pause Saeed for editing: ' + (error?.message || String(error))));
+setTab(tab);
 await reloadModel();
 applyI18n();
