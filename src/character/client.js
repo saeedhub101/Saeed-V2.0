@@ -4,8 +4,8 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="listMotions"||action==="meshList"||action==="setMeshVisibility"||action==="morphList"||action==="setMorph"||action==="setUserBusy"||action==="behaviorEvent";
- const needsBones=action==="buildProceduralRig"||action==="fixTPose"||action==="setAxisFix"||action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
+ const lightweight=action==="status"||action==="listMotions"||action==="meshList"||action==="setMeshVisibility"||action==="morphList"||action==="setMorph"||action==="availableAccessories"||action==="accessoriesList"||action==="setUserBusy"||action==="behaviorEvent";
+ const needsBones=action==="buildProceduralRig"||action==="fixTPose"||action==="setAxisFix"||action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose"||action==="setAccessory";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
  const requiresRig=!lightweight&&!needsBones&&!directBonePose&&!captureRestPose;
@@ -20,7 +20,7 @@ async function executeCharacterCommand(command={}){
    try{
     const engineStatus=engine?.getCharacterPoseStatus?.();
     const names=engine?.getAvailableBoneNames?.()||[];
-    if(engineStatus?.loaded&&(names.length||["buildProceduralRig","meshList","setMeshVisibility","morphList","setMorph"].includes(action))){
+    if(engineStatus?.loaded&&(names.length||["buildProceduralRig","meshList","setMeshVisibility","morphList","setMorph","availableAccessories","accessoriesList","setAccessory"].includes(action))){
      if(requiresRig){
       const current=c.status?.();
       if(current?.characterLoaded&&!Object.keys(current?.autoRig||{}).length){
