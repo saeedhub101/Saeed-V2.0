@@ -135,7 +135,7 @@ jobs:
           $tiledKernel = "build\whisper-src\ggml\src\ggml-cpu\tiled\tiled-kernel.cpp"
           if (!(Test-Path $tiledKernel)) { throw "Whisper tiled kernel source is missing; cannot verify MSVC pragma compatibility." }
           $kernelText = Get-Content $tiledKernel -Raw
-          $gccUnrollCount = ([regex]::Matches($kernelText, '(?m)^\s*#pragma GCC unroll 8\s*
+          $gccUnrollCount = ([regex]::Matches($kernelText, '(?m)^[ \t]*#pragma GCC unroll 8[ \t]*
           if ($LASTEXITCODE -ne 0) { throw "Could not clone whisper.cpp." }
           if (!(Test-Path "build\\whisper-src\\LICENSE")) { throw "whisper.cpp license file is missing." }
           Copy-Item "build\\whisper-src\\LICENSE" (Join-Path $root "WHISPER-CPP-LICENSE.txt") -Force
@@ -149,7 +149,6 @@ jobs:
           }
           Set-Content -Path $cmakeLists -Value $cmakeText -NoNewline
           cmake -S build\whisper-src -B build\whisper-src\build -A x64 -DBUILD_SHARED_LIBS=ON -DWHISPER_BUILD_EXAMPLES=ON -DGGML_NATIVE=OFF -DCMAKE_POLICY_DEFAULT_CMP0194=NEW
-          if ($LASTEXITCODE -ne 0) { throw "Whisper CMake configure failed; CMP0194 must be explicitly set to NEW." }
           if ($LASTEXITCODE -ne 0) { throw "Whisper CMake configure failed." }
           cmake --build build\whisper-src\build --config Release --target whisper-cli
           if ($LASTEXITCODE -ne 0) { throw "Whisper CLI build failed." }
@@ -597,7 +596,7 @@ jobs:
             --notes "Official Windows Electron release. Commit: ${{ github.sha }}. Workflow Build: ${{ github.run_number }}. Published only after every required validation stage succeeded." \
             --target "${{ github.sha }}"
 )).Count
-          $kernelText = [regex]::Replace($kernelText, '(?m)^\s*#pragma GCC unroll 8\s*\r?\n', '')
+          $kernelText = [regex]::Replace($kernelText, '(?m)^[ \t]*#pragma GCC unroll 8[ \t]*\r?\n', '')
           if ($gccUnrollCount -lt 1 -or $kernelText -match '(?m)^\s*#pragma GCC\b') { throw "Could not safely remove GCC-only unroll hints from the MSVC build source." }
           Set-Content -Path $tiledKernel -Value $kernelText -NoNewline
           Write-Host "MSVC_GCC_PRAGMA_FILTER=PASS ($gccUnrollCount GCC-only unroll hints removed; behavior unchanged)"
