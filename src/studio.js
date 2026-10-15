@@ -126,11 +126,14 @@ async function reloadModel() {
 }
 
 /* ============ tabs ============ */
-const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test'], ['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
+const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test']];
+const EXTRA_TABS = [['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
 function setTab(t) {
   if (tab === 'faceHands' && t !== 'faceHands' && cfg.handCurl) applyHandCurl(cfg.handCurl.side || 'left', 0);
   tab = t;
-  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === t);
+  for (const b of $('tabs').querySelectorAll('button[data-tab]')) b.classList.toggle('on', b.dataset.tab === t);
+  const more = $('tabs').querySelector('details.more-tools');
+  if (more) more.open = EXTRA_TABS.some(([id]) => id === t);
   ch.mode = t === 'fix' || t === 'create' ? 'preview' : t === 'test' || t === 'face' ? 'engine' : 'rest';
   if (ch.mode === 'rest') { ch.applyRestPose(); applyBoneEdits(); }
   if (ch.mode === 'engine') ch.actions = [];
@@ -146,6 +149,10 @@ function renderPanel() {
   p.scrollTop = st;
 }
 for (const [id, label] of TABS) $('tabs').append(h('button', { 'data-tab': id, onclick: () => setTab(id) }, label));
+const moreTools = h('details', { class: 'more-tools' },
+  h('summary', {}, 'More tools ▾'),
+  h('div', { class: 'more-tools-menu' }, ...EXTRA_TABS.map(([id, label]) => h('button', { 'data-tab': id, onclick: () => setTab(id) }, label))));
+$('tabs').append(moreTools);
 
 /* ============ shared widgets ============ */
 const mappedBones = () => BONES.filter((b) => ch.map[b.id]);
@@ -776,30 +783,56 @@ function applyBoneEdits() {
 }
 function panelBoneTransform() {
   if (!ch.allBones.length) return notice('Load a character with bones first. Mesh-only characters remain visible; use Rig Builder to add a rig.');
-  const names = ch.allBones.map((b) => b.name);
+  const names = [...new Set(ch.allBones.map((b) => b.name))];
   if (!names.includes(boneEditSelection)) boneEditSelection = names[0];
   const selected = ch.allBones.find((b) => b.name === boneEditSelection);
   const state = (cfg.boneEdits ||= {})[boneEditSelection] || { position: [0,0,0], rotation: [0,0,0] };
   const pos = [...(state.position || [0,0,0])], rot = [...(state.rotation || [0,0,0])];
-  const fields = (label, values, min, max, step, kind) => h('div', {}, h('h3', {}, label),
-    ...['X','Y','Z'].map((axis,i)=>h('div',{class:'row'},h('span',{class:'lbl'},axis),
-      h('input',{type:'number',min,max,step,value:values[i],onchange:e=>{
-        values[i]=+e.target.value;
-        cfg.boneEdits[boneEditSelection] = {position:[...pos],rotation:[...rot]};
-        save({boneEdits:cfg.boneEdits}); applyBoneEdits();
-      }}))));
-  const select = h('select',{class:'grow',value:boneEditSelection,onchange:e=>{boneEditSelection=e.target.value;renderPanel();}},
-    names.map(n=>h('option',{value:n},n)));
-  return h('div',{},h('h3',{},'Direct bone transform'),
-    h('p',{class:'muted'},'Adjust the selected real GLB bone relative to its imported bind pose. Values are saved in the Character Setting profile. This is a local editor preview and does not overwrite the original GLB until you export it.'),
-    h('div',{class:'row'},h('span',{class:'lbl'},'Bone'),select),
-    h('p',{class:'muted'},'Parent: '+(selected?.parent?.name||'—')),
-    fields('Local position offset (model units)',pos,-10,10,0.01,'position'),
-    fields('Local rotation offset (degrees)',rot,-180,180,1,'rotation'),
-    h('div',{class:'btns'},
-      h('button',{class:'primary btn',onclick:()=>{cfg.boneEdits[boneEditSelection]={position:[...pos],rotation:[...rot]};save({boneEdits:cfg.boneEdits});applyBoneEdits();flash('Bone transform saved.');}},'Apply & Save'),
-      h('button',{onclick:()=>{delete cfg.boneEdits[boneEditSelection];save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset selected bone'),
-      h('button',{onclick:()=>{cfg.boneEdits={};save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset all edits')));
+  const persistAndApply = () => {
+    cfg.boneEdits[boneEditSelection] = { position: [...pos], rotation: [...rot] };
+    save({ boneEdits: cfg.boneEdits });
+    applyBoneEdits();
+  };
+  const fields = (label, values, min, max, step, kind) => h('div', {},
+    h('h3', {}, label),
+    ...['X','Y','Z'].map((axis,i) => {
+      const number = h('input', { type: 'number', min: kind === 'position' ? -10 : min, max: kind === 'position' ? 10 : max, step, value: values[i], 'aria-label': label + ' ' + axis });
+      const slider = h('input', { type: 'range', min, max, step, value: Math.max(min, Math.min(max, values[i])), 'aria-label': label + ' ' + axis + ' slider' });
+      const update = (value) => {
+        values[i] = Number(value);
+        number.value = String(values[i]);
+        slider.value = String(Math.max(min, Math.min(max, values[i])));
+        persistAndApply();
+      };
+      number.addEventListener('input', () => update(number.value));
+      slider.addEventListener('input', () => update(slider.value));
+      return h('div', { class: 'transform-row' }, h('span', { class: 'axis-label' }, axis), slider, number);
+    }));
+  const select = h('select', { class: 'grow', value: boneEditSelection, onchange: e => { boneEditSelection = e.target.value; renderPanel(); } },
+    names.map(n => h('option', { value: n }, n)));
+  const search = h('input', { type: 'search', class: 'grow', placeholder: 'Search bone or parent…', 'aria-label': 'Search bones' });
+  const tree = h('div', { class: 'tree bone-edit-tree' });
+  const drawTree = () => {
+    const q = search.value.trim().toLowerCase();
+    tree.replaceChildren(...ch.allBones
+      .filter(b => !q || b.name.toLowerCase().includes(q) || String(b.parent?.name || '').toLowerCase().includes(q))
+      .map(b => h('button', { class: 'bone-pick' + (b.name === boneEditSelection ? ' selected' : ''), title: 'Parent: ' + (b.parent?.name || '—'), onclick: () => { boneEditSelection = b.name; markTarget = b; renderPanel(); } },
+        h('span', {}, b.name), h('small', {}, '↳ ' + (b.parent?.name || 'root')))));
+  };
+  search.addEventListener('input', drawTree);
+  drawTree();
+  return h('div', {},
+    h('h3', {}, 'Move and rotate a bone'),
+    h('p', { class: 'muted' }, 'Select a bone, then drag its sliders or enter exact values. Changes appear immediately on the character preview and are saved to this character profile.'),
+    h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'Selected bone'), select),
+    h('p', { class: 'muted' }, 'Parent: ' + (selected?.parent?.name || '—') + ' · ' + ch.allBones.length + ' bones detected'),
+    h('details', { class: 'bone-picker', open: false }, h('summary', {}, 'Browse skeleton tree'), search, tree),
+    fields('Position offset', pos, -1, 1, 0.01, 'position'),
+    fields('Rotation offset (degrees)', rot, -180, 180, 1, 'rotation'),
+    h('div', { class: 'btns' },
+      h('button', { class: 'primary btn', onclick: () => { persistAndApply(); flash('Bone transform saved.'); } }, 'Apply & Save'),
+      h('button', { onclick: () => { delete cfg.boneEdits[boneEditSelection]; save({ boneEdits: cfg.boneEdits }); applyBoneEdits(); renderPanel(); } }, 'Reset selected bone'),
+      h('button', { onclick: () => { cfg.boneEdits = {}; save({ boneEdits: cfg.boneEdits }); applyBoneEdits(); renderPanel(); } }, 'Reset all edits')));
 }
 function applyHandCurl(side, value) {
   if (!ch.model) return;
