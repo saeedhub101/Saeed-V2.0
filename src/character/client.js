@@ -40,7 +40,10 @@ async function executeCharacterCommand(command={}){
   const finalPose=engine?.getCharacterPoseStatus?.()||{};
   const finalNames=engine?.getAvailableBoneNames?.()||[];
   if((!finalPose?.loaded||!finalNames.length)&&action!=="buildProceduralRig")characterDiagnostic("ERROR","CHARACTER SKELETON UNAVAILABLE","Authoritative Character Engine has no exposed GLB skeleton bones",{action,loaded:Boolean(finalPose?.loaded),boneCount:finalNames.length,pose:finalPose});
-  if(x.action==="glbClipList")return{ok:true,clips:engine?.listGlbAnimations?.()||[]};\n  if(x.action==="playGlbClip"){c.stopAll?.();return engine?.playGlbAnimation?.(String(x.name??x.index??""),x.options||{})||{ok:false,error:"Embedded GLB animation playback unavailable"}}\n  if(x.action==="stopGlbClip")return engine?.stopGlbAnimation?.()||{ok:false,error:"Embedded GLB animation playback unavailable"}\n  if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
+  if(x.action==="glbClipList")return{ok:true,clips:engine?.listGlbAnimations?.()||[]};
+  if(x.action==="playGlbClip"){c.stopAll?.();return engine?.playGlbAnimation?.(String(x.name??x.index??""),x.options||{})||{ok:false,error:"Embedded GLB animation playback unavailable"}}
+  if(x.action==="stopGlbClip")return engine?.stopGlbAnimation?.()||{ok:false,error:"Embedded GLB animation playback unavailable"}
+  if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
   if(x.action==="stop"){const ok=c.stop(x.motion);return{ok,status:c.status()}}
   if(x.action==="stopAll"){const ok=c.stopAll();return{ok,status:c.status()}}
   if(x.action==="setAnimationEnabled"){const enabled=c.setAnimationEnabled?.(x.enabled!==false);return{ok:true,enabled,status:c.status()}}
