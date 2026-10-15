@@ -61,6 +61,7 @@ class ConversationAgent{
   const input=String(text||"").trim();if(!input)return "";
   const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history,controller=new AbortController();this.requestController=controller;
   const isCurrent=()=>!controller.signal.aborted&&this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
+  this.onEvent({type:"user-input",text:input.slice(0,500),source:"chat"});
   const result=await this.brain.run({text:input,image,history,isCurrent,signal:controller.signal,forceApi:Boolean(options?.forceApi)});
   if(!isCurrent()||result?.stale)return "";
   return this.commitBrainResult(input,result,{emitAnswer:true});
@@ -70,6 +71,7 @@ class ConversationAgent{
   const input=String(text||"").trim();if(!input)return "";
   const requestId=this.invalidateRequests(),conversationId=this.currentConversationId,history=this.history,controller=new AbortController();this.requestController=controller;
   const isCurrent=()=>!controller.signal.aborted&&this.requestGeneration===requestId&&this.currentConversationId===conversationId&&this.history===history;
+  this.onEvent({type:"user-input",text:input.slice(0,500),source:"voice"});
   const result=await this.brain.run({text:input,image,history,isCurrent,signal:controller.signal});
   if(!isCurrent()||result?.stale)return "";
   return this.commitBrainResult(input,result);
