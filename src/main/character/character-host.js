@@ -1,6 +1,26 @@
 function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow,getRestPoseEditorWindow,setCharacterWindow,getAgent,characterStore,contextMenu}){
- ipcMain?.on("character:renderer-ready",event=>{if(!pendingCharacterData)return;try{event.sender.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)}catch(error){diagnostic("ERROR","GLB DELIVERY",error?.message||String(error))}});
+ const rendererReadyWaiters=new Map();
+ const rendererReadyWindows=new WeakSet();
+ ipcMain?.on("character:renderer-ready",event=>{
+  rendererReadyWindows.add(event.sender);
+  const waiter=rendererReadyWaiters.get(event.sender);
+  if(waiter){waiter();return;}
+  if(!pendingCharacterData)return;
+  try{event.sender.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)}catch(error){diagnostic("ERROR","GLB DELIVERY",error?.message||String(error))}
+ });
  const {persistSelectedCharacter,readPersistedCharacter,readCharacter3DSettings,writeCharacter3DSettings,applyCharacter3DWindowSettings,captureCharacter3DWindowSettings,character3DSettingsFile,validateGlbCandidate}=characterStore;let characterLoadGeneration=0,pendingCharacterData=null,saveMoveTimer=null;const loadWaiters=new Map();
+ function waitForRendererReady(target,timeoutMs=20000){
+  const contents=target?.webContents;
+  if(!contents||target.isDestroyed())return Promise.resolve(false);
+  if(rendererReadyWindows.has(contents))return Promise.resolve(true);
+  return new Promise(resolve=>{
+   let settled=false;
+   const finish=ready=>{if(settled)return;settled=true;clearTimeout(timer);rendererReadyWaiters.delete(contents);resolve(Boolean(ready))};
+   const timer=setTimeout(()=>finish(false),timeoutMs);
+   rendererReadyWaiters.set(contents,()=>finish(true));
+   contents.once("destroyed",()=>finish(false));
+  });
+ }
  ipcMain?.on("character:load-result",(event,generation,result)=>{const id=Number(generation)||0,waiter=loadWaiters.get(id);if(!waiter||event.sender!==getCharacterWindow()?.webContents)return;loadWaiters.delete(id);waiter(result||{ok:false,error:"Renderer returned an empty GLB load result"})});
  function displayForWindow(){const target=getCharacterWindow();if(!target)return screen.getPrimaryDisplay();const [x,y]=target.getPosition(),[w,h]=target.getSize();return screen.getDisplayMatching({x,y,width:w,height:h})||screen.getDisplayNearestPoint({x:x+w/2,y:y+h/2})||screen.getPrimaryDisplay()}
  function fitCharacterToDisplay(display=displayForWindow(),{bottomRight=false}={}){const target=getCharacterWindow();if(!target)return;const a=display.workArea,[w,h]=target.getSize(),m=18,[x0,y0]=target.getPosition();const x=bottomRight?a.x+Math.max(0,a.width-w-m):Math.max(a.x,Math.min(x0,a.x+Math.max(0,a.width-w))),y=bottomRight?a.y+Math.max(0,a.height-h-m):Math.max(a.y,Math.min(y0,a.y+Math.max(0,a.height-h)));target.setPosition(Math.round(x),Math.round(y),false)}
@@ -90,7 +110,44 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
  // Performance, Character Studio and Normalize must continue using the same authoritative skeleton.
  diagnostic("INFO","3D WINDOW","Saeed hidden: renderer and authoritative skeleton preserved in memory",{domain:"3D",preserved:true});
 }
- async function createCharacterWindow(){let target=getCharacterWindow();if(target&&!target.isDestroyed())return target;target=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:true,autoplayPolicy:"no-user-gesture-required"}});target.setIcon(windowsIconPath());if(process.platform==="win32")target.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});target.on("move",()=>{clearTimeout(saveMoveTimer);saveMoveTimer=setTimeout(()=>{try{captureCharacter3DWindowSettings()}catch{}},250)});target.on("closed",()=>{clearTimeout(saveMoveTimer);try{captureCharacter3DWindowSettings()}catch{};setCharacterWindow(null)});target.webContents.on("context-menu",()=>contextMenu?.());setCharacterWindow(target);await target.loadFile(path.join(__dirname,"..","..","renderer","character.html"));applyCharacter3DWindowSettings();try{const persisted=readPersistedCharacter?.();let data=null,source="bundled";if(persisted?.data?.length>=20){data=Buffer.from(persisted.data);source="persisted";diagnostic("INFO","GLB STARTUP","Restoring previously selected character",{path:persisted.path,size:persisted.size})}else{const bundled=path.join(__dirname,"..","..","..","assets","Saeed_AI-3D.glb");if(!fs.existsSync(bundled))throw new Error("Authoritative Saeed GLB is missing: "+bundled);data=fs.readFileSync(bundled);const validation=validateGlbCandidate(data);diagnostic("INFO","GLB STARTUP","No valid persisted character found; using bundled authoritative Saeed GLB",{path:bundled,size:data.length,validation})}sendCharacterData(new Uint8Array(data));sendPendingCharacterData();setTimeout(()=>{const w=getCharacterWindow();if(w&&!w.isDestroyed()&&pendingCharacterData){try{w.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation)}catch(e){diagnostic("ERROR","GLB STARTUP DELIVERY",e?.message||String(e))}}},0);diagnostic("INFO","GLB STARTUP","Character startup asset prepared",{source,size:data.length})}catch(e){diagnostic("ERROR","GLB STARTUP",e.message)}const positionState=readCharacter3DSettings();if(positionState.window.positionInitialized&&Number.isFinite(Number(positionState.window.x))&&Number.isFinite(Number(positionState.window.y))){applyCharacter3DWindowSettings()}else{fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});const [x,y]=target.getPosition();writeCharacter3DSettings({...positionState,window:{...positionState.window,x,y,positionInitialized:true}})}target.show();return target}
+ async function createCharacterWindow(){
+  let target=getCharacterWindow();
+  if(target&&!target.isDestroyed())return target;
+  target=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:true,autoplayPolicy:"no-user-gesture-required"}});
+  target.setIcon(windowsIconPath());
+  if(process.platform==="win32")target.setAppDetails({appId:"ai.saeed.desktop",appIconPath:windowsIconPath(),appIconIndex:0,relaunchCommand:process.execPath,relaunchDisplayName:"Saeed AI Character"});
+  target.on("move",()=>{clearTimeout(saveMoveTimer);saveMoveTimer=setTimeout(()=>{try{captureCharacter3DWindowSettings()}catch{}},250)});
+  target.on("closed",()=>{clearTimeout(saveMoveTimer);try{captureCharacter3DWindowSettings()}catch{};setCharacterWindow(null)});
+  target.webContents.on("context-menu",()=>contextMenu?.());
+  setCharacterWindow(target);
+  try{
+   await target.loadFile(path.join(__dirname,"..","..","renderer","character.html"));
+   const ready=await waitForRendererReady(target,20000);
+   if(!ready)throw new Error("Character renderer did not signal readiness within 20 seconds; GLB delivery was not attempted");
+   applyCharacter3DWindowSettings();
+   const persisted=readPersistedCharacter?.();
+   let data=null,source="bundled",validation=null;
+   if(persisted?.data?.length>=20){data=Buffer.from(persisted.data);source="persisted";diagnostic("INFO","GLB STARTUP","Restoring previously selected character",{path:persisted.path,size:persisted.size})}
+   else{
+    const bundled=path.join(__dirname,"..","..","..","assets","Saeed_AI-3D.glb");
+    if(!fs.existsSync(bundled))throw new Error("Authoritative Saeed GLB is missing: "+bundled);
+    data=fs.readFileSync(bundled);validation=validateGlbCandidate(data);
+    diagnostic("INFO","GLB STARTUP","No valid persisted character found; using bundled authoritative Saeed GLB",{path:bundled,size:data.length,validation});
+   }
+   const delivered=sendCharacterData(new Uint8Array(data));
+   if(!delivered)throw new Error("Character renderer was ready but the startup GLB could not be delivered");
+   diagnostic("INFO","GLB STARTUP","Character startup asset delivered to the ready renderer",{source,size:data.length,validation});
+   const positionState=readCharacter3DSettings();
+   if(positionState.window.positionInitialized&&Number.isFinite(Number(positionState.window.x))&&Number.isFinite(Number(positionState.window.y)))applyCharacter3DWindowSettings();
+   else{fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});const [x,y]=target.getPosition();writeCharacter3DSettings({...positionState,window:{...positionState.window,x,y,positionInitialized:true}})}
+   target.show();
+   return target;
+  }catch(error){
+   diagnostic("ERROR","GLB STARTUP",error?.stack||error?.message||String(error),{domain:"3D"});
+   try{if(!target.isDestroyed())target.destroy()}catch{}
+   throw error;
+  }
+}
  async function command(command={}){
   let win=getCharacterWindow();
   if(!win||win.isDestroyed()){
