@@ -69,8 +69,23 @@ async function runLifecycle(deps){
  const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin","updateStatusWin"])closeKey(key);await pause(120);};
  async function probeFeatureScreen(name){
   const route=name.replace(/-window$/,"");
-  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update Status"};
-  const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed),buttons=document.querySelectorAll("button").length;
+  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update"};
+  const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed);
+  const buttonNodes=[...document.querySelectorAll("button")];
+  const buttons=buttonNodes.length;
+  const buttonInventory=buttonNodes.map((button,index)=>({
+   index:index+1,
+   label:(button.innerText||button.getAttribute("aria-label")||button.title||button.value||"").trim().replace(/\\s+/g," ").slice(0,140),
+   id:button.id||null,
+   type:button.type||"button",
+   disabled:Boolean(button.disabled),
+   visible:Boolean(button.getClientRects().length&&getComputedStyle(button).visibility!=="hidden"&&getComputedStyle(button).display!=="none"),
+   inlineHandler:Boolean(button.onclick||button.getAttribute("onclick")),
+   actionAttribute:button.getAttribute("data-action")||button.getAttribute("data-command")||null,
+   tabTarget:button.getAttribute("data-tab")||null,
+   formSubmit:Boolean(button.form&&(button.type==="submit"||button.type==="")),
+   hasAccessibleName:Boolean((button.innerText||button.getAttribute("aria-label")||button.title||button.value||"").trim())
+  }));
   const tabButtons=[...document.querySelectorAll("[data-tab]")],original=tabButtons.find(b=>b.classList.contains("active"))?.dataset.tab||tabButtons[0]?.dataset.tab||"";
   const tabResults=[];
   for(const button of tabButtons){const tab=button.dataset.tab;button.click();await new Promise(resolve=>setTimeout(resolve,0));const panel=document.getElementById("tab-"+tab)||document.querySelector('[data-section="'+tab+'"]')||document.getElementById(tab);tabResults.push({tab,panelFound:Boolean(panel),active:Boolean(panel&&(panel.classList.contains("active")||!panel.classList.contains("hidden")))});}
@@ -86,7 +101,7 @@ async function runLifecycle(deps){
    case "character-settings":value=await window.saeed.character.getPendingCharacter();apiRoundTrip=Boolean(value?.data&&(value.data.byteLength||value.data.length));break;
    case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;
   }apiDetail=apiRoundTrip?"API read-back returned a value":"API read-back returned no usable value";}catch(error){apiDetail=String(error?.message||error)}
-  return {title,expectedTitle:expected[route],titleOk:title===expected[route],readyState,hasPreload,buttons,tabResults,apiRoundTrip,apiDetail};
+  return {title,expectedTitle:expected[route],titleOk:title===expected[route],readyState,hasPreload,buttons,buttonInventory,tabResults,apiRoundTrip,apiDetail};
  }
  const screen=(name,key,open,requiresCharacter=false)=>async()=>{
   await closeEverything();
@@ -96,7 +111,7 @@ async function runLifecycle(deps){
    if(opened){
     const page=await win.webContents.executeJavaScript("("+probeFeatureScreen.toString()+")("+JSON.stringify(name)+")");
     const tabsOk=(page?.tabResults||[]).every(t=>t.panelFound&&t.active);
-    check(name+"-dom-preload-tabs-and-api",page?.readyState==="complete"&&page?.titleOk===true&&page?.hasPreload&&page?.buttons>0&&tabsOk&&page?.apiRoundTrip===true,{expectedTitle:page?.expectedTitle||null,title:page?.title||null,readyState:page?.readyState||null,hasPreload:Boolean(page?.hasPreload),buttonCount:page?.buttons||0,tabResults:page?.tabResults||[],apiRoundTrip:Boolean(page?.apiRoundTrip),apiDetail:page?.apiDetail||null});
+    check(name+"-screen-ready-tabs-api-and-button-inventory",page?.readyState==="complete"&&page?.titleOk===true&&page?.hasPreload&&page?.buttons>0&&tabsOk&&page?.apiRoundTrip===true&&Array.isArray(page?.buttonInventory)&&page.buttonInventory.length===page.buttons,{expectedTitle:page?.expectedTitle||null,title:page?.title||null,readyState:page?.readyState||null,hasPreload:Boolean(page?.hasPreload),buttonCount:page?.buttons||0,buttons:page?.buttonInventory||[],tabResults:page?.tabResults||[],apiRoundTrip:Boolean(page?.apiRoundTrip),apiDetail:page?.apiDetail||null});
    }
   }catch(error){check(name+"-opens",false,{error:String(error?.stack||error)})}
   await closeEverything();
