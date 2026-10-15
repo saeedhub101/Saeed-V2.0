@@ -246,7 +246,7 @@ jobs:
           if (!(Test-Path $report)) { throw "Character, behavior report is missing. $outText $errText" }
           $result = Get-Content $report -Raw | ConvertFrom-Json
           $failed = @($result.checks | Where-Object { !$_.passed })
-          $requiredChecks = @("glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-test-fixture-restored","glb-intent-map-restored")
+          $requiredChecks = @("glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-map-invalid-clip-rejected","glb-intent-map-clear-readback","glb-intent-test-fixture-restored","glb-intent-map-restored")
           foreach ($name in $requiredChecks) {
             $check = @($result.checks | Where-Object { $_.name -eq $name } | Select-Object -First 1)
             if ($check.Count -eq 0 -or !$check[0].passed) { throw "Required GLB intent mapping runtime check failed or is missing: $name" }
@@ -289,7 +289,7 @@ jobs:
           Copy-Item $report "dist\ci-product-acceptance.json" -Force
           $acceptance = Get-Content $report -Raw | ConvertFrom-Json
           $failed = @($acceptance.checks | Where-Object { !$_.passed })
-          $requiredChecks = @("glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-test-fixture-restored","glb-intent-map-restored")
+          $requiredChecks = @("glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-map-invalid-clip-rejected","glb-intent-map-clear-readback","glb-intent-test-fixture-restored","glb-intent-map-restored")
           foreach ($name in $requiredChecks) {
             $check = @($acceptance.checks | Where-Object { $_.name -eq $name } | Select-Object -First 1)
             if ($check.Count -eq 0 -or !$check[0].passed) { throw "Required packaged GLB intent mapping check failed or is missing: $name" }
