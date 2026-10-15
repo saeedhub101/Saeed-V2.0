@@ -66,3 +66,6 @@ window.saeed.voice.onMicMode?.(mode=>{settings={...settings,micMode:String(mode|
 window.saeed.voice.onMicLevel?.(level=>{state.mic={...(state.mic||{}),level:Number(level)||0,state:Number(level)>0?"active":(settings.micMode==="on"?"active":"disabled")};render()});
 window.saeed.system.onDiagnosticState?.(x=>{state=x||{};render();refreshCharacter()});
 renderApi();render();refresh();
+// Visible route back to the centralized feature directory.
+const openFeaturesButton=document.getElementById("openFeatures");
+if(openFeaturesButton)openFeaturesButton.addEventListener("click",async()=>{try{await window.saeed.system.showSettings()}catch(error){console.error("Open Features failed:",error);try{await window.saeed.system.reportDiagnostic?.("ERROR","FEATURE NAVIGATION",error?.message||String(error))}catch{}}});
