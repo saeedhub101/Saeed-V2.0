@@ -147,7 +147,7 @@ function setTab(t) {
   tab = t;
   for (const b of $('tabs').querySelectorAll('button[data-tab]')) b.classList.toggle('on', b.dataset.tab === t);
   const more = $('tabs').querySelector('details.more-tools');
-  if (more) more.open = EXTRA_TABS.some(([id]) => id === t);
+  if (more) { more.open = false; more.querySelector('summary')?.classList.toggle('on', EXTRA_TABS.some(([id]) => id === t)); }
   ch.mode = t === 'fix' || t === 'create' ? 'preview' : t === 'test' || t === 'face' ? 'engine' : 'rest';
   if (ch.mode === 'rest') { ch.applyRestPose(); applyBoneEdits(); }
   if (ch.mode === 'engine') ch.actions = [];
