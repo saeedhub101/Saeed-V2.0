@@ -328,7 +328,7 @@ function toRuntimeMotion(clip) {
     slot: ch.map?.[track.bone] ? track.bone : boneToSlot.get(String(track.bone))
   })).filter(item => item.slot);
   if (!usable.length) throw new Error('This motion has no tracks matching Saeed’s mapped logical bones. Match the Bones tab first.');
-  const times = [...new Set(usable.flatMap(({track}) => track.keys.map(key => Math.max(0, Number(key.t) || 0)))].sort((a,b)=>a-b);
+  const times = [...new Set(usable.flatMap(({track}) => track.keys.map(key => Math.max(0, Number(key.t) || 0))))].sort((a,b)=>a-b);
   if (!times.length) throw new Error('This motion has no keyframes.');
   const keyframes = times.map(time => {
     const pose = {};
