@@ -18,6 +18,74 @@ async function runCiProductAcceptance({ app, session, process, path, fs, charact
   await wait(120);
   const stopped=await characterHost.command({action:"stopAll"});
   check("motion-stop",stopped?.ok===true,{ok:Boolean(stopped?.ok)});
+  const initialGlbIntentMap=await characterHost.command({action:"glbIntentMapGet"});
+  check("glb-intent-map-api-available",initialGlbIntentMap?.ok===true&&initialGlbIntentMap.mapping&&typeof initialGlbIntentMap.mapping==="object",{ok:Boolean(initialGlbIntentMap?.ok),mappingCount:Object.keys(initialGlbIntentMap?.mapping||{}).length,error:initialGlbIntentMap?.error||null});
+  const glbIntentFixture=String(process.env.SAEED_CI_GLB_INTENT_FIXTURE||"");
+  let glbIntentFixtureLoaded=false,glbIntentFixtureRestored=false,glbIntentMappingRestored=false;
+  try{
+   if(!glbIntentFixture||!fs.existsSync(glbIntentFixture)){
+    check("glb-intent-test-fixture-loaded",false,{fixture:glbIntentFixture||null,error:"Animated GLB intent fixture was not provided"});
+    check("glb-intent-map-set-readback",false,{error:"Cannot test mapping without the animated GLB fixture"});
+    check("glb-semantic-intent-plays-mapped-glb-clip",false,{error:"Cannot test semantic playback without the animated GLB fixture"});
+    check("glb-intent-map-stop",false,{error:"Cannot test clip stop without the animated GLB fixture"});
+   }else{
+    const fixtureLoad=await characterHost.replaceCharacterForCi(glbIntentFixture);
+    glbIntentFixtureLoaded=fixtureLoad?.ok===true;
+    check("glb-intent-test-fixture-loaded",glbIntentFixtureLoaded,{fixture:path.basename(glbIntentFixture),ok:glbIntentFixtureLoaded,error:fixtureLoad?.error||null});
+    if(glbIntentFixtureLoaded){
+     await wait(180);
+     const fixtureClips=await characterHost.command({action:"glbClipList"});
+     const testClip=(fixtureClips?.clips||[]).find(item=>item?.name==="CI-GLB-Intent-Wave")?.name||"";
+     check("glb-intent-fixture-animation-present",Boolean(testClip),{clipNames:(fixtureClips?.clips||[]).map(item=>item?.name),expected:"CI-GLB-Intent-Wave"});
+     if(testClip){
+      const testIntent="ciGlbIntentMappingTest";
+      const savedMap=await characterHost.command({action:"glbIntentMapSet",mapping:{[testIntent]:testClip}});
+      const readMap=await characterHost.command({action:"glbIntentMapGet"});
+      const normalizedIntent="ciglbintentmappingtest";
+      const mappingRoundTrip=savedMap?.ok===true&&savedMap?.persisted===true&&readMap?.ok===true&&readMap?.mapping?.[normalizedIntent]===testClip;
+      check("glb-intent-map-set-readback",mappingRoundTrip,{saveOk:Boolean(savedMap?.ok),persisted:Boolean(savedMap?.persisted),readBack:readMap?.mapping?.[normalizedIntent]||null,expected:testClip,error:savedMap?.error||readMap?.error||null});
+      const semanticResult=mappingRoundTrip?await characterHost.command({action:"semantic",intent:testIntent,options:{cooldownMs:0,loop:"once"}}):{played:false,error:"Mapping save/readback failed"};
+      await wait(260);
+      const playingStatus=await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.getGlbAnimationStatus?.()||null");
+      const actualPlayback=semanticResult?.source==="glb"&&semanticResult?.played===true&&semanticResult?.clip===testClip&&playingStatus?.active===true&&playingStatus?.name===testClip&&Number(playingStatus?.time)>0;
+      check("glb-semantic-intent-plays-mapped-glb-clip",actualPlayback,{intent:testIntent,expectedClip:testClip,result:semanticResult,engineStatus:playingStatus});
+      const stoppedGlb=await characterHost.command({action:"stopGlbClip"});
+      const stoppedStatus=await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.getGlbAnimationStatus?.()||null");
+      const stopPassed=stoppedGlb?.ok===true&&stoppedGlb?.stopped===true&&stoppedStatus?.active===false;
+      check("glb-intent-map-stop",stopPassed,{stopResult:stoppedGlb,statusAfterStop:stoppedStatus});
+     }else{
+      check("glb-intent-map-set-readback",false,{error:"Fixture animation clip missing"});
+      check("glb-semantic-intent-plays-mapped-glb-clip",false,{error:"Fixture animation clip missing"});
+      check("glb-intent-map-stop",false,{error:"Fixture animation clip missing"});
+     }
+    }else{
+     check("glb-intent-map-set-readback",false,{error:"Fixture GLB could not be loaded"});
+     check("glb-semantic-intent-plays-mapped-glb-clip",false,{error:"Fixture GLB could not be loaded"});
+     check("glb-intent-map-stop",false,{error:"Fixture GLB could not be loaded"});
+    }
+   }
+  }catch(error){
+   check("glb-intent-mapping-runtime-exception",false,{error:error?.stack||String(error)});
+  }finally{
+   if(glbIntentFixtureLoaded){
+    const bundledGlb=path.join(app.getAppPath(),"assets","Saeed_AI-3D.glb");
+    const restored=await characterHost.replaceCharacterForCi(bundledGlb);
+    glbIntentFixtureRestored=restored?.ok===true;
+    await wait(250);
+    check("glb-intent-test-fixture-restored",glbIntentFixtureRestored,{bundledGlb,ok:glbIntentFixtureRestored,error:restored?.error||null});
+   }else{
+    check("glb-intent-test-fixture-restored",true,{notNeeded:true});
+   }
+   if(glbIntentFixtureRestored&&initialGlbIntentMap?.ok===true){
+    const restoreMap=await characterHost.command({action:"glbIntentMapSet",mapping:initialGlbIntentMap.mapping||{}});
+    const verifyMap=await characterHost.command({action:"glbIntentMapGet"});
+    glbIntentMappingRestored=restoreMap?.ok===true&&JSON.stringify(verifyMap?.mapping||{})===JSON.stringify(restoreMap?.mapping||{});
+    check("glb-intent-map-restored",glbIntentMappingRestored,{ok:Boolean(restoreMap?.ok),count:Object.keys(verifyMap?.mapping||{}).length,error:restoreMap?.error||verifyMap?.error||null});
+   }else{
+    glbIntentMappingRestored=initialGlbIntentMap?.ok===true&&!glbIntentFixtureLoaded;
+    check("glb-intent-map-restored",glbIntentMappingRestored,{notRestored:glbIntentFixtureLoaded&&!glbIntentFixtureRestored,initialMapAvailable:Boolean(initialGlbIntentMap?.ok)});
+   }
+  }
   const mappedHead=rig.mapping?.head;const restPoseBone=String(typeof mappedHead==="string"&&mappedHead?mappedHead:rig.bones.find(name=>/head/i.test(String(name)))||rig.bones[0]||"");
   const restPoseInitialStatus=await characterHost.command({action:"status"});
   const restPoseInitialBone=restPoseInitialStatus?.status?.actualBones?.[restPoseBone]||null;
