@@ -61,6 +61,9 @@
     "name": "Saeed O. Almansour"
   },
   "overrides": {
-    "lodash.isequal": "file:vendor/lodash-isequal-compat"
+    "glob": "^11.1.0",
+    "rimraf": "^6.0.1",
+    "lodash.isequal": "file:../../vendor/lodash-isequal-compat",
+    "boolean": "file:../../vendor/boolean-compat"
   }
 }
