@@ -75,14 +75,6 @@ ipcMain.handle("character-studio:config:set",async(_event,patch={})=>{
  await fs.promises.rename(temp,file);
  return next;
 });
-ipcMain.handle("character-studio:model:save",async(event,buffer,name="character-rigged.glb")=>{
- if(!buffer)throw new Error("No GLB data was provided for export");
- const parent=BrowserWindow.fromWebContents(event.sender)||undefined;
- const result=await dialog.showSaveDialog(parent,{defaultPath:name,filters:[{name:"GLB model",extensions:["glb"]}]});
- if(result.canceled||!result.filePath)return null;
- await fs.promises.writeFile(result.filePath,Buffer.from(buffer));
- return result.filePath;
-});
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterApi;
 
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
