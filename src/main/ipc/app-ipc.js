@@ -20,6 +20,7 @@ function registerAppIpc({
     const actual = composition.getTranscriptLabelEnabled?.() === true;
     return { ok: actual === Boolean(enabled), enabled: actual };
   });
+  ipcMain.handle("app:chat:show", async () => { await composition.ensureChatHost?.().showChat(); return true; });
   ipcMain.handle("status:show", () => { showStatus(); return true; });
   ipcMain.handle("performance:show", () => { showPerformance(); return true; });
   ipcMain.handle("rest-pose:show", () => {
