@@ -938,7 +938,11 @@ function panelFaceHands() {
     h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{
       if(expression.value==='neutral'){for(const v of Object.values(ch.face.expr||{})){v.target=0;v.hold=0;}ch.face.eyeHold=null;}
       else ch.face.expression(expression.value,+strength.value,2.5);
-      void live({action:'face',expression:expression.value,intensity:+strength.value});
+      const runtimeName = ({ worried: 'sad', laugh: 'happy', wink: 'happy', kiss: 'neutral', tongueOut: 'neutral' })[expression.value] || expression.value;
+      void live({action:'face',expression:runtimeName,intensity:+strength.value});
+      if (expression.value === 'wink') void live({action:'blink'});
+      if (expression.value === 'kiss') void live({action:'viseme',viseme:'O',value:+strength.value});
+      if (expression.value === 'tongueOut') void live({action:'viseme',viseme:'A',value:+strength.value});
       flash('Expression sent to Saeed.');
     }},'Apply expression')),
     h('div',{class:'btns'},
