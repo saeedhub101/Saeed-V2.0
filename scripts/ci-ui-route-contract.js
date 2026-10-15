@@ -21,6 +21,20 @@ const characterUi = read("src/character-studio.html");
 const performanceUi = read("src/performance.html");
 const settingsUi = read("src/settings.html");
 const settingsJs = read("src/settings.js");
+const testRunner = read("scripts/run-all-tests.js");
+const ciFiles = fs.readdirSync(path.join(root, "scripts")).filter(name => /^ci-.*\\.js$/.test(name));
+const unitTestFiles = [];
+function collectUnitTests(directory) {
+  const full = path.join(root, directory);
+  if (!exists(directory)) return;
+  for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
+    const relative = path.join(directory, entry.name);
+    if (entry.isDirectory()) collectUnitTests(relative);
+    else if (/\\.test\\.(?:cjs|mjs|js)$/.test(entry.name)) unitTestFiles.push(relative);
+  }
+}
+collectUnitTests("tests/unit");
+
 
 const routes = [
   { name: "performance", fn: "showPerformance", file: "performance.html", load: 'path.join(rootPath,"performance.html")' },
@@ -29,6 +43,12 @@ const routes = [
   { name: "add-ons", fn: "showAddons", file: "addons/window.html", load: 'path.join(rootPath,"addons","window.html")' },
   { name: "character-settings", fn: "showCharacterSettings", file: "character-studio.html", load: 'path.join(rootPath,"character-studio.html")' }
 ];
+check("every-ci-contract-suite-is-in-the-test-runner",
+  ciFiles.every(file => testRunner.includes(file)),
+  "Unwired CI scripts: " + ciFiles.filter(file => !testRunner.includes(file)).join(", "));
+check("every-unit-regression-test-is-in-the-test-runner",
+  unitTestFiles.every(file => testRunner.includes(path.basename(file))),
+  "Unwired unit tests: " + unitTestFiles.filter(file => !testRunner.includes(path.basename(file))).join(", "));
 for (const route of routes) {
   check(route.name + "-window-file-exists", exists(path.join("src", route.file)), route.file);
   check(route.name + "-window-manager-route",
