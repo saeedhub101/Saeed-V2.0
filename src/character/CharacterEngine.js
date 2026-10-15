@@ -295,9 +295,8 @@ function dispose(o){
 }
 function fit(){
  if(!model)return false;
- // Port the proven Saeed viewer framing: normalize every GLB to a stable
- // 1.7-unit standing height, center it on the floor, and frame it with a
- // predictable camera. Always start from the unmodified GLB transform.
+ // Match src/shared/character.js in the original Saeed viewer:
+ // a 1.7-unit character, centered and grounded, with the same portrait camera.
  let original=modelBaseTransforms.get(model);
  if(!original){
   original={scale:model.scale.clone(),position:model.position.clone(),rotation:model.rotation.clone()};
@@ -306,6 +305,9 @@ function fit(){
  model.scale.copy(original.scale);
  model.position.copy(original.position);
  model.rotation.copy(original.rotation);
+ root.scale.setScalar(1);
+ root.position.set(0,0,0);
+ root.rotation.set(0,0,0);
  model.updateWorldMatrix(true,true);
  const raw=new THREE.Box3().setFromObject(model,true);
  const rawSize=raw.getSize(new THREE.Vector3());
@@ -313,43 +315,25 @@ function fit(){
   traceGlb("fit-invalid-bounds",{size:{x:rawSize.x,y:rawSize.y,z:rawSize.z}});
   return false;
  }
+ const center=raw.getCenter(new THREE.Vector3());
+ // Same centering/grounding operation as the original Character.load().
+ model.position.set(-center.x,-raw.min.y,-center.z);
  const userScale=Math.max(.25,Math.min(2.5,Number(viewSettings.characterScale)||1));
- const scaleFactor=1.7/Math.max(rawSize.y,.001)*userScale;
- model.scale.copy(original.scale).multiplyScalar(scaleFactor);
- model.position.copy(original.position);
- model.rotation.copy(original.rotation);
- model.rotation.y=Number(viewSettings.characterRotationY)||0;
- model.updateWorldMatrix(true,true);
- // Center using the scaled/rotated bounds, not the window dimensions. This
- // keeps differently authored GLBs grounded and avoids cumulative resize drift.
- const box=new THREE.Box3().setFromObject(model,true);
- const size=box.getSize(new THREE.Vector3());
- const center=box.getCenter(new THREE.Vector3());
- model.position.add(new THREE.Vector3(-center.x,-box.min.y,-center.z));
- model.position.add(new THREE.Vector3(
+ root.scale.setScalar((1.7/Math.max(rawSize.y,.001))*userScale);
+ root.rotation.y=Number(viewSettings.characterRotationY)||0;
+ root.position.set(
   Number(viewSettings.characterPositionX)||0,
   Number(viewSettings.characterPositionY)||0,
   Number(viewSettings.characterPositionZ)||0
- ));
+ );
  model.updateWorldMatrix(true,true);
- const aspect=Math.max(.1,(canvas.clientWidth||430)/(canvas.clientHeight||520));
  const zoom=Math.max(.6,Math.min(2.4,Number(cameraSettings?.zoom)||1));
- const halfFov=THREE.MathUtils.degToRad(Math.max(10,Math.min(100,Number(camera.fov)||28))*.5);
- const horizontalHalfFov=Math.atan(Math.tan(halfFov)*aspect);
- const verticalDistance=.88/Math.max(.01,Math.tan(halfFov));
- const horizontalDistance=(size.x*.5)/Math.max(.01,Math.tan(horizontalHalfFov));
- // Match Saeed's fixed portrait camera while allowing unusually narrow windows
- // enough distance to keep the complete model visible.
- const dist=Math.max(3.8/zoom,verticalDistance*.88/zoom,horizontalDistance*1.12/zoom);
- if(!Number.isFinite(dist)||dist<=0){
-  traceGlb("fit-invalid-camera",{dist,aspect,width:size.x,height:size.y});
-  return false;
- }
- const targetY=.85+(zoom-1)*.3;
- camera.position.set(0,.88+(zoom-1)*.25,dist);
- camera.near=.01;
- camera.far=Math.max(50,dist+size.length()*10);
- camera.lookAt(0,targetY,0);
+ camera.fov=Math.max(10,Math.min(100,Number(cameraSettings?.fov)||28));
+ camera.aspect=Math.max(.1,(canvas.clientWidth||430)/(canvas.clientHeight||520));
+ camera.near=.1;
+ camera.far=50;
+ camera.position.set(0,.88+(zoom-1)*.25,3.8/zoom);
+ camera.lookAt(0,.85+(zoom-1)*.3,0);
  const cs=cameraSettings||{};
  camera.position.add(new THREE.Vector3(Number(cs.offsetX)||0,Number(cs.offsetY)||0,Number(cs.offsetZ)||0));
  camera.rotateX(THREE.MathUtils.degToRad(Number(cs.rotationX)||0));
@@ -357,7 +341,7 @@ function fit(){
  camera.rotateZ(THREE.MathUtils.degToRad(Number(cs.rotationZ)||0));
  camera.zoom=1;
  camera.updateProjectionMatrix();
- traceGlb("fit-complete",{method:"saeed-fixed-portrait-camera",aspect,viewport:{width:canvas.clientWidth||430,height:canvas.clientHeight||520},model:{width:size.x,height:size.y,depth:size.z},cameraDistance:dist,zoom,scaleFactor,targetY});
+ traceGlb("fit-complete",{method:"original-saeed-character-viewer",viewport:{width:canvas.clientWidth||430,height:canvas.clientHeight||520},model:{width:rawSize.x,height:rawSize.y,depth:rawSize.z},zoom,scaleFactor:1.7/Math.max(rawSize.y,.001),userScale});
  return true;
 }
 function render(){
