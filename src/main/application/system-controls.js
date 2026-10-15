@@ -1,4 +1,4 @@
-function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showNormalizeHumanoidRestPose,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,getTranscriptLabelEnabled,toggleTranscriptLabel,updateNow,emergencyStop,resumeEmergencyStop,isEmergencyStopped}){
+function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddons,showLearning,showRestPoseEditor,showPerformance,showStatus,show3DStatus,showSettings,showUpdateStatus,setSaeedSize,chooseCharacter,Menu,getCharacterWindow,getVoiceMuted,setVoiceMuted,setMicMode,getCurrentMicMode,getTranscriptLabelEnabled,toggleTranscriptLabel,updateNow,emergencyStop,resumeEmergencyStop,isEmergencyStopped}){
  let currentTray=null;
  function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
  function rebuildTray(tray){
