@@ -24,18 +24,8 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","REST POSE EDITOR",e.message)}
  }
- async function showNormalizeHumanoidRestPose(){
-  try{
-   let win=getWindow("normalizeHumanoidRestPoseWin");
-   if(win&&!win.isDestroyed()){win.show();win.focus();return}
-   win=new BrowserWindow({width:1200,height:800,minWidth:900,minHeight:620,title:"Saeed Normalize Humanoid Rest Pose",show:false,resizable:true,skipTaskbar:false,icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:true}});
-   win.setIcon(iconPath());
-   win.on("closed",()=>{setWindow("normalizeHumanoidRestPoseWin",null)});
-   setWindow("normalizeHumanoidRestPoseWin",win);
-   if(!await loadFileBounded(win,path.join(rootPath,"normalizehumanoidrestpose.html")))return;
-   win.show();win.focus();
-  }catch(e){diagnostic("ERROR","NORMALIZE HUMANOID REST POSE WINDOW",e.message)}
- }
+ async function showNormalizeHumanoidRestPose(){return showRestPoseEditor();}
+
  async function showSettings(){
   try{
    let win=getWindow("settingsWin");
