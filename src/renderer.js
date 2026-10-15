@@ -77,3 +77,7 @@ window.saeed.tools.onConfirmation(async e=>{const label={agent_step_increase:"ز
 $("exportChats").onclick=async()=>{try{const r=await window.saeed.chat.exportConversations();if(r?.ok)add("tool","Exported "+r.conversationCount+" conversations to "+r.path);else if(!r?.canceled)add("tool","Conversation export failed: "+(r?.error||"unknown error"))}catch(e){add("tool","Conversation export failed: "+e.message)}};
 $("importChats").onclick=async()=>{try{const r=await window.saeed.chat.importConversations();if(r?.ok){add("tool","Imported "+r.imported+" conversations. Existing conversations were preserved.");refreshChatTabs()}else if(!r?.canceled)add("tool","Conversation import failed: "+(r?.error||"unknown error"))}catch(e){add("tool","Conversation import failed: "+e.message)}};
 $("clearChat").onclick=async()=>{if(!confirm("Clear this conversation?"))return;try{const ok=await window.saeed.chat.clearHistory();if(ok){resetMessages();refreshChatTabs();$("status").textContent="Conversation cleared"}}catch(e){add("tool","Clear error: "+e.message)}};
+
+// A permanent entry point to every application surface; the tray remains available too.
+const openFeaturesButton=$("openFeatures");
+if(openFeaturesButton)openFeaturesButton.onclick=async()=>{try{await window.saeed.system.showSettings()}catch(error){add("tool","Could not open Features: "+(error?.message||String(error)))}};
