@@ -66,10 +66,10 @@ async function runLifecycle(deps){
  const visibleWindows=()=>windows().filter(w=>{try{return w.isVisible()}catch{return false}});
  const featureWindows=()=>windows().filter(w=>w!==getState().characterWin);
  const closeKey=key=>{const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch{}try{setWindow(key,null)}catch{}};
- const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin","updateStatusWin"])closeKey(key);await pause(120);};
+ const closeEverything=async()=>{try{await ensureChatHost().closeChat()}catch{}await characterApi.hideCharacter();for(const key of ["performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin","updateStatusWin"])closeKey(key);await pause(120);};
  async function probeFeatureScreen(name){
   const route=name.replace(/-window$/,"");
-  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update"};
+  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update","chat":"Saeed AI","character":"Saeed 3D Character"};
   const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed);
   const buttonNodes=[...document.querySelectorAll("button")];
   const buttons=buttonNodes.length;
@@ -99,14 +99,14 @@ async function runLifecycle(deps){
    case "status":value=await window.saeed.system.getDiagnosticSnapshot();apiRoundTrip=Boolean(value&&typeof value==="object");break;
    case "3d-status":value=await window.saeed.character.get3DStatus();apiRoundTrip=Boolean(value&&typeof value==="object");break;
    case "character-settings":value=await window.saeed.character.getPendingCharacter();apiRoundTrip=Boolean(value?.data&&(value.data.byteLength||value.data.length));break;
-   case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;
+   case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;\n   case "chat":value=await window.saeed.system.getSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;\n   case "character":value=await window.saeed.character.getCharacter3DSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;
   }apiDetail=apiRoundTrip?"API read-back returned a value":"API read-back returned no usable value";}catch(error){apiDetail=String(error?.message||error)}
   return {title,expectedTitle:expected[route],titleOk:title===expected[route],readyState,hasPreload,buttons,buttonInventory,tabResults,apiRoundTrip,apiDetail};
  }
  const screen=(name,key,open,requiresCharacter=false,displayName=name)=>async()=>{
   await closeEverything();
   try{
-   await open();await pause(500);const win=getState()[key];const opened=Boolean(win&&!win.isDestroyed()&&win.isVisible());
+   await open();await pause(500);const win=key==="chatHost"?ensureChatHost().getChatWindow():getState()[key];const opened=Boolean(win&&!win.isDestroyed()&&win.isVisible());
    check(displayName+" — opens",opened,{exists:Boolean(win&&!win.isDestroyed()),visible:opened,windowCount:windows().length,requiresCharacter});
    if(opened){
     const page=await win.webContents.executeJavaScript("("+probeFeatureScreen.toString()+")("+JSON.stringify(name)+")");
@@ -121,7 +121,7 @@ async function runLifecycle(deps){
   await closeEverything();
   check("hidden-idle-has-no-feature-windows",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,remaining:windows().map(w=>w.getTitle())});
   for(const fn of [
-   screen("performance-window","performanceWin",showPerformance,false,"Performance screen"),
+   screen("chat-window","chatHost",()=>ensureChatHost().showChat(),false,"Chat screen"),\n   screen("character-window","characterWin",()=>characterApi.showCharacter(),true,"3D Character screen"),\n  screen("performance-window","performanceWin",showPerformance,false,"Performance screen"),
    screen("settings-window","settingsWin",showSettings,false,"Settings screen"),
    screen("add-ons-window","addonsWin",showAddons,false,"Add-ons screen"),
    screen("learning-window","learningWin",showLearning,false,"Learning screen"),
