@@ -37,3 +37,5 @@ textarea{display:block;width:100%;max-width:100%;margin-top:7px;padding:12px 13p
  .tab{padding:22px 18px 36px}
 }
 @media(max-width:520px){.formGrid{grid-template-columns:1fr}.formGrid .wide{grid-column:auto}.resourceCards{grid-template-columns:repeat(2,minmax(0,1fr))}.processHead,.processRow{grid-template-columns:1.5fr .7fr 1fr 1fr;gap:5px;padding:8px;font-size:10px}}
+
+.headerActions{display:flex;align-items:center;gap:8px}.headerActions .secondary{margin-top:0}
