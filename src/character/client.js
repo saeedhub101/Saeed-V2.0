@@ -4,7 +4,7 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="listMotions"||action==="meshList"||action==="setMeshVisibility"||action==="morphList"||action==="setMorph"||action==="availableAccessories"||action==="accessoriesList"||action==="getMotionAxisFixes"||action==="setMotionAxisFix"||action==="clearMotionAxisFixes"||action==="setUserBusy"||action==="behaviorEvent";
+ const lightweight=action==="status"||action==="listMotions"||action==="meshList"||action==="setMeshVisibility"||action==="morphList"||action==="setMorph"||action==="availableAccessories"||action==="accessoriesList"||action==="getVisemeMap"||action==="setVisemeMap"||action==="getMotionAxisFixes"||action==="setMotionAxisFix"||action==="clearMotionAxisFixes"||action==="setUserBusy"||action==="behaviorEvent";
  const needsBones=action==="buildProceduralRig"||action==="fixTPose"||action==="setAxisFix"||action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose"||action==="setAccessory";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
@@ -66,6 +66,8 @@ async function executeCharacterCommand(command={}){
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
   if(x.action==="buildProceduralRig"){const result=engine?.buildProceduralRig?.(String(x.template||"full"),x.options||{});if(!result)return{ok:false,error:"Procedural rig builder unavailable"};return{...result,status:c.status()}}
+  if(x.action==="getVisemeMap"){return{ok:true,visemeMap:c.getVisemeMap?.()||{}}}
+  if(x.action==="setVisemeMap"){return c.setVisemeMap?.(x.visemeMap||{})||{ok:false,error:"Viseme mapping unavailable"}}
   if(x.action==="getMotionAxisFixes"){return{ok:true,motionAxisFixes:c.getMotionAxisFixes?.()||{}}}
   if(x.action==="setMotionAxisFix"){return c.setMotionAxisFix?.(String(x.motionId||""),String(x.slot||""),x.fix||null)||{ok:false,error:"Motion-specific axis correction unavailable"}}
   if(x.action==="clearMotionAxisFixes"){return c.clearMotionAxisFixes?.(String(x.motionId||""))||{ok:false,error:"Motion-specific axis reset unavailable"}}
