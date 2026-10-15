@@ -356,6 +356,81 @@ $("applyMotionAxisFix").onclick=()=>saveMotionAxisFix($("axisSlot").value);
 $("applyMotionAxisFixAll").onclick=async()=>{let saved=0;for(const slot of logical)if(await saveMotionAxisFix(slot))saved++;msg("motionAxisFixStatus","Applied the current correction to "+saved+" logical joints in "+$("fixMotion").value+".",saved?"ok":"warn")};
 $("resetMotionAxisFixes").onclick=async()=>{const motionId=$("fixMotion").value;if(!motionId)return;const result=await cmd({action:"clearMotionAxisFixes",motionId});msg("motionAxisFixStatus",result?.ok?"Reset all motion-specific corrections for "+motionId+".":result?.error||"Reset failed.",result?.ok?"ok":"warn")};
 $("swapXZ").onclick=()=>updateAxisFix("xz");$("swapYZ").onclick=()=>updateAxisFix("yz");$("swapXY").onclick=()=>updateAxisFix("xy");$("flipAxisX").onclick=()=>updateAxisFix("x");$("flipAxisY").onclick=()=>updateAxisFix("y");$("flipAxisZ").onclick=()=>updateAxisFix("z");$("applyAxisFix").onclick=()=>updateAxisFix("apply");$("resetAxisFix").onclick=()=>updateAxisFix("reset");
+
+function customRigStatus(text,kind=""){const el=$("customRigStatus");if(el){el.textContent=text;el.className="status "+kind}}
+function loadCustomRigTemplate(){
+ if(!model){customRigStatus("Load a character GLB first.","warn");return}
+ const box=new THREE.Box3().setFromObject(model);
+ customRigDraft=makeTemplate($("customRigTemplate").value,box,0).map(b=>({name:b.name,parent:b.parent||"",pos:[...b.pos]}));
+ customRigApplied=false;renderCustomRigRows();customRigStatus("Loaded "+customRigDraft.length+" editable bones. Adjust names, parents and positions before building.","ok")
+}
+function renderCustomRigRows(){
+ const host=$("customRigBoneRows");if(!host)return;host.replaceChildren();
+ if(!customRigDraft.length){const p=document.createElement("p");p.className="small";p.textContent="No custom bones yet. Load a template or add a bone.";host.appendChild(p);return}
+ const names=customRigDraft.map(b=>b.name);
+ customRigDraft.forEach((bone,index)=>{
+  const card=document.createElement("div");card.style.cssText="border-bottom:1px solid var(--line);padding:5px 0;display:grid;gap:5px";
+  const top=document.createElement("div");top.style.cssText="display:grid;grid-template-columns:minmax(80px,1fr) minmax(80px,1fr) auto;gap:5px";
+  const name=document.createElement("input");name.type="text";name.value=bone.name;name.maxLength=80;name.title="Bone name";
+  const parent=document.createElement("select");parent.title="Parent bone";const rootOption=document.createElement("option");rootOption.value="";rootOption.textContent="root";parent.appendChild(rootOption);
+  for(const candidate of names){if(candidate===bone.name)continue;const option=document.createElement("option");option.value=candidate;option.textContent=candidate;parent.appendChild(option)}
+  parent.value=bone.parent||"";
+  const remove=document.createElement("button");remove.type="button";remove.className="btn";remove.textContent="Remove";remove.title="Remove this bone";
+  name.addEventListener("change",()=>{const next=name.value.trim();if(!next||next==="root"||customRigDraft.some((b,i)=>i!==index&&b.name===next)){customRigStatus("Bone names must be unique, non-empty and not 'root'.","warn");name.value=bone.name;return}const old=bone.name;bone.name=next;for(const b of customRigDraft)if(b.parent===old)b.parent=next;renderCustomRigRows()});
+  parent.addEventListener("change",()=>{bone.parent=parent.value;renderCustomRigRows()});
+  remove.addEventListener("click",()=>{const old=bone.name,replacement=bone.parent||"";customRigDraft.splice(index,1);for(const b of customRigDraft)if(b.parent===old)b.parent=replacement;renderCustomRigRows();customRigStatus("Removed bone "+old+". Child bones were re-parented to "+(replacement||"root")+".")});
+  top.append(name,parent,remove);card.appendChild(top);
+  const pos=document.createElement("div");pos.style.cssText="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px";
+  ["X","Y","Z"].forEach((axis,axisIndex)=>{const label=document.createElement("label");label.className="field";label.textContent=axis;const input=document.createElement("input");input.type="number";input.step=".001";input.value=Number(bone.pos[axisIndex]||0).toFixed(3);input.addEventListener("change",()=>{const value=Number(input.value);if(!Number.isFinite(value)){customRigStatus("Bone coordinates must be finite numbers.","warn");return}bone.pos[axisIndex]=value});label.appendChild(input);pos.appendChild(label)});
+  card.appendChild(pos);host.appendChild(card)
+ })
+}
+function addCustomBone(){
+ const box=model?new THREE.Box3().setFromObject(model):null,center=box?box.getCenter(new THREE.Vector3()):new THREE.Vector3();
+ let name="customBone",suffix=1;while(customRigDraft.some(b=>b.name===name))name="customBone"+(++suffix);
+ const parent=customRigDraft.some(b=>b.name==="hips")?"hips":(customRigDraft[0]?.name||"");
+ customRigDraft.push({name,parent,pos:[center.x,center.y,center.z]});renderCustomRigRows();customRigStatus("Added "+name+". Set its parent and coordinates.")
+}
+function addCustomFaceBones(){
+ if(!model){customRigStatus("Load a character GLB first.","warn");return}
+ const box=new THREE.Box3().setFromObject(model),existing=new Set(customRigDraft.map(b=>b.name)),haveHead=existing.has("head");
+ for(const bone of makeFace(box,0)){if(existing.has(bone.name))continue;customRigDraft.push({...bone,parent:haveHead?bone.parent:"",pos:[...bone.pos]});existing.add(bone.name)}
+ renderCustomRigRows();customRigStatus("Added missing jaw / eye bones to the draft. These are approximate positions; inspect them before building.")
+}
+function addCustomFingerBones(){
+ if(!model){customRigStatus("Load a character GLB first.","warn");return}
+ const box=new THREE.Box3().setFromObject(model),height=Math.max(.001,box.max.y-box.min.y),existing=new Set(customRigDraft.map(b=>b.name));let added=0,missing=[];
+ for(const side of ["left","right"]){const hand=customRigDraft.find(b=>b.name===side+"Hand");if(!hand){missing.push(side+"Hand");continue}for(const bone of makeFingers(side,hand.pos,height,side==="left"?1:-1)){if(existing.has(bone.name))continue;customRigDraft.push({...bone,pos:[...bone.pos]});existing.add(bone.name);added++}}
+ renderCustomRigRows();customRigStatus(added?"Added "+added+" finger bones. Confirm their positions before building.":"Could not add finger chains; missing wrist bone(s): "+missing.join(", "),"warn")
+}
+function validateCustomRigDraft(){
+ const names=customRigDraft.map(b=>String(b.name||"").trim());
+ if(!names.length)throw new Error("Add at least one bone or load a template.");
+ if(names.some(n=>!n||n==="root")||new Set(names).size!==names.length)throw new Error("Bone names must be unique, non-empty and not 'root'.");
+ const byName=new Map(customRigDraft.map(b=>[b.name,b]));
+ for(const b of customRigDraft){if(b.parent&&!byName.has(b.parent))throw new Error("Parent not found for "+b.name+": "+b.parent);if(b.parent===b.name)throw new Error("A bone cannot be its own parent: "+b.name);if(!Array.isArray(b.pos)||b.pos.length!==3||!b.pos.every(Number.isFinite))throw new Error("Invalid X/Y/Z coordinates for "+b.name);let parent=b.parent,seen=new Set([b.name]);while(parent){if(seen.has(parent))throw new Error("Parent cycle detected near "+parent);seen.add(parent);parent=byName.get(parent)?.parent||""}}
+ return customRigDraft.map(b=>({name:b.name,parent:b.parent||null,pos:b.pos.map(Number)}))
+}
+function buildCustomRigInPreview(){
+ if(!model){customRigStatus("Load a character GLB first.","warn");return}
+ let hasSkinned=false,meshCount=0;model.traverse(o=>{if(o.isSkinnedMesh)hasSkinned=true;if(o.isMesh)meshCount++});
+ if(hasSkinned){customRigStatus("This GLB already contains a skinned rig. Custom rig rebuilding is disabled to protect the existing skeleton; use Auto Map instead.","warn");return}
+ if(!meshCount){customRigStatus("No mesh was found in the loaded GLB.","warn");return}
+ try{const bonesDraft=validateCustomRigDraft(),radius=Math.max(.02,Math.min(.4,(Number($("customRigRadius").value)||12)/100));buildRig(model,{bones:bonesDraft,radius});model.updateMatrixWorld(true);bones=[];model.traverse(o=>{if(o.isBone){bones.push(o);if(!o.userData.studioRestQuaternion)o.userData.studioRestQuaternion=o.quaternion.clone()}});markerGroup.clear();markers=[];for(const b of bones){const marker=new THREE.Mesh(new THREE.SphereGeometry(.018,8,8),new THREE.MeshBasicMaterial({color:0x53d6c6,transparent:true,opacity:.72}));marker.userData.bone=b;markerGroup.add(marker);markers.push(marker)}customRigApplied=true;fillBones();frame();customRigStatus("Built a custom rig with "+bones.length+" bones in the editor preview. Export it to validate and activate the new GLB.","ok");studioDiagnostic("INFO","CUSTOM RIG BUILT","Custom skeleton created in editor preview",{bones:bones.length,meshes:meshCount,radius})}catch(error){customRigStatus(error?.message||String(error),"warn");studioDiagnostic("ERROR","CUSTOM RIG BUILD",error?.stack||error?.message||String(error))}
+}
+async function exportCustomRigAndActivate(){
+ if(!model||!customRigApplied){customRigStatus("Build the custom rig in the preview before exporting.","warn");return}
+ customRigStatus("Exporting GLB…");
+ try{const exporter=new GLTFExporter();const buffer=await new Promise((resolve,reject)=>exporter.parse(model,resolve,reject,{binary:true,animations:embeddedGlbAnimations}));if(!(buffer instanceof ArrayBuffer)||buffer.byteLength<20)throw new Error("GLTFExporter returned an invalid binary GLB");const result=await window.saeed.studio.saveModel(buffer,"Saeed-custom-rig.glb");if(!result?.ok){if(result?.canceled){customRigStatus("Export cancelled.");return}throw new Error(result?.error||"The exported GLB could not be saved and activated")}customRigStatus("Saved and activated "+(result.name||"custom-rigged character")+" with "+(result.boneCount||bones.length)+" bones. The saved file: "+result.path,"ok");studioDiagnostic("INFO","CUSTOM RIG EXPORT","Custom GLB saved, verified and activated",{path:result.path,bones:result.boneCount,meshes:result.meshCount})}catch(error){customRigStatus("Export failed: "+(error?.message||String(error)),"warn");studioDiagnostic("ERROR","CUSTOM RIG EXPORT",error?.stack||error?.message||String(error))}
+}
+$("loadCustomRigTemplate")?.addEventListener("click",loadCustomRigTemplate);
+$("addCustomBone")?.addEventListener("click",addCustomBone);
+$("addCustomFaceBones")?.addEventListener("click",addCustomFaceBones);
+$("addCustomFingerBones")?.addEventListener("click",addCustomFingerBones);
+$("buildCustomRigPreview")?.addEventListener("click",buildCustomRigInPreview);
+$("resetCustomRigPreview")?.addEventListener("click",()=>{if(!sourceGlbBytes){customRigStatus("No original GLB bytes are available to reset.","warn");return}stopEmbeddedGlbPreview();load(sourceGlbBytes);customRigStatus("Restoring the original GLB preview…")});
+$("exportCustomRig")?.addEventListener("click",exportCustomRigAndActivate);
+
 try{init();}catch(error){studioDiagnostic("ERROR","STUDIO INITIALIZATION",error?.stack||error?.message||String(error),{stage:"init"});}
 void cmd({action:"beginAuthoring"}).then(()=>refresh()).catch(error=>studioDiagnostic("ERROR","STUDIO STARTUP",error?.stack||error?.message||String(error)));renderMotionTimeline();
 
