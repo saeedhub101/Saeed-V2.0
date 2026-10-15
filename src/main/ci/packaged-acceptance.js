@@ -59,7 +59,7 @@ async function runBrainLearning(mode,deps){
  return result;
 }
 async function runLifecycle(deps){
- const {app,BrowserWindow,getState,setWindow,characterApi,showPerformance,showSettings,showLearning,showAddons,showStatus,show3DStatus,showCharacterSettings,ensureChatHost,ensureBrain,ensureBrainHost,getAgent,setMicMode,getCurrentMicMode,ensureVoiceHost,diagnostic,stopCpuMonitoring}=deps;
+ const {app,BrowserWindow,getState,setWindow,characterApi,showPerformance,showSettings,showLearning,showAddons,showStatus,show3DStatus,showCharacterSettings,showUpdateStatus,ensureChatHost,ensureBrain,ensureBrainHost,getAgent,setMicMode,getCurrentMicMode,ensureVoiceHost,diagnostic,stopCpuMonitoring}=deps;
  const output=process.env.SAEED_CI_LIFECYCLE_REPORT||path.join(process.cwd(),"dist","ci-lifecycle-report.json");
  const {report,check,finish}=makeReport("lifecycle",output),pause=ms=>wait(ms);
  const windows=()=>BrowserWindow.getAllWindows().filter(w=>w&&!w.isDestroyed());
@@ -67,10 +67,37 @@ async function runLifecycle(deps){
  const featureWindows=()=>windows().filter(w=>w!==getState().characterWin);
  const closeKey=key=>{const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch{}try{setWindow(key,null)}catch{}};
  const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin"])closeKey(key);await pause(120);};
+ async function probeFeatureScreen(name){
+  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update Status"};
+  const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed),buttons=document.querySelectorAll("button").length;
+  const tabButtons=[...document.querySelectorAll("[data-tab]")],original=tabButtons.find(b=>b.classList.contains("active"))?.dataset.tab||tabButtons[0]?.dataset.tab||"";
+  const tabResults=[];
+  for(const button of tabButtons){const tab=button.dataset.tab;button.click();await new Promise(resolve=>setTimeout(resolve,0));const panel=document.getElementById("tab-"+tab)||document.querySelector('[data-section="'+tab+'"]')||document.getElementById(tab);tabResults.push({tab,panelFound:Boolean(panel),active:Boolean(panel&&(panel.classList.contains("active")||!panel.classList.contains("hidden")))});}
+  if(original)tabButtons.find(b=>b.dataset.tab===original)?.click();
+  let apiRoundTrip=false,apiDetail="";
+  try{let value=null;switch(name){
+   case "performance":value=await window.saeed.system.getResourceSnapshot();apiRoundTrip=Boolean(value&&typeof value==="object");break;
+   case "settings":value=await window.saeed.system.getSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;
+   case "add-ons":value=await window.saeed.addons.catalog();apiRoundTrip=value!==null&&value!==undefined;break;
+   case "learning":value=await window.saeed.learning.list();apiRoundTrip=Array.isArray(value);break;
+   case "status":value=await window.saeed.system.getDiagnosticSnapshot();apiRoundTrip=Boolean(value&&typeof value==="object");break;
+   case "3d-status":value=await window.saeed.character.get3DStatus();apiRoundTrip=Boolean(value&&typeof value==="object");break;
+   case "character-settings":value=await window.saeed.character.getPendingCharacter();apiRoundTrip=Boolean(value?.data&&(value.data.byteLength||value.data.length));break;
+   case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;
+  }apiDetail=apiRoundTrip?"API read-back returned a value":"API read-back returned no usable value";}catch(error){apiDetail=String(error?.message||error)}
+  return {title,expectedTitle:expected[name],titleOk:title===expected[name],readyState,hasPreload,buttons,tabResults,apiRoundTrip,apiDetail};
+ }
  const screen=(name,key,open,requiresCharacter=false)=>async()=>{
   await closeEverything();
-  try{await open();await pause(500);const win=getState()[key];check(name+"-opens",Boolean(win&&!win.isDestroyed()&&win.isVisible()),{exists:Boolean(win&&!win.isDestroyed()),visible:Boolean(win&&!win.isDestroyed()&&win.isVisible()),windowCount:windows().length,requiresCharacter});}
-  catch(error){check(name+"-opens",false,{error:String(error?.stack||error)})}
+  try{
+   await open();await pause(500);const win=getState()[key];const opened=Boolean(win&&!win.isDestroyed()&&win.isVisible());
+   check(name+"-opens",opened,{exists:Boolean(win&&!win.isDestroyed()),visible:opened,windowCount:windows().length,requiresCharacter});
+   if(opened){
+    const page=await win.webContents.executeJavaScript("("+probeFeatureScreen.toString()+")("+JSON.stringify(name)+")");
+    const tabsOk=(page?.tabResults||[]).every(t=>t.panelFound&&t.active);
+    check(name+"-dom-preload-tabs-and-api",page?.readyState==="complete"&&page?.titleOk===true&&page?.hasPreload&&page?.buttons>0&&tabsOk&&page?.apiRoundTrip===true,{expectedTitle:page?.expectedTitle||null,title:page?.title||null,readyState:page?.readyState||null,hasPreload:Boolean(page?.hasPreload),buttonCount:page?.buttons||0,tabResults:page?.tabResults||[],apiRoundTrip:Boolean(page?.apiRoundTrip),apiDetail:page?.apiDetail||null});
+   }
+  }catch(error){check(name+"-opens",false,{error:String(error?.stack||error)})}
   await closeEverything();
   check(name+"-closes-all-surfaces",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,remaining:windows().map(w=>w.getTitle())});
  };
@@ -84,7 +111,8 @@ async function runLifecycle(deps){
    screen("learning-window","learningWin",showLearning),
    screen("status-window","statusWin",showStatus),
    screen("3d-status-window","threeDStatusWin",show3DStatus,true),
-   screen("character-settings-window","characterSettingsWin",showCharacterSettings,true)
+   screen("character-settings-window","characterSettingsWin",showCharacterSettings,true),
+   screen("update-status-window","updateStatusWin",showUpdateStatus)
   ])await fn();
   await closeEverything();
   await ensureChatHost().showChat();await pause(450);await ensureBrain();

@@ -6,7 +6,7 @@
 
 ## Suite responsibilities
 
-- **UI routes and IPC wiring:** verify visible menu action → runtime composition → window-manager method → existing HTML file, and verify the matching preload/IPC route. Detect duplicated character-authoring UI across Character Settings, general Settings and Performance.
+- **UI routes and functional coverage:** inventory every application HTML screen, count visible buttons, detect duplicate DOM IDs and unreferenced interactive fields, verify tab-to-panel routing, renderer-to-preload method ownership, and every static preload IPC invocation against a unique main-process handler. Packaged lifecycle acceptance opens every feature window, checks title/readiness/preload API round-trips, and clicks every tab to verify its panel route. Detect duplicated character-authoring UI across Character Settings, general Settings and Performance.
 - **Product preflight:** package/version identity, GLB structure/active scene, source syntax, persistence verification, character rig/pose/motion/face/accessory contracts, voice/STT wiring and cancellation/timeouts.
 - **Architecture/foundation:** canonical owners, lazy lifecycle boundaries, renderer security, permission policy, tool/credential safety and workflow wiring.
 - **Character/animation:** rig mapping, partial-rig support, motion registration/safety, GLB byte handling/candidate validation, diagnostics and render scheduling.

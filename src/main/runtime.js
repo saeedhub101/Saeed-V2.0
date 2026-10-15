@@ -136,7 +136,7 @@ app.whenReady().then(async () => {
     void require("./ci/packaged-acceptance").runLifecycle({
       app, BrowserWindow, getState, setWindow, characterApi, characterHost,
       showPerformance, showSettings, showLearning, showAddons, showStatus, show3DStatus,
-      showCharacterSettings: composition.showCharacterSettings,
+      showCharacterSettings: composition.showCharacterSettings, showUpdateStatus: composition.showUpdateStatus,
       ensureChatHost, ensureBrain, ensureBrainHost, getAgent: () => agent,
       setMicMode, getCurrentMicMode, ensureVoiceHost, diagnostic, stopCpuMonitoring
     });
