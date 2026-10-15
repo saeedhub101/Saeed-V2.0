@@ -72,9 +72,9 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
    target.show();
    target.focus();
    diagnostic("INFO","3D WINDOW","Character window shown; readiness continues asynchronously",{domain:"3D"});
-   void waitForCharacterReady(target,30000,{requireRig:true}).then(readiness=>{
-    if(readiness?.ready)diagnostic("INFO","3D WINDOW READY","Character renderer reached Skeleton→Rig READY state",{domain:"3D",readiness});
-    else diagnostic("ERROR","3D WINDOW READY","Character renderer did not reach Skeleton→Rig READY state",{domain:"3D",readiness});
+   void waitForCharacterReady(target,30000,{requireRig:false,allowNoBones:true}).then(readiness=>{
+    if(readiness?.ready)diagnostic("INFO","3D WINDOW READY","Character renderer loaded; mesh visibility is independent of optional rig availability",{domain:"3D",readiness});
+    else diagnostic("ERROR","3D WINDOW READY","Character renderer did not reach the loaded-mesh state",{domain:"3D",readiness});
    }).catch(error=>diagnostic("ERROR","3D WINDOW READY",error?.stack||error?.message||String(error),{domain:"3D"}));
    return true;
   }catch(e){diagnostic("ERROR","3D WINDOW",e?.stack||e?.message||String(e),{domain:"3D"});return false}
