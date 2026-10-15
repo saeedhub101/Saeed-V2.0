@@ -12,15 +12,15 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","PERFORMANCE WINDOW",e.message)}
  }
- async function showRestPoseEditor(){
+ async function showCharacterSettings(){
   try{
-   let win=getWindow("restPoseEditorWin");
+   let win=getWindow("characterSettingsWin");
    if(win&&!win.isDestroyed()){win.show();win.focus();return}
   win=new BrowserWindow({width:1320,height:840,minWidth:1000,minHeight:640,title:"Character Setting",show:false,resizable:true,skipTaskbar:false,autoHideMenuBar:true,backgroundColor:"#14171c",icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:true}});
    win.setIcon(iconPath());
    win.removeMenu();
-   win.on("closed",()=>{setWindow("restPoseEditorWin",null)});
-   setWindow("restPoseEditorWin",win);
+   win.on("closed",()=>{setWindow("characterSettingsWin",null)});
+   setWindow("characterSettingsWin",win);
   if(!await loadFileBounded(win,path.join(rootPath,"character-studio.html")))return;
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","CHARACTER SETTING",e.message)}
@@ -57,6 +57,6 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
    win.show();win.focus();
   }catch(e){diagnostic("ERROR","ADDONS WINDOW",e.message)}
  }
- return {showPerformance,showSettings,showLearning,showAddons,showRestPoseEditor};
+ return {showPerformance,showSettings,showLearning,showAddons,showCharacterSettings};
 }
 module.exports={createWindowManager};
