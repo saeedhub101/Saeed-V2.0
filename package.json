@@ -12,7 +12,9 @@
   "dependencies": {
     "three": "0.180.0",
     "ws": "8.18.3",
-    "electron-updater": "6.8.10"
+    "electron-updater": "6.8.10",
+    "lodash.isequal": "file:vendor/lodash-isequal-compat",
+    "boolean": "file:vendor/boolean-compat"
   },
   "devDependencies": {
     "electron-builder": "26.17.0",
@@ -63,7 +65,7 @@
   "overrides": {
     "glob": "^11.1.0",
     "rimraf": "^6.0.1",
-    "lodash.isequal": "file:../../vendor/lodash-isequal-compat",
-    "boolean": "file:../../vendor/boolean-compat"
+    "lodash.isequal": "$lodash.isequal",
+    "boolean": "$boolean"
   }
 }
