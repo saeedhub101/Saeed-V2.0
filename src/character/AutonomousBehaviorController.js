@@ -52,6 +52,7 @@ export class AutonomousBehaviorController{
   this.lastEnergyAt=performance.now();
   this.sleepStartedAt=0;
   this.lastInteraction=performance.now();
+  this.lastToolOutcome=null;
   this.sleeping=false;
   this.recent=[];
   this.lastMotionAt=0;
@@ -518,24 +519,44 @@ export class AutonomousBehaviorController{
    return true;
   }
   if(type==="tool_result"||type==="tool-success"||type==="task-complete"){
+   // A result event is the source of truth: select a gesture that reflects the completed tool,
+   // without reading or exposing the tool's potentially sensitive result payload.
+   if(event?.success===false||event?.resultMeta?.ok===false)return this.handleEvent({...event,type:"tool_error",success:false});
    this.clearSleepTimer();
    this.clearCycleTimers();
+   this.interruptLowPriorityMotions();
+   const toolName=String(event?.name||"").toLowerCase();
+   const isInspection=/search|read|inspect|list|fetch|query|find|scan|status|diagnos|extract|calculate|look_up|lookup/.test(toolName);
+   const isCreation=/write|save|create|update|install|send|publish|move|copy|delete|remove|approve|complete|export|import|schedule|set_/.test(toolName);
+   const isCommunication=/email|message|notify|reply|chat/.test(toolName);
    this.intent="reacting";
+   this.lastToolOutcome={name:String(event?.name||""),success:true,at:Date.now(),status:String(event?.status||"success")};
    this.onMoodChanged("pleased",true);
-   this.setExpression("happy",.65);
-   const motion=this.chooseContextMotion("success")||"nod";
-   this.playMotion(motion,{duration:motion==="dance"?1.6:.75,priority:40});
-   this.scheduleReactionFinish(motion==="dance"?2000:1300);
+   this.setExpression("happy",isCommunication?.72:.62);
+   let motion;
+   if(isInspection)motion=this.chooseWeighted(["lookCloser","nod","think"],{lookCloser:1.45,nod:1.2,think:.65});
+   else if(isCommunication)motion=this.chooseWeighted(["nod","wave","clap"],{nod:1.3,wave:1.15,clap:.65});
+   else if(isCreation)motion=this.chooseContextMotion("success");
+   else motion=this.chooseWeighted(["nod","wave","clap"],{nod:1.25,wave:1,clap:.65});
+   motion=motion||"nod";
+   const duration=motion==="dance"?1.35:motion==="lookCloser"?1.1:.72;
+   this.playMotion(motion,{duration,priority:38});
+   this.scheduleReactionFinish(duration*1000+250);
    return true;
   }
   if(type==="tool_error"||type==="tool-failure"){
    this.clearSleepTimer();
    this.clearCycleTimers();
+   this.interruptLowPriorityMotions();
+   const toolName=String(event?.name||"").toLowerCase();
+   const isCommunication=/email|message|notify|reply|send/.test(toolName);
    this.intent="reacting";
-   this.onMoodChanged("thoughtful",true);
-   this.setExpression("sad",.55);
-   this.playMotion("shake",{duration:.7,priority:40});
-   this.scheduleReactionFinish(1200);
+   this.lastToolOutcome={name:String(event?.name||""),success:false,at:Date.now(),error:String(event?.error||"Tool failed").slice(0,180)};
+   this.onMoodChanged(isCommunication?"thoughtful":"puzzled",true);
+   this.setExpression(isCommunication?"sad":"confused",.62);
+   const motion=this.chooseContextMotion("failure")||(isCommunication?"think":"shake")||"think";
+   this.playMotion(motion,{duration:.8,priority:42});
+   this.scheduleReactionFinish(1250);
    return true;
   }
   if(type==="double-click"||type==="right-click"||type==="summon"){
@@ -585,7 +606,7 @@ export class AutonomousBehaviorController{
  update(dt=.016){this.breathTime+=Math.max(0,Number(dt)||0);if(this.running&&!this.paused&&this.settings.breathing!==false&&!this.sleeping&&this.visible){const a=Math.sin(this.breathTime*1.7)*0.018;this.character.engine?.setRestRelativeBoneRotation?.("chest",{x:a});this.character.engine?.setRestRelativeBoneRotation?.("spine",{x:a*.65});}}
  getStatus(){
   this.decayEnergy();
-  return {running:this.running,paused:this.paused,visible:this.visible,windowFocused:this.windowFocused,userBusy:this.userBusy,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,interactionCooldowns:Object.fromEntries(this.interactionCooldowns),eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
+  return {running:this.running,paused:this.paused,visible:this.visible,windowFocused:this.windowFocused,userBusy:this.userBusy,intent:this.intent,mood:this.mood,energy:Math.round(this.energy),timeOfDay:(()=>{const h=new Date().getHours();return h>=5&&h<12?"morning":h>=12&&h<17?"afternoon":h>=17&&h<22?"evening":"night"})(),sleeping:this.sleeping,recent:[...this.recent],lastInteraction:this.lastInteraction,lastEvent:this.lastEvent,lastUserText:this.lastUserText,interactionCooldowns:Object.fromEntries(this.interactionCooldowns),eventCounts:Object.fromEntries(this.eventCounts),lastMotionId:this.lastMotionId,lastMotionReason:this.lastMotionReason,lastToolOutcome:this.lastToolOutcome,activeTimers:{idle:Boolean(this.timer),sleep:Boolean(this.sleepTimer),blink:Boolean(this.blinkTimer),reaction:Boolean(this.reactionTimer),speaking:Boolean(this.speakingTimer),thinking:Boolean(this.thinkingTimer)},speakingCycle:Boolean(this.speakingTimer),thinkingCycle:Boolean(this.thinkingTimer)};
  }
  destroy(){this.stop();this.character=null}
 }
