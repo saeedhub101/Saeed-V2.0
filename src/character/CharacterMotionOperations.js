@@ -131,7 +131,7 @@ export class CharacterMotionOperations {
   const names=this.engine?.getAvailableBoneNames?.()||[];
   if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const profile=this.characterId?(this.profiles.load(this.characterId)||{}):{},previous=profile.accessories&&typeof profile.accessories==="object"?profile.accessories:{};
-  const prior=previous[id]||{},nextState=enabled!==false?{...prior,...state,on:true,bone:String(state.bone||prior.bone||def.bone||"head"),scale:Math.max(.05,Math.min(10,Number(state.scale??prior.scale??def.scale??1)||1))}:{...prior,on:false};
+  const prior=previous[id]||{},nextState=enabled!==false?{...prior,...state,definition:def,on:true,bone:String(state.bone||prior.bone||def.bone||"head"),scale:Math.max(.05,Math.min(10,Number(state.scale??prior.scale??def.scale??1)||1))}:{...prior,on:false};
   const loadFile=async item=>{const api=window.saeed?.addons;if(!api?.addonFile)throw new Error("Add-on accessory file service is unavailable");return api.addonFile(item.addon,item.file)};
   const result=await this.engine?.setAccessory?.({...def,bone:nextState.bone||def.bone},enabled!==false,loadFile,nextState);
   if(!result?.ok)return result||{ok:false,error:"Character engine rejected the accessory"};
@@ -147,7 +147,7 @@ export class CharacterMotionOperations {
   const api=window.saeed?.addons;if(!api?.accessoriesList||!api?.addonFile)return false;
   if(this.accessoryRestorePromise)return this.accessoryRestorePromise;
   this.accessoryRestorePromise=(async()=>{const defs=await api.accessoriesList(),loadFile=async item=>api.addonFile(item.addon,item.file);let failures=0;
-   for(const def of defs){const state=states[def.id];if(!state?.on)continue;const result=await this.engine?.setAccessory?.({...def,bone:state.bone||def.bone},true,loadFile,state);if(!result?.ok){failures++;try{window.saeed?.system?.reportDiagnostic?.("WARN","ACCESSORY RESTORE",result?.error||("Could not restore "+def.id),{id:def.id,profileId})}catch{}}}
+   const definitions=new Map(defs.map(def=>[String(def.id),def]));for(const [id,state] of Object.entries(states)){if(!state?.on)continue;const def=state.definition||definitions.get(id);if(!def)continue;const result=await this.engine?.setAccessory?.({...def,bone:state.bone||def.bone},true,loadFile,state);if(!result?.ok){failures++;try{window.saeed?.system?.reportDiagnostic?.("WARN","ACCESSORY RESTORE",result?.error||("Could not restore "+id),{id,profileId})}catch{}}}
    this.accessoryRestoreProfileId=profileId;return failures===0
   })();
   try{return await this.accessoryRestorePromise}catch(error){try{window.saeed?.system?.reportDiagnostic?.("ERROR","ACCESSORY RESTORE",error?.stack||error?.message||String(error),{profileId})}catch{}return false}finally{this.accessoryRestorePromise=null}
