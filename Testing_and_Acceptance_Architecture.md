@@ -177,4 +177,4 @@ A fix without a regression test is incomplete when the failure can recur automat
 
 ## Verification status
 
-This document defines the architecture contract; it does not certify runtime success. See Testing_and_Acceptance_Architecture.md for evidence requirements. Feature completion must be described separately from unit/static checks and packaged Windows runtime acceptance.
+This document defines the acceptance contract; it does not certify runtime success. Feature completion must be described separately from unit/static checks and packaged Windows runtime acceptance.
