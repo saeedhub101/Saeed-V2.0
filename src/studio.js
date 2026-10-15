@@ -119,18 +119,19 @@ async function reloadModel() {
     await ch.load(toAB(buf), cfg);
     ch.showSkeleton($('chkSkel').checked);
     applyAcc();
+    applyBoneEdits();
     $('status').textContent = ch.allBones.length ? `${ch.allBones.length} bones` : 'No skeleton in this model';
   } catch (e) { console.error(e); ch.unload(); $('status').textContent = 'This file could not be read'; }
   setTab(tab);
 }
 
 /* ============ tabs ============ */
-const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test']];
+const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test'], ['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
 function setTab(t) {
   tab = t;
   for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === t);
   ch.mode = t === 'fix' || t === 'create' ? 'preview' : t === 'test' || t === 'face' ? 'engine' : 'rest';
-  if (ch.mode === 'rest') ch.applyRestPose();
+  if (ch.mode === 'rest') { ch.applyRestPose(); applyBoneEdits(); }
   if (ch.mode === 'engine') ch.actions = [];
   markTarget = null;
   renderPanel();
@@ -464,8 +465,10 @@ function panelCreate() {
 /* ============ Accessories tab ============ */
 let accList = await api.accessoriesList();
 const loadAccFile = async (d) => toAB(await api.addonFile(d.addon, d.file));
-const applyAcc = () => ch.setAccessories(accList, cfg.accessories, loadAccFile);
-api.onAddonsChanged(async () => { accList = await api.accessoriesList(); applyAcc(); if (tab === 'acc') renderPanel(); });
+let customAccList = [];
+const allAccList = () => [...accList, ...(cfg.customAccessories || [])];
+const applyAcc = () => ch.setAccessories(allAccList(), cfg.accessories, loadAccFile);
+api.onAddonsChanged(async () => { accList = await api.accessoriesList(); applyAcc(); if (tab === 'acc' || tab === 'primitiveAcc') renderPanel(); });
 
 function panelAcc() {
   cfg.accessories ||= {}; cfg.hiddenMeshes ||= [];
@@ -739,8 +742,156 @@ function panelRig() {
     h('div', { class: 'btns' }, h('button', { class: 'primary btn', onclick: buildRigNow }, 'Build skeleton')));
 }
 
+
+/* ============ Restored Character Studio tools ============ */
+let boneEditSelection = '';
+function applyBoneEdits() {
+  if (!ch.model || !cfg.boneEdits) return;
+  const byName = new Map(ch.allBones.map((b) => [b.name, b]));
+  for (const [name, edit] of Object.entries(cfg.boneEdits)) {
+    const b = byName.get(name);
+    if (!b) continue;
+    const baseP = ch.bindP.get(b), baseQ = ch.bindQ.get(b);
+    if (baseP) b.position.copy(baseP).add(new THREE.Vector3(...(edit.position || [0, 0, 0])));
+    if (baseQ) {
+      const r = edit.rotation || [0, 0, 0];
+      b.quaternion.copy(baseQ).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(r[0] * Math.PI / 180, r[1] * Math.PI / 180, r[2] * Math.PI / 180, 'XYZ')));
+    }
+  }
+  ch.model.updateMatrixWorld(true);
+}
+function panelBoneTransform() {
+  if (!ch.allBones.length) return notice('Load a character with bones first. Mesh-only characters remain visible; use Rig Builder to add a rig.');
+  const names = ch.allBones.map((b) => b.name);
+  if (!names.includes(boneEditSelection)) boneEditSelection = names[0];
+  const selected = ch.allBones.find((b) => b.name === boneEditSelection);
+  const state = (cfg.boneEdits ||= {})[boneEditSelection] || { position: [0,0,0], rotation: [0,0,0] };
+  const pos = [...(state.position || [0,0,0])], rot = [...(state.rotation || [0,0,0])];
+  const fields = (label, values, min, max, step, kind) => h('div', {}, h('h3', {}, label),
+    ...['X','Y','Z'].map((axis,i)=>h('div',{class:'row'},h('span',{class:'lbl'},axis),
+      h('input',{type:'number',min,max,step,value:values[i],onchange:e=>{
+        values[i]=+e.target.value;
+        cfg.boneEdits[boneEditSelection] = {position:[...pos],rotation:[...rot]};
+        save({boneEdits:cfg.boneEdits}); applyBoneEdits();
+      }}))));
+  const select = h('select',{class:'grow',value:boneEditSelection,onchange:e=>{boneEditSelection=e.target.value;renderPanel();}},
+    names.map(n=>h('option',{value:n},n)));
+  return h('div',{},h('h3',{},'Direct bone transform'),
+    h('p',{class:'muted'},'Adjust the selected real GLB bone relative to its imported bind pose. Values are saved in the Character Setting profile. This is a local editor preview and does not overwrite the original GLB until you export it.'),
+    h('div',{class:'row'},h('span',{class:'lbl'},'Bone'),select),
+    h('p',{class:'muted'},'Parent: '+(selected?.parent?.name||'—')),
+    fields('Local position offset (model units)',pos,-10,10,0.01,'position'),
+    fields('Local rotation offset (degrees)',rot,-180,180,1,'rotation'),
+    h('div',{class:'btns'},
+      h('button',{class:'primary btn',onclick:()=>{cfg.boneEdits[boneEditSelection]={position:[...pos],rotation:[...rot]};save({boneEdits:cfg.boneEdits});applyBoneEdits();flash('Bone transform saved.');}},'Apply & Save'),
+      h('button',{onclick:()=>{delete cfg.boneEdits[boneEditSelection];save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset selected bone'),
+      h('button',{onclick:()=>{cfg.boneEdits={};save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset all edits')));
+}
+function panelFaceHands() {
+  const fingerNames = ch.allBones.filter(b=>/(thumb|index|middle|ring|pinky|little).*(proximal|intermediate|distal|1|2|3)|(^|[_ .])(thumb|index|middle|ring|pinky|little)/i.test(b.name)).map(b=>b.name);
+  const side = h('select',{class:'grow'},['left','right'].map(s=>h('option',{value:s},s==='left'?'Left hand':'Right hand')));
+  const curl = h('input',{type:'range',min:0,max:1,step:0.05,value:cfg.handCurl?.value||0});
+  const expression = h('select',{class:'grow'},['neutral','happy','sad','angry','surprised','thinking','worried','laugh','wink','kiss','tongueOut'].map(n=>h('option',{value:n},n)));
+  const strength = h('input',{type:'range',min:0,max:1,step:0.05,value:0.7});
+  const status = h('div',{class:'notice'},fingerNames.length?fingerNames.length+' finger bones detected.':'No finger bones matched by name; expression and gaze tools remain available.');
+  const applyCurl = () => {
+    const s=side.value, v=+curl.value;
+    const patterns=[/thumb/i,/index/i,/middle/i,/ring/i,/pinky|little/i];
+    const relevant=ch.allBones.filter(b=>new RegExp(s,'i').test(b.name)&&patterns.some(p=>p.test(b.name)));
+    for(const b of relevant){
+      const base=ch.bindQ.get(b); if(!base) continue;
+      const joint=/distal|tip|3/i.test(b.name)?0.45:/intermediate|2/i.test(b.name)?0.65:1;
+      const axis=/thumb/i.test(b.name)?1:0;
+      const e=new THREE.Euler(axis===1?0:v*1.15*joint,axis===1?v*0.65*joint:0,axis===1?0:v*0.15*joint,'XYZ');
+      b.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(e));
+    }
+    ch.model?.updateMatrixWorld(true);
+  };
+  return h('div',{},h('h3',{},'Quick facial expressions'),
+    h('p',{class:'muted'},'Apply and test expressions, blinking, and gaze on the live preview. Actual results depend on the GLB’s available morph targets and face rig.'),
+    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{if(expression.value==='neutral')ch.face.clear?.();else ch.face.expression(expression.value,+strength.value,2.5);flash('Expression applied to preview.');}},'Apply expression')),
+    h('div',{class:'btns'},h('button',{onclick:()=>{ch.face.blinkT=0.17;}},'Blink'),h('button',{onclick:()=>ch.face.lookAt(0,0,1.2)},'Look forward'),h('button',{onclick:()=>ch.face.lookAt(0,1,1.2)},'Look up'),h('button',{onclick:()=>ch.face.lookAt(1,0,1.2)},'Look left'),h('button',{onclick:()=>ch.face.lookAt(-1,0,1.2)},'Look right')),
+    h('h3',{},'Finger curl'),
+    h('p',{class:'muted'},'Select a hand and curl detected finger bones. Finger naming differs between GLB rigs; unmatched bones are left unchanged.'),
+    h('div',{class:'row'},side,curl,h('button',{class:'primary btn',onclick:()=>{applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});}},'Apply curl'),h('button',{onclick:()=>{curl.value=0;applyCurl();}},'Relax hand')),
+    status,
+    h('h3',{},'Shape keys and visemes'),
+    h('p',{class:'muted'},'The existing Face tab retains the full shape-key mapping, viseme mapping, custom expressions, lip-sync, and GLB facial animation controls. Use it for detailed face authoring.'),
+    h('button',{class:'btn',onclick:()=>setTab('face')},'Open full Face editor'));
+}
+function normalizeImportedClip(raw, fallbackName) {
+  if (!raw || typeof raw!=='object') throw new Error('Clip must be an object');
+  const name=String(raw.name||raw.id||fallbackName||'imported_motion').replace(/[^A-Za-z0-9_]/g,'_').slice(0,31);
+  const duration=Math.max(0.2,Number(raw.duration||raw.length||2));
+  if (Array.isArray(raw.tracks) && raw.tracks.length && raw.tracks.some(t=>Array.isArray(t.keys))) {
+    const tracks=raw.tracks.map(t=>({bone:String(t.bone||t.name||''),keys:(t.keys||[]).map(k=>({t:Math.max(0,Number(k.t??k.time??0)),r:(k.r||k.rotation||[0,0,0]).map(Number),...(k.p||k.position?{p:(k.p||k.position).map(Number)}:{})})).filter(k=>k.r.length===3&&k.r.every(Number.isFinite)).sort((a,b)=>a.t-b.t)})).filter(t=>t.bone&&t.keys.length);
+    if(!tracks.length) throw new Error('No usable tracks found in clip');
+    return {name,duration,loop:!!raw.loop,tracks};
+  }
+  const sourceTracks=raw.tracks||raw.bones||{};
+  const entries=Array.isArray(sourceTracks)?sourceTracks:Object.entries(sourceTracks).map(([bone,keys])=>({bone,keys}));
+  const tracks=entries.map(t=>({bone:String(t.bone||t.name||''),keys:(t.keys||[]).map(k=>({t:Math.max(0,Number(k.t??k.time??0)),r:(k.r||k.rotation||[0,0,0]).map(v=>Number(v)*((raw.format==='avatar-agent'||raw.format==='avatarAgent')?180/Math.PI:1)),...(k.p||k.position?{p:(k.p||k.position).map(Number)}:{})})).filter(k=>k.r.length===3&&k.r.every(Number.isFinite)).sort((a,b)=>a.t-b.t)})).filter(t=>t.bone&&t.keys.length);
+  if(!tracks.length) throw new Error('No compatible bone tracks found');
+  return {name,duration,loop:!!raw.loop,tracks};
+}
+function panelMotionExchange() {
+  const textArea=h('textarea',{class:'grow',rows:12,placeholder:'Paste one Avatar-Agent clip, an array of 9 clips, or a {clips:[...]} pack JSON…'});
+  const selected=h('select',{class:'grow'},Object.keys(ch.clips).map(n=>h('option',{value:n},n)));
+  const status=h('div',{class:'notice'},'Import/export accepts clip JSON. Imported clips are saved in this character profile and become available in Create Motion and Test.');
+  const exportSelected=()=>{const c=ch.clips[selected.value];if(!c)return flash('Select a motion first.');textArea.value=JSON.stringify({format:'avatar-agent',name:c.name||selected.value,duration:c.duration,loop:c.loop,tracks:c.tracks.map(t=>({bone:t.bone,keys:t.keys.map(k=>({t:k.t,r:k.r.map(v=>v*Math.PI/180),...(k.p?{p:k.p}:{})}))}))},null,2);};
+  const importClips=(requireNine=false)=>{
+    try{
+      const data=JSON.parse(textArea.value);
+      const list=Array.isArray(data)?data:(Array.isArray(data.clips)?data.clips:(data.clip?[data.clip]:[data]));
+      if(requireNine&&list.length!==9)throw new Error('The motion pack must contain exactly 9 clips.');
+      const used=new Set(Object.keys(ch.clips));
+      let count=0;
+      for(let i=0;i<list.length;i++){
+        const c=normalizeImportedClip(list[i], 'imported_motion_'+(i+1));
+        let name=c.name,n=2;while(used.has(name)){name=(c.name.slice(0,26)+'_'+n++).slice(0,31)}
+        c.name=name;used.add(name);cfg.clips[name]=c;ch.clips[name]=c;count++;
+      }
+      commitClips();selected.replaceChildren(...Object.keys(ch.clips).map(n=>h('option',{value:n},n)));selected.value=Object.keys(ch.clips).slice(-count)[0];
+      status.textContent='Imported '+count+' motion(s).';flash(status.textContent);renderPanel();
+    }catch(e){status.textContent='Import failed: '+e.message;flash(status.textContent);}
+  };
+  return h('div',{},h('h3',{},'Motion interchange'),
+    h('p',{class:'muted'},'Import and export multi-bone motion clips, including Avatar-Agent track JSON. Rotations in Avatar-Agent JSON are radians; the editor stores degrees.'),
+    h('div',{class:'row'},selected,h('button',{class:'btn',onclick:exportSelected},'Export selected to JSON')),
+    textArea,
+    h('div',{class:'btns'},h('button',{class:'primary btn',onclick:()=>importClips(false)},'Import clip / pack'),h('button',{onclick:()=>importClips(true)},'Import 9-motion pack')),
+    status);
+}
+function panelPrimitiveAccessories() {
+  cfg.customAccessories ||= []; cfg.accessories ||= {};
+  const name=h('input',{class:'grow',value:'My Accessory',maxlength:64});
+  const bone=h('select',{class:'grow'},[['head','Head'],['neck','Neck'],['hips','Hips'],['leftHand','Left hand'],['rightHand','Right hand'],['leftUpperArm','Left upper arm'],['rightUpperArm','Right upper arm']].map(([v,l])=>h('option',{value:v},l)));
+  const shape=h('select',{class:'grow'},['box','sphere','cylinder','cone','torus','plane'].map(v=>h('option',{value:v},v)));
+  const color=h('input',{type:'color',value:'#8fb4ff'});
+  const size=h('input',{type:'number',min:0.01,max:2,step:0.01,value:0.12});
+  const offset=[0,0.1,0].map(v=>h('input',{type:'number',step:0.01,value:v}));
+  const customList=h('div',{});
+  const draw=()=>customList.replaceChildren(...cfg.customAccessories.map(d=>h('div',{class:'box'},
+    h('div',{class:'row'},h('strong',{class:'grow'},d.name),h('label',{class:'chk'},h('input',{type:'checkbox',checked:!!cfg.accessories[d.id]?.on,onchange:e=>{cfg.accessories[d.id]={...(cfg.accessories[d.id]||{}),on:e.target.checked};save({accessories:cfg.accessories});applyAcc();}}),'Enabled')),
+    h('div',{class:'btns'},h('button',{onclick:()=>{delete cfg.accessories[d.id];cfg.customAccessories=cfg.customAccessories.filter(x=>x.id!==d.id);save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();}},'Delete accessory')))));
+  return h('div',{},h('h3',{},'Create a primitive accessory'),
+    h('p',{class:'muted'},'Create a box, sphere, cylinder, cone, ring or plane and attach it to a logical character bone. Accessories are stored in the Character Setting profile.'),
+    h('div',{class:'row'},h('span',{class:'lbl'},'Name'),name),
+    h('div',{class:'row'},h('span',{class:'lbl'},'Attach to'),bone),
+    h('div',{class:'row'},h('span',{class:'lbl'},'Shape'),shape,h('span',{class:'lbl'},'Color'),color,h('span',{class:'lbl'},'Size'),size),
+    h('div',{class:'row'},h('span',{class:'lbl'},'Offset X'),offset[0],h('span',{class:'lbl'},'Y'),offset[1],h('span',{class:'lbl'},'Z'),offset[2]),
+    h('div',{class:'btns'},h('button',{class:'primary btn',onclick:()=>{
+      const id='custom_'+Date.now().toString(36),n=name.value.trim()||'Accessory',s=Math.max(0.01,Math.min(2,+size.value||0.12));
+      const dims=shape.value==='sphere'?[s]:shape.value==='torus'?[s,s*0.18]:shape.value==='plane'?[s*2,s*2]:shape.value==='cone'||shape.value==='cylinder'?[s,s*2]:[s,s,s];
+      const d={id,name:n,bone:bone.value,parts:[{shape:shape.value,color:color.value,size:dims,position:[0,0,0]}],offset:offset.map(x=>+x.value||0),rotation:[0,0,0],scale:1};
+      cfg.customAccessories.push(d);cfg.accessories[id]={on:true,offset:d.offset,rot:[0,0,0],scale:1};save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();flash('Accessory created.');
+    }},'Create and attach')),
+    h('h3',{},'Saved custom accessories'),customList,
+    h('button',{class:'btn',onclick:()=>setTab('acc')},'Open installed accessories and mesh visibility'));
+}
+
 /* ============ boot ============ */
-const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest };
+const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest, boneEdit: panelBoneTransform, faceHands: panelFaceHands, motionExchange: panelMotionExchange, primitiveAcc: panelPrimitiveAccessories };
 
 $('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));
 window.addEventListener('saeed-studio-model-refresh', () => reloadModel().catch(e => flash(e.message || String(e))));
@@ -764,6 +915,8 @@ let last = performance.now();
   if (document.hidden) return;                      // minimised: draw nothing
   if (tab === 'fix') tickMotion(fx, true, dt); else if (tab === 'create') tickMotion(cr, false, dt);
   ch.update(dt);
+  if (tab === 'boneEdit') applyBoneEdits();
+  if (tab === 'faceHands' && cfg.handCurl?.value > 0 && ch.model) { /* keep direct finger pose stable in the preview */ }
   if (markTarget) { markTarget.getWorldPosition(marker.position); marker.visible = true; } else marker.visible = false;
   controls.update();
   renderer.render(scene, camera);
