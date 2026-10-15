@@ -892,7 +892,7 @@ window.saeedCharacterRuntime.engine={
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,suspendRender,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,getDeformationSnapshot,getMorphSnapshot,setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
- getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),getMeshVisibilitySnapshot,setMeshVisibility,
+ getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),getMeshVisibilitySnapshot,setMeshVisibility,setAccessory,getAccessoriesSnapshot,
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,resize,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
