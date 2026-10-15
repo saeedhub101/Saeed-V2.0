@@ -40,3 +40,12 @@ These guides explain feature workflows; they do not override the architecture co
 - Keep runtime ownership aligned with the code. Startup should not eagerly activate Chat, Brain, STT, tools or optional add-ons.
 - Keep the application cohesive: split modules only where ownership or lifecycle becomes clearer, not for file-count reduction alone.
 - Product changes target main. Do not add Rust/Cargo checks to this JavaScript/Node.js/Electron application.
+
+## Canonical naming and ownership rules
+
+- Electron composition: `src/main.js` -> `src/main/runtime.js`; renderer access crosses `src/preload.js`.
+- Character runtime namespace: `window.saeedCharacterRuntime`; one `CharacterController`, one owned `AutonomousBehaviorController`, one `CharacterEngine`, and one playback authority.
+- Never introduce duplicate global aliases such as `window.saeedAvatar`, `window.saeedCharacterController`, `window.saeedAvatarLoadData`, or independent global references to character subsystems.
+- Character UI sends semantic commands; it does not directly manipulate GLB bones. The Engine owns technical 3D resources, not behavior decisions.
+- Keep canonical ownership aligned with actual imports and runtime wiring; migrate/remove legacy aliases only after checking references.
+
