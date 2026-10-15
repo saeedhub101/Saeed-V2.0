@@ -1,48 +1,21 @@
-# Saeed V2.0
+# Saeed AI
 
-Saeed is a Windows desktop AI companion built around a persistent 3D character. Chat and microphone are optional interaction surfaces that share one Brain, conversation history, routing and tool execution path.
+Saeed is a Windows desktop AI companion with a persistent 3D character, optional chat and microphone, a shared Brain/conversation, tools, learning and add-ons.
 
-This file is the concise project entry point. **Domain contracts define architecture; source code defines implementation; packaged runtime evidence defines release readiness.**
+## Current product map
 
-## Product baseline
+- **Application shell:** `src/main.js`, `src/main/runtime.js`; window/tray composition in `src/main/application/`.
+- **Renderer security boundary:** `src/preload.js`; renderer code does not access privileged Electron APIs directly.
+- **Character Settings:** the window titled **Character Setting** is loaded from `src/character-studio.html` by `src/main/application/window-manager.js`. This is the single authoring surface for GLB selection, rig/bones, rest pose, motion/keyframes, face/visemes, mesh visibility and accessories.
+- **3D runtime:** `src/character/CharacterEngine.js` owns Three.js/GLB/rendering; `CharacterController.js` owns semantic behavior and motion coordination.
+- **Voice/conversation:** `src/main/voice/`, `src/renderer/voice/`, `src/main/brain/`, `src/main/conversation/`.
+- **Learning and add-ons:** `src/learning/`, `src/addons/`.
+- **Verification:** `npm test` runs `scripts/run-all-tests.js`; packaged acceptance lives in `src/main/ci/` and the Windows workflow.
 
-- Startup initializes the application shell/tray and the visible 3D character. Microphone capture, STT, Chat, Brain, tool workers and add-ons are loaded only when needed.
-- Chat and Mic share the same Brain and conversation. Mic defaults OFF. Mute disables audible TTS without silently disabling listening or tools.
-- The Character is orchestrated through one CharacterController and its owned behavior controller. AnimationController handles playback; CharacterEngine owns Three.js, rendering, camera, GLB and low-level 3D execution.
-- GLB animation clips can be mapped to semantic user intents through Character settings. The controller selects a mapped clip when configured and otherwise retains the procedural behavior path.
-- Hide/Show, Chat/Mic, mute and animation pause have distinct resource-lifecycle semantics. Follow the lifecycle contract rather than adding independent background services.
-- Runtime and user settings belong in Electron userData, not bundled source assets.
-- Prefer cohesive modules and explicit ownership. Do not split code into tiny files without a concrete maintenance benefit, or recreate duplicate controllers, registries, Brain routers or voice lifecycles.
+## Product invariants
 
-## Runtime map
+Startup should create only the tray/application shell and character display. Chat, Brain, STT, TTS and optional features activate lazily. Mic defaults OFF. Chat and Mic use the same conversation. Muting stops audible output without silently switching off listening. Hiding Saeed stops character/voice resources while keeping the tray available. Keep one authoritative owner for each feature and avoid tiny files without a concrete maintenance benefit.
 
-| Responsibility | Primary location |
-|---|---|
-| Electron entry and composition | src/main.js, src/main/runtime.js |
-| Windows, tray and shell controls | src/main/application/ |
-| Safe renderer bridge | src/preload.js |
-| 3D model, scene and renderer | src/character/CharacterEngine.js |
-| Character intent and orchestration | src/character/CharacterController.js |
-| Animation playback and retargeting | src/character/AnimationController.js, src/character/CharacterRetargeter.js |
-| Character settings and authoring | src/character-studio.html |
-| Voice renderer/host | src/renderer/voice/, src/main/voice/ |
-| Learning / Teach Mode | src/learning/ |
-| Add-ons | src/addons/ |
-| Packaged acceptance and diagnostics | src/main/ci-e2e.js, src/main/ci/, .github/workflows/build-windows-electron.yml |
+## Development
 
-## Documentation map
-
-- [Architecture index](Architecture_Index.md) — source of truth for document ownership and precedence.
-- [Character architecture](Character_Architecture.md) — intent, mood, behavior, rigging, motion and GLB integration.
-- [Animation flow guide](docs/تعليمات%20ربط%20الانيميشن.md) — Arabic implementation trace from semantic command to GLB bones.
-- [Lifecycle architecture](Lifecycle_Architecture.md) — startup, lazy activation, shutdown and resource ownership.
-- [Voice and conversation](Voice_Conversation_Architecture.md) — Chat/Mic, STT/TTS, shared conversation and audio providers.
-- [Core architecture](Core_Architecture.md) — Brain, routing, tools, permissions and capabilities.
-- [Testing and acceptance](Testing_and_Acceptance_Architecture.md) — verification evidence and release gates.
-- [Product roadmap](ROADMAP.md) — current product baseline and remaining acceptance work.
-
-## Development and release truth
-
-Use the repository's npm scripts and existing Windows workflow; do not introduce Rust/Cargo checks into this Electron/Node.js project. Keep all changes on main.
-
-A source change, static assertion, successful build, or green workflow alone does not prove that the packaged application works. Release readiness requires the packaged EXE/installer to be exercised on Windows, including real user journeys, persistence, lifecycle/resource release, character behavior and actual UI actions. Record failures honestly and fix them before release. Do not claim a runtime check passed unless its evidence exists.
+Use branch `main`, install with `npm ci`, run `npm test`, and use the existing Electron Builder/Windows workflow. A green workflow or static test alone is not proof that the packaged Windows application works. See [ARCHITECTURE.md](ARCHITECTURE.md), [TESTING.md](TESTING.md), and [RELEASE.md](RELEASE.md).
