@@ -18,13 +18,14 @@ const appIpc = read("src/main/ipc/app-ipc.js");
 const preload = read("src/preload.js");
 const characterUi = read("src/character-studio.html");
 const performanceUi = read("src/performance.html");
+const settingsUi = read("src/settings.html");
 
 const routes = [
   { name: "performance", fn: "showPerformance", file: "performance.html", load: 'path.join(rootPath,"performance.html")' },
   { name: "settings", fn: "showSettings", file: "settings.html", load: 'path.join(rootPath,"settings.html")' },
   { name: "learning", fn: "showLearning", file: "learning/window.html", load: 'path.join(rootPath,"learning","window.html")' },
   { name: "add-ons", fn: "showAddons", file: "addons/window.html", load: 'path.join(rootPath,"addons","window.html")' },
-  { name: "character-settings", fn: "showRestPoseEditor", file: "character-studio.html", load: 'path.join(rootPath,"character-studio.html")' }
+  { name: "character-settings", fn: "showCharacterSettings", file: "character-studio.html", load: 'path.join(rootPath,"character-studio.html")' }
 ];
 for (const route of routes) {
   check(route.name + "-window-file-exists", exists(path.join("src", route.file)), route.file);
@@ -35,17 +36,17 @@ for (const route of routes) {
     "Window manager must export " + route.fn + " and load " + route.file);
 }
 check("character-settings-runtime-composition-route",
-  composition.includes("const showRestPoseEditor=async()=>") &&
-  composition.includes("ensureWindowManager().showRestPoseEditor()") &&
-  runtime.includes("showRestPoseEditor: composition.showRestPoseEditor"),
+  composition.includes("const showCharacterSettings=async()=>") &&
+  composition.includes("ensureWindowManager().showCharacterSettings()") &&
+  runtime.includes("showCharacterSettings: composition.showCharacterSettings"),
   "The composition must connect the Character Settings route to the implemented window manager");
 check("character-settings-tray-action-route",
-  /label:"Character Settings",click:showRestPoseEditor/.test(controls) &&
-  /showRestPoseEditor/.test(runtime),
+  /label:"Character Settings",click:showCharacterSettings/.test(controls) &&
+  /showCharacterSettings/.test(runtime),
   "The visible tray action must call the injected Character Settings route");
 check("character-settings-ipc-and-preload-pair",
-  /ipcMain\.handle\("rest-pose:show"[\s\S]*?composition\.showRestPoseEditor/.test(appIpc) &&
-  /showRestPoseEditor:\(\)=>invoke\("rest-pose:show"\)/.test(preload),
+  /ipcMain\.handle\("character-settings:show"[\s\S]*?composition\.showCharacterSettings/.test(appIpc) &&
+  /showCharacterSettings:\(\)=>invoke\("character-settings:show"\)/.test(preload),
   "The renderer API and main-process IPC handler must resolve to the same Character Settings route");
 check("character-settings-page-has-current-authoring-capabilities",
   /<title>Character Setting<\/title>/.test(characterUi) &&
@@ -59,6 +60,16 @@ check("character-settings-page-has-current-authoring-capabilities",
 check("performance-does-not-own-character-authoring-controls",
   !/id="(?:skeletonTree|keyframePx|meshVisibilityList|saveCustomExpression|createAccessory)"/.test(performanceUi),
   "Rig, pose, animation, morph and accessory editing must not be duplicated in Performance");
+check("general-settings-does-not-duplicate-character-authoring",
+  !/data-section="character"/.test(settingsUi) &&
+  !/id="chooseCharacter"/.test(settingsUi) &&
+  !/id="saveCharacter"/.test(settingsUi),
+  "Character selection and authoring must live in Character Settings, not the general Settings page");
+check("legacy-character-studio-prototype-is-removed",
+  !exists("src/studio.js") && !exists("src/studio.css") &&
+  !runtime.includes("character-studio:config:") &&
+  !preload.includes("studio:{getConfig"),
+  "The obsolete standalone studio prototype and its separate config/model-save API must not be shipped");
 check("normalize-rest-pose-window-is-not-routed",
   !manager.includes("normalizehumanoidrestpose.html") &&
   !runtime.includes("normalizeHumanoidRestPoseWin") &&

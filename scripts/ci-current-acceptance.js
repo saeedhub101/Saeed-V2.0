@@ -254,8 +254,8 @@ function main() {
     !windowManagerSource.includes("normalizehumanoidrestpose.html") &&
     exists("src/character-studio.html") && studioHtml.includes("<title>Character Setting</title>") &&
     windowManagerSource.includes('path.join(rootPath,"character-studio.html")') &&
-    read("src/main/application/system-controls.js").includes('{label:"Character Settings",click:showRestPoseEditor}') &&
-    read("src/main/runtime.js").includes("showRestPoseEditor: composition.showRestPoseEditor"),
+    read("src/main/application/system-controls.js").includes('{label:"Character Settings",click:showCharacterSettings}') &&
+    read("src/main/runtime.js").includes("showCharacterSettings: composition.showCharacterSettings"),
     { note: "The Character Settings menu must reach the current authoring page, not an obsolete Normalize Rest Pose window." });
 
   const voiceIpc = exists("src/main/ipc/voice-ipc.js") ? read("src/main/ipc/voice-ipc.js") : "";
