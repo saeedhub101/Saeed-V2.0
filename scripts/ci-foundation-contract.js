@@ -57,7 +57,7 @@ const learningSource=read("src/learning/index.js");
 const brainSource=read("src/main/brain/brain.js");
 must(learningSource.includes("isCurrent=()=>true")&&learningSource.includes("stale:true"),"Learned skill runner does not stop when the active conversation is cancelled");
 must(brainSource.includes("learning().run(this.getDir(),this.registry,learned,{isCurrent:current,onEvent:emit,variables})"),"Brain does not propagate request cancellation into learned skills");
-must(read("src/main/runtime.js").includes('ipcMain.handle("transcript-label:get"'),"Transcript label preference IPC is missing");
+must(read("src/main/ipc/app-ipc.js").includes('ipcMain.handle("transcript-label:get"'),"Transcript label preference IPC is missing from the application IPC module");
 
 
 must(exists(".github/workflows/build-windows-electron.yml"),"Windows build workflow is missing");
@@ -96,7 +96,7 @@ const permissionManagerSource=read("src/main/application/permission-manager.js")
 const settingsStoreSource=read("src/main/services/settings-store.js");
 must(registrySource.includes('require("./memory-tasks")')&&registrySource.includes('require("./addons")')&&registrySource.includes('require("./email")')&&registrySource.includes("domains.flatMap(d=>d.schemas())"),"Tool Registry does not route declared memory/email/MCP capabilities through the canonical dispatcher");
 must(!registrySource.includes('permissionPolicy=permissionPolicy||(()=> "allow")'),"Tool Registry must not default unknown permission policies to allow");
-must(registrySource.includes('new Set(["email_send","mcp_call_tool"])'),"Email sending and MCP tool calls must require explicit confirmation");
+must(read("src/tools/tool-policy.js").includes('new Set(["email_send","mcp_call_tool"])'),"Email sending and MCP tool calls must require explicit confirmation");
 must(!registrySource.includes('name:"credential_store"')&&!registrySource.includes('name:"credential_get"'),"Credential storage/retrieval must not be exposed as model-callable tools");
 must(permissionManagerSource.includes('DEFAULT_PERMISSIONS[category]||"ask"'),"Unknown permission categories must fail closed to Always ask");
 must(permissionManagerSource.includes("No live confirmation surface; operation denied"),"Permission confirmation must fail closed without a live UI");
@@ -113,11 +113,11 @@ must(read("src/tools/email.js").includes('credentials.get(provider,account)')&&!
 must(read("src/addons/credentials.js").includes("child.stdin.end(JSON.stringify({target:target(provider,account)")&&!read("src/addons/credentials.js").includes('"/pass:"'),"Windows Credential Manager writes must not expose passwords in process arguments");
 must(read("src/addons/credentials.js").includes("$d=[Console]::In.ReadToEnd()|ConvertFrom-Json;$t=[string]$d.target;")&&!read("src/addons/credentials.js").includes("CredRead('$t'"),"Credential Manager reads must not interpolate account text into PowerShell");
 must(read("src/performance.html").includes('id="emailCredentialPassword"')&&read("src/preload.js").includes("storeEmailCredential:"),"Secure email credential setup UI/IPC is missing");
-must(read("src/main/runtime.js").includes('ipcMain.handle("email:credential:store"'),"Secure email credential IPC handler is missing");
+must(read("src/main/ipc/email-ipc.js").includes('ipcMain.handle("email:credential:store"')&&read("src/main/runtime.js").includes('load("emailIpc", "./ipc/email-ipc")'),"Secure email credential IPC handler is missing from the lazy email IPC module");
 must(read("src/addons/email-account-store.js").includes("function validateRecord")&&read("src/addons/email-account-store.js").includes("function save"),"Validated non-secret email server profile storage is missing");
 must(read("src/performance.html").includes('id="emailServerHost"')&&read("src/performance.html").includes('id="saveEmailServer"')&&read("src/performance.html").includes('id="testEmailConnection"'),"Email server setup and authentication-test controls are missing");
 must(read("src/preload.js").includes("saveEmailAccount:")&&read("src/preload.js").includes("testEmailConnection:"),"Email server profile/test IPC bridge is missing");
-must(read("src/main/runtime.js").includes('ipcMain.handle("email:account:save"')&&read("src/main/runtime.js").includes('ipcMain.handle("email:connection:test"'),"Email server profile/test IPC handlers are missing");
+must(read("src/main/ipc/email-ipc.js").includes('ipcMain.handle("email:account:save"')&&read("src/main/ipc/email-ipc.js").includes('ipcMain.handle("email:connection:test"')&&read("src/main/runtime.js").includes('load("emailIpc", "./ipc/email-ipc")'),"Email server profile/test IPC handlers are missing from the lazy email IPC module");
 must(read("src/addons/email-client.js").includes("smtpVerify")&&read("src/addons/email-client.js").includes("pop3ListMessages")&&read("src/addons/email-client.js").includes("pop3Fetch"),"SMTP authentication verification and POP3 read operations are missing");
 must(testRunner.includes('path.join(root, "scripts", "ci-email-protocol.js")')&&testRunner.includes('path.join(root, "scripts", "ci-html-script-syntax.js")'),"Protocol and inline HTML syntax regression suites are not part of npm test");
 must(read("src/main/application/brain-host.js").includes("Confirm sending this email?"),"Email send confirmation does not show a send-specific confirmation");
