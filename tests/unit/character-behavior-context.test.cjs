@@ -1,6 +1,9 @@
 "use strict";
 const test=require("node:test");
 const assert=require("node:assert/strict");
+const activeBehaviors=new Set();
+const trackBehavior=behavior=>{activeBehaviors.add(behavior);return behavior};
+test.afterEach(()=>{for(const behavior of activeBehaviors){try{behavior.stop()}catch{}}activeBehaviors.clear()});
 
 test("character reacts to greetings and gratitude with distinct gestures",async()=>{
  const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
@@ -14,7 +17,7 @@ test("character reacts to greetings and gratitude with distinct gestures",async(
   stopAll:()=>true,
   engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"user-input",text:"Hello Saeed!"}),true);
  assert.equal(character.mood,"cheerful");
@@ -37,7 +40,7 @@ test("character responds empathetically to frustration instead of a generic idle
   stopAll:()=>true,
   engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"user-input",text:"This is broken and does not work"}),true);
  assert.equal(character.mood,"thoughtful");
@@ -59,7 +62,7 @@ test("character notices questions in Arabic and switches to an attentive curious
   stopAll:()=>true,
   engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"user-input",text:"كيف أعمل هذا؟"}),true);
  assert.equal(character.mood,"curious");
@@ -79,7 +82,7 @@ test("tool outcomes produce distinct positive and failure reactions",async()=>{
   stopAll:()=>true,
   engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"tool_result"}),true);
  assert.equal(character.mood,"pleased");
@@ -101,7 +104,7 @@ test("speaking and thinking gesture cycles are observable and cancel on lifecycl
   stopAll:()=>true,
   engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"speech-start"}),true);
  assert.equal(behavior.getStatus().speakingCycle,true);
@@ -133,7 +136,7 @@ test("character behavior preferences keep deterministic idle active and filter d
   play:()=>true,stopAll:()=>true,
   engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.configure({random:false,dancing:false,walking:false,idleThoughts:false});
  const selected=behavior.chooseIdle();
  assert.equal(selected,"nod");
@@ -151,7 +154,7 @@ test("character behavior preferences keep deterministic idle active and filter d
 test("busy-state suppresses casual motion and resumes the autonomous scheduler",async()=>{
  const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
  const character={mood:"cheerful",moodPalette:()=>["wave","nod","think"],animation:{registry:{get:id=>({id})},active:[]},face:{expression:()=>true,blink:()=>true,lookAt:()=>true},play:()=>true,stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}};
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  behavior.schedule(1000);
  assert.equal(behavior.setUserBusy(true),true);
@@ -172,7 +175,7 @@ test("busy-state suppresses casual motion and resumes the autonomous scheduler",
 
 test("negated emotions and reassuring phrases do not trigger contradictory reactions",async()=>{
  const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
- const behavior=new AutonomousBehaviorController({animation:{registry:{get:id=>({id})},active:[]},play:()=>true,moodPalette:()=>["nod"]});
+ const behavior=trackBehavior(new AutonomousBehaviorController({animation:{registry:{get:id=>({id})},active:[]},play:()=>true,moodPalette:()=>["nod"]}));
  assert.equal(behavior.classifyText("I'm not sad"),null);
  assert.equal(behavior.classifyText("I'm not curious"),null);
  assert.equal(behavior.classifyText("No problem, I'm not angry"),null);
@@ -202,15 +205,16 @@ test("tool success reactions preserve tool identity and choose an outcome-specif
   play:(id,options)=>{calls.push({motion:id,options});return true},
   stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"tool_result",name:"read_file",success:true,resultMeta:{ok:true,hasData:true}}),true);
  assert.equal(behavior.getStatus().lastToolOutcome.name,"read_file");
  assert.equal(behavior.getStatus().lastToolOutcome.success,true);
  assert.ok(calls.some(x=>x.motion==="lookCloser"||x.motion==="nod"||x.motion==="think"));
+ const motionsAfterFirst=calls.filter(x=>x.motion).length;
  assert.equal(behavior.handleEvent({type:"tool_result",name:"write_file",success:true,resultMeta:{ok:true}}),true);
  assert.equal(behavior.getStatus().lastToolOutcome.name,"write_file");
- assert.ok(calls.some(x=>x.motion==="clap"||x.motion==="wave"||x.motion==="nod"));
+ assert.equal(calls.filter(x=>x.motion).length,motionsAfterFirst,"success events inside the cooldown must update outcome state without replaying a gesture");
  behavior.stop();
 });
 
@@ -224,7 +228,7 @@ test("tool failures use a distinct puzzled reaction and retain a safe diagnostic
   play:(id,options)=>{calls.push({motion:id,options});return true},
   stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"tool_error",name:"email_send",error:"provider unavailable"}),true);
  const status=behavior.getStatus();
@@ -247,7 +251,7 @@ test("Arabic emotional input produces an empathetic reaction rather than a gener
   play:(id,options)=>{calls.push({motion:id,options});return true},
   stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"user-input",text:"أنا متوتر وقلقان"}),true);
  assert.equal(behavior.getStatus().mood,"thoughtful");
@@ -266,7 +270,7 @@ test("a mesh-only GLB keeps facial behavior enabled when no skeleton exists",asy
  const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
  const expressions=[];
  const character={mood:"cheerful",moodPalette:()=>["wave","nod","think"],animation:{registry:{get:id=>({id})},active:[]},face:{expression:(name,value)=>expressions.push({name,value}),blink:()=>true,lookAt:()=>true},play:()=>false,stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}};
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"user-input",text:"أنا متوتر"}),true);
  assert.equal(behavior.getStatus().mood,"thoughtful");
@@ -284,7 +288,7 @@ test("listening and assistant speaking are separate character states",async()=>{
   play:(id,options)=>{calls.push({motion:id,options});return true},
   stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
  };
- const behavior=new AutonomousBehaviorController(character);
+ const behavior=trackBehavior(new AutonomousBehaviorController(character));
  behavior.running=true;
  assert.equal(behavior.handleEvent({type:"listening-start"}),true);
  assert.equal(behavior.getStatus().intent,"listening");
