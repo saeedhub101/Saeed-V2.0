@@ -292,6 +292,11 @@ jobs:
           $requiredChecks = @("glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-map-invalid-clip-rejected","glb-intent-map-clear-readback","glb-intent-test-fixture-restored","glb-intent-map-restored")
           foreach ($name in $requiredChecks) {
             $check = @($acceptance.checks | Where-Object { $_.name -eq $name } | Select-Object -First 1)
+            if ($check.Count -eq 0 -or !$check[0].passed) { throw "Packaged EXE missing required functional GLB intent check: $name" }
+          }
+          $requiredChecks = @("glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-map-invalid-clip-rejected","glb-intent-map-clear-readback","glb-intent-test-fixture-restored","glb-intent-map-restored")
+          foreach ($name in $requiredChecks) {
+            $check = @($acceptance.checks | Where-Object { $_.name -eq $name } | Select-Object -First 1)
             if ($check.Count -eq 0 -or !$check[0].passed) { throw "Required packaged GLB intent mapping check failed or is missing: $name" }
           }
           if ($proc.ExitCode -ne 0 -or !$acceptance.passed -or $failed.Count -gt 0) {
