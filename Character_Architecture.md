@@ -5771,3 +5771,15 @@ This document is implementation guidance, not evidence that the product is compl
 The character behavior state machine and integration contract are documented in `CHARACTER_BEHAVIOR_ENGINE.md`. The controller owns idle cadence, mood/energy weighting, anti-repeat selection, sleep/wake, gaze/blink/breathing, semantic reactions, speaking/thinking cycles, and interaction cooldowns. Brain and chat events are translated into semantic character events; the 3D renderer applies registered motion definitions through the animation controller and rig retargeting layer.
 
 Implemented in source: chat TTS now signals speech start/end (including cancellation and mute), double-click and window focus/blur are explicit events, and busy-state gating suspends low-priority idle movement without suppressing active speaking/thinking reactions. Realtime transport was not modified. Visual quality still requires validation against the bundled GLB's actual rig and rest pose.
+
+## GLB semantic intent mapping
+
+Character Settings can persist a mapping from a supported semantic intent to an animation clip available on the active GLB. CharacterController owns the mapping and intent decision; CharacterEngine owns clip discovery and playback status. The host/IPC layer exposes the narrow controller operations and must not become a second behavior owner.
+
+- Persist mappings under the character intent-map setting; validate every mapped clip against the active character's actual clip list.
+- When a semantic intent has a valid mapping, play that GLB clip and return a result that identifies the GLB source and selected clip. When no mapping exists, preserve the procedural semantic-motion fallback.
+- Mapping save must be read back; invalid clip names must be rejected without replacing the existing valid mapping; clearing a mapping must be verified by read-back.
+- Acceptance must verify actual clip playback status and elapsed clip time, not only that the command returned success. Restore the previous character and mapping after fixture-based diagnostics.
+- This mapping supplements, rather than replaces, the behavior controller, animation playback layer, rig retargeting, face controller or lifecycle ownership.
+
+Packaged Windows runtime acceptance is still required to establish that the behavior works in the shipped application.
