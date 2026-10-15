@@ -184,22 +184,26 @@ function validateRig(mapping={}){
 function resetCharacterPose(){getSceneBones();for(const [name,list] of boneGroups){const p=boneRest.get(name);if(p)for(const target of list){if([p.rotation?.qx,p.rotation?.qy,p.rotation?.qz,p.rotation?.qw].every(Number.isFinite))target.quaternion.set(p.rotation.qx,p.rotation.qy,p.rotation.qz,p.rotation.qw);else target.rotation.set(p.rotation.x,p.rotation.y,p.rotation.z);target.position.set(p.position.x,p.position.y,p.position.z)}}render();}
 function captureAuthoritativeRestPose(normalization=lastRestPose){getSceneBones();boneRest=new Map();for(const [name,list] of boneGroups){const b=list[0];if(b)boneRest.set(name,{rotation:{x:b.rotation.x,y:b.rotation.y,z:b.rotation.z,qx:b.quaternion.x,qy:b.quaternion.y,qz:b.quaternion.z,qw:b.quaternion.w},position:{x:b.position.x,y:b.position.y,z:b.position.z}})}lastRestPose={...(normalization||{}),saved:true};for(const [slot,b] of rig){const p=boneRest.get(String(b.name));if(p)base.set(slot,{x:p.rotation.x,y:p.rotation.y,z:p.rotation.z})}return snapshotBoneRotations();}
 function applyCharacterPose(pose={},retargeter=null){
- // Match the reference pose engine: every frame starts from the current authoritative
- // rest pose, then applies model-space motion deltas. Never accumulate yesterday's pose.
+ // Every frame begins at the authoritative rest transform, then applies rotation and optional local-position deltas.
  retargeter?.resetAll?.();
- for(const [slot,b] of rig){const list=boneGroups.get(String(b.name))||[b];for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);}
+ for(const [slot,b] of rig){
+  const list=boneGroups.get(String(b.name))||[b],rest=boneRest.get(String(b.name));
+  if(rest?.position)for(const target of list)target.position.set(rest.position.x,rest.position.y,rest.position.z);
+  for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);
+ }
  for(const [slot,r] of Object.entries(pose)){
   const b=rig.get(slot);if(!b)continue;
   const applied=Boolean(retargeter?.apply?.(slot,r));
-  if(!applied){
-   const p=base.get(slot);if(p)b.rotation.set(p.x+(Number(r?.x)||0),p.y+(Number(r?.y)||0),p.z+(Number(r?.z)||0));
-  }
+  if(!applied){const p=base.get(slot);if(p)b.rotation.set(p.x+(Number(r?.x)||0),p.y+(Number(r?.y)||0),p.z+(Number(r?.z)||0))}
   const list=boneGroups.get(String(b.name))||[b];
   for(const target of list)if(target!==b)target.quaternion.copy(b.quaternion);
+  if(r?.position&&typeof r.position==="object"){
+   const rest=boneRest.get(String(b.name))?.position,offset={x:Number(r.position.x),y:Number(r.position.y),z:Number(r.position.z)};
+   if(rest&&[offset.x,offset.y,offset.z].every(Number.isFinite))for(const target of list)target.position.set(rest.x+offset.x,rest.y+offset.y,rest.z+offset.z);
+  }
  }
  for(const [boneName,transform] of Object.entries(pose))if(!rig.has(boneName))setBoneRotation(boneName,transform);
- render();
- return true;
+ render();return true;
 }
 function applyRawBonePose(pose={}){
  getSceneBones();let changed=false;
