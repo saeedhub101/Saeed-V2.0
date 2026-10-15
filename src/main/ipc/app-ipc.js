@@ -1,8 +1,32 @@
-// Application-level IPC: app metadata, settings, feature windows, and transcript label preference.
-function registerAppIpc({ ipcMain, app, composition, getAgent, getApiHealth, getResourceService, updateCpuMetrics, diagnosticState, showStatus, showPerformance, showSettings, showAddons }) {
-  ipcMain.handle("app:version",()=>app.getVersion());ipcMain.handle("settings:get",()=>{if(getAgent())return getAgent().publicSettings();const {createSettingsStore}=require("../services/settings-store");const store=createSettingsStore(app.getPath("userData"));return store.public(store.load())});ipcMain.on("character:activity",()=>{});
-  ipcMain.handle("transcript-label:get",()=>composition.getTranscriptLabelEnabled?.()===true);
-ipcMain.handle("transcript-label:set",(_,enabled)=>{composition.setTranscriptLabelEnabled?.(enabled);const actual=composition.getTranscriptLabelEnabled?.()===true;return {ok:actual===Boolean(enabled),enabled:actual}});
-  ipcMain.handle("status:show",()=>{showStatus();return true});ipcMain.handle("performance:show",()=>{showPerformance();return true});ipcMain.handle("rest-pose:show",()=>{composition.showRestPoseEditor?.();return true});ipcMain.handle("settings:show",()=>{showSettings();return true});ipcMain.handle("addons:show",()=>{showAddons();return true});
+// Application-level IPC: metadata, settings, feature windows, and transcript preference.
+function registerAppIpc({
+  ipcMain, app, composition, getAgent, showStatus, showPerformance, showSettings, showAddons
+}) {
+  ipcMain.handle("app:version", () => app.getVersion());
+  ipcMain.handle("settings:get", () => {
+    const agent = getAgent();
+    if (agent) return agent.publicSettings();
+    const { createSettingsStore } = require("../services/settings-store");
+    const store = createSettingsStore(app.getPath("userData"));
+    return store.public(store.load());
+  });
+
+  // Retained for compatibility with existing renderer activity notifications.
+  ipcMain.on("character:activity", () => {});
+
+  ipcMain.handle("transcript-label:get", () => composition.getTranscriptLabelEnabled?.() === true);
+  ipcMain.handle("transcript-label:set", (_event, enabled) => {
+    composition.setTranscriptLabelEnabled?.(enabled);
+    const actual = composition.getTranscriptLabelEnabled?.() === true;
+    return { ok: actual === Boolean(enabled), enabled: actual };
+  });
+  ipcMain.handle("status:show", () => { showStatus(); return true; });
+  ipcMain.handle("performance:show", () => { showPerformance(); return true; });
+  ipcMain.handle("rest-pose:show", () => {
+    composition.showRestPoseEditor?.();
+    return true;
+  });
+  ipcMain.handle("settings:show", () => { showSettings(); return true; });
+  ipcMain.handle("addons:show", () => { showAddons(); return true; });
 }
 module.exports = { registerAppIpc };
