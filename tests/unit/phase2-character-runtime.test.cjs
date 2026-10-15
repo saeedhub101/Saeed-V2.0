@@ -10,6 +10,8 @@ const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/C
 const hostSource = fs.readFileSync(path.join(__dirname, "../../src/main/character/character-host.js"), "utf8");
 const characterStudioSource = fs.readFileSync(path.join(__dirname, "../../src/character-studio.html"), "utf8");
 const characterClientSource = fs.readFileSync(path.join(__dirname, "../../src/character/client.js"), "utf8");
+const runtimeSource = fs.readFileSync(path.join(__dirname, "../../src/main/runtime.js"), "utf8");
+const characterIpcSource = fs.readFileSync(path.join(__dirname, "../../src/main/ipc/character-ipc.js"), "utf8");
 const playStart = motionOperationsSource.indexOf(" play(id,options={}){");
 const playEnd = motionOperationsSource.indexOf("\n stop(id)", playStart);
 const playBody = motionOperationsSource.slice(playStart, playEnd);
@@ -39,6 +41,21 @@ test("semantic motion requests suppress recent repeats and report retry time", (
 
 test("unknown semantic intents do not silently select an idle animation", () => {
   assert.match(semanticBody, /reason:"unknown-intent"/);
+});
+
+test("character IPC handlers register once so pending GLB delivery remains available", () => {
+  assert.doesNotMatch(runtimeSource, /ipcMain\.handle\(["']character-studio:model:save["']/);
+  assert.equal((characterIpcSource.match(/ipcMain\.handle\(["']character-studio:model:save["']/g) || []).length, 1);
+  assert.equal((characterIpcSource.match(/ipcMain\.handle\(["']character:get-pending["']/g) || []).length, 1);
+});
+
+test("rest-pose persistence snapshots the authored pose before motion rebinding", () => {
+  const start = source.indexOf(" saveRestPose(){");
+  const end = source.indexOf("\n normalizeRestPose()", start);
+  const body = source.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(body.indexOf("const bones=this.engine?.snapshotBoneRotations?.()||{};") < body.indexOf("this.rebindMotionToRestPose();"),
+    "motion rebinding must not replace the pose being saved");
 });
 
 test("rest-pose save reports persistence failure explicitly instead of throwing away diagnostics", () => {
