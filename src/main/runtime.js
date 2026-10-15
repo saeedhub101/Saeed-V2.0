@@ -48,13 +48,13 @@ function configureMediaPermissions(){
 }
 
 
-let characterWin,performanceWin,settingsWin,addonsWin,learningWin,characterSettingsWin,agent,tray,statusWin,threeDStatusWin;
+let characterWin,performanceWin,settingsWin,addonsWin,learningWin,characterSettingsWin,agent,tray,statusWin,threeDStatusWin,updateStatusWin;
 let addonService,learning,learningRecorder,apiHealth,resourceService,autoUpdater;
 let chatHost=null,voiceHost=null,brainHost=null,screenCapture=null,windowManager=null,updateManager=null,characterHost;
 
 const compositionState={get addonService(){return addonService},set addonService(v){addonService=v},get learning(){return learning},set learning(v){learning=v},get learningRecorder(){return learningRecorder},set learningRecorder(v){learningRecorder=v},get apiHealth(){return apiHealth},set apiHealth(v){apiHealth=v},get resourceService(){return resourceService},set resourceService(v){resourceService=v},get autoUpdater(){return autoUpdater},set autoUpdater(v){autoUpdater=v},get chatHost(){return chatHost},set chatHost(v){chatHost=v},get voiceHost(){return voiceHost},set voiceHost(v){voiceHost=v},get brainHost(){return brainHost},set brainHost(v){brainHost=v},get screenCapture(){return screenCapture},set screenCapture(v){screenCapture=v},get windowManager(){return windowManager},set windowManager(v){windowManager=v},get updateManager(){return updateManager},set updateManager(v){updateManager=v}};
-const getState=()=>({characterWin,performanceWin,settingsWin,addonsWin,learningWin,characterSettingsWin,statusWin,threeDStatusWin,tray});
-const setWindow=(name,value)=>{if(name==="characterWin")characterWin=value;else if(name==="performanceWin")performanceWin=value;else if(name==="settingsWin")settingsWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="learningWin")learningWin=value;else if(name==="characterSettingsWin")characterSettingsWin=value;else if(name==="statusWin")statusWin=value;else if(name==="threeDStatusWin")threeDStatusWin=value;else if(name==="tray")tray=value};
+const getState=()=>({characterWin,performanceWin,settingsWin,addonsWin,learningWin,characterSettingsWin,statusWin,threeDStatusWin,updateStatusWin,tray});
+const setWindow=(name,value)=>{if(name==="characterWin")characterWin=value;else if(name==="performanceWin")performanceWin=value;else if(name==="settingsWin")settingsWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="learningWin")learningWin=value;else if(name==="characterSettingsWin")characterSettingsWin=value;else if(name==="statusWin")statusWin=value;else if(name==="threeDStatusWin")threeDStatusWin=value;else if(name==="updateStatusWin")updateStatusWin=value;else if(name==="tray")tray=value};
 const {createRuntimeComposition}=moduleLoader.load("application:runtime-composition",()=>require("./application/runtime-composition"));
 let composition;
 composition=createRuntimeComposition({app,ipcMain,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,state:compositionState,getState,setWindow,getAgent:()=>agent,setAgent:value=>{agent=value},moduleLoader,ensureFeatureIpc});
