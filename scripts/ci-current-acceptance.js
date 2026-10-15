@@ -214,6 +214,19 @@ function main() {
     characterClient.includes('if(x.action==="morphList")') && characterClient.includes('if(x.action==="setMorph")'),
     { note: "Character Settings must manipulate actual GLB mesh visibility and morph targets through the authoritative engine." });
 
+  check("character-settings-supports-primitive-and-addon-accessories",
+    studioHtml.includes('id="createAccessory"') && studioHtml.includes('id="installAvailableAccessory"') &&
+    studioHtml.includes('action:"setAccessory"') && studioHtml.includes('action:"availableAccessories"') &&
+    characterClient.includes('if(x.action==="setAccessory")') && characterClient.includes('if(x.action==="availableAccessories")') &&
+    read("src/character/CharacterMotionOperations.js").includes("definition:def") &&
+    read("src/character/CharacterEngine.js").includes("function setAccessory("),
+    { note: "Character Settings can attach and remove simple accessories and route registered add-on accessory assets through the existing character controller." });
+
+  check("character-settings-has-clickable-skeleton-tree-and-independent-bone-fields",
+    studioHtml.includes('id="skeletonTree"') && studioHtml.includes('row.addEventListener("click",()=>select(bone.name))') &&
+    studioHtml.includes('degToRad(Number($("rx").value)') && studioHtml.includes('degToRad(Number($("keyframeRx").value)'),
+    { note: "The bone tree selects the corresponding bone, and bone editing is kept separate from motion keyframe controls." });
+
   const motionOperationsSource = exists("src/character/CharacterMotionOperations.js") ? read("src/character/CharacterMotionOperations.js") : "";
   check("character-rig-mapping-actions-have-authoritative-implementations",
     motionOperationsSource.includes("bindSlot(slot,name)") && motionOperationsSource.includes("remap(mapping={})") &&
@@ -224,7 +237,7 @@ function main() {
     !exists("src/normalizehumanoidrestpose.html") && !exists("src/normalizehumanoidrestpose.js") && !exists("src/normalizehumanoidrestpose.css") &&
     !windowManagerSource.includes("normalizehumanoidrestpose.html") &&
     exists("src/character-studio.html") && studioHtml.includes('id="normalize"') &&
-    read("src/main/application/system-controls.js").includes('{label:"Normalize Humanoid Rest Pose",click:showRestPoseEditor}'),
+    read("src/main/application/system-controls.js").includes('{label:"Character Settings",click:showRestPoseEditor}') && !read("src/main/application/system-controls.js").includes("showNormalizeHumanoidRestPose"),
     { note: "Rest-pose normalization now routes through Character Settings before the duplicate page is removed." });
 
   const voiceIpc = exists("src/main/ipc/voice-ipc.js") ? read("src/main/ipc/voice-ipc.js") : "";
