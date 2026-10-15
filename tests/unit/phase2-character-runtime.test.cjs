@@ -45,7 +45,7 @@ test("unknown semantic intents do not silently select an idle animation", () => 
 
 test("character IPC handlers register once so pending GLB delivery remains available", () => {
   assert.doesNotMatch(runtimeSource, /ipcMain\.handle\(["']character-studio:model:save["']/);
-  assert.equal((characterIpcSource.match(/ipcMain\.handle\(["']character-studio:model:save["']/g) || []).length, 1);
+  assert.doesNotMatch(characterIpcSource, /character-studio:model:save/);
   assert.equal((characterIpcSource.match(/ipcMain\.handle\(["']character:get-pending["']/g) || []).length, 1);
 });
 
@@ -114,7 +114,7 @@ test("rig editor API exposes bone names instead of renderer object references",(
  assert.match(source,/getRig:\(\)=>\(\{bones:engine\.getAvailableBoneNames\?\.\(\)\|\|\[\],mapping:Object\.fromEntries\(Object\.entries\(engine\.getBoneMap\?\.\(\)\|\|\{\}\)\.map\(\(\[slot,bone\]\)=>\[slot,bone\?\.name\|\|bone\]\)\)/);
 });
 
-test("character studio refreshes the bone editor against the active model",()=>{
+test("Character Settings refreshes the bone editor against the active model",()=>{
  assert.match(characterStudioSource,/function fillBones\(\)/);
  assert.match(characterStudioSource,/function syncBoneSliders\(\)/);
  assert.match(characterStudioSource,/async function setRot\(\)/);

@@ -30,7 +30,7 @@ for(const namespace of ["system","character","voice","chat","tools"]){must(prelo
 const topLevelPreloadKeys=[...preload.matchAll(/^ ([A-Za-z_$][\\w$]*):/gm)].map(match=>match[1]);
 for(const key of topLevelPreloadKeys){must(["system","character","voice","chat","tools","learning","addons"].includes(key),`preload exposes unexpected flat API: ${key}`)}
 must(!voiceClient.includes("onVoiceMute(m=>{voiceMuted=Boolean(m);if(voiceMuted){stopSpeaking();mic?.stop"),"Voice mute must not stop microphone input");
-const characterArch=read("Character_Architecture.md");
+const characterArch=read("ARCHITECTURE.md");
 must(characterArch.includes("AutonomousBehaviorController"),"Character architecture does not document autonomous ownership");
 if(failures.length){console.error("Architecture contract FAILED");for(const f of failures)console.error(" - "+f);process.exit(1)}
 console.log("Architecture contract PASSED");
