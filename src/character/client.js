@@ -66,6 +66,8 @@ async function executeCharacterCommand(command={}){
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
   if(x.action==="buildProceduralRig"){const result=engine?.buildProceduralRig?.(String(x.template||"full"),x.options||{});if(!result)return{ok:false,error:"Procedural rig builder unavailable"};return{...result,status:c.status()}}
+  if(x.action==="accessoriesList"){return{ok:true,...(engine?.getAccessoriesSnapshot?.()||{accessories:[]}),states:c.getAccessoryState?.()||{}}}
+  if(x.action==="setAccessory"){const result=await c.setAccessory?.(x.definition||{},x.enabled!==false,x.state||{});return{...(result||{ok:false,error:"Accessory controller unavailable"}),accessories:engine?.getAccessoriesSnapshot?.()?.accessories||[],states:c.getAccessoryState?.()||{}}}
   if(x.action==="morphList"){const snapshot=engine?.getMorphSnapshot?.()||{count:0,names:[],values:{}};return{ok:true,...snapshot,status:c.status()}}
   if(x.action==="setMorph"){const ok=engine?.setCharacterExpression?.(String(x.name||""),Number(x.value)||0);return{ok:Boolean(ok),name:String(x.name||""),value:Number(x.value)||0,status:c.status()}}
   if(x.action==="meshList"){const snapshot=engine?.getMeshVisibilitySnapshot?.()||{ok:false,error:"Character mesh listing unavailable",meshes:[]};return{...snapshot,status:c.status()}}
