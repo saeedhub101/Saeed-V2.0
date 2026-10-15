@@ -82,8 +82,18 @@ const handlers = [...mainText.matchAll(/ipcMain\.handle\(\s*["']([^"']+)["']/g)]
 const handlerSet = new Set(handlers);
 const screenJs = htmlFiles.map(file => scriptsFor(file, read(file)).text).join("\n");
 const preloadNamespaces = new Map();
-for (const match of preload.matchAll(/^\s{1,4}([A-Za-z_$][\w$]*):\{\s*\n([\s\S]*?)^\s{1,4}\},?\s*$/gm)) {
-  preloadNamespaces.set(match[1], new Set([...match[2].matchAll(/\b([A-Za-z_$][\w$]*)\s*:/g)].map(m => m[1])));
+const preloadLines = preload.split("\n");
+for (let i = 0; i < preloadLines.length; i++) {
+  const startMatch = preloadLines[i].match(/^\s{1,4}([A-Za-z_$][\w$]*):\{/);
+  if (!startMatch) continue;
+  let block = preloadLines[i].slice(preloadLines[i].indexOf("{") + 1);
+  if (!/\},?\s*$/.test(preloadLines[i])) {
+    for (i++; i < preloadLines.length; i++) {
+      if (/^\s{1,4}\},?\s*$/.test(preloadLines[i])) break;
+      block += "\n" + preloadLines[i];
+    }
+  } else block = block.slice(0, block.lastIndexOf("}"));
+  preloadNamespaces.set(startMatch[1], new Set([...block.matchAll(/\b([A-Za-z_$][\w$]*)\s*:/g)].map(m => m[1])));
 }
 const rendererApiCalls = new Set([...screenJs.matchAll(/window\.saeed(?:\.|\?\.)([A-Za-z_$][\w$]*)(?:\.|\?\.)([A-Za-z_$][\w$]*)/g)].map(m => m[1] + "." + m[2]));
 for (const api of rendererApiCalls) {
