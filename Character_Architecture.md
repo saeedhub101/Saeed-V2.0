@@ -5768,7 +5768,7 @@ This document is implementation guidance, not evidence that the product is compl
 
 ## Autonomous 3D behavior parity — 2026-10-14
 
-The character behavior state machine and integration contract are documented in `CHARACTER_BEHAVIOR_ENGINE.md`. The controller owns idle cadence, mood/energy weighting, anti-repeat selection, sleep/wake, gaze/blink/breathing, semantic reactions, speaking/thinking cycles, and interaction cooldowns. Brain and chat events are translated into semantic character events; the 3D renderer applies registered motion definitions through the animation controller and rig retargeting layer.
+The autonomous behavior state machine and integration contract are summarized in the consolidated runtime reference at the end of this document. The controller owns idle cadence, mood/energy weighting, anti-repeat selection, sleep/wake, gaze/blink/breathing, semantic reactions, speaking/thinking cycles, and interaction cooldowns. Brain and chat events are translated into semantic character events; the 3D renderer applies registered motion definitions through the animation controller and rig retargeting layer.
 
 Implemented in source: chat TTS now signals speech start/end (including cancellation and mute), double-click and window focus/blur are explicit events, and busy-state gating suspends low-priority idle movement without suppressing active speaking/thinking reactions. Realtime transport was not modified. Visual quality still requires validation against the bundled GLB's actual rig and rest pose.
 
@@ -5783,3 +5783,50 @@ Character Settings can persist a mapping from a supported semantic intent to an 
 - This mapping supplements, rather than replaces, the behavior controller, animation playback layer, rig retargeting, face controller or lifecycle ownership.
 
 Packaged Windows runtime acceptance is still required to establish that the behavior works in the shipped application.
+
+## Consolidated runtime and motion reference
+
+This section replaces the former separate Engine Architecture, autonomous-behavior summary, and Arabic animation-linking guide. Keep one owner for each responsibility:
+
+- Main-process command/asset boundary: `src/main/character/character-host.js`; it validates and forwards commands and must not directly animate bones.
+- Semantic behavior and autonomous scheduling: `src/character/CharacterController.js` and its single owned `AutonomousBehaviorController`.
+- Playback, priority and blending: `src/character/AnimationController.js`.
+- Motion definitions and sequences: `src/character/motions.js`, `src/character/MotionRegistry.js`, `src/character/MotionSequence.js`.
+- Pose state and safety: `src/character/PoseController.js`, `src/character/MotionSafety.js`.
+- Rig mapping/retargeting: `src/character/CharacterRig.js`, `src/character/AutoRigMapper.js`, `src/character/CharacterRetargeter.js`.
+- Technical 3D layer: `src/character/CharacterEngine.js` owns the Three.js scene, camera, GLB/model state, GPU resources, render scheduling and low-level pose application. It does not decide mood, semantic intent, permissions or Brain routing.
+- Face and fingers remain capability-specific paths. Do not merge face/viseme/blink work or finger posing into body-pose handling without a demonstrated need.
+
+The body-motion flow is:
+
+```text
+UI / Brain / voice / tool event
+  -> character-host IPC boundary
+  -> CharacterController semantic intent
+  -> AutonomousBehaviorController / AnimationController
+  -> motion definition or selected GLB clip
+  -> MotionSafety / rig mapping / retargeting
+  -> CharacterEngine applies pose to the current model
+  -> demand-driven Three.js render
+```
+
+GLB intent mappings are optional configuration, not a second animation authority. A configured intent may select an available clip; a missing/invalid mapping must not corrupt the active character or bypass normal controller policy. Validate clip availability, read-back persistence, actual playback progress, clear-mapping fallback, stop behavior and restoration of the original character in packaged acceptance.
+
+## Engine and asset invariants
+
+- Render only while loading, animating, transitioning, interacting or applying a visible change; idle character presence must not imply a permanent render loop.
+- Load a candidate GLB transactionally: retain the current model until the candidate is loaded and validated, then commit and dispose the old resources. Failure leaves the old character usable.
+- Missing optional bones are capabilities to fall back from, not automatic reasons to reject a visually usable model. Report mapped, missing and unsupported capabilities accurately.
+- Destroying the Character runtime invalidates timers, pending loads, animation frames and callbacks and releases renderer/GPU/model resources.
+- Camera framing and scale are viewport-size dependent; test Small, Medium and Large against the actual loaded model rather than assuming a fixed camera distance works for all sizes.
+- Character runtime is not a security authority. It cannot approve permissions, invoke tools outside the central registry, or expose credentials.
+
+## Security and trust boundary
+
+- Brain/LLM output is an untrusted semantic request, never authorization. Validate every consequential action through the central Tool Registry and permission policy.
+- Plugins/add-ons are optional and lower-trust. They must not replace Core, duplicate the Tool Registry, access unrelated secrets or outlive their lifecycle owner.
+- Store credentials only in the application's secure credential mechanism; redact secrets and private payloads from logs and diagnostics.
+- Send external providers only the data required for the requested task. Unexpected background network activity is prohibited unless explicitly part of a documented feature.
+- Emergency Stop must be able to cancel active high-impact tool chains/automation without deleting persistent user data.
+- These are architecture requirements, not proof of implementation or runtime acceptance.
+
