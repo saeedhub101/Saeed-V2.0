@@ -240,7 +240,16 @@ export class CharacterController{
  }
  touch(){this.autonomous?.touch?.();this.lastInteraction=performance.now();this.clearIdleTimer();if(this.animationEnabled&&!this.animationPaused&&this.visible)this.startIdleScheduler(4500);return true}
  handleEvent(event){
-  if(this.autonomous)return this.autonomous.handleEvent(event);
+  const eventType=typeof event==="string"?event:String(event?.type||"");
+  if(this.autonomous){
+   const handled=this.autonomous.handleEvent(event);
+   const eventIntent={"speech-start":"talk","thinking":"think","user-input":"think","tool":"tool","tool_result":"tool_result","tool-error":"tool_error","tool_error":"tool_error","double-click":"greet","right-click":"greet","zoom":"curious","drag-end":"agree"}[eventType];
+   if(eventIntent&&this.getGlbIntentMap()[String(eventIntent).toLowerCase().replace(/[^a-z]/g,"")]){
+    const mapped=this.semantic(eventIntent,{source:"behavior-event",cooldownMs:this.behavior?.eventCooldownMs??2500});
+    return mapped?.played===true||Boolean(handled);
+   }
+   return handled;
+  }
   if(!this.animationEnabled||this.animationPaused)return false;
   const type=typeof event==="string"?event:String(event?.type||"");
   if(!this.behavior.events)return false;
@@ -352,7 +361,7 @@ export class CharacterController{
    return{intent:key,motion:mappedClip,clip:mappedClip,source:"glb",played,playback:playback||null,error:playback?.error||undefined};
   }
   this.engine?.stopGlbAnimation?.(false);
-  const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
+  const map={greet:"wave",hello:"wave",greeting:"wave",wave:"wave",agree:"nod",yes:"nod",nod:"nod",deny:"shake",no:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",happy:"nod",pleased:"nod",sad:"yawn",curious:"lookCloser",tool:"think",toolrunning:"think",toolresult:"nod",toolsuccess:"nod",toolerror:"shake",toolfailure:"shake",success:"nod",failure:"shake",error:"shake",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
   const motion=map[key]||"idle";
   if(motion==="idle")return{intent:key,motion,played:false,reason:"unknown-intent"};
   const last=this.semanticMotionHistory.findLast?.(x=>x.motion===motion)||[...this.semanticMotionHistory].reverse().find(x=>x.motion===motion);
