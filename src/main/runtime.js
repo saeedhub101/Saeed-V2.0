@@ -106,7 +106,7 @@ try{const updateMode=agent?.settings?.updateMode||require("./services/settings-s
 
 require("./ipc/email-ipc").registerEmailIpc({ipcMain,app,diagnostic});
 require("./ipc/window-ipc").registerWindowIpc({ipcMain,BrowserWindow,screen,accept3DStatus,request3DStatus,show3DStatus,diagnostic});
-require("./ipc/app-ipc").registerAppIpc({ipcMain,app,composition,getAgent:()=>agent,getApiHealth,getResourceService,updateCpuMetrics,diagnosticState,showStatus,showPerformance,showSettings,showAddons});
+require("./ipc/app-ipc").registerAppIpc({ipcMain,app,composition,getAgent:()=>agent,showStatus,showPerformance,showSettings,showAddons});
 require("./ipc/core-ipc").registerCoreIpc({ipcMain,diagnostic,diagnosticState,getApiHealth,getResourceService,updateCpuMetrics});
 load("chatIpc","./ipc/chat-ipc").registerChatIpc({ipcMain,ensureBrain,getBrainHost:ensureBrainHost,getAgent:()=>agent,getCharacterWindow:()=>characterWin,getChatHost:()=>chatHost});
 load("learningIpc","./ipc/learning-ipc").registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensureBrain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations,showLearning:()=>showLearning});
