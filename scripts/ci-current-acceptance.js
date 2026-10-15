@@ -167,33 +167,33 @@ function main() {
     { note: "Rest-pose capture, storage verification, reload and reset must preserve and strictly verify actual bone positions as well as rotations." });
 
   const studioHtml = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
-  check("character-studio-edits-and-syncs-bone-position",
+  check("character-settings-edits-and-syncs-bone-position",
     studioHtml.includes('id="px"') && studioHtml.includes('id="py"') && studioHtml.includes('id="pz"') &&
     studioHtml.includes('action:"setBonePosition"') &&
     studioHtml.includes("syncPreviewFromController({captureRest:true,reset:true})") &&
     studioHtml.includes('source.position)b.position.set'),
-    { note: "The actual Character Studio window must edit local bone positions and synchronize its preview with the authoritative live controller." });
+    { note: "The current Character Settings window must edit local bone positions and synchronize its preview with the authoritative live controller." });
 
   const characterStudioSource = exists("src/character-studio.html") ? read("src/character-studio.html") : "";
   const characterHost = exists("src/main/character/character-host.js") ? read("src/main/character/character-host.js") : "";
-  check("rest-pose-editor-can-edit-local-bone-position",
+  check("character-settings-can-edit-local-bone-position",
     characterStudioSource.includes('id="px"') && characterStudioSource.includes('id="py"') && characterStudioSource.includes('id="pz"') &&
     characterStudioSource.includes('action:"setBonePosition"') &&
     characterStudioSource.includes('action:"setBoneEditorRotation"') &&
     characterClient.includes('if(x.action==="setBoneTransform")') &&
     characterHost.includes('"setBonePosition","setBoneTransform","bonePosition"'),
-    { note: "The active Character Studio must expose actual local bone-position editing through the authoritative controller, not a legacy renderer." });
+    { note: "The active Character Settings window must expose actual local bone-position editing through the authoritative controller, not a legacy renderer." });
 
   const characterEngineSource = exists("src/character/CharacterEngine.js") ? read("src/character/CharacterEngine.js") : "";
   const windowManagerSource = exists("src/main/application/window-manager.js") ? read("src/main/application/window-manager.js") : "";
-  check("rest-pose-editor-engine-bootstrap-is-present",
+  check("character-settings-engine-bootstrap-is-present",
     windowManagerSource.includes('path.join(rootPath,"character-studio.html")') &&
     characterStudioSource.includes("window.__saeedStudioPendingCharacter=data") &&
     characterStudioSource.includes("onCharacterSelected") &&
     characterStudioSource.includes("getPendingCharacter") &&
     characterStudioSource.includes("characterController") &&
     characterEngineSource.includes("normalizeHumanoidRestPose"),
-    { note: "The active Character Studio must load through the window manager, receive queued character-selection data, and use the authoritative character controller and engine." });
+    { note: "The active Character Settings window must load through the window manager, receive queued character-selection data, and use the authoritative character controller and engine." });
 
   const motionEditorSource = exists("src/character/MotionEditor.js") ? read("src/character/MotionEditor.js") : "";
   const animationControllerSource = exists("src/character/AnimationController.js") ? read("src/character/AnimationController.js") : "";
@@ -249,12 +249,14 @@ function main() {
     studioHtml.includes('action:"bindSlot"') && studioHtml.includes('action:"remap"'),
     { note: "Manual bone binding and left/right mapping swaps must call the shared rig operations rather than unsupported controller methods." });
 
-  check("duplicate-rest-pose-screen-removed-safely",
+  check("character-settings-route-is-the-authoritative-authoring-screen",
     !exists("src/normalizehumanoidrestpose.html") && !exists("src/normalizehumanoidrestpose.js") && !exists("src/normalizehumanoidrestpose.css") &&
     !windowManagerSource.includes("normalizehumanoidrestpose.html") &&
-    exists("src/character-studio.html") && studioHtml.includes('id="normalize"') &&
-    read("src/main/application/system-controls.js").includes('{label:"Character Settings",click:showRestPoseEditor}') && !read("src/main/application/system-controls.js").includes("showNormalizeHumanoidRestPose"),
-    { note: "Rest-pose normalization now routes through Character Settings before the duplicate page is removed." });
+    exists("src/character-studio.html") && studioHtml.includes("<title>Character Setting</title>") &&
+    windowManagerSource.includes('path.join(rootPath,"character-studio.html")') &&
+    read("src/main/application/system-controls.js").includes('{label:"Character Settings",click:showRestPoseEditor}') &&
+    read("src/main/runtime.js").includes("showRestPoseEditor: composition.showRestPoseEditor"),
+    { note: "The Character Settings menu must reach the current authoring page, not an obsolete Normalize Rest Pose window." });
 
   const voiceIpc = exists("src/main/ipc/voice-ipc.js") ? read("src/main/ipc/voice-ipc.js") : "";
   const voiceClient = exists("src/renderer/voice/voice-client.js") ? read("src/renderer/voice/voice-client.js") : "";
