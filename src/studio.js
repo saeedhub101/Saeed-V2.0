@@ -128,6 +128,7 @@ async function reloadModel() {
 /* ============ tabs ============ */
 const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test'], ['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
 function setTab(t) {
+  if (tab === 'faceHands' && t !== 'faceHands' && cfg.handCurl) applyHandCurl(cfg.handCurl.side || 'left', 0);
   tab = t;
   for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === t);
   ch.mode = t === 'fix' || t === 'create' ? 'preview' : t === 'test' || t === 'face' ? 'engine' : 'rest';
