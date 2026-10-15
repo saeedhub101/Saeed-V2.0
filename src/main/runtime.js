@@ -60,21 +60,6 @@ let composition;
 composition=createRuntimeComposition({app,ipcMain,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,state:compositionState,getState,setWindow,getAgent:()=>agent,setAgent:value=>{agent=value},moduleLoader,ensureFeatureIpc});
 const {diagnosticState,diagnostic,publish3DStatus,accept3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent,getAddonService,getLearning,getLearningRecorder,getApiHealth,getResourceService,getChatWindow,ensureChatHost,getCurrentMicMode,getVoiceMuted,ensureVoiceHost,setMicMode,setVoiceMuted,ensureScreenCapture,captureScreen,permissionPolicy,confirmPermission,confirmations,voiceBroadcast,characterStore,character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings,characterApi,ensureWindowManager,showPerformance,showSettings,showLearning,showAddons,ensureUpdateManager,updateNow,rebuildTray,contextMenu,ensureBrainHost,ensureBrain,releaseBrainIfIdle,showStatus,show3DStatus}=composition;
 characterHost=composition.characterHost;
-// Persistent authoring data for the original Character Studio, separate from runtime settings.
-const characterStudioConfigPath=()=>path.join(app.getPath("userData"),"character-studio-config.json");
-ipcMain.handle("character-studio:config:get",async()=>{
- try{return JSON.parse(await fs.promises.readFile(characterStudioConfigPath(),"utf8"))}
- catch(error){if(error?.code==="ENOENT")return {};diagnostic("ERROR","CHARACTER STUDIO CONFIG READ",error?.message||String(error));return {}}
-});
-ipcMain.handle("character-studio:config:set",async(_event,patch={})=>{
- if(!patch||typeof patch!=="object"||Array.isArray(patch))throw new TypeError("Character Studio settings patch must be an object");
- let current={};try{current=JSON.parse(await fs.promises.readFile(characterStudioConfigPath(),"utf8"))}catch(error){if(error?.code!=="ENOENT")throw error}
- const next={...current,...patch},file=characterStudioConfigPath(),temp=file+".tmp";
- await fs.promises.mkdir(path.dirname(file),{recursive:true});
- await fs.promises.writeFile(temp,JSON.stringify(next,null,2),"utf8");
- await fs.promises.rename(temp,file);
- return next;
-});
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterApi;
 
 // AUTHORITATIVE SAEED ICON CODE — DO NOT REMOVE OR REPLACE.
