@@ -52,7 +52,7 @@ async function run(){
   const normalizationCall=avatar.indexOf("const normalization=normalizeHumanoidRestPose()",displayStart);
   const firstDisplayRender=avatar.indexOf("render();",displayStart);
   report("correction before first render",displayStart>=0&&normalizationCall>displayStart&&firstDisplayRender>normalizationCall);
-  report("no GLB animation dependency",!avatar.includes("gltf.animations")&&!avatar.includes("AnimationMixer"));
+  report("procedural motion remains available with optional GLB clips",controller.includes('semantic(intent,options={})')&&controller.includes('const motion=map[key]||"idle"')&&avatar.includes("playGlbAnimation"));
   report("idle after character load",controller.includes("onCharacterLoaded()")&&controller.includes("setIdlePose(this.animation.idlePose||{})"));
   report("zero character padding",avatar.includes("canvasPadding:0"));
  }catch(e){report("character contract",false,e?.stack||e);}
