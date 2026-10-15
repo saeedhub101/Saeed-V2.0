@@ -237,6 +237,7 @@ async function runCiProductAcceptance({ app, session, process, path, fs, charact
   const after=await characterHost.command({action:"getRig"});
   check("character-survives-repeated-visibility-cycles",after?.ok===true&&after?.bones?.length===rig.bones.length,{before:rig.bones.length,after:after?.bones?.length||0});
  }catch(error){report.error=String(error?.stack||error);check("runtime-acceptance-exception",false,{error:report.error})}
+ for(const required of ["glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-test-fixture-restored","glb-intent-map-restored"]){if(!report.checks.some(item=>item.name===required))check(required,false,{error:"Required GLB intent mapping check did not execute"});}
  report.finishedAt=new Date().toISOString();
  report.passed=report.checks.length>0&&report.checks.every(item=>item.passed);
  const output=process.env.SAEED_CI_ACCEPTANCE_REPORT||path.join(process.cwd(),"dist","ci-product-acceptance.json");
