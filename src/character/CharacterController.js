@@ -113,6 +113,41 @@ export class CharacterController{
    return this.lastBindingResult;
   }finally{this.binding=false;}
  }
+ remap(mapping={}){
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  if(!names.length)return false;
+  const available=new Set(names.map(String)),next={};
+  for(const [slot,value] of Object.entries(mapping||{})){
+   const key=String(slot||"").trim(),bone=String(value?.name||value||"").trim();
+   if(key&&bone&&available.has(bone))next[key]=bone;
+  }
+  const profileId=this.characterId||this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const profile=this.profiles.load(profileId)||{};
+  const savedRestPose=profile.normalizehumanoidrestpose||profile.restPose||null;
+  const bound=this.engine?.bindRig?.(next,savedRestPose);
+  if(!bound)return false;
+  const mapped=this.engine?.getBoneMap?.()||{};
+  if(Object.values(mapped).some(b=>!available.has(String(b?.name||b))))return false;
+  this.characterId=profileId;
+  this.retargeter.bind(mapped,profile.calibration||{},profile.axisFixes||{});
+  this.fingers.bind(names);
+  this.animation.stopAll();
+  this.animation.bindRig(mapped,this.retargeter);
+  this.rigReady=Object.keys(mapped).length>0;
+  const persistedMapping=Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||String(b||"")]));
+  const snapshot=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
+  try{this.profiles.save(profileId,{mapping:persistedMapping,calibration:this.retargeter.status().calibration,axisFixes:this.retargeter.status().axisFixes,restPose:snapshot,normalizehumanoidrestpose:snapshot,customMotions:this.editor.list()})}
+  catch(error){try{window.saeed?.system?.reportDiagnostic?.("ERROR","RIG MAPPING SAVE",error?.message||String(error),{profileId,mapping:persistedMapping})}catch{}}
+  this.engine?.wakeRender?.(250);
+  return true;
+ }
+ bindSlot(slot,boneName){
+  const key=String(slot||"").trim(),name=String(boneName||"").trim();
+  if(!key||!name)return false;
+  const current=this.engine?.getBoneMap?.()||{},mapping=Object.fromEntries(Object.entries(current).map(([slot,b])=>[slot,String(b?.name||b||"")]));
+  mapping[key]=name;
+  return this.remap(mapping);
+ }
  autoMap(){
   this.beginAuthoring();
   const names=this.engine?.getAvailableBoneNames?.()||[];
