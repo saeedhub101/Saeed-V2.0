@@ -35,6 +35,8 @@ jobs:
           cache: npm
 
       - name: Refresh and commit npm lockfile when dependency versions change
+        id: refresh_lock
+        if: always()
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -53,6 +55,8 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "Could not push regenerated npm lockfile to main." }
           }
       - name: Install locked dependencies
+        id: install_deps
+        if: always()
         run: npm ci --no-audit --no-fund
 
       - name: Run current product preflight
@@ -61,6 +65,7 @@ jobs:
         run: npm test
 
       - name: Generate npm third-party license notices
+        id: license_notices
         if: always()
         shell: pwsh
         run: |
@@ -70,6 +75,7 @@ jobs:
           Get-Content "THIRD_PARTY_NOTICES.txt" -TotalCount 8
 
       - name: Prepare native Windows icon
+        id: prepare_icon
         if: always()
         shell: pwsh
         run: |
@@ -114,6 +120,7 @@ jobs:
           if ($errText) { Write-Host $errText }
 
       - name: Build embedded Whisper runtime
+        id: whisper_build
         if: always()
         shell: pwsh
         timeout-minutes: 15
@@ -528,6 +535,11 @@ jobs:
         run: |
           $failed = @()
           if ("preflight" -and "preflight" -ne "" -and "${{ steps.preflight.outcome }}" -eq "failure") { $failed += "preflight" }
+          if ("${{ steps.refresh_lock.outcome }}" -eq "failure") { $failed += "refresh_lock" }
+          if ("${{ steps.install_deps.outcome }}" -eq "failure") { $failed += "install_deps" }
+          if ("${{ steps.license_notices.outcome }}" -eq "failure") { $failed += "license_notices" }
+          if ("${{ steps.prepare_icon.outcome }}" -eq "failure") { $failed += "prepare_icon" }
+          if ("${{ steps.whisper_build.outcome }}" -eq "failure") { $failed += "whisper_build" }
           if ("${{ steps.package_build.outcome }}" -eq "failure") { $failed += "package_build" }
           if ("${{ steps.addons_build.outcome }}" -eq "failure") { $failed += "addons_build" }
           if ("startup_smoke" -and "startup_smoke" -ne "" -and "${{ steps.startup_smoke.outcome }}" -eq "failure") { $failed += "startup_smoke" }
