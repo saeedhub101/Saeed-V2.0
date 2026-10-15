@@ -86,7 +86,7 @@ test("custom motion profiles are not restored until the incoming rig is successf
 });
 
 test("rig diagnostics can enumerate skeleton bones before automatic or manual mapping",()=>{
- assert.match(hostSource,/const skeletonOnlyActions=new Set\(\["(?:buildProceduralRig",)?"getRig","boneNames"/);
+ assert.match(hostSource,/const skeletonOnlyActions=new Set\(\["getRig","boneNames","buildProceduralRig"/);
  const gate=hostSource.slice(hostSource.indexOf("const skeletonOnlyActions="),hostSource.indexOf("const requestId="));
  assert.match(gate,/getRig/);
  assert.match(gate,/const requiresRig=!skeletonOnlyActions\.has\(actionName\)/);
