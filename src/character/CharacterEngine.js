@@ -14,6 +14,7 @@ const viewSettings={
 let cameraSettings={zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0};
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
+const modelBaseTransforms=new WeakMap();
 let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,lastDrawFrameAt=0,renderHoldUntil=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
 function traceGlb(stage,detail={}){const entry={at:new Date().toISOString(),stage,...detail};glbTrace.push(entry);if(glbTrace.length>200)glbTrace.splice(0,glbTrace.length-200);if(String(stage).toLowerCase().includes("error")||String(stage).toLowerCase().includes("fail")){try{window.saeed?.system?.reportDiagnostic?.("ERROR","3D ENGINE TRACE",detail?.error||stage,{domain:"3D",traceStage:stage,trace:entry})}catch{}}}
@@ -294,12 +295,22 @@ function dispose(o){
 }
 function fit(){
  if(!model)return false;
+ // Always measure the original GLB transform. Measuring the already-fitted model
+ // compounds its scale on every resize and causes alternating crop/too-small views.
+ let original=modelBaseTransforms.get(model);
+ if(!original){
+  original={scale:model.scale.clone(),position:model.position.clone(),rotation:model.rotation.clone()};
+  modelBaseTransforms.set(model,original);
+ }
+ model.scale.copy(original.scale);
+ model.position.copy(original.position);
+ model.rotation.copy(original.rotation);
  model.updateWorldMatrix(true,true);
  const raw=new THREE.Box3().setFromObject(model,true);
  const rawSize=raw.getSize(new THREE.Vector3());
  if(!Number.isFinite(rawSize.x)||!Number.isFinite(rawSize.y)||!Number.isFinite(rawSize.z)||rawSize.lengthSq()<1e-10){traceGlb("fit-invalid-bounds",{size:{x:rawSize.x,y:rawSize.y,z:rawSize.z}});return false;}
- const scale=3.75/Math.max(rawSize.y,.001)*Math.max(.001,Number(viewSettings.characterScale)||1);
- model.scale.setScalar(scale);
+ const scaleFactor=3.75/Math.max(rawSize.y,.001)*Math.max(.001,Number(viewSettings.characterScale)||1);
+ model.scale.copy(original.scale).multiplyScalar(scaleFactor);
  model.position.set(Number(viewSettings.characterPositionX)||0,Number(viewSettings.characterPositionY)||0,Number(viewSettings.characterPositionZ)||0);
  model.rotation.y=Number(viewSettings.characterRotationY)||0;
  model.updateWorldMatrix(true,true);
@@ -313,8 +324,8 @@ function fit(){
  const verticalDistance=size.y*.5/Math.tan(vf);
  const horizontalDistance=size.x*.5/Math.tan(hf*.5);
  const zoom=Math.max(.1,Math.min(5,Number(cameraSettings?.zoom)||1));
- // Keep the character large in the transparent window while retaining a small safety margin.
- const dist=Math.max(verticalDistance,horizontalDistance)*1.04/zoom;
+ // Derive camera distance from both viewport dimensions with breathing room.
+ const dist=Math.max(verticalDistance,horizontalDistance)*1.12/zoom;
  if(!Number.isFinite(dist)||dist<=0){traceGlb("fit-invalid-camera",{dist,aspect,width:size.x,height:size.y});return false;}
  camera.position.set(center.x,center.y,center.z+Math.max(.01,dist));
  camera.near=Math.max(.001,Math.min(.1,size.length()/1000));
@@ -326,8 +337,9 @@ function fit(){
  camera.rotateX(THREE.MathUtils.degToRad(Number(cs.rotationX)||0));
  camera.rotateY(THREE.MathUtils.degToRad(Number(cs.rotationY)||0));
  camera.rotateZ(THREE.MathUtils.degToRad(Number(cs.rotationZ)||0));
- camera.zoom=Math.max(.1,Math.min(5,Number(cs.zoom)||1));
+ camera.zoom=1;
  camera.updateProjectionMatrix();
+ traceGlb("fit-complete",{aspect,viewport:{width:canvas.clientWidth||430,height:canvas.clientHeight||520},model:{width:size.x,height:size.y,depth:size.z},cameraDistance:dist,zoom,scaleFactor});
  return true;
 }
 function render(){
@@ -374,10 +386,11 @@ function resize(){
  renderer.setSize(w,h,false);
  camera.aspect=w/h;
  camera.updateProjectionMatrix();
- // Canvas resizes must not reset camera framing or re-fit the loaded GLB.
- // ResizeObserver can fire during unrelated layout/window transitions.
- const fitted=false;
- traceGlb("resize",{width:w,height:h,fitted,hidden:document.hidden,framing:"preserved"});
+ // Refit from the GLB's original transform whenever the actual viewport changes.
+ // This keeps Small/Medium/Large framed consistently without compounding model scale.
+ let fitted=false;
+ if(model){try{fitted=fit()}catch(error){traceGlb("resize-fit-error",{width:w,height:h,error:error?.stack||error?.message||String(error)});window.saeed?.system?.reportDiagnostic?.("ERROR","3D RESIZE FIT",error?.message||String(error),{domain:"3D",width:w,height:h})}}
+ traceGlb("resize",{width:w,height:h,fitted,hidden:document.hidden,framing:fitted?"recalculated":"no-model"});
  renderImmediate();render();
 }
 new ResizeObserver(resize).observe(canvas);
