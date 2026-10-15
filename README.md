@@ -35,6 +35,7 @@ This file is the concise project entry point. **Domain contracts define architec
 - [Architecture index](Architecture_Index.md) — source of truth for document ownership and precedence.
 - [Character architecture](Character_Architecture.md) — intent, mood, behavior, rigging, motion and GLB integration.
 - [Character behavior engine](CHARACTER_BEHAVIOR_ENGINE.md) — autonomous behavior state and acceptance expectations.
+- [Animation flow guide](docs/تعليمات%20ربط%20الانيميشن.md) — Arabic implementation trace from semantic command to GLB bones.
 - [Engine architecture](Engine_Architecture.md) — rendering, model loading and low-level 3D ownership.
 - [Lifecycle architecture](Lifecycle_Architecture.md) — startup, lazy activation, shutdown and resource ownership.
 - [Voice and conversation](Voice_Conversation_Architecture.md) — Chat/Mic, STT/TTS, shared conversation and audio providers.
