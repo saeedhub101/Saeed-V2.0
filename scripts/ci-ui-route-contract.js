@@ -87,7 +87,7 @@ check("general-settings-character-button-calls-canonical-api",
 check("packaged-lifecycle-tests-the-current-character-settings-window",
   packagedAcceptance.includes("showCharacterSettings") &&
   packagedAcceptance.includes('"characterSettingsWin"') &&
-  packagedAcceptance.includes('screen("character-settings-window","characterSettingsWin",showCharacterSettings,true)') &&
+  packagedAcceptance.includes('screen("character-settings-window","characterSettingsWin",showCharacterSettings,true,"Character Settings screen")') &&
   !packagedAcceptance.includes("showNormalizeHumanoidRestPose") &&
   !packagedAcceptance.includes("restPoseEditorWin"),
   "Packaged lifecycle acceptance must open and close the current Character Settings window through the real composition function");
