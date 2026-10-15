@@ -126,6 +126,32 @@ export class CharacterMotionOperations {
   return this.rigReady;
 }
  
+ async setAccessory(definition,enabled=true,state={}){
+  const def=definition&&typeof definition==="object"?definition:{},id=String(def.id||"").trim();if(!id)return{ok:false,error:"Accessory id is required"};
+  const names=this.engine?.getAvailableBoneNames?.()||[];
+  if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
+  const profile=this.characterId?(this.profiles.load(this.characterId)||{}):{},previous=profile.accessories&&typeof profile.accessories==="object"?profile.accessories:{};
+  const prior=previous[id]||{},nextState=enabled!==false?{...prior,...state,on:true,bone:String(state.bone||prior.bone||def.bone||"head"),scale:Math.max(.05,Math.min(10,Number(state.scale??prior.scale??def.scale??1)||1))}:{...prior,on:false};
+  const loadFile=async item=>{const api=window.saeed?.addons;if(!api?.addonFile)throw new Error("Add-on accessory file service is unavailable");return api.addonFile(item.addon,item.file)};
+  const result=await this.engine?.setAccessory?.({...def,bone:nextState.bone||def.bone},enabled!==false,loadFile,nextState);
+  if(!result?.ok)return result||{ok:false,error:"Character engine rejected the accessory"};
+  try{this.profiles.save(this.characterId,{accessories:{...previous,[id]:nextState}})}
+  catch(error){if(enabled!==false)await this.engine?.setAccessory?.(def,false,loadFile,nextState);return{ok:false,error:"Accessory state could not be persisted: "+(error?.message||String(error))}}
+  return result;
+ }
+ getAccessoryState(){const profile=this.characterId?(this.profiles.load(this.characterId)||{}):{};return profile.accessories&&typeof profile.accessories==="object"?profile.accessories:{}}
+ async restoreAccessories(){
+  const profileId=this.characterId;if(!profileId)return false;
+  const profile=this.profiles.load(profileId)||{},states=profile.accessories&&typeof profile.accessories==="object"?profile.accessories:{};
+  if(!Object.values(states).some(state=>state?.on)){this.accessoryRestoreProfileId=profileId;return true}
+  const api=window.saeed?.addons;if(!api?.accessoriesList||!api?.addonFile)return false;
+  if(this.accessoryRestorePromise)return this.accessoryRestorePromise;
+  this.accessoryRestorePromise=(async()=>{const defs=await api.accessoriesList(),loadFile=async item=>api.addonFile(item.addon,item.file);let failures=0;
+   for(const def of defs){const state=states[def.id];if(!state?.on)continue;const result=await this.engine?.setAccessory?.({...def,bone:state.bone||def.bone},true,loadFile,state);if(!result?.ok){failures++;try{window.saeed?.system?.reportDiagnostic?.("WARN","ACCESSORY RESTORE",result?.error||("Could not restore "+def.id),{id:def.id,profileId})}catch{}}}
+   this.accessoryRestoreProfileId=profileId;return failures===0
+  })();
+  try{return await this.accessoryRestorePromise}catch(error){try{window.saeed?.system?.reportDiagnostic?.("ERROR","ACCESSORY RESTORE",error?.stack||error?.message||String(error),{profileId})}catch{}return false}finally{this.accessoryRestorePromise=null}
+ }
  setLimit(slot,limit){return this.animation.setLimit(slot,limit)}
  setMotionEnabled(id,enabled=true){const ok=this.animation.setMotionEnabled(id,enabled);if(ok&&this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return ok}
  defineMotion(def){const out=this.editor.define(def);if(this.characterId)this.profiles.save(this.characterId,{customMotions:this.editor.list()});return out}
