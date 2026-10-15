@@ -2,7 +2,8 @@
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Saeed Settings</title><link rel="stylesheet" href="settings.css"></head>
 <body><div id="root"><div class="app">
 <header><h1>Saeed Settings</h1><div class="subtitle">Personal settings for Saeed's appearance, character and everyday use.</div></header>
-<div class="settings-body"><nav class="sidebar">\n<button class="sidebar-item active" data-tab="features"><span class="sidebar-icon">☷</span><span class="sidebar-label">All Features</span></button>
+<div class="settings-body"><nav class="sidebar">
+<button class="sidebar-item active" data-tab="features"><span class="sidebar-icon">☷</span><span class="sidebar-label">All Features</span></button>
 <button class="sidebar-item" data-tab="general"><span class="sidebar-icon">⚙️</span><span class="sidebar-label">General</span></button>
 <button class="sidebar-item" data-tab="apiBrain"><span class="sidebar-icon">🧠</span><span class="sidebar-label">API Brain</span></button>
 <button class="sidebar-item" data-tab="voice"><span class="sidebar-icon">🎙️</span><span class="sidebar-label">Voice</span></button>
@@ -12,7 +13,19 @@
 <button class="sidebar-item" data-tab="about"><span class="sidebar-icon">ℹ️</span><span class="sidebar-label">About</span></button>
 </nav>
 <main>
-<section data-section="general"><h2>General</h2><div class="card">
+
+<section data-section="features"><h2>All Saeed Features</h2><p class="featureIntro">Open every application window from one place. If a feature fails to open, the result is shown here instead of silently doing nothing.</p><div class="featureGrid">
+<div class="card featureCard"><h3>Chat &amp; Assistant</h3><p>Open the conversation window and shared chat history.</p><button class="primary" id="openFeatureChat">Open Chat</button></div>
+<div class="card featureCard"><h3>3D Character &amp; Rig</h3><p>Character settings, bones, rest pose, motion, face and accessories.</p><button class="primary" id="openFeatureCharacter">Character Settings</button></div>
+<div class="card featureCard"><h3>Performance &amp; Permissions</h3><p>Permissions, history, system information, resources and diagnostics.</p><button class="primary" id="openFeaturePerformance">Open Performance</button></div>
+<div class="card featureCard"><h3>Runtime Status</h3><p>Brain, microphone, API and runtime status.</p><button class="primary" id="openFeatureStatus">Open Status</button></div>
+<div class="card featureCard"><h3>3D Renderer Status</h3><p>Renderer, GLB, frame rate, geometry and character diagnostics.</p><button class="primary" id="openFeature3DStatus">Open 3D Status</button></div>
+<div class="card featureCard"><h3>Learning / Teach Mode</h3><p>Create, record, save and run learned tasks.</p><button class="primary" id="openFeatureLearning">Open Learning</button></div>
+<div class="card featureCard"><h3>Add-ons / Plug-ins</h3><p>Browse, enable, install and manage extensions.</p><button class="primary" id="openFeatureAddons">Open Add-ons</button></div>
+<div class="card featureCard"><h3>Updates</h3><p>Inspect update state or check for an update.</p><div class="actions"><button class="primary" id="openFeatureUpdates">Update Status</button><button class="secondary" id="checkFeatureUpdates">Check for Updates</button></div></div>
+</div><p id="featureNavigationStatus" class="status" role="status" aria-live="polite"></p></section>
+
+<section data-section="general" class="hidden"><h2>General</h2><div class="card">
 <div class="row"><label>Chat language</label><input id="language" placeholder="en"></div>
 <div class="info">AI brain routing, LLM providers, STT, TTS and Realtime are managed here. Performance is reserved for permissions, system diagnostics and resource controls.</div>
 <div class="actions"><button class="primary" id="saveGeneral">Save</button><button class="secondary" id="openPerformance">Open Performance</button></div><span class="status" id="generalStatus"></span>
