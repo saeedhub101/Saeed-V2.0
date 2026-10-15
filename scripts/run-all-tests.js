@@ -5,6 +5,7 @@ const { spawnSync } = require("node:child_process");
 const root = path.resolve(__dirname, "..");
 const suites = [
   { name: "current acceptance suite", args: [path.join(root, "scripts", "ci-current-acceptance.js")] },
+  { name: "all-screen control and IPC functional coverage audit", args: [path.join(root, "scripts", "ci-ui-functional-coverage.js")] },
   { name: "UI route and IPC wiring contract suite", args: [path.join(root, "scripts", "ci-ui-route-contract.js")] },
   { name: "foundation contract suite", args: [path.join(root, "scripts", "ci-foundation-contract.js")] },
   { name: "architecture contract suite", args: [path.join(root, "scripts", "ci-architecture-contract.js")] },
