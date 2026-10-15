@@ -9,6 +9,14 @@ const canonical=["src/main","src/renderer","src/character","src/tools","src/addo
 for(const p of canonical)must(exists(p),"Missing canonical foundation path: "+p);
 
 must(!exists("src/avatar.js"),"Legacy src/avatar.js still exists");
+const currentRuntime=read("src/main/runtime.js");
+const characterSettingsIpc=read("src/main/ipc/app-ipc.js");
+const characterSettingsPreload=read("src/preload.js");
+must(windowManager.includes("async function showCharacterSettings()")&&windowManager.includes('path.join(rootPath,"character-studio.html")')&&windowManager.includes("return {showPerformance,showSettings,showLearning,showAddons,showCharacterSettings}"),"Character Settings route is not exported by the current window manager");
+must(currentRuntime.includes("characterSettingsWin")&&!currentRuntime.includes("restPoseEditorWin")&&!currentRuntime.includes("character-studio:config:"),"Runtime still owns an obsolete Character Studio window/config route");
+must(characterSettingsIpc.includes('ipcMain.handle("character-settings:show"')&&characterSettingsIpc.includes("composition.showCharacterSettings")&&characterSettingsPreload.includes('showCharacterSettings:()=>invoke("character-settings:show")'),"Character Settings IPC and preload must target the same current route");
+must(!exists("src/studio.js")&&!exists("src/studio.css")&&!characterSettingsPreload.includes("studio:{getConfig"),"Obsolete standalone character studio prototype/API is still present");
+
 must(exists("src/addons/window.html")&&exists("src/addons/window.js"),"Add-ons / Plug-ins page assets are missing");
 must(exists("src/learning/window.html")&&exists("src/learning/window.js"),"Learning / Teach Mode page assets are missing");
 const windowManager=read("src/main/application/window-manager.js");
@@ -39,7 +47,7 @@ must(!characterHostForChecks.includes("!(Number(result?.boneCount)>=1)")&&charac
 for(const [name,src,tokens] of [
  ["GLB engine",engine,["GLTFLoader","getCharacterPoseStatus","getAvailableBoneNames","setBoneEditorRotation"]],
  ["Character controller",controller,["saveRestPose","defineMotion","play("]],
- ["Character Studio",studio,["setBoneEditorRotation","saveRestPose","resetBoneToRest","defineMotion","loadMotion"]],
+ ["Character Settings",studio,["setBoneEditorRotation","saveRestPose","resetBoneToRest","defineMotion","loadMotion"]],
  ["Character host",characterHostForChecks,['"setBoneEditorRotation"','"saveRestPose"','"resetBoneToRest"']]
 ])for(const token of tokens)must(src.includes(token),name+" missing required GLB/rig/rest-pose/animation contract: "+token);
 const transcriptUi=read("src/renderer/character.html");
