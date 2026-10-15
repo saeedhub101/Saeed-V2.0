@@ -1,6 +1,7 @@
 function createRuntimeComposition(ctx){
  const {app,ipcMain,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,getState,setWindow,getAgent,setAgent}=ctx;
- const lazy={};const load=(key,modulePath)=>lazy[key]||(lazy[key]=require(modulePath));
+ const moduleLoader=ctx.moduleLoader||require("./module-loader").createModuleLoader();
+ const load=(key,modulePath)=>moduleLoader.load("composition:"+key,()=>require(modulePath));
  const getAddonService=()=>ctx.state.addonService||(ctx.state.addonService=require("../services/addon-service"));
  const getLearning=()=>ctx.state.learning||(ctx.state.learning=require("../../learning"));
  const getLearningRecorder=()=>ctx.state.learningRecorder||(ctx.state.learningRecorder=require("../../learning/windows-recorder"));
