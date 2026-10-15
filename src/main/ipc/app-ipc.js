@@ -3,6 +3,7 @@ function registerAppIpc({
   ipcMain, app, composition, getAgent, showStatus, showPerformance, showSettings, showAddons
 }) {
   ipcMain.handle("app:version", () => app.getVersion());
+  ipcMain.handle("capture", async () => { const image = await composition.captureScreen?.(); return image || null; });
   ipcMain.handle("settings:get", () => {
     const agent = getAgent();
     if (agent) return agent.publicSettings();
