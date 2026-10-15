@@ -16,14 +16,14 @@ function createWindowManager({BrowserWindow,path,getWindow,setWindow,iconPath,di
   try{
    let win=getWindow("restPoseEditorWin");
    if(win&&!win.isDestroyed()){win.show();win.focus();return}
-  win=new BrowserWindow({width:1320,height:840,minWidth:1000,minHeight:640,title:"Avatar Studio",show:false,resizable:true,skipTaskbar:false,autoHideMenuBar:true,backgroundColor:"#14171c",icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win=new BrowserWindow({width:1320,height:840,minWidth:1000,minHeight:640,title:"Character Setting",show:false,resizable:true,skipTaskbar:false,autoHideMenuBar:true,backgroundColor:"#14171c",icon:iconPath(),webPreferences:{preload:preloadPath,contextIsolation:true,nodeIntegration:false,sandbox:true}});
    win.setIcon(iconPath());
    win.removeMenu();
    win.on("closed",()=>{setWindow("restPoseEditorWin",null)});
    setWindow("restPoseEditorWin",win);
   if(!await loadFileBounded(win,path.join(rootPath,"character-studio.html")))return;
    win.show();win.focus();
-  }catch(e){diagnostic("ERROR","REST POSE EDITOR",e.message)}
+  }catch(e){diagnostic("ERROR","CHARACTER SETTING",e.message)}
  }
 
  async function showSettings(){
