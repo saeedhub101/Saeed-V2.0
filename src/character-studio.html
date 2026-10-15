@@ -14,6 +14,8 @@ main{height:calc(100vh - 46px);min-height:0;display:grid;grid-template-columns:m
 .side{grid-column:2;grid-row:1;display:flex;flex-direction:column;background:var(--panel);overflow:auto;padding:12px;min-height:0;border-left:1px solid var(--line)}
 .tabs{display:flex;gap:5px;margin-bottom:12px;position:sticky;top:-12px;background:var(--panel);padding:4px 0 8px;z-index:4;flex-wrap:wrap}
 .tabs button{padding:8px 9px;flex:1;min-width:80px;white-space:normal;line-height:1.2}.panel{display:none}.panel.active{display:block}
+.tabs button{flex:1 1 calc(25% - 5px);min-width:0;text-align:center}
+.transform-grid .field{min-width:0}.transform-grid input[type=range]{width:100%;min-width:0;margin-top:2px}
 h3{font-size:13px;margin:13px 0 8px;color:var(--text)}.field{display:grid;gap:5px;margin-bottom:10px;font-weight:600;color:#aab5c4}
 .field input,.field select,.field textarea,.grid input,.grid select,.slot select{min-width:0;width:100%;background:#101319;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:7px 8px;font:12px "Segoe UI",sans-serif}
 .field input,.field select,.grid input,.grid select,.slot select{min-height:32px}.field input[type=range]{padding:0;accent-color:var(--accent)}.field input[type=checkbox]{width:auto;min-height:0}
