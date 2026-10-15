@@ -19,6 +19,7 @@ const preload = read("src/preload.js");
 const characterUi = read("src/character-studio.html");
 const performanceUi = read("src/performance.html");
 const settingsUi = read("src/settings.html");
+const settingsJs = read("src/settings.js");
 
 const routes = [
   { name: "performance", fn: "showPerformance", file: "performance.html", load: 'path.join(rootPath,"performance.html")' },
@@ -48,6 +49,10 @@ check("character-settings-ipc-and-preload-pair",
   /ipcMain\.handle\("character-settings:show"[\s\S]*?composition\.showCharacterSettings/.test(appIpc) &&
   /showCharacterSettings:\(\)=>invoke\("character-settings:show"\)/.test(preload),
   "The renderer API and main-process IPC handler must resolve to the same Character Settings route");
+check("general-settings-character-button-calls-canonical-api",
+  settingsJs.includes("window.saeed.character.showCharacterSettings()") &&
+  !settingsJs.includes("showRestPoseEditor"),
+  "The general Settings shortcut must call the current namespaced Character Settings preload method");
 check("character-settings-page-has-current-authoring-capabilities",
   /<title>Character Setting<\/title>/.test(characterUi) &&
   manager.includes('title:"Character Setting"') &&
