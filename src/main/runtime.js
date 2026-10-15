@@ -205,7 +205,7 @@ app.whenReady().then(async () => {
   });
   screen.on("display-metrics-changed", refreshCharacter);
 });
-require("./ipc/email-ipc").registerEmailIpc({ ipcMain, app, diagnostic });
+// Email and settings IPC are loaded when their settings surface is first opened.
 require("./ipc/window-ipc").registerWindowIpc({
   ipcMain, BrowserWindow, screen, accept3DStatus, request3DStatus, show3DStatus, diagnostic
 });
@@ -226,6 +226,14 @@ function ensureFeatureIpc(feature) {
     callback();
     registeredFeatureIpc.add(name);
   };
+  if (feature === "settings") {
+    register("email", () => load("emailIpc", "./ipc/email-ipc").registerEmailIpc({ ipcMain, app, diagnostic }));
+    register("settings", () => load("settingsIpc", "./ipc/settings-ipc").registerSettingsIpc({
+      ipcMain, ensureBrain, getAgent: () => agent, getVoiceHost: ensureVoiceHost,
+      setMicMode, setSaeedSize, getCharacterWindow: () => characterWin, diagnostic
+    }));
+    return true;
+  }
   if (feature === "chat") {
     register("chat", () => load("chatIpc", "./ipc/chat-ipc").registerChatIpc({
       ipcMain, ensureBrain, getBrainHost: ensureBrainHost,
@@ -269,10 +277,6 @@ load("characterIpc", "./ipc/character-ipc").registerCharacterIpc({
   command: payload => characterHost.command(payload),
   getPendingCharacter: () => characterHost.getPendingCharacter?.() || null,
   captureCharacter3DWindowSettings, writeCharacter3DSettings
-});
-load("settingsIpc", "./ipc/settings-ipc").registerSettingsIpc({
-  ipcMain, ensureBrain, getAgent: () => agent, getVoiceHost: ensureVoiceHost,
-  setMicMode, setSaeedSize, getCharacterWindow: () => characterWin, diagnostic
 });
 load("voiceIpc", "./ipc/voice-ipc").registerVoiceIpc({
   ipcMain, getAgent: () => agent, diagnostic, app, getVoiceHost: ensureVoiceHost,
