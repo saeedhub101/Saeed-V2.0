@@ -341,9 +341,10 @@ export class AutonomousBehaviorController{
   const contextual=["praise","excitement","confusion","disagreement","farewell","apology","encouragement","affection","urgency","boredom","worry","anger","empathy","celebration","curiosity"].includes(reaction.id)?this.chooseContextMotion(reaction.id):null;
   const motion=contextual||reaction.motion;
   const duration=motion==="dance"?2.1:motion==="lookCloser"?1.8:1.25;
-  const played=this.playMotion(motion,{duration,priority:42});
+  this.playMotion(motion,{duration,priority:42});
   this.scheduleReactionFinish(duration*1000+350);
-  return played;
+  // The semantic event was handled even when this character has no playable rig motion.
+  return true;
  }
  classifyText(text){ return classifyTextReaction(text); }
  scheduleSpeakingGesture(){
