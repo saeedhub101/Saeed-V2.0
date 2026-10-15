@@ -210,7 +210,8 @@ function main() {
     voiceClient.includes('this.localSamples.reduce((n,a)=>n+a.length,0)>=2400'),
     { note: "Audio captured while an earlier local STT request is running must be drained after that request finishes." });
   check("local-whisper-result-is-unwrapped-before-brain-routing",
-    voiceClient.includes('sttProvider==="whisper"?await window.saeed.voice.transcribeLocalWav(encoded):await window.saeed.voice.sttTranscribe(encoded)') &&
+    voiceClient.includes('sttProvider==="whisper"?await window.saeed.voice.transcribeLocalWav(encoded,sttLanguage):await window.saeed.voice.sttTranscribe(encoded)') &&
+    voiceClient.includes('sttLanguage=String(s?.sttLanguage||"auto").trim().toLowerCase()||"auto"') &&
     voiceClient.includes('const text=String(result?.text||"").trim()') &&
     voiceClient.includes('micSpeechRms=Math.max(0.005,Math.min(0.5,Number(s?.micSpeechRms)||0.02))') &&
     !voiceClient.includes('{ok:true,text:await window.saeed.voice.transcribeLocalWav(encoded)}'),
