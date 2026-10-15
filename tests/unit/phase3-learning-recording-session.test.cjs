@@ -38,5 +38,5 @@ test("recorded tool steps persist as part of the user-approved learned skill",()
 
 test("Brain forwards both the successful tool name and redacted arguments into the active recorder",()=>{
  assert.ok(brainHost.includes("recordHook:(name,args)=>recordLearningStep?.({tool:name,args})"));
- assert.ok(composition.includes('recordLearningStep:step=>require("../../learning/recording-session").recordToolStep(step)'));
+ assert.ok(composition.includes('recordLearningStep:step=>load("learningRecordingSession","../../learning/recording-session").recordToolStep(step)'));
 });

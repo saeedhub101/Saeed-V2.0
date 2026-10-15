@@ -7,12 +7,16 @@ const root=path.join(__dirname,"..","..");
 const runtime=fs.readFileSync(path.join(root,"src/main/runtime.js"),"utf8");
 const acceptance=fs.readFileSync(path.join(root,"src/main/ci/product-acceptance.js"),"utf8");
 const rigBuilder=fs.readFileSync(path.join(root,"src/main/ci/character-rig-builder.js"),"utf8");
+const restPoseRestart=fs.readFileSync(path.join(root,"src/main/ci/rest-pose-restart.js"),"utf8");
+const textReactions=fs.readFileSync(path.join(root,"src/character/TextReactions.js"),"utf8");
+const reactionClassifier=fs.readFileSync(path.join(root,"src/character/TextReactionClassifier.js"),"utf8");
 const engine=fs.readFileSync(path.join(root,"src/character/CharacterEngine.js"),"utf8");
 const client=fs.readFileSync(path.join(root,"src/character/client.js"),"utf8");
 const workflow=fs.readFileSync(path.join(root,".github/workflows/build-windows-electron.yml"),"utf8");
 
 test("packaged acceptance launches after startup and exits from a machine-readable result",()=>{
- assert.match(runtime,/process\.argv\.includes\("--ci-acceptance"\)\)\{void runCiProductAcceptance\(\);return\}/);
+ assert.match(runtime,/process\.argv\.includes\("--ci-acceptance"\)/);
+ assert.match(runtime,/require\("\.\/ci\/product-acceptance"\)\.runCiProductAcceptance/);
  assert.match(acceptance,/PACKAGED_RUNTIME_ACCEPTANCE=/);
  assert.match(acceptance,/SAEED_CI_ACCEPTANCE_REPORT/);
  assert.match(workflow,/Verify packaged runtime acceptance/);
@@ -49,9 +53,9 @@ test("character animation pause stops every autonomous timer and resumes the cur
  assert.match(behavior,/return \{running:this\.running,paused:this\.paused,visible:this\.visible/);
  assert.match(behavior,/if\(this\.running&&!this\.paused&&this\.settings\.breathing!==false&&!this\.sleeping&&this\.visible\)/);
  assert.match(behavior,/if\(ok\)\{this\.lastMotionId=String\(motion\);if\(priority<=20\)this\.lastCasualMotionAt=now;\}/);
- assert.ok(behavior.includes('id:"anger",pattern:')&&behavior.includes("not angry"));
- assert.ok(behavior.includes('id:"sadness",pattern:')&&behavior.includes("not sad"));
- assert.ok(behavior.includes('id:"curiosity",pattern:')&&behavior.includes("not curious"));
+ assert.ok(textReactions.includes('id:"anger",pattern:')&&reactionClassifier.includes("not angry"));
+ assert.ok(textReactions.includes('id:"sadness",pattern:')&&reactionClassifier.includes("not sad"));
+ assert.ok(textReactions.includes('id:"curiosity",pattern:')&&reactionClassifier.includes("not curious"));
  assert.match(behavior,/if\(!this\.running\|\|this\.paused\|\|!this\.visible\|\|!this\.windowFocused\|\|this\.userBusy\|\|this\.sleeping\|\|this\.settings\.blinking===false\)return/);
 });
 
@@ -69,7 +73,8 @@ test("packaged acceptance covers GLB, rig, rendering, motion, rest pose, voice l
 });
 
 test("packaged acceptance exercises real motion edits, invalid-GLB preservation, and fresh-process rest-pose persistence",()=>{
- for(const token of ["invalid-glb-rejected-preserves-current-character","generated-motion-created","generated-motion-changes-real-bone","generated-motion-changes-all-mapped-bones","rest-pose-change-is-persisted","rest-pose-change-rebinds-existing-motion","edited-motion-changes-real-bone-differently","edited-motion-changes-all-mapped-bones-differently","generated-motion-cleaned-up","rest-pose-original-transform-restored","runCiRestPoseRestart","restart-real-bone-rotation-written","restart-real-bone-position-written","restart-rotation-survives-fresh-process","restart-position-survives-fresh-process","--ci-rest-pose-save","--ci-rest-pose-verify"])assert.ok(acceptance.includes(token)||runtime.includes(token),"missing real-runtime acceptance contract: "+token);
+ for(const token of ["invalid-glb-rejected-preserves-current-character","generated-motion-created","generated-motion-changes-real-bone","generated-motion-changes-all-mapped-bones","rest-pose-change-is-persisted","rest-pose-change-rebinds-existing-motion","edited-motion-changes-real-bone-differently","edited-motion-changes-all-mapped-bones-differently","generated-motion-cleaned-up","rest-pose-original-transform-restored","runCiRestPoseRestart","--ci-rest-pose-save","--ci-rest-pose-verify"])assert.ok(acceptance.includes(token)||runtime.includes(token),"missing real-runtime acceptance contract: "+token);
+ for(const token of ["restart-real-bone-rotation-written","restart-real-bone-position-written","restart-rotation-survives-fresh-process","restart-position-survives-fresh-process"])assert.ok(restPoseRestart.includes(token),"missing fresh-process rest-pose check: "+token);
  assert.match(workflow,/Verify rest pose survives a full application restart/);
  assert.match(workflow,/dist\/ci-rest-pose-save\.json/);
  assert.match(workflow,/dist\/ci-rest-pose-verify\.json/);
@@ -90,7 +95,7 @@ test("Character Engine/Rig Builder gate runs immediately after EXE packaging and
  assert.ok(build>=0&&gate>build&&next>gate,"Character Engine/Rig Builder gate must immediately follow EXE packaging");
  assert.equal(workflow.slice(build,next).match(/- name:/g)?.length,2,"No unrelated workflow step may be placed before the rig gate");
  for(const token of ["--ci-character-rig-builder-save","--ci-character-rig-builder-verify","ci-character-rig-builder-save.json","ci-character-rig-builder-verify.json","ci-character-rig-builder-before.png","ci-character-rig-builder-after.png","create-ci-static-humanoid-glb.js","CHARACTER_ENGINE_RIG_BUILDER_RESTART=PASS"])assert.ok(workflow.includes(token),"missing workflow gate contract: "+token);
- for(const token of ["runCiCharacterRigBuilder","actual-saeed-glb-has-loaded-skinned-body","actual-saeed-motion-deforms-real-skinned-vertices","actual-saeed-body-visually-changes-during-motion","viseme-alias-changes-real-shape-key","procedural-rig-restored-after-new-process","saved-rest-pose-survives-full-app-restart","custom-motion-survives-full-app-restart","joint-deformation-","leftForeArm","leftUpperArm","leftThigh","leftShin","skin-weight-quality-within-tolerance","joint-pose-visual-diagnostic-captured","getDeformationSnapshot"])assert.ok(runtime.includes(token)||rigBuilder.includes(token)||engine.includes(token),"missing runtime deformation/persistence check: "+token);
+ for(const token of ["runCiCharacterRigBuilder","actual-saeed-glb-has-loaded-skinned-body","actual-saeed-motion-deforms-real-skinned-vertices","actual-saeed-body-visually-changes-during-motion","viseme-alias-changes-real-shape-key","procedural-rig-restored-after-new-process","saved-rest-pose-survives-full-app-restart","custom-motion-survives-full-app-restart","joint-deformation-","leftForeArm","leftUpperArm","leftThigh","leftShin","skin-weight-quality-within-tolerance","joint-pose-visual-diagnostic-captured","getDeformationSnapshot"])assert.ok(runtime.includes(token)||rigBuilder.includes(token)||restPoseRestart.includes(token)||engine.includes(token),"missing runtime deformation/persistence check: "+token);
  assert.ok(engine.includes("function getDeformationSnapshot("),"renderer must expose sampled skinned-vertex data, not only a visible-window assertion");
  assert.ok(client.includes('action==="buildProceduralRig"'),"rig builder must bypass pre-existing-skeleton readiness gates");
 });
