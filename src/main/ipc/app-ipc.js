@@ -24,8 +24,8 @@ function registerAppIpc({
   ipcMain.handle("app:chat:show", async () => { await composition.ensureChatHost?.().showChat(); return true; });
   ipcMain.handle("status:show", () => { showStatus(); return true; });
   ipcMain.handle("performance:show", () => { showPerformance(); return true; });
-  ipcMain.handle("rest-pose:show", () => {
-    composition.showRestPoseEditor?.();
+  ipcMain.handle("character-settings:show", () => {
+    composition.showCharacterSettings?.();
     return true;
   });
   ipcMain.handle("settings:show", () => { showSettings(); return true; });
