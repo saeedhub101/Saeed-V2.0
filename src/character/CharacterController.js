@@ -274,7 +274,7 @@ export class CharacterController{
   // skeletal gestures, but must not disable available face morphs, blinking, or emotional state.
   this.autonomous?.start?.();
   const sceneNames=this.engine?.getAvailableBoneNames?.()||[];
-  if(!sceneNames.length){this.rigReady=false;this.lastBindingResult={loaded:true,rigAvailable:false,staticMesh:true,mappedBoneCount:0,sceneBoneCount:0,reason:"Character is visible as a static mesh; this GLB contains no bones to animate; facial behavior remains available where supported"};return this.lastBindingResult}
+  if(!sceneNames.length){this.characterId=this.profiles.idFor(sceneNames,this.engine?.getCharacterProfileKey?.()||"saeed");this.rigReady=false;this.lastBindingResult={loaded:true,rigAvailable:false,staticMesh:true,mappedBoneCount:0,sceneBoneCount:0,reason:"Character is visible as a static mesh; this GLB contains no bones to animate; facial behavior remains available where supported"};void this.restoreAccessories?.();return this.lastBindingResult}
   const x=this.bindCurrentCharacter();
   if(!x?.mappedBoneCount){this.rigReady=false;return{loaded:false,reason:x?.reason||"Character rig binding produced no controllable bones",boneCount:sceneNames.length,auto:x?.autoMapping||null}}
   const finalMap=this.engine?.getBoneMap?.()||{};
@@ -288,6 +288,8 @@ export class CharacterController{
   this.animation.stopAll();
   this.animation.setIdlePose(this.animation.idlePose||{});
   this.characterId=x.profileId;
+  this.accessoryRestoreProfileId=null;
+  void this.restoreAccessories?.();
   this.rigReady=true;
   this.autonomous?.start?.();
   this.idleBusy=false;
