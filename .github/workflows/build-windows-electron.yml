@@ -135,8 +135,8 @@ jobs:
           $tiledKernel = "build\whisper-src\ggml\src\ggml-cpu\tiled\tiled-kernel.cpp"
           if (!(Test-Path $tiledKernel)) { throw "Whisper tiled kernel source is missing; cannot verify MSVC pragma compatibility." }
           $kernelText = Get-Content $tiledKernel -Raw
-          $gccUnrollCount = ([regex]::Matches($kernelText, '(?m)^[ \t]*#pragma GCC unroll 8[ \t\r]*$')).Count
-          $kernelText = [regex]::Replace($kernelText, '(?m)^[ \t]*#pragma GCC unroll 8[ \t\r]*$', '')
+          $gccUnrollCount = ([regex]::Matches($kernelText, '(?m)^[ \t]*#pragma GCC unroll 8(?:[ \t]*//[^\r\n]*)?[ \t\r]*$')).Count
+          $kernelText = [regex]::Replace($kernelText, '(?m)^[ \t]*#pragma GCC unroll 8(?:[ \t]*//[^\r\n]*)?[ \t\r]*$', '')
           if ($gccUnrollCount -lt 1 -or $kernelText -match '(?m)^\s*#pragma GCC\b') { throw "Could not safely remove GCC-only unroll hints from the MSVC build source." }
           Set-Content -Path $tiledKernel -Value $kernelText -NoNewline
           Write-Host "MSVC_GCC_PRAGMA_FILTER=PASS ($gccUnrollCount GCC-only unroll hints removed; behavior unchanged)"
