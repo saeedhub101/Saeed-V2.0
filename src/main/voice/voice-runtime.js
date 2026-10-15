@@ -5,19 +5,9 @@ function createVoiceRuntime(deps={}){
  const publishAgentEvent=event=>{
   voiceBroadcast("agent:event",event);
   if(!event||typeof event!=="object")return;
-  const type=String(event.type||"");
-  if(!["speech-start","speech-end","listening-start","listening-end","user-input","thinking","tool","tool_result","tool_error"].includes(type))return;
-  const result=event.result&&typeof event.result==="object"?event.result:null;
-  // The character needs only event identity and outcome metadata, never the tool's returned content.
-  voiceBroadcast("character:behavior",{
-   type,
-   name:String(event.name||""),
-   source:event.source||"realtime",
-   text:type==="user-input"?String(event.text||"").slice(0,500):undefined,
-   success:type==="tool_result"?result?.ok!==false:type==="tool_error"?false:undefined,
-   error:type==="tool_error"?String(event.error||"Tool failed").slice(0,240):undefined,
-   resultMeta:type==="tool_result"?{ok:result?.ok!==false,kind:result?.kind||result?.type||null,hasData:Boolean(result&&Object.keys(result).some(k=>!["ok","status","kind","type"].includes(k)))}:undefined
-  });
+  const {toCharacterSemanticEvent}=require("../character/semantic-event-router");
+  const semantic=toCharacterSemanticEvent(event);
+  if(semantic)voiceBroadcast("character:behavior",semantic);
  };
  let realtime=null,realtimeUserText="",realtimeAbortController=null,sessionGeneration=0;
 function stopRealtime(){
