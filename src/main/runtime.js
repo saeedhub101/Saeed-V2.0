@@ -78,32 +78,131 @@ const singleInstanceLock=app.requestSingleInstanceLock();
 if(!singleInstanceLock)app.quit();
 else app.on("second-instance",(event,commandLine)=>{setTimeout(()=>handleLaunchArgs(commandLine.slice(1)),100);});
 
-app.whenReady().then(async()=>{app.isQuitting=false;configureMediaPermissions();ciWriteStartupReport("ready");diagnostic("INFO","APPLICATION","Diagnostics system started");
- try{tray=new Tray(trayIcon());tray.setToolTip("Saeed AI");rebuildTray(tray)}catch(e){console.error("Tray failed:",e)}
- try{await createWindow();if(characterWin&&!getVoiceMuted()&&!ciSmoke)ensureVoiceHost().ensureTts()}catch(e){console.error("Saeed startup failed:",e);ciWriteStartupReport("startup-failed",e);app.quit();return}
-try{const updateMode=agent?.settings?.updateMode||require("./services/settings-store").createSettingsStore(app.getPath("userData")).load().updateMode||"manual";if(app.isPackaged&&["notify","automatic"].includes(updateMode)){const updateTimer=setTimeout(()=>{if(!app.isQuitting)void ensureUpdateManager().check()},15000);updateTimer.unref?.()}}catch(error){diagnostic("WARN","UPDATE AUTO CHECK CONFIG",error?.message||String(error))}
- // Windows Jump List disabled to avoid Electron runtime incompatibility in the CI/build environment.
- if(process.argv.includes("--ci-character-rig-builder-save")){void require("./ci/character-rig-builder").runCiCharacterRigBuilder("save",{app,session,process,path,fs,characterHost,getState,diagnostic});return}
- if(process.argv.includes("--ci-brain-learning-save")||process.argv.includes("--ci-brain-learning-verify")){void require("./ci/packaged-acceptance").runBrainLearning(process.argv.includes("--ci-brain-learning-save")?"save":"verify",{app,ensureBrain,ensureBrainHost,getAgent:()=>agent,diagnostic});return}
- if(process.argv.includes("--ci-lifecycle")){void require("./ci/packaged-acceptance").runLifecycle({app,BrowserWindow,getState,setWindow,characterApi,characterHost,showPerformance,showSettings,showLearning,showAddons,showStatus,show3DStatus,showRestPoseEditor:composition.showRestPoseEditor,showNormalizeHumanoidRestPose:composition.showNormalizeHumanoidRestPose,ensureChatHost,ensureBrain,ensureBrainHost,getAgent:()=>agent,setMicMode,getCurrentMicMode,ensureVoiceHost,diagnostic,stopCpuMonitoring});return}
- if(process.argv.includes("--ci-ram-cpu")){void require("./ci/packaged-acceptance").runResource({app,BrowserWindow,getState,characterApi,characterHost,showPerformance,ensureChatHost,ensureBrain,ensureBrainHost,getAgent:()=>agent,setMicMode,getCurrentMicMode,ensureVoiceHost,getResourceService});return}
- if(process.argv.includes("--ci-character-rig-builder-verify")){void require("./ci/character-rig-builder").runCiCharacterRigBuilder("verify",{app,session,process,path,fs,characterHost,getState,diagnostic});return}
- if(process.argv.includes("--ci-rest-pose-save")){void require("./ci/rest-pose-restart").runCiRestPoseRestart("save",{app,session,process,path,fs,characterHost});return}
- if(process.argv.includes("--ci-rest-pose-verify")){void require("./ci/rest-pose-restart").runCiRestPoseRestart("verify",{app,session,process,path,fs,characterHost});return}
- if(process.argv.includes("--ci-acceptance")){void require("./ci/product-acceptance").runCiProductAcceptance({app,session,process,path,fs,characterHost,getState,composition,showAddons,showLearning,showCharacter,hideCharacter,ensureVoiceHost});return}
- if(process.argv.includes("--exit")||process.argv.includes("--show-saeed")||process.argv.includes("--3d-status")||process.argv.includes("--chat")||process.argv.includes("--performance")||process.argv.includes("--settings")||process.argv.includes("--addons")||process.argv.includes("--learning")||process.argv.includes("--status")||process.argv.includes("--mic-on")||process.argv.includes("--mic-off")||process.argv.some(x=>x.startsWith("--size-"))){handleLaunchArgs(process.argv.slice(1));}
+app.whenReady().then(async () => {
+  app.isQuitting = false;
+  configureMediaPermissions();
+  ciWriteStartupReport("ready");
+  diagnostic("INFO", "APPLICATION", "Diagnostics system started");
 
- globalShortcut.register("CommandOrControl+Shift+M",()=>ensureChatHost().showChat());
- globalShortcut.register("CommandOrControl+Shift+S",async()=>{
-  try{const image=await captureScreen();await ensureChatHost().showChat();getChatWindow()?.webContents.send("screen:capture",image)}
-  catch(e){console.error("Screen capture failed:",e)}
- });
- const refresh=()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())};
- screen.on("display-added",refresh);
- screen.on("display-removed",()=>{if(characterWin)fitCharacterToDisplay(displayForWindow())});
- screen.on("display-metrics-changed",refresh);
+  try {
+    tray = new Tray(trayIcon());
+    tray.setToolTip("Saeed AI");
+    rebuildTray(tray);
+  } catch (error) {
+    console.error("Tray failed:", error);
+  }
+
+  try {
+    await createWindow();
+    if (characterWin && !getVoiceMuted() && !ciSmoke) ensureVoiceHost().ensureTts();
+  } catch (error) {
+    console.error("Saeed startup failed:", error);
+    ciWriteStartupReport("startup-failed", error);
+    app.quit();
+    return;
+  }
+
+  try {
+    const updateMode = agent?.settings?.updateMode ||
+      require("./services/settings-store").createSettingsStore(app.getPath("userData")).load().updateMode ||
+      "manual";
+    if (app.isPackaged && ["notify", "automatic"].includes(updateMode)) {
+      const updateTimer = setTimeout(() => {
+        if (!app.isQuitting) void ensureUpdateManager().check();
+      }, 15000);
+      updateTimer.unref?.();
+    }
+  } catch (error) {
+    diagnostic("WARN", "UPDATE AUTO CHECK CONFIG", error?.message || String(error));
+  }
+
+  // Explicit packaged acceptance modes are isolated from the normal startup path.
+  if (process.argv.includes("--ci-character-rig-builder-save")) {
+    void require("./ci/character-rig-builder").runCiCharacterRigBuilder("save", {
+      app, session, process, path, fs, characterHost, getState, diagnostic
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-brain-learning-save") || process.argv.includes("--ci-brain-learning-verify")) {
+    const mode = process.argv.includes("--ci-brain-learning-save") ? "save" : "verify";
+    void require("./ci/packaged-acceptance").runBrainLearning(mode, {
+      app, ensureBrain, ensureBrainHost, getAgent: () => agent, diagnostic
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-lifecycle")) {
+    void require("./ci/packaged-acceptance").runLifecycle({
+      app, BrowserWindow, getState, setWindow, characterApi, characterHost,
+      showPerformance, showSettings, showLearning, showAddons, showStatus, show3DStatus,
+      showRestPoseEditor: composition.showRestPoseEditor,
+      showNormalizeHumanoidRestPose: composition.showNormalizeHumanoidRestPose,
+      ensureChatHost, ensureBrain, ensureBrainHost, getAgent: () => agent,
+      setMicMode, getCurrentMicMode, ensureVoiceHost, diagnostic, stopCpuMonitoring
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-ram-cpu")) {
+    void require("./ci/packaged-acceptance").runResource({
+      app, BrowserWindow, getState, characterApi, characterHost, showPerformance,
+      ensureChatHost, ensureBrain, ensureBrainHost, getAgent: () => agent,
+      setMicMode, getCurrentMicMode, ensureVoiceHost, getResourceService
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-character-rig-builder-verify")) {
+    void require("./ci/character-rig-builder").runCiCharacterRigBuilder("verify", {
+      app, session, process, path, fs, characterHost, getState, diagnostic
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-rest-pose-save")) {
+    void require("./ci/rest-pose-restart").runCiRestPoseRestart("save", {
+      app, session, process, path, fs, characterHost
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-rest-pose-verify")) {
+    void require("./ci/rest-pose-restart").runCiRestPoseRestart("verify", {
+      app, session, process, path, fs, characterHost
+    });
+    return;
+  }
+  if (process.argv.includes("--ci-acceptance")) {
+    void require("./ci/product-acceptance").runCiProductAcceptance({
+      app, session, process, path, fs, characterHost, getState, composition,
+      showAddons, showLearning, showCharacter, hideCharacter, ensureVoiceHost
+    });
+    return;
+  }
+
+  const launchArgs = [
+    "--exit", "--show-saeed", "--3d-status", "--chat", "--performance",
+    "--settings", "--addons", "--learning", "--status", "--mic-on", "--mic-off"
+  ];
+  if (process.argv.some(arg => launchArgs.includes(arg) || arg.startsWith("--size-"))) {
+    handleLaunchArgs(process.argv.slice(1));
+  }
+
+  globalShortcut.register("CommandOrControl+Shift+M", () => ensureChatHost().showChat());
+  globalShortcut.register("CommandOrControl+Shift+S", async () => {
+    try {
+      const image = await captureScreen();
+      await ensureChatHost().showChat();
+      getChatWindow()?.webContents.send("screen:capture", image);
+    } catch (error) {
+      console.error("Screen capture failed:", error);
+    }
+  });
+
+  const refreshCharacter = () => {
+    if (characterWin) fitCharacterToDisplay(displayForWindow());
+  };
+  screen.on("display-added", refreshCharacter);
+  screen.on("display-removed", () => {
+    if (characterWin) fitCharacterToDisplay(displayForWindow());
+  });
+  screen.on("display-metrics-changed", refreshCharacter);
 });
-
 require("./ipc/email-ipc").registerEmailIpc({ipcMain,app,diagnostic});
 require("./ipc/window-ipc").registerWindowIpc({ipcMain,BrowserWindow,screen,accept3DStatus,request3DStatus,show3DStatus,diagnostic});
 require("./ipc/app-ipc").registerAppIpc({ipcMain,app,composition,getAgent:()=>agent,showStatus,showPerformance,showSettings,showAddons});
