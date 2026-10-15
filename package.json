@@ -15,7 +15,7 @@
     "electron-updater": "6.8.10"
   },
   "devDependencies": {
-    "electron-builder": "26.17.0",
+    "electron-builder": "27.0.0",
     "electron": "38.8.6"
   },
   "build": {
@@ -59,5 +59,8 @@
   },
   "author": {
     "name": "Saeed O. Almansour"
+  },
+  "overrides": {
+    "lodash.isequal": "file:vendor/lodash-isequal-compat"
   }
 }
