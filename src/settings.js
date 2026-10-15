@@ -32,4 +32,4 @@ $("openFeature3DStatus").onclick=()=>openFeature("3D Status",()=>window.saeed.ch
 $("openFeatureLearning").onclick=()=>openFeature("Learning",()=>window.saeed.system.showLearning());
 $("openFeatureAddons").onclick=()=>openFeature("Add-ons",()=>window.saeed.system.showAddons());
 $("openFeatureUpdates").onclick=()=>openFeature("Update Status",()=>window.saeed.system.showUpdateStatus());
-$("checkFeatureUpdates").onclick=()=>openFeature("Update Check",()=>window.saeed.system.checkForUpdates());
+$("checkFeatureUpdates").onclick=()=>openFeature("Update Check",async()=>{await window.saeed.system.showUpdateStatus();return window.saeed.system.checkForUpdates()});
