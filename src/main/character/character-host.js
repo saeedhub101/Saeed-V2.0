@@ -29,7 +29,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   let validation;
   try{validation=validateGlbCandidate(data)}catch(error){return{ok:false,error:error?.message||String(error)}}
   let target=getCharacterWindow();
-  if(!target||target.isDestroyed())target=await createCharacterWindow();
+  if(!target||target.isDestroyed())target=await createCharacterWindow({show:false});
   if(!target||target.isDestroyed())return{ok:false,error:"Character window is unavailable"};
   const previousPending=pendingCharacterData;
   const generation=++characterLoadGeneration;
@@ -110,7 +110,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
  // Performance, Character Studio and Normalize must continue using the same authoritative skeleton.
  diagnostic("INFO","3D WINDOW","Saeed hidden: renderer and authoritative skeleton preserved in memory",{domain:"3D",preserved:true});
 }
- async function createCharacterWindow(){
+ async function createCharacterWindow({show=true}={}){
   let target=getCharacterWindow();
   if(target&&!target.isDestroyed())return target;
   target=new BrowserWindow({name:"saeed-character",width:430,height:520,minWidth:300,minHeight:360,frame:false,transparent:true,alwaysOnTop:true,show:false,hasShadow:false,resizable:true,skipTaskbar:false,icon:windowsIconPath(),webPreferences:{preload:path.join(__dirname,"..","..","preload.js"),contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:true,autoplayPolicy:"no-user-gesture-required"}});
@@ -140,7 +140,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
    const positionState=readCharacter3DSettings();
    if(positionState.window.positionInitialized&&Number.isFinite(Number(positionState.window.x))&&Number.isFinite(Number(positionState.window.y)))applyCharacter3DWindowSettings();
    else{fitCharacterToDisplay(screen.getPrimaryDisplay(),{bottomRight:true});const [x,y]=target.getPosition();writeCharacter3DSettings({...positionState,window:{...positionState.window,x,y,positionInitialized:true}})}
-   target.show();
+   if(show)target.show();
    return target;
   }catch(error){
    diagnostic("ERROR","GLB STARTUP",error?.stack||error?.message||String(error),{domain:"3D"});
@@ -151,7 +151,7 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
  async function command(command={}){
   let win=getCharacterWindow();
   if(!win||win.isDestroyed()){
-   try{win=await createCharacterWindow()}catch(error){diagnostic("ERROR","CHARACTER WINDOW CREATE",error?.stack||error?.message||String(error),{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error:error?.message||String(error),diagnostic:{stage:"window-create"}}}
+   try{win=await createCharacterWindow({show:false})}catch(error){diagnostic("ERROR","CHARACTER WINDOW CREATE",error?.stack||error?.message||String(error),{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error:error?.message||String(error),diagnostic:{stage:"window-create"}}}
    win=getCharacterWindow();
   }
   if(!win||win.isDestroyed()){const error="Character window could not be created";diagnostic("ERROR","CHARACTER WINDOW",error,{domain:"3D",action:String(command?.action||"unknown")});return{ok:false,error};}
