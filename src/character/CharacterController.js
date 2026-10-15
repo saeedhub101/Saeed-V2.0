@@ -306,18 +306,60 @@ export class CharacterController{
    mapped=this.engine?.getBoneMap?.()||mapped;
   }
   return{...this.animation.status(),profileId:this.characterId,binding:this.lastBindingResult,face:this.face.status(),fingers:this.fingers.status(),customMotions:this.editor.list(),autoRig:this.engine?.getCharacterRigAutoMap?.()||Object.fromEntries(Object.entries(mapped).map(([slot,bone])=>[slot,bone?.name||bone])),actualBones:a.bones||{},tPose:a.tPose||{isTPose:false,detected:"unknown"},characterLoaded:Boolean(a.loaded),rigReady:Boolean(a.loaded&&this.rigReady&&Object.keys(mapped).length),mappedBoneCount:Object.keys(mapped).length,mood:this.mood,recentIdle:[...this.recentIdle],visible:this.visible,animationEnabled:this.animationEnabled,animationPaused:this.animationPaused,behavior:{...this.behavior,autonomous:this.autonomous?.getStatus?.()},requiredRig:requiredRigSlots(),optionalRig:optionalRigSlots(),skeletonCount:Number(a.skeletonCount)||0,duplicateBoneGroups:a.duplicateBoneGroups||[]}}
+ getGlbIntentMap(){
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem("saeed.character.glb-intent-map")||"{}")}catch{}
+  const available=new Set((this.engine?.listGlbAnimations?.()||[]).map(item=>String(item?.name||"")).filter(Boolean));
+  const clean={};
+  for(const [intent,clip] of Object.entries(saved||{})){
+   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
+   const name=String(clip||"");
+   if(key&&available.has(name))clean[key]=name;
+  }
+  this.glbIntentMap=clean;
+  return {...clean};
+ }
+ setGlbIntentMap(mapping={}){
+  const available=new Set((this.engine?.listGlbAnimations?.()||[]).map(item=>String(item?.name||"")).filter(Boolean));
+  if(!mapping||typeof mapping!=="object"||Array.isArray(mapping))return{ok:false,error:"Intent mapping must be an object"};
+  const clean={};
+  for(const [intent,clip] of Object.entries(mapping)){
+   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
+   const name=String(clip||"").trim();
+   if(!key)continue;
+   if(!name)continue;
+   if(!available.has(name))return{ok:false,error:"GLB clip is not present in the active character: "+name};
+   clean[key]=name;
+  }
+  try{localStorage.setItem("saeed.character.glb-intent-map",JSON.stringify(clean));}
+  catch(error){return{ok:false,error:"Could not persist GLB intent mapping: "+(error?.message||String(error))}}
+  this.glbIntentMap=clean;
+  return{ok:true,mapping:{...clean},count:Object.keys(clean).length,persisted:true};
+ }
  semantic(intent,options={}){
   const key=String(intent||"").toLowerCase().replace(/[^a-z]/g,"");
+  if(key==="idle"){this.semanticMotionHistory=[];this.engine?.stopGlbAnimation?.(false);this.stopAll();return{intent:key,motion:"idle",played:true}}
+  const mappedClip=this.getGlbIntentMap()[key];
+  const now=Date.now(),cooldown=Math.max(0,Number(options.cooldownMs??this.behavior?.eventCooldownMs??2500)||0);
+  if(mappedClip){
+   const historyKey="glb:"+mappedClip;
+   const last=this.semanticMotionHistory.findLast?.(x=>x.motion===historyKey)||[...this.semanticMotionHistory].reverse().find(x=>x.motion===historyKey);
+   if(last&&now-last.at<cooldown)return{intent:key,motion:mappedClip,clip:mappedClip,source:"glb",played:false,suppressed:true,reason:"recent-motion-cooldown",retryAfterMs:cooldown-(now-last.at)};
+   this.stopAll();
+   const playback=this.engine?.playGlbAnimation?.(mappedClip,{speed:options.speed,loop:options.loop||"once"});
+   const played=playback?.ok===true;
+   if(played){this.semanticMotionHistory.push({motion:historyKey,at:now,intent:key});this.semanticMotionHistory=this.semanticMotionHistory.slice(-8)}
+   return{intent:key,motion:mappedClip,clip:mappedClip,source:"glb",played,playback:playback||null,error:playback?.error||undefined};
+  }
+  this.engine?.stopGlbAnimation?.(false);
   const map={greet:"wave",wave:"wave",agree:"nod",nod:"nod",deny:"shake",think:"think",thinking:"think",talk:"talkGesture",speak:"talkGesture",celebrate:"dance",dance:"dance",jump:"jump",clap:"clap",lookcloser:"lookCloser",closer:"lookCloser",lookleft:"lookLeft",eyesleft:"lookLeft",lookright:"lookRight",eyesright:"lookRight",sit:"sitKnee",sitknee:"sitKnee",stand:"standUp",standup:"standUp",stretch:"stretch",yawn:"yawn",sleep:"sleep",wake:"wake",wakeup:"wake",crackback:"crackBack",crackfingers:"crackFingers",walk:"walk",turn:"turnBody",turnbody:"turnBody",adhan:"adhanOpening"};
-  if(key==="idle"){this.semanticMotionHistory=[];this.stopAll();return{intent:key,motion:"idle",played:true}}
   const motion=map[key]||"idle";
   if(motion==="idle")return{intent:key,motion,played:false,reason:"unknown-intent"};
-  const now=Date.now(),cooldown=Math.max(0,Number(options.cooldownMs??this.behavior?.eventCooldownMs??2500)||0);
   const last=this.semanticMotionHistory.findLast?.(x=>x.motion===motion)||[...this.semanticMotionHistory].reverse().find(x=>x.motion===motion);
   if(last&&now-last.at<cooldown)return{intent:key,motion,played:false,suppressed:true,reason:"recent-motion-cooldown",retryAfterMs:cooldown-(now-last.at)};
   const played=this.play(motion,options);
   if(played){this.semanticMotionHistory.push({motion,at:now,intent:key});this.semanticMotionHistory=this.semanticMotionHistory.slice(-8)}
-  return{intent:key,motion,played};
+  return{intent:key,motion,played,source:"procedural"};
  }
 }
 window.saeedCharacterRuntime=window.saeedCharacterRuntime||{};
