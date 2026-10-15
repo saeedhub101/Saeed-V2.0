@@ -428,7 +428,7 @@ export class AutonomousBehaviorController{
   }
   this.lastEvent=type;
   this.eventCounts.set(type,(this.eventCounts.get(type)||0)+1);
-  const lifecycleEvents=["speech-start","assistant-speech-start","speech-end","assistant-speech-end","speech-cancelled","mute","muted","audio-muted","voice-muted","thinking","assistant-thinking","chat-end","assistant-cancelled","request-cancelled","app-focus","wake"];
+  const lifecycleEvents=["speech-start","assistant-speech-start","speech-end","assistant-speech-end","listening-start","listening-end","speech-cancelled","mute","muted","audio-muted","voice-muted","thinking","assistant-thinking","chat-end","assistant-cancelled","request-cancelled","app-focus","wake"];
   if(this.settings.events===false&&!lifecycleEvents.includes(type))return false;
   if(type==="user-busy-start"||type==="system-busy")return this.setUserBusy(true);
   if(type==="user-busy-end"||type==="system-active")return this.setUserBusy(false);
@@ -445,6 +445,25 @@ export class AutonomousBehaviorController{
   }
   const wasSleeping=this.sleeping;
   this.touch();
+  if(type==="listening-start"){
+   this.clearSleepTimer();
+   this.clearCycleTimers();
+   this.interruptLowPriorityMotions();
+   this.intent="listening";
+   this.setExpression("surprised",.42);
+   const motion=this.chooseWeighted(["lookCloser","nod","think"],{lookCloser:1.3,nod:1.1,think:.65});
+   if(motion)this.playMotion(motion,{duration:.75,priority:28});
+   return true;
+  }
+  if(type==="listening-end"){
+   this.clearSleepTimer();
+   this.clearSpeakingTimer();
+   this.intent="thinking";
+   this.setExpression("thinking",.5);
+   this.playMotion("think",{duration:.9,priority:34});
+   this.scheduleThinkingGesture();
+   return true;
+  }
   if(type==="speech-start"||type==="assistant-speech-start"){
    this.clearSleepTimer();
    this.clearThinkingTimer();
