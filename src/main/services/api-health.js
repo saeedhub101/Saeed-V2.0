@@ -31,7 +31,6 @@ function createApiHealth(deps={}){
   // Validate against the selected provider rather than always querying OpenAI.
   if(provider==="gemini"){url="https://generativelanguage.googleapis.com/v1beta/models";if(key)url+="?key="+encodeURIComponent(key)}
   else{url="https://api.openai.com/v1/models";if(key)headers.Authorization="Bearer "+key}
- }
   }else return finish({detail:"Unknown API service"});
   const localCompatibleEndpoint=s.provider==="openai-compatible"&&/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(String(s.baseUrl||""));if(!s.apiKey&&service==="brain"&&s.provider!=="ollama"&&!localCompatibleEndpoint)return finish({detail:"Brain API key is missing"});
   if(service==="stt"&&s.sttProvider!=="whisper"&&!s.sttApiKey&&!((s.sttProvider==="openai")&&s.apiKey))return finish({detail:"STT API key is missing"});
