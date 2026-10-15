@@ -9,3 +9,27 @@ $("saveFallback").onclick=async()=>{try{const key=$("fallbackApiKey").value.trim
 $("saveStt").onclick=async()=>{try{await saveSpeech("stt")}catch(e){$("sttStatus").textContent=e.message}};$("testStt").onclick=async()=>{try{await saveSpeech("stt");const r=await window.saeed.system.testApiConnection("stt");$("sttStatus").textContent=(r?.connected?"Test passed: ":"Test failed: ")+(r?.detail||"No details")}catch(e){$("sttStatus").textContent="Test failed: "+e.message}};$("saveTts").onclick=async()=>{try{await saveSpeech("tts")}catch(e){$("ttsStatus").textContent=e.message}};$("testTts").onclick=async()=>{try{await saveSpeech("tts");if($("ttsProvider").value==="local"){if(!("speechSynthesis"in window))throw new Error("Browser speech synthesis unavailable");const u=new SpeechSynthesisUtterance("هاي معاينة قصيرة لصوت سعيد.");u.lang="ar-JO";speechSynthesis.cancel();speechSynthesis.speak(u);$("ttsStatus").textContent="Local voice test started.";return}const r=await window.saeed.voice.ttsSpeak("هاي معاينة قصيرة لصوت سعيد.");if(!r?.ok)throw new Error(r?.error||"TTS test failed");$("ttsStatus").textContent="Voice generated and playback started."}catch(e){$("ttsStatus").textContent="Test failed: "+e.message}};
 $("saveRealtime").onclick=async()=>{const key=$("realtimeKey").value.trim(),provider=$("realtimeProvider").value,d=provider==="gemini"?{model:"gemini-3.8-live",voice:"Puck"}:{model:"gpt-realtime-2.1",voice:"marin"};try{await save({realtimeProvider:provider,realtimeModel:$("realtimeModel").value.trim()||d.model,realtimeVoice:$("realtimeVoice").value.trim()||d.voice,realtimeBrainMode:$("realtimeBrainMode").value,...(key?{realtimeApiKey:key}:{})},"realtimeStatus");$("realtimeKey").value=""}catch(e){$("realtimeStatus").textContent=e.message}};$("saveVoice").onclick=async()=>{const showSpeechText=$("showSpeechText").checked;try{await save({micSpeechRms:Math.max(.005,Math.min(.5,Number($("micSpeechRms").value)||.02)),micInterruptRms:Math.max(.005,Math.min(.5,Number($("micInterruptRms").value)||.09)),showSpeechText},"voiceStatus");await window.saeed.system.setTranscriptLabelEnabled(showSpeechText)}catch(e){$("voiceStatus").textContent=e.message}};$("clearAllApis").onclick=async()=>{if(!confirm("Clear all stored API keys and disable Realtime?"))return;try{settings=await window.saeed.system.clearAllApis();await load();$("clearKeysStatus").textContent="All API keys cleared."}catch(e){$("clearKeysStatus").textContent="Could not clear keys: "+e.message}};
 load();
+\n// All application windows have a visible, centralized entry point here.
+const featureNavigationStatus=$("featureNavigationStatus");
+async function openFeature(label,operation){
+ const buttons=[...document.querySelectorAll("[id^='openFeature'],#checkFeatureUpdates")];
+ buttons.forEach(button=>button.disabled=true);
+ if(featureNavigationStatus)featureNavigationStatus.textContent="Opening "+label+"…";
+ try{
+  const result=await operation();
+  if(result===false)throw new Error("The application did not confirm that the window opened.");
+  if(featureNavigationStatus)featureNavigationStatus.textContent=label+" opened.";
+ }catch(error){
+  if(featureNavigationStatus)featureNavigationStatus.textContent="Could not open "+label+": "+(error?.message||String(error));
+  try{await window.saeed.system.reportDiagnostic?.("ERROR","FEATURE NAVIGATION",label+": "+(error?.message||String(error)))}catch{}
+ }finally{buttons.forEach(button=>button.disabled=false)}
+}
+$("openFeatureChat").onclick=()=>openFeature("Chat",()=>window.saeed.chat.showChat());
+$("openFeatureCharacter").onclick=()=>openFeature("Character Settings",()=>window.saeed.character.showRestPoseEditor());
+$("openFeaturePerformance").onclick=()=>openFeature("Performance",()=>window.saeed.system.showPerformance());
+$("openFeatureStatus").onclick=()=>openFeature("Status",()=>window.saeed.system.showStatus());
+$("openFeature3DStatus").onclick=()=>openFeature("3D Status",()=>window.saeed.character.show3DStatus());
+$("openFeatureLearning").onclick=()=>openFeature("Learning",()=>window.saeed.system.showLearning());
+$("openFeatureAddons").onclick=()=>openFeature("Add-ons",()=>window.saeed.system.showAddons());
+$("openFeatureUpdates").onclick=()=>openFeature("Update Status",()=>window.saeed.system.showUpdateStatus());
+$("checkFeatureUpdates").onclick=()=>openFeature("Update Check",()=>window.saeed.system.checkForUpdates());
