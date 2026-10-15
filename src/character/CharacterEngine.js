@@ -14,6 +14,7 @@ const viewSettings={
 let cameraSettings={zoom:1,fov:28,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0};
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
+const accessories=new Map(),hiddenByOutfit=new Map(),meshBaseVisibility=new Map(),userHiddenMeshNames=new Set();
 const modelBaseTransforms=new WeakMap();
 let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,lastDrawFrameAt=0,renderHoldUntil=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
@@ -437,6 +438,7 @@ function display(parsed){
   try{render()}catch{}
   throw error;
  }
+ meshBaseVisibility.clear();next.traverse(o=>{if(o?.isMesh)meshBaseVisibility.set(o,o.visible!==false)});accessories.clear();hiddenByOutfit.clear();userHiddenMeshNames.clear();
  if(previous){
   try{root.remove(previous)}catch{}
   dispose(previous);
@@ -732,17 +734,78 @@ function buildProceduralRig(templateName="full",options={}){
 
 
 
+function applyMeshVisibility(){
+ const outfitHidden=new Set();for(const names of hiddenByOutfit.values())for(const name of names)outfitHidden.add(String(name));
+ model?.traverse(o=>{if(!o?.isMesh)return;const name=String(o.name||"").trim(),original=meshBaseVisibility.has(o)?meshBaseVisibility.get(o):true;o.visible=original&&!userHiddenMeshNames.has(name)&&!outfitHidden.has(name)});
+}
 function getMeshVisibilitySnapshot(){
  if(!model)return{ok:false,error:"No character model is loaded",meshes:[]};
  const byName=new Map();
- model.traverse(o=>{if(!o?.isMesh||!String(o.name||"").trim())return;const name=String(o.name).trim(),row=byName.get(name)||{name,visible:true,count:0,skinned:false,vertices:0};row.visible=row.visible&&o.visible!==false;row.count++;row.skinned=row.skinned||Boolean(o.isSkinnedMesh);row.vertices+=Number(o.geometry?.attributes?.position?.count)||0;byName.set(name,row)});
+ model.traverse(o=>{if(!o?.isMesh||!String(o.name||"").trim())return;const name=String(o.name).trim(),row=byName.get(name)||{name,visible:true,userHidden:userHiddenMeshNames.has(name),count:0,skinned:false,vertices:0};row.visible=row.visible&&o.visible!==false;row.count++;row.skinned=row.skinned||Boolean(o.isSkinnedMesh);row.vertices+=Number(o.geometry?.attributes?.position?.count)||0;byName.set(name,row)});
  return{ok:true,meshes:[...byName.values()].sort((a,b)=>a.name.localeCompare(b.name))};
 }
 function setMeshVisibility(name,visible){
  const key=String(name||"").trim();if(!model||!key)return false;let changed=0;
- model.traverse(o=>{if(o?.isMesh&&String(o.name||"").trim()===key){o.visible=visible!==false;changed++}});
- if(changed)render();return changed>0;
+ model.traverse(o=>{if(o?.isMesh&&String(o.name||"").trim()===key)changed++});
+ if(!changed)return false;if(visible===false)userHiddenMeshNames.add(key);else userHiddenMeshNames.delete(key);applyMeshVisibility();render();return true;
 }
+function buildAccessoryParts(def){
+ const group=new THREE.Group(),geometries={
+  cone:s=>new THREE.ConeGeometry(s[0],s[1],28),
+  cylinder:s=>s.length===2?new THREE.CylinderGeometry(s[0],s[0],s[1],28):new THREE.CylinderGeometry(s[0],s[1],s[2],28),
+  sphere:s=>new THREE.SphereGeometry(s[0],28,18),box:s=>new THREE.BoxGeometry(s[0],s[1],s[2]),
+  plane:s=>new THREE.PlaneGeometry(s[0],s[1]),torus:s=>new THREE.TorusGeometry(s[0],s[1],14,36)
+ };
+ for(const part of Array.isArray(def.parts)?def.parts:[]){const make=geometries[part?.shape];if(!make)continue;const material=new THREE.MeshStandardMaterial({color:part.color||"#cccccc",roughness:.7,metalness:Number(part.metalness)||0,side:part.shape==="plane"?THREE.DoubleSide:THREE.FrontSide}),mesh=new THREE.Mesh(make(part.size||[.1,.1,.1]),material);mesh.position.set(...(part.position||[0,0,0]));mesh.rotation.set(...(part.rotation||[0,0,0]).map(v=>Number(v)*Math.PI/180));if(Array.isArray(part.scale))mesh.scale.set(...part.scale);group.add(mesh)}
+ return group;
+}
+function accessoryVector(value,fallback=[0,0,0]){if(Array.isArray(value))return value.slice(0,3).map((n,i)=>Number.isFinite(Number(n))?Number(n):fallback[i]||0);if(value&&typeof value==="object")return["x","y","z"].map((k,i)=>Number.isFinite(Number(value[k]))?Number(value[k]):fallback[i]||0);return fallback.slice()}
+function dropAccessory(id){
+ const item=accessories.get(String(id));if(!item)return false;
+ if(item.type==="outfit"){
+  for(const mesh of item.meshes||[]){try{model?.remove(mesh)}catch{}try{mesh.geometry?.dispose?.()}catch{}for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])try{material?.dispose?.()}catch{}}
+  hiddenByOutfit.delete(String(id));accessories.delete(String(id));applyMeshVisibility();
+ }else{
+  try{item.holder?.parent?.remove(item.holder)}catch{}dispose(item.holder);accessories.delete(String(id));
+ }
+ render();return true;
+}
+async function setAccessory(definition,enabled=true,loadFile=null,state={}){
+ const def=definition&&typeof definition==="object"?definition:{},id=String(def.id||"").trim();if(!id||!model)return{ok:false,error:"Accessory id and loaded character are required"};
+ if(enabled===false){dropAccessory(id);return{ok:true,id,enabled:false}}
+ const offset=accessoryVector(state.offset||def.offset),rotation=accessoryVector(state.rot||state.rotation||def.rotation),scale=Math.max(.05,Math.min(10,Number(state.scale??def.scale??1)||1));
+ const existing=accessories.get(id);
+ if(existing&&existing.type!=="outfit"){existing.inner.position.set(...offset);existing.inner.rotation.set(...rotation.map(v=>v*Math.PI/180));existing.inner.scale.setScalar(scale);render();return{ok:true,id,enabled:true,updated:true}}
+ if(existing&&existing.type==="outfit")return{ok:true,id,enabled:true,updated:true};
+ try{
+  if(String(def.type||"").toLowerCase()==="outfit"){
+   if(typeof loadFile!=="function"||!def.file)return{ok:false,error:"Outfit asset file is not available"};
+   const raw=await loadFile(def),bytes=normalizeGlbArrayBuffer(raw),gltf=await loader.parseAsync(bytes,"");gltf.scene.updateMatrixWorld(true);
+   const byName=new Map();for(const list of boneGroups.values())for(const bone of list)if(!byName.has(bone.name))byName.set(bone.name,bone);
+   const out=[];
+   gltf.scene.traverse(o=>{
+    if(!o?.isSkinnedMesh||!o.skeleton?.bones||!model)return;
+    const source=o.skeleton,bones=source.bones.map(sourceBone=>byName.get(sourceBone.name)||rig.get("hips")||getSceneBones()[0]);
+    if(bones.some(b=>!b))return;
+    const mesh=new THREE.SkinnedMesh(o.geometry,o.material);mesh.name=o.name;mesh.frustumCulled=false;o.matrixWorld.decompose(mesh.position,mesh.quaternion,mesh.scale);model.add(mesh);mesh.updateMatrixWorld(true);
+    mesh.bind(new THREE.Skeleton(bones,source.boneInverses.map(m=>m.clone())),o.bindMatrix?.clone?.()||new THREE.Matrix4());out.push(mesh);
+   });
+   if(!out.length)return{ok:false,error:"Outfit GLB contains no skinned meshes compatible with the current character"};
+   const hide=Array.isArray(def.hide)?def.hide.map(String):[];accessories.set(id,{type:"outfit",meshes:out,definition:def});hiddenByOutfit.set(id,new Set(hide));applyMeshVisibility();render();return{ok:true,id,enabled:true,meshes:out.length};
+  }
+  const holder=new THREE.Group(),inner=new THREE.Group();holder.name="SaeedAccessory:"+id;holder.add(inner);
+  const boneName=String(def.bone||"head"),target=rig.get(boneName)||boneGroups.get(boneName)?.[0]||model;target.add(holder);
+  if(def.file){
+   if(typeof loadFile!=="function")throw new Error("Accessory asset loader is unavailable");
+   const raw=await loadFile(def),bytes=normalizeGlbArrayBuffer(raw),gltf=await loader.parseAsync(bytes,"");inner.add(gltf.scene);
+  }else if(Array.isArray(def.parts)&&def.parts.length)inner.add(buildAccessoryParts(def));
+  else throw new Error("Accessory definition has neither a GLB file nor primitive parts");
+  inner.position.set(...offset);inner.rotation.set(...rotation.map(v=>v*Math.PI/180));inner.scale.setScalar(scale);
+  accessories.set(id,{type:"attach",holder,inner,definition:def,bone:boneName});render();return{ok:true,id,enabled:true,bone:boneName};
+ }catch(error){traceGlb("accessory-error",{id,error:error?.stack||error?.message||String(error)});return{ok:false,id,error:error?.message||String(error)}}
+}
+function getAccessoriesSnapshot(){return{ok:true,accessories:[...accessories.entries()].map(([id,item])=>({id,name:item.definition?.name||id,type:item.type,bone:item.bone||null}))}}
+
 function getMorphSnapshot(){
  const values={};
  for(const [name,list] of morphs){let value=0;for(const [mesh,index] of list){const n=Number(mesh?.morphTargetInfluences?.[index]);if(Number.isFinite(n))value=Math.max(value,n)}values[name]=value}
