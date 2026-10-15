@@ -23,6 +23,22 @@ test("local STT bounds audio payload size before decoding",async t=>{
  await assert.rejects(service.transcribeLocalWav("A".repeat(16777220)),/no larger than 12 MiB/);
 });
 
+test("local Whisper forwards an explicit Arabic language hint",async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-whisper-arabic-"));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
+ const runtime=path.join(dir,"addons");fs.mkdirSync(runtime,{recursive:true});
+ fs.writeFileSync(path.join(runtime,"whisper-cli.exe"),"stub");fs.writeFileSync(path.join(runtime,"ggml-base.bin"),"stub");
+ let capturedArgs=[];
+ const service=host(dir,(exe,args)=>{
+  capturedArgs=args;
+  const child=new EventEmitter();child.stdout=new PassThrough();child.stderr=new PassThrough();child.kill=()=>{};
+  process.nextTick(()=>{child.stdout.once("end",()=>child.emit("close",0));child.stdout.end("مرحبا");child.stderr.end()});
+  return child;
+ });
+ const audio=Buffer.from([0,0,1,0,2,0,3,0]).toString("base64");
+ assert.equal(await service.transcribeLocalWav(audio,"ar"),"مرحبا");
+ assert.equal(capturedArgs[capturedArgs.indexOf("-l")+1],"ar");
+});
+
 test("concurrent local STT requests use separate temporary WAV files and clean them up",async t=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),"saeed-whisper-concurrent-"));t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));
  const runtime=path.join(dir,"addons");fs.mkdirSync(runtime,{recursive:true});
