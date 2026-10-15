@@ -58,8 +58,7 @@ function createModuleLoader({ onEvent } = {}) {
       record.error = String(error?.stack || error?.message || error);
       record.failedAt = Date.now();
       emit("load-failure", record, error);
-      // A failed entry is intentionally replaceable on the next call.
-      records.delete(key);
+      // Keep the failure visible in snapshots; a later call may replace it with a new attempt.
       throw error;
     }
   }
