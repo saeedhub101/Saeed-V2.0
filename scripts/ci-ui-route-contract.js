@@ -37,11 +37,11 @@ collectUnitTests("tests/unit");
 
 
 const routes = [
-  { name: "performance", fn: "showPerformance", file: "performance.html", load: 'path.join(rootPath,"performance.html")' },
-  { name: "settings", fn: "showSettings", file: "settings.html", load: 'path.join(rootPath,"settings.html")' },
-  { name: "learning", fn: "showLearning", file: "learning/window.html", load: 'path.join(rootPath,"learning","window.html")' },
-  { name: "add-ons", fn: "showAddons", file: "addons/window.html", load: 'path.join(rootPath,"addons","window.html")' },
-  { name: "character-settings", fn: "showCharacterSettings", file: "character-studio.html", load: 'path.join(rootPath,"character-studio.html")' }
+  { name: "performance", fn: "showPerformance", file: "performance.html", load: 'path.join(rootPath,"performance.html")', api: 'showPerformance:()=>invoke("performance:show")' },
+  { name: "settings", fn: "showSettings", file: "settings.html", load: 'path.join(rootPath,"settings.html")', api: 'showSettings:()=>invoke("settings:show")' },
+  { name: "learning", fn: "showLearning", file: "learning/window.html", load: 'path.join(rootPath,"learning","window.html")', api: 'showLearning:()=>invoke("app:learning:show")' },
+  { name: "add-ons", fn: "showAddons", file: "addons/window.html", load: 'path.join(rootPath,"addons","window.html")', api: 'showAddons:()=>invoke("addons:show")' },
+  { name: "character-settings", fn: "showCharacterSettings", file: "character-studio.html", load: 'path.join(rootPath,"character-studio.html")', api: 'showCharacterSettings:()=>invoke("character-settings:show")' }
 ];
 check("every-ci-contract-suite-is-in-the-test-runner",
   ciFiles.every(file => testRunner.includes(file)),
@@ -56,6 +56,10 @@ for (const route of routes) {
     manager.includes(route.load) &&
     new RegExp("return \\{[^}]*\\b" + route.fn + "\\b").test(manager),
     "Window manager must export " + route.fn + " and load " + route.file);
+  check(route.name + "-visible-action-and-preload-route",
+    controls.includes("click:" + route.fn) && preload.includes(route.api),
+    "The visible action and preload API must both resolve to " + route.fn);
+
 }
 check("character-settings-runtime-composition-route",
   composition.includes("const showCharacterSettings=async()=>") &&
