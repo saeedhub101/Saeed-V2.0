@@ -28,5 +28,6 @@ function registerAppIpc({
   });
   ipcMain.handle("settings:show", () => { showSettings(); return true; });
   ipcMain.handle("addons:show", () => { showAddons(); return true; });
+  ipcMain.handle("app:update-status:show", () => composition.showUpdateStatus?.() || false);
 }
 module.exports = { registerAppIpc };
