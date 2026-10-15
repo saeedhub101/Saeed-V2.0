@@ -59,6 +59,7 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
       const type=String(e?.type||"");
       const behaviorType=({
        "thinking":"thinking",
+       "user-input":"user-input",
        "tool":"tool",
        "tool_result":"tool_result",
        "tool_error":"tool_error",
