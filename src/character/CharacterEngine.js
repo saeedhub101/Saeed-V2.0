@@ -728,6 +728,17 @@ function buildProceduralRig(templateName="full",options={}){
 
 
 
+function getMeshVisibilitySnapshot(){
+ if(!model)return{ok:false,error:"No character model is loaded",meshes:[]};
+ const byName=new Map();
+ model.traverse(o=>{if(!o?.isMesh||!String(o.name||"").trim())return;const name=String(o.name).trim(),row=byName.get(name)||{name,visible:true,count:0,skinned:false,vertices:0};row.visible=row.visible&&o.visible!==false;row.count++;row.skinned=row.skinned||Boolean(o.isSkinnedMesh);row.vertices+=Number(o.geometry?.attributes?.position?.count)||0;byName.set(name,row)});
+ return{ok:true,meshes:[...byName.values()].sort((a,b)=>a.name.localeCompare(b.name))};
+}
+function setMeshVisibility(name,visible){
+ const key=String(name||"").trim();if(!model||!key)return false;let changed=0;
+ model.traverse(o=>{if(o?.isMesh&&String(o.name||"").trim()===key){o.visible=visible!==false;changed++}});
+ if(changed)render();return changed>0;
+}
 function getMorphSnapshot(){
  const values={};
  for(const [name,list] of morphs){let value=0;for(const [mesh,index] of list){const n=Number(mesh?.morphTargetInfluences?.[index]);if(Number.isFinite(n))value=Math.max(value,n)}values[name]=value}
@@ -814,7 +825,7 @@ window.saeedCharacterRuntime.engine={
  getCharacterRigAutoMap:()=>Object.fromEntries([...rig].map(([k,b])=>[k,b.name])),getCharacterPoseStatus,wakeRender,suspendRender,
  getRigValidation:()=>validateRig(Object.fromEntries([...rig].map(([k,b])=>[k,b.name]))),buildProceduralRig,getDeformationSnapshot,getMorphSnapshot,setEditorRotation,getEditorRotation,
  getRestPoseNormalization:()=>({...lastRestPose}),
- getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
+ getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),getMeshVisibilitySnapshot,setMeshVisibility,
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
  lookCharacterAt:lookAt,resize,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
