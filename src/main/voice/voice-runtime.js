@@ -2,6 +2,22 @@ const {redactToolArgs,redactToolResult}=require("../../tools/redact");
 const {OpenAIRealtime,GeminiLive}=require("../../realtime");
 function createVoiceRuntime(deps={}){
  const getAgent=deps.getAgent||(()=>null), diagnostic=deps.diagnostic||(()=>{}), voiceBroadcast=deps.voiceBroadcast||(()=>{}), getToolSchemas=deps.getToolSchemas||(()=>[]), executeTool=deps.executeTool|| (async()=>({ok:false,error:"Tool execution gateway unavailable"}));
+ const publishAgentEvent=event=>{
+  voiceBroadcast("agent:event",event);
+  if(!event||typeof event!=="object")return;
+  const type=String(event.type||"");
+  if(!["speech-start","speech-end","thinking","tool","tool_result","tool_error"].includes(type))return;
+  const result=event.result&&typeof event.result==="object"?event.result:null;
+  // The character needs only event identity and outcome metadata, never the tool's returned content.
+  voiceBroadcast("character:behavior",{
+   type,
+   name:String(event.name||""),
+   source:event.source||"realtime",
+   success:type==="tool_result"?result?.ok!==false:type==="tool_error"?false:undefined,
+   error:type==="tool_error"?String(event.error||"Tool failed").slice(0,240):undefined,
+   resultMeta:type==="tool_result"?{ok:result?.ok!==false,kind:result?.kind||result?.type||null,hasData:Boolean(result&&Object.keys(result).some(k=>!["ok","status","kind","type"].includes(k)))}:undefined
+  });
+ };
  let realtime=null,realtimeUserText="",realtimeAbortController=null,sessionGeneration=0;
 function stopRealtime(){
  sessionGeneration++;
@@ -32,14 +48,14 @@ function startRealtime(options={}){
   state:(state,message)=>{if(generation!==sessionGeneration)return;diagnostic("INFO","REALTIME "+String(state||"").toUpperCase(),message||"");if(state==="connected"){diagnostic("INFO","STT CONNECTED","Realtime STT connected");diagnostic("INFO","TTS CONNECTED","Realtime TTS connected")}if(state==="error")diagnostic("ERROR","REALTIME API",message||"Realtime API error");if(state==="disconnected")diagnostic("ERROR","REALTIME DISCONNECTED",message||"Realtime connection closed");if((state==="error"||state==="disconnected")&&realtimeAbortController===sessionAbortController&&!sessionAbortController.signal.aborted)sessionAbortController.abort(new Error(message||("Realtime "+state)));voiceBroadcast("realtime:state",state,message)},
   event:async(event)=>{
    if(generation!==sessionGeneration)return;
-   if(event.type==="input_audio_buffer.speech_started"){voiceBroadcast("agent:event",{type:"speech-start",source:"realtime"});}
+   if(event.type==="input_audio_buffer.speech_started"){publishAgentEvent({type:"speech-start",source:"realtime"});}
    else if(event.type==="input_audio_buffer.speech_stopped" && realtimeBrainMode==="api"){
-    voiceBroadcast("agent:event",{type:"speech-end",source:"realtime"});
+    publishAgentEvent({type:"speech-end",source:"realtime"});
     realtime?.requestResponse();
    }
    else if(provider==="gemini"&&event.serverContent?.modelTurn?.parts){for(const part of event.serverContent.modelTurn.parts){if(part.inlineData?.data)voiceBroadcast("realtime:audio",part.inlineData.data);if(part.text)voiceBroadcast("realtime:assistant-delta",part.text)}}else if(provider==="gemini"&&event.serverContent?.inputTranscription?.text){realtimeUserText=String(event.serverContent.inputTranscription.text||"").trim();voiceBroadcast("realtime:user-final",realtimeUserText)}else if(provider==="gemini"&&event.serverContent?.outputTranscription?.text){const answer=String(event.serverContent.outputTranscription.text||"").trim();if(answer)voiceBroadcast("realtime:assistant-final",answer)}else if((event.type==="response.output_audio.delta"||event.type==="response.audio.delta")&&event.delta){diagnostic("INFO","TTS AUDIO","Realtime audio received",{eventType:event.type});voiceBroadcast("realtime:audio",event.delta);}
-   else if(event.type==="response.output_audio_transcript.delta"&&event.delta){voiceBroadcast("agent:event",{type:"speech-start",source:"realtime"});voiceBroadcast("realtime:assistant-delta",event.delta);}
-   else if(event.type==="response.output_audio_transcript.done"&&event.transcript){voiceBroadcast("agent:event",{type:"speech-end",source:"realtime"});
+   else if(event.type==="response.output_audio_transcript.delta"&&event.delta){publishAgentEvent({type:"speech-start",source:"realtime"});voiceBroadcast("realtime:assistant-delta",event.delta);}
+   else if(event.type==="response.output_audio_transcript.done"&&event.transcript){publishAgentEvent({type:"speech-end",source:"realtime"});
        const answer=String(event.transcript||"").trim();
     voiceBroadcast("realtime:assistant-final",answer);
     if(realtimeBrainMode==="api" && realtimeUserText && answer){
@@ -56,14 +72,14 @@ function startRealtime(options={}){
     const name=String(event.name||"");
     let args={};
     try{args=JSON.parse(event.arguments||"{}")}catch{args={}};
-    voiceBroadcast("agent:event",{type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.",source:"realtime"});
-    voiceBroadcast("agent:event",{type:"tool",name,args:redactToolArgs(name,args),source:"realtime"});
+    publishAgentEvent({type:"speech-status",text:name==="open_url"?"Okay, I’ll open that.":name==="open_application"?"Okay, I’ll open it.":name==="web_search"?"Okay, I’ll look that up.":"Okay, I’ll do that.",source:"realtime"});
+    publishAgentEvent({type:"tool",name,args:redactToolArgs(name,args),source:"realtime"});
     const activeRealtime=realtime;
     let out;
     try{out=await executeTool(name,args,{isCurrent:()=>Boolean(activeRealtime)&&realtime===activeRealtime&&!sessionAbortController.signal.aborted,signal:sessionAbortController.signal})}catch(e){out={ok:false,error:e?.message||String(e)}};
     if(!activeRealtime||realtime!==activeRealtime)return;
-    if(out?.ok===false)voiceBroadcast("agent:event",{type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
-    else voiceBroadcast("agent:event",{type:"tool_result",name,result:redactToolResult(name,out),source:"realtime"});
+    if(out?.ok===false)publishAgentEvent({type:"tool_error",name,error:out.error||"Tool failed",source:"realtime"});
+    else publishAgentEvent({type:"tool_result",name,result:redactToolResult(name,out),source:"realtime"});
     realtime?.toolResult(event.call_id,out||{ok:false,error:"Tool returned no result"});
    }
    else if(event.type==="error")voiceBroadcast("realtime:error",event.error?.message||"Realtime API error");
