@@ -203,29 +203,111 @@ app.whenReady().then(async () => {
   });
   screen.on("display-metrics-changed", refreshCharacter);
 });
-require("./ipc/email-ipc").registerEmailIpc({ipcMain,app,diagnostic});
-require("./ipc/window-ipc").registerWindowIpc({ipcMain,BrowserWindow,screen,accept3DStatus,request3DStatus,show3DStatus,diagnostic});
-require("./ipc/app-ipc").registerAppIpc({ipcMain,app,composition,getAgent:()=>agent,showStatus,showPerformance,showSettings,showAddons});
-require("./ipc/core-ipc").registerCoreIpc({ipcMain,diagnostic,diagnosticState,getApiHealth,getResourceService,updateCpuMetrics});
-load("chatIpc","./ipc/chat-ipc").registerChatIpc({ipcMain,ensureBrain,getBrainHost:ensureBrainHost,getAgent:()=>agent,getCharacterWindow:()=>characterWin,getChatHost:()=>chatHost});
-load("learningIpc","./ipc/learning-ipc").registerLearningIpc({ipcMain,app,getLearning,getLearningRecorder,ensureBrain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations,showLearning:()=>showLearning});
-load("addonsIpc","./ipc/addons-ipc").registerAddonsIpc({ipcMain,app,getAddonService});
-load("characterIpc","./ipc/character-ipc").registerCharacterIpc({ipcMain,getCharacterWindow:()=>characterWin,chooseCharacter,command:(payload)=>characterHost.command(payload),getPendingCharacter:()=>characterHost.getPendingCharacter?.()||null,captureCharacter3DWindowSettings,writeCharacter3DSettings});
-load("settingsIpc","./ipc/settings-ipc").registerSettingsIpc({ipcMain,ensureBrain,getAgent:()=>agent,getVoiceHost:ensureVoiceHost,setMicMode,setSaeedSize,getCharacterWindow:()=>characterWin,diagnostic});
+require("./ipc/email-ipc").registerEmailIpc({ ipcMain, app, diagnostic });
+require("./ipc/window-ipc").registerWindowIpc({
+  ipcMain, BrowserWindow, screen, accept3DStatus, request3DStatus, show3DStatus, diagnostic
+});
+require("./ipc/app-ipc").registerAppIpc({
+  ipcMain, app, composition, getAgent: () => agent,
+  showStatus, showPerformance, showSettings, showAddons
+});
+require("./ipc/core-ipc").registerCoreIpc({
+  ipcMain, diagnostic, diagnosticState, getApiHealth, getResourceService, updateCpuMetrics
+});
+load("chatIpc", "./ipc/chat-ipc").registerChatIpc({
+  ipcMain, ensureBrain, getBrainHost: ensureBrainHost,
+  getAgent: () => agent, getCharacterWindow: () => characterWin, getChatHost: () => chatHost
+});
+load("learningIpc", "./ipc/learning-ipc").registerLearningIpc({
+  ipcMain, app, getLearning, getLearningRecorder, ensureBrain, getAgent: () => agent,
+  getChatWindow, getConfirmations: () => confirmations, showLearning: () => showLearning
+});
+load("addonsIpc", "./ipc/addons-ipc").registerAddonsIpc({ ipcMain, app, getAddonService });
+load("characterIpc", "./ipc/character-ipc").registerCharacterIpc({
+  ipcMain, getCharacterWindow: () => characterWin, chooseCharacter,
+  command: payload => characterHost.command(payload),
+  getPendingCharacter: () => characterHost.getPendingCharacter?.() || null,
+  captureCharacter3DWindowSettings, writeCharacter3DSettings
+});
+load("settingsIpc", "./ipc/settings-ipc").registerSettingsIpc({
+  ipcMain, ensureBrain, getAgent: () => agent, getVoiceHost: ensureVoiceHost,
+  setMicMode, setSaeedSize, getCharacterWindow: () => characterWin, diagnostic
+});
+load("voiceIpc", "./ipc/voice-ipc").registerVoiceIpc({
+  ipcMain, getAgent: () => agent, diagnostic, app, getVoiceHost: ensureVoiceHost,
+  getBrainHost: ensureBrainHost, diagnosticState, getStatusWindow: () => statusWin,
+  getThreeDStatusWindow: () => threeDStatusWin, getCharacterWindow: () => characterWin,
+  getChatWindow: () => chatHost?.getChatWindow?.()
+});
+load("updateIpc", "./ipc/update-ipc").registerUpdateIpc({
+  ipcMain, getUpdateManager: ensureUpdateManager,
+  showUpdateStatus: () => {
+    ensureUpdateManager();
+    return composition.showUpdateStatus?.() || false;
+  }
+});
+load("historyIpc", "./ipc/history-ipc").registerHistoryIpc({
+  ipcMain, getAgent: () => agent, getChatWindow, getConfirmations: () => confirmations, dialog
+});
+load("backupIpc", "./ipc/backup-ipc").registerBackupIpc({
+  ipcMain, dialog, app, ensureBrain, getAgent: () => agent, diagnostic
+});
 
-load("voiceIpc","./ipc/voice-ipc").registerVoiceIpc({ipcMain,getAgent:()=>agent,diagnostic,app,getVoiceHost:ensureVoiceHost,getBrainHost:ensureBrainHost,diagnosticState,getStatusWindow:()=>statusWin,getThreeDStatusWindow:()=>threeDStatusWin,getCharacterWindow:()=>characterWin,getChatWindow:()=>chatHost?.getChatWindow?.()});
-load("updateIpc","./ipc/update-ipc").registerUpdateIpc({ipcMain,getUpdateManager:ensureUpdateManager,showUpdateStatus:()=>{const m=ensureUpdateManager();return composition.showUpdateStatus?.()||false}});
-load("historyIpc","./ipc/history-ipc").registerHistoryIpc({ipcMain,getAgent:()=>agent,getChatWindow,getConfirmations:()=>confirmations,dialog});
-load("backupIpc","./ipc/backup-ipc").registerBackupIpc({ipcMain,dialog,app,ensureBrain,getAgent:()=>agent,diagnostic});
+app.on("activate", () => {
+  if (characterWin && !characterWin.isDestroyed()) {
+    showCharacter();
+    return;
+  }
+  createWindow().catch(error => diagnostic("ERROR", "APPLICATION ACTIVATE", error.message));
+});
+app.on("window-all-closed", () => {
+  if (app.isQuitting) return;
+  diagnostic("INFO", "WINDOW LIFECYCLE", "All windows closed; Saeed remains alive in the tray");
+});
+app.on("before-quit", () => {
+  try { captureCharacter3DWindowSettings(); } catch {}
+  app.isQuitting = true;
+  try { voiceHost?.stopVoiceServices?.("app quit"); } catch {}
+  try { learningRecorder?.stop?.(); } catch {}
+  const windows = [
+    getChatWindow(), performanceWin, settingsWin, addonsWin, learningWin,
+    restPoseEditorWin, statusWin, threeDStatusWin, characterWin
+  ];
+  for (const win of windows) {
+    try {
+      if (win && !win.isDestroyed()) win.destroy();
+    } catch {}
+  }
+  try {
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+  } catch {}
+});
+app.on("will-quit", () => {
+  globalShortcut.unregisterAll();
+  try { voiceHost?.stopVoiceServices?.("app quit"); } catch {}
+});
 
-
-app.on("activate",()=>{if(characterWin&&!characterWin.isDestroyed()){showCharacter();return}createWindow().catch(e=>diagnostic("ERROR","APPLICATION ACTIVATE",e.message))});
-app.on("window-all-closed",()=>{if(app.isQuitting)return;diagnostic("INFO","WINDOW LIFECYCLE","All windows closed; Saeed remains alive in the tray")});
-app.on("before-quit",()=>{try{captureCharacter3DWindowSettings()}catch{};app.isQuitting=true;try{voiceHost?.stopVoiceServices?.("app quit")}catch{};try{learningRecorder?.stop?.()}catch{};for(const win of [getChatWindow(),performanceWin,settingsWin,addonsWin,learningWin,restPoseEditorWin,statusWin,threeDStatusWin,characterWin])try{if(win&&!win.isDestroyed())win.destroy()}catch{};try{if(tray){tray.destroy();tray=null}}catch{}});
-app.on("will-quit",()=>{globalShortcut.unregisterAll();try{voiceHost?.stopVoiceServices?.("app quit")}catch{}});
-
-function handleLaunchArgs(args=[]){const a=args.map(String);if(a.includes("--exit"))return app.quit();if(a.includes("--show-saeed"))return showCharacter();if(a.includes("--chat"))return ensureChatHost().showChat();if(a.includes("--performance"))return showPerformance();if(a.includes("--settings"))return showSettings();if(a.includes("--addons"))return showAddons();if(a.includes("--learning"))return showLearning();if(a.includes("--status"))return showStatus();if(a.includes("--3d-status"))return show3DStatus();if(a.includes("--mic-on"))return setMicMode("on");if(a.includes("--mic-off"))return setMicMode("off");if(a.includes("--size-small"))return setSaeedSize("small");if(a.includes("--size-medium"))return setSaeedSize("medium");if(a.includes("--size-large"))return setSaeedSize("large");return showCharacter()}
-
+function handleLaunchArgs(args = []) {
+  const values = args.map(String);
+  if (values.includes("--exit")) return app.quit();
+  if (values.includes("--show-saeed")) return showCharacter();
+  if (values.includes("--chat")) return ensureChatHost().showChat();
+  if (values.includes("--performance")) return showPerformance();
+  if (values.includes("--settings")) return showSettings();
+  if (values.includes("--addons")) return showAddons();
+  if (values.includes("--learning")) return showLearning();
+  if (values.includes("--status")) return showStatus();
+  if (values.includes("--3d-status")) return show3DStatus();
+  if (values.includes("--mic-on")) return setMicMode("on");
+  if (values.includes("--mic-off")) return setMicMode("off");
+  if (values.includes("--size-small")) return setSaeedSize("small");
+  if (values.includes("--size-medium")) return setSaeedSize("medium");
+  if (values.includes("--size-large")) return setSaeedSize("large");
+  return showCharacter();
+}
 
 
 async function createWindow(){await createCharacterWindow()}
