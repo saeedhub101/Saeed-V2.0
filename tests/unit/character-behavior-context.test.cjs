@@ -255,3 +255,27 @@ test("Arabic emotional input produces an empathetic reaction rather than a gener
  assert.ok(calls.some(x=>x.motion==="think"||x.motion==="nod"));
  behavior.stop();
 });
+
+
+test("a mesh-only GLB keeps supported facial emotion reactions active without a skeleton",async()=>{
+ const {CharacterController}=await import("../../src/character/CharacterController.js");
+ const expressions=[];
+ const engine={
+  setAnimationTick:()=>true,
+  getCharacterPoseStatus:()=>({loaded:true,bones:{},skeletonCount:0}),
+  getAvailableBoneNames:()=>[],
+  setCharacterExpression:(name,value)=>{expressions.push({name,value});return true},
+  blinkCharacter:()=>true,
+  lookCharacterAt:()=>true,
+  wakeRender:()=>true,
+  setRestRelativeBoneRotation:()=>true
+ };
+ const character=new CharacterController(engine);
+ const loaded=character.onCharacterLoaded();
+ assert.equal(loaded.staticMesh,true);
+ assert.equal(character.autonomous.getStatus().running,true);
+ assert.equal(character.handleEvent({type:"user-input",text:"أنا متوتر"}),true);
+ assert.equal(character.getMood(),"thoughtful");
+ assert.ok(expressions.some(x=>x.name==="sad"&&x.value>0));
+ character.destroy();
+});
