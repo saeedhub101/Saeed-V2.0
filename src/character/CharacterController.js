@@ -396,8 +396,11 @@ export class CharacterController{
  onCharacterLoaded(){
   const poseStatus=this.engine?.getCharacterPoseStatus?.();
   if(!poseStatus?.loaded){this.rigReady=false;return {loaded:false,reason:"Character GLB is not loaded yet"}}
+  // Start facial/lifecycle behavior as soon as a real mesh is loaded. A missing rig disables
+  // skeletal gestures, but must not disable available face morphs, blinking, or emotional state.
+  this.autonomous?.start?.();
   const sceneNames=this.engine?.getAvailableBoneNames?.()||[];
-  if(!sceneNames.length){this.rigReady=false;this.lastBindingResult={loaded:true,rigAvailable:false,staticMesh:true,mappedBoneCount:0,sceneBoneCount:0,reason:"Character is visible as a static mesh; this GLB contains no bones to animate"};return this.lastBindingResult}
+  if(!sceneNames.length){this.rigReady=false;this.lastBindingResult={loaded:true,rigAvailable:false,staticMesh:true,mappedBoneCount:0,sceneBoneCount:0,reason:"Character is visible as a static mesh; facial behavior remains available where the GLB supports it, but skeletal animation is unavailable"};return this.lastBindingResult}
   const x=this.bindCurrentCharacter();
   if(!x?.mappedBoneCount){this.rigReady=false;return{loaded:false,reason:x?.reason||"Character rig binding produced no controllable bones",boneCount:sceneNames.length,auto:x?.autoMapping||null}}
   const finalMap=this.engine?.getBoneMap?.()||{};
