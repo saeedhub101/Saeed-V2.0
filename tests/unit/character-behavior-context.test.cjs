@@ -190,3 +190,68 @@ test("autonomous behavior starts focused and schedules idle motion without a pri
  behavior.stop();
  behavior.destroy?.();
 });
+
+
+test("tool success reactions preserve tool identity and choose an outcome-specific gesture",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const calls=[];
+ const character={
+  mood:"cheerful",moodPalette:()=>["wave","nod","think","lookCloser","clap"],
+  animation:{registry:{get:id=>({id})},active:[]},
+  face:{expression:(name,intensity)=>calls.push({expression:name,intensity}),blink:()=>true,lookAt:()=>true},
+  play:(id,options)=>{calls.push({motion:id,options});return true},
+  stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
+ };
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ assert.equal(behavior.handleEvent({type:"tool_result",name:"read_file",success:true,resultMeta:{ok:true,hasData:true}}),true);
+ assert.equal(behavior.getStatus().lastToolOutcome.name,"read_file");
+ assert.equal(behavior.getStatus().lastToolOutcome.success,true);
+ assert.ok(calls.some(x=>x.motion==="lookCloser"||x.motion==="nod"||x.motion==="think"));
+ assert.equal(behavior.handleEvent({type:"tool_result",name:"write_file",success:true,resultMeta:{ok:true}}),true);
+ assert.equal(behavior.getStatus().lastToolOutcome.name,"write_file");
+ assert.ok(calls.some(x=>x.motion==="clap"||x.motion==="wave"||x.motion==="nod"));
+ behavior.stop();
+});
+
+test("tool failures use a distinct puzzled reaction and retain a safe diagnostic summary",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const calls=[];
+ const character={
+  mood:"cheerful",moodPalette:()=>["wave","nod","think","shake"],
+  animation:{registry:{get:id=>({id})},active:[]},
+  face:{expression:(name,intensity)=>calls.push({expression:name,intensity}),blink:()=>true,lookAt:()=>true},
+  play:(id,options)=>{calls.push({motion:id,options});return true},
+  stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
+ };
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ assert.equal(behavior.handleEvent({type:"tool_error",name:"email_send",error:"provider unavailable"}),true);
+ const status=behavior.getStatus();
+ assert.equal(status.lastToolOutcome.name,"email_send");
+ assert.equal(status.lastToolOutcome.success,false);
+ assert.equal(status.lastToolOutcome.error,"provider unavailable");
+ assert.equal(status.mood,"thoughtful");
+ assert.ok(calls.some(x=>x.expression==="sad"));
+ assert.ok(calls.some(x=>x.motion==="think"||x.motion==="nod"||x.motion==="shake"));
+ behavior.stop();
+});
+
+test("Arabic emotional input produces an empathetic reaction rather than a generic response",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const calls=[];
+ const character={
+  mood:"cheerful",moodPalette:()=>["wave","nod","think","lookCloser"],
+  animation:{registry:{get:id=>({id})},active:[]},
+  face:{expression:(name,intensity)=>calls.push({expression:name,intensity}),blink:()=>true,lookAt:()=>true},
+  play:(id,options)=>{calls.push({motion:id,options});return true},
+  stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
+ };
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ assert.equal(behavior.handleEvent({type:"user-input",text:"أنا متوتر وقلقان"}),true);
+ assert.equal(behavior.getStatus().mood,"thoughtful");
+ assert.ok(calls.some(x=>x.expression==="sad"||x.expression==="confused"));
+ assert.ok(calls.some(x=>x.motion==="think"||x.motion==="nod"));
+ behavior.stop();
+});
