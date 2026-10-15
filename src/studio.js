@@ -885,17 +885,37 @@ function panelFaceHands() {
   const expression = h('select',{class:'grow'},['neutral','happy','sad','angry','surprised','thinking','worried','laugh','wink','kiss','tongueOut'].map(n=>h('option',{value:n},n)));
   const strength = h('input',{type:'range',min:0,max:1,step:0.05,value:0.7});
   const status = h('div',{class:'notice'},fingerNames.length?fingerNames.length+' finger bones detected.':'No finger bones matched by name; expression and gaze tools remain available.');
+  const live = payload => api.command(payload).then(result => { if (result?.ok === false) flash(result.error || 'Saeed could not apply this control.'); }).catch(error => flash('Live character control failed: ' + (error?.message || String(error))));
   const applyCurl = () => applyHandCurl(side.value,+curl.value);
+  const look = (x,y,z) => { ch.face.lookAt(x,y,z); void live({action:'lookAt',x,y,z}); };
   return h('div',{},h('h3',{},'Quick facial expressions'),
-    h('p',{class:'muted'},'Apply and test expressions, blinking, and gaze on the live preview. Actual results depend on the GLB’s available morph targets and face rig.'),
-    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{if(expression.value==='neutral'){for(const v of Object.values(ch.face.expr||{})){v.target=0;v.hold=0;}ch.face.eyeHold=null;}else ch.face.expression(expression.value,+strength.value,2.5);flash('Expression applied to preview.');}},'Apply expression')),
-    h('div',{class:'btns'},h('button',{onclick:()=>{ch.face.blinkT=0.17;}},'Blink'),h('button',{onclick:()=>ch.face.lookAt(0,0,1.2)},'Look forward'),h('button',{onclick:()=>ch.face.lookAt(0,1,1.2)},'Look up'),h('button',{onclick:()=>ch.face.lookAt(1,0,1.2)},'Look left'),h('button',{onclick:()=>ch.face.lookAt(-1,0,1.2)},'Look right')),
+    h('p',{class:'muted'},'These controls update both the editor preview and the actual Saeed character. Results depend on the GLB face rig and available morph targets.'),
+    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{
+      if(expression.value==='neutral'){for(const v of Object.values(ch.face.expr||{})){v.target=0;v.hold=0;}ch.face.eyeHold=null;}
+      else ch.face.expression(expression.value,+strength.value,2.5);
+      void live({action:'face',expression:expression.value,intensity:+strength.value});
+      flash('Expression sent to Saeed.');
+    }},'Apply expression')),
+    h('div',{class:'btns'},
+      h('button',{onclick:()=>{ch.face.blinkT=0.17;void live({action:'blink'});}},'Blink'),
+      h('button',{onclick:()=>look(0,0,1.2)},'Look forward'),
+      h('button',{onclick:()=>look(0,1,1.2)},'Look up'),
+      h('button',{onclick:()=>look(1,0,1.2)},'Look left'),
+      h('button',{onclick:()=>look(-1,0,1.2)},'Look right')),
     h('h3',{},'Finger curl'),
-    h('p',{class:'muted'},'Select a hand and curl detected finger bones. Finger naming differs between GLB rigs; unmatched bones are left unchanged.'),
-    h('div',{class:'row'},side,curl,h('button',{class:'primary btn',onclick:()=>{applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});}},'Apply curl'),h('button',{onclick:()=>{curl.value=0;applyCurl();cfg.handCurl={side:side.value,value:0};save({handCurl:cfg.handCurl});}},'Relax hand')),
+    h('p',{class:'muted'},'Select a hand and curl its fingers on the actual character. Naming differences between GLB rigs are handled by Saeed’s finger controller.'),
+    h('div',{class:'row'},side,curl,
+      h('button',{class:'primary btn',onclick:()=>{
+        applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});
+        void live({action:'fingers',hand:side.value,amount:+curl.value});
+      }},'Apply curl'),
+      h('button',{onclick:()=>{
+        curl.value=0;applyCurl();cfg.handCurl={side:side.value,value:0};save({handCurl:cfg.handCurl});
+        void live({action:'fingers',hand:side.value,amount:0});
+      }},'Relax hand')),
     status,
     h('h3',{},'Shape keys and visemes'),
-    h('p',{class:'muted'},'The existing Face tab retains the full shape-key mapping, viseme mapping, custom expressions, lip-sync, and GLB facial animation controls. Use it for detailed face authoring.'),
+    h('p',{class:'muted'},'The Face tab retains detailed shape-key mapping, visemes, custom expressions, lip-sync, and GLB facial animation controls.'),
     h('button',{class:'btn',onclick:()=>setTab('face')},'Open full Face editor'));
 }
 function normalizeImportedClip(raw, fallbackName) {
