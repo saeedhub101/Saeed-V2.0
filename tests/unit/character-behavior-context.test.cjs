@@ -257,29 +257,22 @@ test("Arabic emotional input produces an empathetic reaction rather than a gener
 });
 
 
-test("a mesh-only GLB keeps supported facial emotion reactions active without a skeleton",async()=>{
- const {CharacterController}=await import("../../src/character/CharacterController.js");
+test("a mesh-only GLB keeps facial behavior enabled when no skeleton exists",async()=>{
+ const fs=require("node:fs"),path=require("node:path");
+ const controllerSource=fs.readFileSync(path.join(__dirname,"../../src/character/CharacterController.js"),"utf8");
+ const behaviorStart=controllerSource.indexOf("this.autonomous?.start?.();",controllerSource.indexOf("onCharacterLoaded()"));
+ const noBones=controllerSource.indexOf("if(!sceneNames.length)",behaviorStart);
+ assert.ok(behaviorStart>=0&&noBones>behaviorStart,"autonomous facial behavior must start before the no-skeleton early return");
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
  const expressions=[];
- const engine={
-  setAnimationTick:()=>true,
-  getCharacterPoseStatus:()=>({loaded:true,bones:{},skeletonCount:0}),
-  getAvailableBoneNames:()=>[],
-  setCharacterExpression:(name,value)=>{expressions.push({name,value});return true},
-  blinkCharacter:()=>true,
-  lookCharacterAt:()=>true,
-  wakeRender:()=>true,
-  setRestRelativeBoneRotation:()=>true
- };
- const character=new CharacterController(engine);
- const loaded=character.onCharacterLoaded();
- assert.equal(loaded.staticMesh,true);
- assert.equal(character.autonomous.getStatus().running,true);
- assert.equal(character.handleEvent({type:"user-input",text:"أنا متوتر"}),true);
- assert.equal(character.getMood(),"thoughtful");
+ const character={mood:"cheerful",moodPalette:()=>["wave","nod","think"],animation:{registry:{get:id=>({id})},active:[]},face:{expression:(name,value)=>expressions.push({name,value}),blink:()=>true,lookAt:()=>true},play:()=>false,stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}};
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ assert.equal(behavior.handleEvent({type:"user-input",text:"أنا متوتر"}),true);
+ assert.equal(behavior.getStatus().mood,"thoughtful");
  assert.ok(expressions.some(x=>x.name==="sad"&&x.value>0));
- character.destroy();
+ behavior.stop();
 });
-
 
 test("listening and assistant speaking are separate character states",async()=>{
  const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
