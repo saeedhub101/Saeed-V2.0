@@ -36,8 +36,9 @@ export class AnimationController {
   for(const slot of slots){
    const candidates=samples.filter(s=>s.pose?.[slot]).sort((a,b)=>a.priority-b.priority);if(!candidates.length)continue;
    const maxPriority=candidates[candidates.length-1].priority,selected=candidates.filter(s=>s.priority===maxPriority);
-   let x=0,y=0,z=0,w=0;for(const s of selected){const v=s.pose[slot],ww=s.weight;x+=(Number(v.x)||0)*ww;y+=(Number(v.y)||0)*ww;z+=(Number(v.z)||0)*ww;w+=ww;}
-   if(w)this.pose.set(slot,{x:x/w,y:y/w,z:z/w});
+    let x=0,y=0,z=0,w=0,px=0,py=0,pz=0,pw=0;for(const s of selected){const v=s.pose[slot],ww=s.weight;x+=(Number(v.x)||0)*ww;y+=(Number(v.y)||0)*ww;z+=(Number(v.z)||0)*ww;w+=ww;if(v.position){px+=(Number(v.position.x)||0)*ww;py+=(Number(v.position.y)||0)*ww;pz+=(Number(v.position.z)||0)*ww;pw+=ww;}}
+    if(w){const blended={x:x/w,y:y/w,z:z/w};if(pw)blended.position={x:px/pw,y:py/pw,z:pz/pw};this.pose.set(slot,blended)}
+
   }
   if(!this.active.length)this.state="idle";const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);return safe;
  }
