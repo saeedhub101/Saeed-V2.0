@@ -66,6 +66,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
   if(x.action==="buildProceduralRig"){const result=engine?.buildProceduralRig?.(String(x.template||"full"),x.options||{});if(!result)return{ok:false,error:"Procedural rig builder unavailable"};return{...result,status:c.status()}}
+  if(x.action==="availableAccessories"){const api=window.saeed?.addons;if(typeof api?.accessoriesList!=="function")return{ok:true,available:[],providerAvailable:false};const available=await api.accessoriesList();return{ok:true,available:Array.isArray(available)?available:[],providerAvailable:true}}
   if(x.action==="accessoriesList"){return{ok:true,...(engine?.getAccessoriesSnapshot?.()||{accessories:[]}),states:c.getAccessoryState?.()||{}}}
   if(x.action==="setAccessory"){const result=await c.setAccessory?.(x.definition||{},x.enabled!==false,x.state||{});return{...(result||{ok:false,error:"Accessory controller unavailable"}),accessories:engine?.getAccessoriesSnapshot?.()?.accessories||[],states:c.getAccessoryState?.()||{}}}
   if(x.action==="morphList"){const snapshot=engine?.getMorphSnapshot?.()||{count:0,names:[],values:{}};return{ok:true,...snapshot,status:c.status()}}
