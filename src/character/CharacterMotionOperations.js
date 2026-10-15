@@ -144,9 +144,9 @@ export class CharacterMotionOperations {
   const profileId=this.characterId;if(!profileId)return false;
   const profile=this.profiles.load(profileId)||{},states=profile.accessories&&typeof profile.accessories==="object"?profile.accessories:{};
   if(!Object.values(states).some(state=>state?.on)){this.accessoryRestoreProfileId=profileId;return true}
-  const api=window.saeed?.addons;if(!api?.accessoriesList||!api?.addonFile)return false;
+  const api=window.saeed?.addons;
   if(this.accessoryRestorePromise)return this.accessoryRestorePromise;
-  this.accessoryRestorePromise=(async()=>{const defs=await api.accessoriesList(),loadFile=async item=>api.addonFile(item.addon,item.file);let failures=0;
+  this.accessoryRestorePromise=(async()=>{const defs=api?.accessoriesList?await api.accessoriesList():[],loadFile=async item=>{if(!api?.addonFile)throw new Error("Accessory asset provider is unavailable");return api.addonFile(item.addon,item.file)};let failures=0;
    const definitions=new Map(defs.map(def=>[String(def.id),def]));for(const [id,state] of Object.entries(states)){if(!state?.on)continue;const def=state.definition||definitions.get(id);if(!def)continue;const result=await this.engine?.setAccessory?.({...def,bone:state.bone||def.bone},true,loadFile,state);if(!result?.ok){failures++;try{window.saeed?.system?.reportDiagnostic?.("WARN","ACCESSORY RESTORE",result?.error||("Could not restore "+id),{id,profileId})}catch{}}}
    this.accessoryRestoreProfileId=profileId;return failures===0
   })();
