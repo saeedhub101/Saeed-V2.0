@@ -303,7 +303,7 @@ app.on("before-quit", () => {
   try { learningRecorder?.stop?.(); } catch {}
   const windows = [
     getChatWindow(), performanceWin, settingsWin, addonsWin, learningWin,
-    characterSettingsWin, statusWin, threeDStatusWin, characterWin
+    characterSettingsWin, statusWin, threeDStatusWin, updateStatusWin, characterWin
   ];
   for (const win of windows) {
     try {
