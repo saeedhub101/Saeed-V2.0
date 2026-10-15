@@ -16,7 +16,8 @@ let cameraSettings={zoom:1,fov:28,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
 const accessories=new Map(),hiddenByOutfit=new Map(),meshBaseVisibility=new Map(),userHiddenMeshNames=new Set();
 const modelBaseTransforms=new WeakMap();
-let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,lastDrawFrameAt=0,renderHoldUntil=0;\nlet glbAnimations=[],glbMixer=null,glbMixerRoot=null,glbAction=null,glbLastTickAt=0;
+let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,lastDrawFrameAt=0,renderHoldUntil=0;
+let glbAnimations=[],glbMixer=null,glbMixerRoot=null,glbAction=null,glbLastTickAt=0;
 const glbTrace=window.saeedCharacterRuntime.glbTrace=window.saeedCharacterRuntime.glbTrace||[];
 function traceGlb(stage,detail={}){const entry={at:new Date().toISOString(),stage,...detail};glbTrace.push(entry);if(glbTrace.length>200)glbTrace.splice(0,glbTrace.length-200);if(String(stage).toLowerCase().includes("error")||String(stage).toLowerCase().includes("fail")){try{window.saeed?.system?.reportDiagnostic?.("ERROR","3D ENGINE TRACE",detail?.error||stage,{domain:"3D",traceStage:stage,trace:entry})}catch{}}}
 let lastRestPose={detected:"unknown",normalized:false};
@@ -358,7 +359,8 @@ function render(){
   if(lastFrameAt){const dt=Number(now)-Number(lastFrameAt);if(dt>0)renderFps=1000/dt}
   lastFrameAt=Number(now)||lastFrameAt;
   let keepAnimating=Date.now()<renderHoldUntil;
-  if(animationTick){try{keepAnimating=animationTick(now)||keepAnimating}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.stack||error?.message||String(error))}}\n  if(glbMixer&&glbAction){const tickAt=Number(now)||Date.now(),dt=glbLastTickAt?Math.max(0,Math.min(.05,(tickAt-glbLastTickAt)/1000)):0;glbLastTickAt=tickAt;if(dt>0)glbMixer.update(dt);if(glbAction.isRunning())keepAnimating=true}
+  if(animationTick){try{keepAnimating=animationTick(now)||keepAnimating}catch(error){animationTick=null;window.saeed.system.reportDiagnostic?.("ERROR","CHARACTER ANIMATION TICK",error?.stack||error?.message||String(error))}}
+  if(glbMixer&&glbAction){const tickAt=Number(now)||Date.now(),dt=glbLastTickAt?Math.max(0,Math.min(.05,(tickAt-glbLastTickAt)/1000)):0;glbLastTickAt=tickAt;if(dt>0)glbMixer.update(dt);if(glbAction.isRunning())keepAnimating=true}
   // Keep animation updates on requestAnimationFrame for correct motion timing, but
   // submit WebGL frames at 24 FPS to reduce GPU load during movement.
   const shouldDraw=!lastDrawFrameAt||Number(now)-lastDrawFrameAt>=1000/24;
