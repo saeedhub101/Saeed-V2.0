@@ -4,7 +4,7 @@ function characterFailure(action,error,meta={}){const message=error?.stack||erro
 async function executeCharacterCommand(command={}){
  const x=command||{};
  const action=String(x.action||"");
- const lightweight=action==="status"||action==="listMotions"||action==="meshList"||action==="setMeshVisibility"||action==="setUserBusy"||action==="behaviorEvent";
+ const lightweight=action==="status"||action==="listMotions"||action==="meshList"||action==="setMeshVisibility"||action==="morphList"||action==="setMorph"||action==="setUserBusy"||action==="behaviorEvent";
  const needsBones=action==="buildProceduralRig"||action==="fixTPose"||action==="setAxisFix"||action==="boneNames"||action==="getRig"||action==="jointRotation"||action==="autoMap"||action==="remap"||action==="bindSlot"||action==="setBoneRotation"||action==="setBonePosition"||action==="setBoneTransform"||action==="setBoneEditorRotation"||action==="resetBoneToRest"||action==="boneRotation"||action==="bonePosition"||action==="saveRestPose"||action==="normalizeRestPose"||action==="snapshotRestPose"||action==="beginAuthoring"||action==="endAuthoring"||action==="stop"||action==="stopAll"||action==="setAnimationEnabled"||action==="setAnimationPaused"||action==="resetPose";
  const directBonePose=action==="pose"&&command?.pose?.__bones&&typeof command.pose.__bones==="object";
  const captureRestPose=action==="pose"&&command?.pose?.__captureRest===true;
@@ -66,7 +66,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="viseme")return{ok:Boolean(c.face?.viseme?.(x.viseme,x.value))};
   if(x.action==="fingers")return{ok:Boolean(c.fingers?.curl?.(x.hand,x.amount))};
   if(x.action==="buildProceduralRig"){const result=engine?.buildProceduralRig?.(String(x.template||"full"),x.options||{});if(!result)return{ok:false,error:"Procedural rig builder unavailable"};return{...result,status:c.status()}}
-  if(x.action==="meshList"){const snapshot=engine?.getMeshVisibilitySnapshot?.()||{ok:false,error:"Character mesh listing unavailable",meshes:[]};return{...snapshot,status:c.status()}}
+  if(x.action==="morphList"){const snapshot=engine?.getMorphSnapshot?.()||{count:0,names:[],values:{}};return{ok:true,...snapshot,status:c.status()}}\n  if(x.action==="setMorph"){const ok=engine?.setCharacterExpression?.(String(x.name||""),Number(x.value)||0);return{ok:Boolean(ok),name:String(x.name||""),value:Number(x.value)||0,status:c.status()}}\n  if(x.action==="meshList"){const snapshot=engine?.getMeshVisibilitySnapshot?.()||{ok:false,error:"Character mesh listing unavailable",meshes:[]};return{...snapshot,status:c.status()}}
   if(x.action==="setMeshVisibility"){const ok=engine?.setMeshVisibility?.(String(x.name||""),x.visible!==false);return{ok:Boolean(ok),name:String(x.name||""),visible:x.visible!==false,status:c.status()}}
   if(x.action==="getRig"){const bones=engine?.getAvailableBoneNames?.()||[];const status=c.status?.()||{};const boundMapping=c.api?.getRig?.()?.mapping||{};const autoMapping=engine?.getCharacterRigAutoMap?.()||{};const mapping=Object.keys(boundMapping).length?boundMapping:(Object.keys(autoMapping).length?autoMapping:(status.autoRig||{}));return{ok:Boolean(bones.length),bones,mapping,status};}
   if(x.action==="boneNames"){const bones=engine?.getAvailableBoneNames?.()||[];if(!bones.length)return characterFailure(action,"No actual skeleton bone names exposed",{reason:"empty-skeleton"});return{ok:true,bones}};
