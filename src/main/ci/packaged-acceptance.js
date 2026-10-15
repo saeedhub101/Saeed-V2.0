@@ -123,7 +123,9 @@ async function runLifecycle(deps){
   await closeEverything();
   check("hidden-idle-has-no-feature-windows",featureWindows().length===0&&visibleWindows().length===0,{windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,remaining:windows().map(w=>w.getTitle())});
   for(const fn of [
-   screen("chat-window","chatHost",()=>ensureChatHost().showChat(),false,"Chat screen"),\n   screen("character-window","characterWin",()=>characterApi.showCharacter(),true,"3D Character screen"),\n  screen("performance-window","performanceWin",showPerformance,false,"Performance screen"),
+   screen("chat-window","chatHost",()=>ensureChatHost().showChat(),false,"Chat screen"),
+   screen("character-window","characterWin",()=>characterApi.showCharacter(),true,"3D Character screen"),
+   screen("performance-window","performanceWin",showPerformance,false,"Performance screen"),
    screen("settings-window","settingsWin",showSettings,false,"Settings screen"),
    screen("add-ons-window","addonsWin",showAddons,false,"Add-ons screen"),
    screen("learning-window","learningWin",showLearning,false,"Learning screen"),
