@@ -137,7 +137,7 @@ export class CharacterController{
   const persistedMapping=Object.fromEntries(Object.entries(mapped).map(([slot,b])=>[slot,b?.name||String(b||"")]));
   const snapshot=savedRestPose||{normalization:this.engine?.getRestPoseNormalization?.()||null,bones:this.engine?.snapshotBoneRotations?.()||{}};
   try{this.profiles.save(profileId,{mapping:persistedMapping,calibration:this.retargeter.status().calibration,axisFixes:this.retargeter.status().axisFixes,restPose:snapshot,normalizehumanoidrestpose:snapshot,customMotions:this.editor.list()})}
-  catch(error){try{window.saeed?.system?.reportDiagnostic?.("ERROR","RIG MAPPING SAVE",error?.message||String(error),{profileId,mapping:persistedMapping})}catch{}}
+  catch(error){try{window.saeed?.system?.reportDiagnostic?.("ERROR","RIG MAPPING SAVE",error?.message||String(error),{profileId,mapping:persistedMapping})}catch{}return false}
   this.engine?.wakeRender?.(250);
   return true;
  }
