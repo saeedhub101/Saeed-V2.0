@@ -571,9 +571,9 @@ export class AutonomousBehaviorController{
    const isCommunication=/email|message|notify|reply|send/.test(toolName);
    this.intent="reacting";
    this.lastToolOutcome={name:String(event?.name||""),success:false,at:Date.now(),error:String(event?.error||"Tool failed").slice(0,180)};
-   this.onMoodChanged(isCommunication?"thoughtful":"puzzled",true);
-   this.setExpression(isCommunication?"sad":"confused",.62);
-   const motion=this.chooseContextMotion("failure")||(isCommunication?"think":"shake")||"think";
+   this.onMoodChanged(isCommunication||!toolName?"thoughtful":"puzzled",true);
+   this.setExpression(isCommunication||!toolName?"sad":"confused",.62);
+   const motion=!toolName?"shake":(this.chooseContextMotion("failure")||(isCommunication?"think":"shake")||"think");
    this.playMotion(motion,{duration:.8,priority:42});
    this.scheduleReactionFinish(1250);
    return true;
