@@ -68,6 +68,7 @@ async function runLifecycle(deps){
  const closeKey=key=>{const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch{}try{setWindow(key,null)}catch{}};
  const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin","updateStatusWin"])closeKey(key);await pause(120);};
  async function probeFeatureScreen(name){
+  const route=name.replace(/-window$/,"");
   const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update Status"};
   const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed),buttons=document.querySelectorAll("button").length;
   const tabButtons=[...document.querySelectorAll("[data-tab]")],original=tabButtons.find(b=>b.classList.contains("active"))?.dataset.tab||tabButtons[0]?.dataset.tab||"";
@@ -75,7 +76,7 @@ async function runLifecycle(deps){
   for(const button of tabButtons){const tab=button.dataset.tab;button.click();await new Promise(resolve=>setTimeout(resolve,0));const panel=document.getElementById("tab-"+tab)||document.querySelector('[data-section="'+tab+'"]')||document.getElementById(tab);tabResults.push({tab,panelFound:Boolean(panel),active:Boolean(panel&&(panel.classList.contains("active")||!panel.classList.contains("hidden")))});}
   if(original)tabButtons.find(b=>b.dataset.tab===original)?.click();
   let apiRoundTrip=false,apiDetail="";
-  try{let value=null;switch(name){
+  try{let value=null;switch(route){
    case "performance":value=await window.saeed.system.getResourceSnapshot();apiRoundTrip=Boolean(value&&typeof value==="object");break;
    case "settings":value=await window.saeed.system.getSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;
    case "add-ons":value=await window.saeed.addons.catalog();apiRoundTrip=value!==null&&value!==undefined;break;
@@ -85,7 +86,7 @@ async function runLifecycle(deps){
    case "character-settings":value=await window.saeed.character.getPendingCharacter();apiRoundTrip=Boolean(value?.data&&(value.data.byteLength||value.data.length));break;
    case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;
   }apiDetail=apiRoundTrip?"API read-back returned a value":"API read-back returned no usable value";}catch(error){apiDetail=String(error?.message||error)}
-  return {title,expectedTitle:expected[name],titleOk:title===expected[name],readyState,hasPreload,buttons,tabResults,apiRoundTrip,apiDetail};
+  return {title,expectedTitle:expected[route],titleOk:title===expected[route],readyState,hasPreload,buttons,tabResults,apiRoundTrip,apiDetail};
  }
  const screen=(name,key,open,requiresCharacter=false)=>async()=>{
   await closeEverything();
