@@ -53,6 +53,12 @@ async function runCiProductAcceptance({ app, session, process, path, fs, charact
       const stoppedStatus=await target.webContents.executeJavaScript("window.saeedCharacterRuntime?.engine?.getGlbAnimationStatus?.()||null");
       const stopPassed=stoppedGlb?.ok===true&&stoppedGlb?.stopped===true&&stoppedStatus?.active===false;
       check("glb-intent-map-stop",stopPassed,{stopResult:stoppedGlb,statusAfterStop:stoppedStatus});
+      const invalidMap=await characterHost.command({action:"glbIntentMapSet",mapping:{[testIntent]:"CI-CLIP-DOES-NOT-EXIST"}});
+      const afterInvalidMap=await characterHost.command({action:"glbIntentMapGet"});
+      check("glb-intent-map-invalid-clip-rejected",invalidMap?.ok!==true&&afterInvalidMap?.mapping?.[normalizedIntent]===testClip,{rejected:invalidMap?.ok!==true,preserved:afterInvalidMap?.mapping?.[normalizedIntent]===testClip,error:invalidMap?.error||null});
+      const clearedMap=await characterHost.command({action:"glbIntentMapSet",mapping:{}});
+      const afterClearMap=await characterHost.command({action:"glbIntentMapGet"});
+      check("glb-intent-map-clear-readback",clearedMap?.ok===true&&clearedMap?.persisted===true&&!Object.prototype.hasOwnProperty.call(afterClearMap?.mapping||{},normalizedIntent),{clearOk:Boolean(clearedMap?.ok),remaining:Object.keys(afterClearMap?.mapping||{}),error:clearedMap?.error||null});
      }else{
       check("glb-intent-map-set-readback",false,{error:"Fixture animation clip missing"});
       check("glb-semantic-intent-plays-mapped-glb-clip",false,{error:"Fixture animation clip missing"});
