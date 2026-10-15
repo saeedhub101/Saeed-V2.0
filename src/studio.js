@@ -787,6 +787,20 @@ function panelBoneTransform() {
       h('button',{onclick:()=>{delete cfg.boneEdits[boneEditSelection];save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset selected bone'),
       h('button',{onclick:()=>{cfg.boneEdits={};save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset all edits')));
 }
+function applyHandCurl(side, value) {
+  if (!ch.model) return;
+  const patterns=[/thumb/i,/index/i,/middle/i,/ring/i,/pinky|little/i];
+  const relevant=ch.allBones.filter(b=>new RegExp(side,'i').test(b.name)&&patterns.some(p=>p.test(b.name)));
+  for(const b of relevant){
+    const base=ch.bindQ.get(b); if(!base) continue;
+    const joint=/distal|tip|3/i.test(b.name)?0.45:/intermediate|2/i.test(b.name)?0.65:1;
+    const axis=/thumb/i.test(b.name)?1:0;
+    const v=Math.max(0,Math.min(1,Number(value)||0));
+    const e=new THREE.Euler(axis===1?0:v*1.15*joint,axis===1?v*0.65*joint:0,axis===1?0:v*0.15*joint,'XYZ');
+    b.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(e));
+  }
+  ch.model.updateMatrixWorld(true);
+}
 function panelFaceHands() {
   const fingerNames = ch.allBones.filter(b=>/(thumb|index|middle|ring|pinky|little).*(proximal|intermediate|distal|1|2|3)|(^|[_ .])(thumb|index|middle|ring|pinky|little)/i.test(b.name)).map(b=>b.name);
   const side = h('select',{class:'grow'},['left','right'].map(s=>h('option',{value:s},s==='left'?'Left hand':'Right hand')));
@@ -794,26 +808,14 @@ function panelFaceHands() {
   const expression = h('select',{class:'grow'},['neutral','happy','sad','angry','surprised','thinking','worried','laugh','wink','kiss','tongueOut'].map(n=>h('option',{value:n},n)));
   const strength = h('input',{type:'range',min:0,max:1,step:0.05,value:0.7});
   const status = h('div',{class:'notice'},fingerNames.length?fingerNames.length+' finger bones detected.':'No finger bones matched by name; expression and gaze tools remain available.');
-  const applyCurl = () => {
-    const s=side.value, v=+curl.value;
-    const patterns=[/thumb/i,/index/i,/middle/i,/ring/i,/pinky|little/i];
-    const relevant=ch.allBones.filter(b=>new RegExp(s,'i').test(b.name)&&patterns.some(p=>p.test(b.name)));
-    for(const b of relevant){
-      const base=ch.bindQ.get(b); if(!base) continue;
-      const joint=/distal|tip|3/i.test(b.name)?0.45:/intermediate|2/i.test(b.name)?0.65:1;
-      const axis=/thumb/i.test(b.name)?1:0;
-      const e=new THREE.Euler(axis===1?0:v*1.15*joint,axis===1?v*0.65*joint:0,axis===1?0:v*0.15*joint,'XYZ');
-      b.quaternion.copy(base).multiply(new THREE.Quaternion().setFromEuler(e));
-    }
-    ch.model?.updateMatrixWorld(true);
-  };
+  const applyCurl = () => applyHandCurl(side.value,+curl.value);
   return h('div',{},h('h3',{},'Quick facial expressions'),
     h('p',{class:'muted'},'Apply and test expressions, blinking, and gaze on the live preview. Actual results depend on the GLB’s available morph targets and face rig.'),
-    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{if(expression.value==='neutral')ch.face.clear?.();else ch.face.expression(expression.value,+strength.value,2.5);flash('Expression applied to preview.');}},'Apply expression')),
+    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{if(expression.value==='neutral'){for(const v of Object.values(ch.face.expr||{})){v.target=0;v.hold=0;}ch.face.eyeHold=null;}else ch.face.expression(expression.value,+strength.value,2.5);flash('Expression applied to preview.');}},'Apply expression')),
     h('div',{class:'btns'},h('button',{onclick:()=>{ch.face.blinkT=0.17;}},'Blink'),h('button',{onclick:()=>ch.face.lookAt(0,0,1.2)},'Look forward'),h('button',{onclick:()=>ch.face.lookAt(0,1,1.2)},'Look up'),h('button',{onclick:()=>ch.face.lookAt(1,0,1.2)},'Look left'),h('button',{onclick:()=>ch.face.lookAt(-1,0,1.2)},'Look right')),
     h('h3',{},'Finger curl'),
     h('p',{class:'muted'},'Select a hand and curl detected finger bones. Finger naming differs between GLB rigs; unmatched bones are left unchanged.'),
-    h('div',{class:'row'},side,curl,h('button',{class:'primary btn',onclick:()=>{applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});}},'Apply curl'),h('button',{onclick:()=>{curl.value=0;applyCurl();}},'Relax hand')),
+    h('div',{class:'row'},side,curl,h('button',{class:'primary btn',onclick:()=>{applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});}},'Apply curl'),h('button',{onclick:()=>{curl.value=0;applyCurl();cfg.handCurl={side:side.value,value:0};save({handCurl:cfg.handCurl});}},'Relax hand')),
     status,
     h('h3',{},'Shape keys and visemes'),
     h('p',{class:'muted'},'The existing Face tab retains the full shape-key mapping, viseme mapping, custom expressions, lip-sync, and GLB facial animation controls. Use it for detailed face authoring.'),
@@ -824,7 +826,7 @@ function normalizeImportedClip(raw, fallbackName) {
   const name=String(raw.name||raw.id||fallbackName||'imported_motion').replace(/[^A-Za-z0-9_]/g,'_').slice(0,31);
   const duration=Math.max(0.2,Number(raw.duration||raw.length||2));
   if (Array.isArray(raw.tracks) && raw.tracks.length && raw.tracks.some(t=>Array.isArray(t.keys))) {
-    const tracks=raw.tracks.map(t=>({bone:String(t.bone||t.name||''),keys:(t.keys||[]).map(k=>({t:Math.max(0,Number(k.t??k.time??0)),r:(k.r||k.rotation||[0,0,0]).map(Number),...(k.p||k.position?{p:(k.p||k.position).map(Number)}:{})})).filter(k=>k.r.length===3&&k.r.every(Number.isFinite)).sort((a,b)=>a.t-b.t)})).filter(t=>t.bone&&t.keys.length);
+    const tracks=raw.tracks.map(t=>({bone:String(t.bone||t.name||''),keys:(t.keys||[]).map(k=>({t:Math.max(0,Number(k.t??k.time??0)),r:(k.r||k.rotation||[0,0,0]).map(v=>Number(v)*((raw.format==='avatar-agent'||raw.format==='avatarAgent')?180/Math.PI:1)),...(k.p||k.position?{p:(k.p||k.position).map(Number)}:{})})).filter(k=>k.r.length===3&&k.r.every(Number.isFinite)).sort((a,b)=>a.t-b.t)})).filter(t=>t.bone&&t.keys.length);
     if(!tracks.length) throw new Error('No usable tracks found in clip');
     return {name,duration,loop:!!raw.loop,tracks};
   }
@@ -916,7 +918,7 @@ let last = performance.now();
   if (tab === 'fix') tickMotion(fx, true, dt); else if (tab === 'create') tickMotion(cr, false, dt);
   ch.update(dt);
   if (tab === 'boneEdit') applyBoneEdits();
-  if (tab === 'faceHands' && cfg.handCurl?.value > 0 && ch.model) { /* keep direct finger pose stable in the preview */ }
+  if (tab === 'faceHands' && cfg.handCurl?.value > 0 && ch.model) applyHandCurl(cfg.handCurl.side || 'left', cfg.handCurl.value);
   if (markTarget) { markTarget.getWorldPosition(marker.position); marker.visible = true; } else marker.visible = false;
   controls.update();
   renderer.render(scene, camera);
