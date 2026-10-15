@@ -67,7 +67,7 @@ for (const file of htmlFiles) {
     if (ok) bound++;
     else fail(rel + " has a button with no detectable handler route: " + b.tag.slice(0, 180));
   }
-  const unreferencedInputs = actionable.filter(x => x.a.id && !isReferenced(x.a.id, js)).map(x => x.a.id);
+  const unreferencedInputs = actionable.filter(x => x.a.id && !isReferenced(x.a.id, js) && !(x.a.id.startsWith("permission-") && js.includes('$("permission-"+id)'))).map(x => x.a.id);
   for (const id of unreferencedInputs) fail(rel + " has an interactive field not referenced by its screen script: #" + id);
   if (/\bdata-tab\s*=/.test(html) && !/(?:dataset\.tab|data-tab)/.test(js)) fail(rel + " exposes tabs but has no tab-routing code");
   if (/\bdata-category\s*=/.test(html) && !/(?:dataset\.category|data-category)/.test(js)) fail(rel + " exposes categories but has no category-routing code");
@@ -80,6 +80,7 @@ const mainText = mainFiles.map(read).join("\n");
 const invokes = new Set([...preload.matchAll(/\binvoke\(\s*["']([^"']+)["']/g)].map(m => m[1]));
 const handlers = [...mainText.matchAll(/ipcMain\.handle\(\s*["']([^"']+)["']/g)].map(m => m[1]);
 const handlerSet = new Set(handlers);
+const screenJs = htmlFiles.map(file => scriptsFor(file, read(file)).text).join("\n");
 if (/window\.saeed\.studio\b/.test(screenJs)) fail("A screen still calls the removed window.saeed.studio API");
 if (!screenJs.includes("window.saeed.character.saveCharacterModel") || !preload.includes("saveCharacterModel:") || !handlerSet.has("character:model:save")) fail("Character Settings custom-rig export is not connected from UI through preload to main-process IPC");
 for (const channel of invokes) if (!handlerSet.has(channel)) fail("Preload invokes IPC channel without a registered ipcMain.handle: " + channel);
