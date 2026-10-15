@@ -331,7 +331,7 @@ export class AutonomousBehaviorController{
  interruptLowPriorityMotions(){
   if(this.character?.authoring)return false;
   const active=[...(this.character?.animation?.active||[])];
-  for(const item of active){if(Number(item?.priority??0)<=20&&item?.m?.id)this.character.animation.stop(item.m.id)}
+  for(const item of active){if(item?.m?.id&&(Number(item?.priority??0)<=20||String(item.m.id)==="think"))this.character.animation.stop(item.m.id)}
   this.lastCasualMotionAt=0;
   return active.length>0;
  }
