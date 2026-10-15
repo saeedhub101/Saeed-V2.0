@@ -145,8 +145,10 @@ export class CharacterController{
   if(!this.characterId)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");
   const normalization=this.engine?.getRestPoseNormalization?.()||null;
   this.engine?.captureAuthoritativeRestPose?.(normalization);
-  this.rebindMotionToRestPose();
+  // Snapshot the exact live transforms before rebinding the motion rig. Rebinding may
+  // normalize motion baselines; it must not replace the newly authored rest pose.
   const bones=this.engine?.snapshotBoneRotations?.()||{};
+  this.rebindMotionToRestPose();
   const authoritativeNormalization=this.engine?.getRestPoseNormalization?.()||normalization;
   const restPose={normalization:authoritativeNormalization,bones};
   let persisted=false;
