@@ -53,6 +53,8 @@ export class AutonomousBehaviorController{
   this.clearCycleTimers();
   this.sleeping=false;
   this.sleepStartedAt=0;
+  this.intent="idle";
+  this.lastStateTransitionAt=performance.now();
  }
  clearTimer(){if(this.timer){clearTimeout(this.timer);this.timer=null}}
  clearSleepTimer(){if(this.sleepTimer){clearTimeout(this.sleepTimer);this.sleepTimer=null}}
