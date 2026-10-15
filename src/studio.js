@@ -185,10 +185,15 @@ function panelBones() {
     return h('details', { open: n > 0 && n < 6 }, h('summary', {}, `${title} — ${n}/${defs.length} matched`), rs);
   });
   const tree = h('div', { class: 'tree' });
-  (function walk(o, d) {
-    if (o.isBone) { tree.append(h('div', { style: `padding-left:${d * 12 + 4}px`, onclick: () => { markTarget = o; } }, o.name)); d++; }
-    for (const c of o.children) walk(c, d);
-  })(ch.model, 0);
+  const treeSearch = h('input', { type: 'search', class: 'grow', placeholder: 'Search bones by name or parent…' });
+  const treeParent = h('p', { class: 'muted' }, 'Select a bone to view its parent.');
+  const drawTree = () => {
+    const q = treeSearch.value.trim().toLowerCase();
+    tree.replaceChildren(...ch.allBones.filter(b => !q || b.name.toLowerCase().includes(q) || String(b.parent?.name || '').toLowerCase().includes(q))
+      .map(b => h('div', { title: 'Parent: ' + (b.parent?.name || '—'), onclick: () => { markTarget = b; treeParent.textContent = 'Selected: ' + b.name + ' · Parent: ' + (b.parent?.name || '—'); } }, b.name + '  ←  ' + (b.parent?.name || 'root'))));
+  };
+  treeSearch.addEventListener('input', drawTree);
+  drawTree();
   const warn = ch.checkSides();
   return h('div', {},
     h('h3', {}, 'Match this model\'s bones to the program\'s bones'),
@@ -207,7 +212,7 @@ function panelBones() {
         setMap(m);
       } }, 'Swap left / right')),
     rows,
-    h('details', {}, h('summary', {}, `Skeleton in the file (${ch.allBones.length} bones) — click a name to find it`), tree));
+    h('details', {}, h('summary', {}, `Skeleton in the file (${ch.allBones.length} bones) — search by name or parent`), treeSearch, tree, treeParent));
 }
 
 /* ============ Pose tab ============ */
