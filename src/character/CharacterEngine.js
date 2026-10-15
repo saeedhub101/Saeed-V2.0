@@ -313,8 +313,8 @@ function fit(){
  const verticalDistance=size.y*.5/Math.tan(vf);
  const horizontalDistance=size.x*.5/Math.tan(hf*.5);
  const zoom=Math.max(.1,Math.min(5,Number(cameraSettings?.zoom)||1));
- // Reserve framing space and compensate for persisted zoom to prevent clipped bodies.
- const dist=Math.max(verticalDistance,horizontalDistance)*1.16/zoom;
+ // Keep the character large in the transparent window while retaining a small safety margin.
+ const dist=Math.max(verticalDistance,horizontalDistance)*1.04/zoom;
  if(!Number.isFinite(dist)||dist<=0){traceGlb("fit-invalid-camera",{dist,aspect,width:size.x,height:size.y});return false;}
  camera.position.set(center.x,center.y,center.z+Math.max(.01,dist));
  camera.near=Math.max(.001,Math.min(.1,size.length()/1000));
@@ -374,8 +374,10 @@ function resize(){
  renderer.setSize(w,h,false);
  camera.aspect=w/h;
  camera.updateProjectionMatrix();
- const fitted=fit();
- traceGlb("resize",{width:w,height:h,fitted,hidden:document.hidden});
+ // Canvas resizes must not reset camera framing or re-fit the loaded GLB.
+ // ResizeObserver can fire during unrelated layout/window transitions.
+ const fitted=false;
+ traceGlb("resize",{width:w,height:h,fitted,hidden:document.hidden,framing:"preserved"});
  renderImmediate();render();
 }
 new ResizeObserver(resize).observe(canvas);
