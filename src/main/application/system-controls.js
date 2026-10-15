@@ -12,7 +12,7 @@ function createSystemControls({app,showChat,showCharacter,hideCharacter,showAddo
    {label:"Saeed",submenu:[{label:"Show Saeed",click:showCharacter},{label:"Chat Me",click:showChat},{label:"Hide Saeed",click:hideCharacter},...emergencyItems]},
    {label:muted?"Unmute":"Mute",type:"checkbox",checked:muted,click:()=>setVoiceMuted(!muted)},
    {label:"Voice",submenu:[{label:"Mic ON",type:"radio",checked:mic==="on",click:()=>setMicMode("on")},{label:"Mic OFF",type:"radio",checked:mic==="off",click:()=>setMicMode("off")}]},
-    {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Character Studio — Bones / Rest Pose / Animation",click:showRestPoseEditor},{label:"Normalize Humanoid Rest Pose",click:showNormalizeHumanoidRestPose},{label:"Size",submenu:characterSizeMenu()}]},
+    {label:"Character",submenu:[{label:"Change Character (GLB)",click:chooseCharacter},{label:"Character Settings — Pose / Motion / Rig",click:showRestPoseEditor},{label:"Normalize Humanoid Rest Pose",click:showNormalizeHumanoidRestPose},{label:"Size",submenu:characterSizeMenu()}]},
    {label:"Add-ons / Plug-ins",click:showAddons},
    {label:"Learning / Teach Mode",click:showLearning},
    {label:(getTranscriptLabelEnabled?.()?"Hide":"Show")+" microphone transcript label",click:()=>{toggleTranscriptLabel?.();if(currentTray)rebuildTray(currentTray)}},
