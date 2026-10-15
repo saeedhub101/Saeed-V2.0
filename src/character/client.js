@@ -43,15 +43,15 @@ async function executeCharacterCommand(command={}){
   if(x.action==="glbClipList")return{ok:true,clips:engine?.listGlbAnimations?.()||[]};
   if(x.action==="playGlbClip"){c.stopAll?.();return engine?.playGlbAnimation?.(String(x.name??x.index??""),x.options||{})||{ok:false,error:"Embedded GLB animation playback unavailable"}}
   if(x.action==="stopGlbClip")return engine?.stopGlbAnimation?.()||{ok:false,error:"Embedded GLB animation playback unavailable"}
-  if(x.action==="play"){const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
-  if(x.action==="stop"){const ok=c.stop(x.motion);return{ok,status:c.status()}}
-  if(x.action==="stopAll"){const ok=c.stopAll();return{ok,status:c.status()}}
+  if(x.action==="play"){engine?.stopGlbAnimation?.(false);const ok=c.play(String(x.motion||"idle"),x.options||{});return{ok,status:c.status()}}
+  if(x.action==="stop"){engine?.stopGlbAnimation?.(false);const ok=c.stop(x.motion);return{ok,status:c.status()}}
+  if(x.action==="stopAll"){engine?.stopGlbAnimation?.(false);const ok=c.stopAll();return{ok,status:c.status()}}
   if(x.action==="setAnimationEnabled"){const enabled=c.setAnimationEnabled?.(x.enabled!==false);return{ok:true,enabled,status:c.status()}}
   if(x.action==="setAnimationPaused"){const paused=c.setAnimationPaused?.(x.paused===true);return{ok:true,paused,status:c.status()}}
   if(x.action==="jointRotation"){const ok=c.setLogicalJointRotation?.(String(x.slot||""),x.rotation||{});return{ok:Boolean(ok),rotation:engine?.getBoneRotation?.(String((engine?.getBoneMap?.()||{})[String(x.slot||"")]?.name||""))||null,status:c.status()}}
   if(x.action==="pose"){if(captureRestPose){const rest=c.saveRestPose?.();return{ok:Boolean(rest?.persisted),persisted:Boolean(rest?.persisted),restPose:rest||null,status:c.status(),error:rest?.persistenceError||undefined}}const pose=c.setPose(x.pose||{});return{ok:Boolean(pose),pose,status:c.status()}}
   if(x.action==="idlePose"){const pose=c.setIdlePose(x.pose||{});return{ok:true,pose,status:c.status()}}
-  if(x.action==="resetPose"){const ok=c.resetPose();return{ok,status:c.status()}}
+  if(x.action==="resetPose"){engine?.stopGlbAnimation?.(false);const ok=c.resetPose();return{ok,status:c.status()}}
   if(x.action==="remap"){const ok=c.remap(x.mapping||{});return{ok,status:c.status()}}
   if(x.action==="autoMap"){const result=c.autoMap?.()||{ok:false,error:"Automatic rig mapping unavailable"};return{...result,status:c.status()}}
   if(x.action==="defineMotion"){const motion=c.defineMotion(x.motion||{});return{ok:true,motion,status:c.status()}}
@@ -62,7 +62,7 @@ async function executeCharacterCommand(command={}){
   if(x.action==="beginAuthoring"){const ok=c.beginAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
   if(x.action==="endAuthoring"){const ok=c.endAuthoring?.()??false;return{ok:Boolean(ok),status:c.status()}}
   if(x.action==="status")return{ok:true,status:c.status()};
-  if(x.action==="semantic")return c.semantic(x.intent,x.options||{});
+  if(x.action==="semantic"){engine?.stopGlbAnimation?.(false);return c.semantic(x.intent,x.options||{})}
   if(x.action==="face"){const applied=Boolean(c.face?.expression?.(x.expression,x.intensity));return{ok:applied,result:applied?"expression-applied":"expression-unavailable",status:c.face?.status?.()||null}};
   if(x.action==="blink")return{ok:Boolean(c.face?.blink?.())};
   if(x.action==="lookAt")return{ok:Boolean(c.face?.lookAt?.(x.x,x.y,x.z))};
