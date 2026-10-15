@@ -195,6 +195,38 @@ function main() {
     characterEngineSource.includes("normalizeHumanoidRestPose"),
     { note: "The active Character Studio must load through the window manager, receive queued character-selection data, and use the authoritative character controller and engine." });
 
+  const motionEditorSource = exists("src/character/MotionEditor.js") ? read("src/character/MotionEditor.js") : "";
+  const animationControllerSource = exists("src/character/AnimationController.js") ? read("src/character/AnimationController.js") : "";
+  const poseControllerSource = exists("src/character/PoseController.js") ? read("src/character/PoseController.js") : "";
+  const motionSafetySource = exists("src/character/MotionSafety.js") ? read("src/character/MotionSafety.js") : "";
+  check("character-motion-editor-supports-position-keyframes",
+    studioHtml.includes('id="keyframePx"') && studioHtml.includes('id="keyframePy"') && studioHtml.includes('id="keyframePz"') &&
+    motionEditorSource.includes("value?.position") && motionEditorSource.includes("Invalid position for") &&
+    animationControllerSource.includes("blended.position") && poseControllerSource.includes("rotation.position") &&
+    motionSafetySource.includes("r?.position") && characterEngineSource.includes("rest.x+offset.x"),
+    { note: "Motion keyframes must author, validate, interpolate, blend and safely apply local position offsets alongside rotations." });
+
+  check("character-settings-exposes-real-glb-mesh-and-morph-controls",
+    studioHtml.includes('data-tab="accessories"') && studioHtml.includes('id="meshVisibilityList"') &&
+    studioHtml.includes('action:"meshList"') && studioHtml.includes('action:"setMeshVisibility"') &&
+    studioHtml.includes('action:"morphList"') && studioHtml.includes('action:"setMorph"') &&
+    characterEngineSource.includes("function getMeshVisibilitySnapshot()") && characterEngineSource.includes("function setMeshVisibility(") &&
+    characterClient.includes('if(x.action==="morphList")') && characterClient.includes('if(x.action==="setMorph")'),
+    { note: "Character Settings must manipulate actual GLB mesh visibility and morph targets through the authoritative engine." });
+
+  const motionOperationsSource = exists("src/character/CharacterMotionOperations.js") ? read("src/character/CharacterMotionOperations.js") : "";
+  check("character-rig-mapping-actions-have-authoritative-implementations",
+    motionOperationsSource.includes("bindSlot(slot,name)") && motionOperationsSource.includes("remap(mapping={})") &&
+    studioHtml.includes('action:"bindSlot"') && studioHtml.includes('action:"remap"'),
+    { note: "Manual bone binding and left/right mapping swaps must call the shared rig operations rather than unsupported controller methods." });
+
+  check("duplicate-rest-pose-screen-removed-safely",
+    !exists("src/normalizehumanoidrestpose.html") && !exists("src/normalizehumanoidrestpose.js") && !exists("src/normalizehumanoidrestpose.css") &&
+    !windowManagerSource.includes("normalizehumanoidrestpose.html") &&
+    exists("src/character-studio.html") && studioHtml.includes('id="normalize"') &&
+    read("src/main/application/system-controls.js").includes('{label:"Normalize Humanoid Rest Pose",click:showRestPoseEditor}'),
+    { note: "Rest-pose normalization now routes through Character Settings before the duplicate page is removed." });
+
   const voiceIpc = exists("src/main/ipc/voice-ipc.js") ? read("src/main/ipc/voice-ipc.js") : "";
   const voiceClient = exists("src/renderer/voice/voice-client.js") ? read("src/renderer/voice/voice-client.js") : "";
   check("stt-api-provider-contracts-match-provider-specifications",
