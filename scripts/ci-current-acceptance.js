@@ -214,6 +214,22 @@ function main() {
     characterClient.includes('if(x.action==="morphList")') && characterClient.includes('if(x.action==="setMorph")'),
     { note: "Character Settings must manipulate actual GLB mesh visibility and morph targets through the authoritative engine." });
 
+  check("character-settings-supports-custom-expressions-and-speech-visemes",
+    studioHtml.includes('id="saveCustomExpression"') && studioHtml.includes('id="applyCustomExpression"') &&
+    studioHtml.includes('id="saveVisemeMapping"') && studioHtml.includes('id="visemeMorph"') &&
+    characterClient.includes('if(x.action==="setVisemeMap")') &&
+    read("src/character/FaceController.js").includes("this.visemeMap[key]||name") &&
+    read("src/character/CharacterMotionOperations.js").includes("visemeMap:clean") &&
+    read("src/character/CharacterController.js").includes("setVisemeMap?.(profile.visemeMap||{})"),
+    { note: "Named morph expressions and persisted viseme-to-shape-key mappings are available through the character controller." });
+
+  check("character-settings-supports-motion-specific-axis-fixes",
+    studioHtml.includes('id="applyMotionAxisFix"') && studioHtml.includes('id="resetMotionAxisFixes"') &&
+    characterClient.includes('if(x.action==="setMotionAxisFix")') &&
+    read("src/character/AnimationController.js").includes("this.applyMotionAxisFixes(a.m.id,rawPose)") &&
+    read("src/character/CharacterMotionOperations.js").includes("motionAxisFixes:current"),
+    { note: "Axis correction can be saved per motion and logical joint, restored from the character profile, and applied during playback." });
+
   check("character-settings-supports-primitive-and-addon-accessories",
     studioHtml.includes('id="createAccessory"') && studioHtml.includes('id="installAvailableAccessory"') &&
     studioHtml.includes('action:"setAccessory"') && studioHtml.includes('action:"availableAccessories"') &&
