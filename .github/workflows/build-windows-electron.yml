@@ -57,9 +57,11 @@ jobs:
 
       - name: Run current product preflight
         id: preflight
+        if: always()
         run: npm test
 
       - name: Generate npm third-party license notices
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -68,6 +70,7 @@ jobs:
           Get-Content "THIRD_PARTY_NOTICES.txt" -TotalCount 8
 
       - name: Prepare native Windows icon
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -92,6 +95,7 @@ jobs:
 
       - name: Pre-package Electron startup smoke test
         id: startup_smoke
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -110,6 +114,7 @@ jobs:
           if ($errText) { Write-Host $errText }
 
       - name: Build embedded Whisper runtime
+        if: always()
         shell: pwsh
         timeout-minutes: 15
         run: |
@@ -150,10 +155,13 @@ jobs:
           Write-Host "EMBEDDED_WHISPER=PASS"
 
       - name: Build Windows installer and unpacked runtime
+        id: package_build
+        if: always()
         run: npm run dist
 
       - name: Screen-by-screen UI acceptance (packaged EXE)
         id: lifecycle
+        if: always()
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -188,6 +196,7 @@ jobs:
 
       - name: Character Engine, Rig Builder
         id: character_rig
+        if: always()
         shell: pwsh
         timeout-minutes: 12
         run: |
@@ -251,6 +260,7 @@ jobs:
 
       - name: Character behavior and GLB intent mapping
         id: character_behavior
+        if: always()
         shell: pwsh
         timeout-minutes: 5
         run: |
@@ -298,6 +308,7 @@ jobs:
 
       - name: Verify packaged runtime acceptance
         id: packaged_acceptance
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -344,6 +355,7 @@ jobs:
 
       - name: Verify rest pose survives a full application restart
         id: rest_pose
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -388,6 +400,7 @@ jobs:
 
       - name: brain, learning
         id: brain_learning
+        if: always()
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -422,6 +435,7 @@ jobs:
 
       - name: ram, cpu
         id: ram_cpu
+        if: always()
         shell: pwsh
         timeout-minutes: 8
         run: |
@@ -451,6 +465,8 @@ jobs:
           Write-Host (Get-Content $report -Raw)
 
       - name: Build optional add-on bundles
+        id: addons_build
+        if: always()
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -512,6 +528,8 @@ jobs:
         run: |
           $failed = @()
           if ("preflight" -and "preflight" -ne "" -and "${{ steps.preflight.outcome }}" -eq "failure") { $failed += "preflight" }
+          if ("${{ steps.package_build.outcome }}" -eq "failure") { $failed += "package_build" }
+          if ("${{ steps.addons_build.outcome }}" -eq "failure") { $failed += "addons_build" }
           if ("startup_smoke" -and "startup_smoke" -ne "" -and "${{ steps.startup_smoke.outcome }}" -eq "failure") { $failed += "startup_smoke" }
           if ("character_rig" -and "character_rig" -ne "" -and "${{ steps.character_rig.outcome }}" -eq "failure") { $failed += "character_rig" }
           if ("character_behavior" -and "character_behavior" -ne "" -and "${{ steps.character_behavior.outcome }}" -eq "failure") { $failed += "character_behavior" }

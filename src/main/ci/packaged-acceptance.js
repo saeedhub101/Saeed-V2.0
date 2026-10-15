@@ -69,7 +69,7 @@ async function runLifecycle(deps){
  const closeEverything=async()=>{try{await ensureChatHost().closeChat()}catch{}await characterApi.hideCharacter();for(const key of ["performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin","updateStatusWin"])closeKey(key);await pause(120);};
  async function probeFeatureScreen(name){
   const route=name.replace(/-window$/,"");
-  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update","chat":"Saeed AI","character":"Saeed 3D Character"};
+  const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update Status","chat":"Saeed AI","character":"Saeed 3D Character"};
   const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed);
   const buttonNodes=[...document.querySelectorAll("button")];
   const buttons=buttonNodes.length;
