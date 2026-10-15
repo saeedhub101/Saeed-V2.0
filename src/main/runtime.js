@@ -56,7 +56,8 @@ const compositionState={get addonService(){return addonService},set addonService
 const getState=()=>({characterWin,performanceWin,settingsWin,addonsWin,learningWin,restPoseEditorWin,normalizeHumanoidRestPoseWin,statusWin,threeDStatusWin,tray});
 const setWindow=(name,value)=>{if(name==="characterWin")characterWin=value;else if(name==="performanceWin")performanceWin=value;else if(name==="settingsWin")settingsWin=value;else if(name==="addonsWin")addonsWin=value;else if(name==="learningWin")learningWin=value;else if(name==="restPoseEditorWin")restPoseEditorWin=value;else if(name==="normalizeHumanoidRestPoseWin")normalizeHumanoidRestPoseWin=value;else if(name==="statusWin")statusWin=value;else if(name==="threeDStatusWin")threeDStatusWin=value;else if(name==="tray")tray=value};
 const {createRuntimeComposition}=moduleLoader.load("application:runtime-composition",()=>require("./application/runtime-composition"));
-const composition=createRuntimeComposition({app,ipcMain,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,state:compositionState,getState,setWindow,getAgent:()=>agent,setAgent:value=>{agent=value},moduleLoader});
+let composition;
+composition=createRuntimeComposition({app,ipcMain,BrowserWindow,path,fs,spawn,desktopCapturer,screen,dialog,Menu,process,windowsIconPath,state:compositionState,getState,setWindow,getAgent:()=>agent,setAgent:value=>{agent=value},moduleLoader,ensureFeatureIpc});
 const {diagnosticState,diagnostic,publish3DStatus,accept3DStatus,request3DStatus,updateDiagnosticState,startCpuMonitoring,stopCpuMonitoring,updateCpuMetrics,diagnosticFromAgent,getAddonService,getLearning,getLearningRecorder,getApiHealth,getResourceService,getChatWindow,ensureChatHost,getCurrentMicMode,getVoiceMuted,ensureVoiceHost,setMicMode,setVoiceMuted,ensureScreenCapture,captureScreen,permissionPolicy,confirmPermission,confirmations,voiceBroadcast,characterStore,character3DSettingsFile,writeCharacter3DSettings,captureCharacter3DWindowSettings,characterApi,ensureWindowManager,showPerformance,showSettings,showLearning,showAddons,ensureUpdateManager,updateNow,rebuildTray,contextMenu,ensureBrainHost,ensureBrain,releaseBrainIfIdle,showStatus,show3DStatus}=composition;
 characterHost=composition.characterHost;
 const {displayForWindow,fitCharacterToDisplay,sendCharacterData,chooseCharacter,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,characterSizeMenu}=characterApi;
@@ -215,15 +216,54 @@ require("./ipc/app-ipc").registerAppIpc({
 require("./ipc/core-ipc").registerCoreIpc({
   ipcMain, diagnostic, diagnosticState, getApiHealth, getResourceService, updateCpuMetrics
 });
-load("chatIpc", "./ipc/chat-ipc").registerChatIpc({
-  ipcMain, ensureBrain, getBrainHost: ensureBrainHost,
-  getAgent: () => agent, getCharacterWindow: () => characterWin, getChatHost: () => chatHost
-});
-load("learningIpc", "./ipc/learning-ipc").registerLearningIpc({
-  ipcMain, app, getLearning, getLearningRecorder, ensureBrain, getAgent: () => agent,
-  getChatWindow, getConfirmations: () => confirmations, showLearning: () => showLearning
-});
-load("addonsIpc", "./ipc/addons-ipc").registerAddonsIpc({ ipcMain, app, getAddonService });
+// Feature IPC modules are registered only when their surface is requested.
+// Character and voice IPC remain eager because the always-visible character uses them.
+function ensureFeatureIpc(feature) {
+  const c = composition;
+  if (!c) throw new Error("Runtime composition is not ready for feature IPC");
+  const register = (name, callback) => {
+    if (registeredFeatureIpc.has(name)) return;
+    callback();
+    registeredFeatureIpc.add(name);
+  };
+  if (feature === "chat") {
+    register("chat", () => load("chatIpc", "./ipc/chat-ipc").registerChatIpc({
+      ipcMain, ensureBrain, getBrainHost: ensureBrainHost,
+      getAgent: () => agent, getCharacterWindow: () => characterWin, getChatHost: () => chatHost
+    }));
+    register("history", () => load("historyIpc", "./ipc/history-ipc").registerHistoryIpc({
+      ipcMain, getAgent: () => agent, getChatWindow, getConfirmations: () => confirmations, dialog
+    }));
+    register("backup", () => load("backupIpc", "./ipc/backup-ipc").registerBackupIpc({
+      ipcMain, dialog, app, ensureBrain, getAgent: () => agent, diagnostic
+    }));
+    return true;
+  }
+  if (feature === "learning") {
+    register("learning", () => load("learningIpc", "./ipc/learning-ipc").registerLearningIpc({
+      ipcMain, app, getLearning, getLearningRecorder, ensureBrain, getAgent: () => agent,
+      getChatWindow, getConfirmations: () => confirmations, showLearning: () => showLearning
+    }));
+    return true;
+  }
+  if (feature === "addons") {
+    register("addons", () => load("addonsIpc", "./ipc/addons-ipc").registerAddonsIpc({ ipcMain, app, getAddonService }));
+    return true;
+  }
+  if (feature === "update") {
+    register("update", () => load("updateIpc", "./ipc/update-ipc").registerUpdateIpc({
+      ipcMain, getUpdateManager: ensureUpdateManager,
+      showUpdateStatus: () => {
+        ensureUpdateManager();
+        return composition.showUpdateStatus?.() || false;
+      }
+    }));
+    return true;
+  }
+  return false;
+}
+
+const registeredFeatureIpc = new Set();
 load("characterIpc", "./ipc/character-ipc").registerCharacterIpc({
   ipcMain, getCharacterWindow: () => characterWin, chooseCharacter,
   command: payload => characterHost.command(payload),
@@ -239,19 +279,6 @@ load("voiceIpc", "./ipc/voice-ipc").registerVoiceIpc({
   getBrainHost: ensureBrainHost, diagnosticState, getStatusWindow: () => statusWin,
   getThreeDStatusWindow: () => threeDStatusWin, getCharacterWindow: () => characterWin,
   getChatWindow: () => chatHost?.getChatWindow?.()
-});
-load("updateIpc", "./ipc/update-ipc").registerUpdateIpc({
-  ipcMain, getUpdateManager: ensureUpdateManager,
-  showUpdateStatus: () => {
-    ensureUpdateManager();
-    return composition.showUpdateStatus?.() || false;
-  }
-});
-load("historyIpc", "./ipc/history-ipc").registerHistoryIpc({
-  ipcMain, getAgent: () => agent, getChatWindow, getConfirmations: () => confirmations, dialog
-});
-load("backupIpc", "./ipc/backup-ipc").registerBackupIpc({
-  ipcMain, dialog, app, ensureBrain, getAgent: () => agent, diagnostic
 });
 
 app.on("activate", () => {
