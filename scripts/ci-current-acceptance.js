@@ -123,7 +123,7 @@ function main() {
       syntaxResults.push({ file: "src/character-studio.html#module", pass: studioSyntax.status === 0, error: studioSyntax.status === 0 ? "" : String(studioSyntax.stderr || studioSyntax.stdout || studioSyntax.error || "node --check failed") });
     } finally { try { fs.unlinkSync(temporaryStudioModule); } catch {} }
   } else {
-    syntaxResults.push({ file: "src/character-studio.html#module", pass: false, error: "Inline Character Studio module script was not found" });
+    syntaxResults.push({ file: "src/character-studio.html#module", pass: false, error: "Inline Character Settings module script was not found" });
   }
   check("runtime-javascript-syntax", syntaxResults.every(x => x.pass), { files: syntaxResults });
 

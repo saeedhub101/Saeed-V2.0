@@ -16,6 +16,7 @@ const controls = read("src/main/application/system-controls.js");
 const runtime = read("src/main/runtime.js");
 const appIpc = read("src/main/ipc/app-ipc.js");
 const packagedAcceptance = read("src/main/ci/packaged-acceptance.js");
+const characterHost = read("src/main/character/character-host.js");
 const preload = read("src/preload.js");
 const characterUi = read("src/character-studio.html");
 const performanceUi = read("src/performance.html");
@@ -70,6 +71,11 @@ check("character-settings-tray-action-route",
   /label:"Character Settings",click:showCharacterSettings/.test(controls) &&
   /showCharacterSettings/.test(runtime),
   "The visible tray action must call the injected Character Settings route");
+check("character-host-delivery-and-close-target-current-settings-window",
+  composition.includes("getCharacterSettingsWindow:()=>getState().characterSettingsWin") &&
+  characterHost.includes("getCharacterSettingsWindow") &&
+  !characterHost.includes("getRestPoseEditorWindow"),
+  "Character host pending-model delivery and close behavior must target the current Character Settings window state");
 check("character-settings-ipc-and-preload-pair",
   /ipcMain\.handle\("character-settings:show"[\s\S]*?composition\.showCharacterSettings/.test(appIpc) &&
   /showCharacterSettings:\(\)=>invoke\("character-settings:show"\)/.test(preload),
