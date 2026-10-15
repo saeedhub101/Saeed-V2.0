@@ -52,3 +52,13 @@ test("delayed local TTS and stale utterance callbacks cannot restart or cancel n
  assert.match(renderer,/u\.onend=\(\)=>\{if\(generation!==outputGeneration\)return/);
  assert.match(renderer,/src\.onended=\(\)=>\{mic\.audioSources\.delete\(src\);if\(generation!==outputGeneration\)return/);
 });
+
+
+test("packaged resource probe simulates mic activation without requesting a physical microphone",()=>{
+ const preload=fs.readFileSync(path.join(__dirname,"../../src/preload.js"),"utf8");
+ const renderer=fs.readFileSync(path.join(__dirname,"../../src/renderer/voice/voice-client.js"),"utf8");
+ assert.match(preload,/isCiResourceProbe:\(\)=>process\.argv\.includes\("--ci-ram-cpu"\)/);
+ assert.match(renderer,/if\(window\.saeed\.system\.isCiResourceProbe\?\.\(\)\)\{report\("INFO","CI MIC SIMULATION"/);
+ assert.ok(renderer.indexOf("CI MIC SIMULATION")<renderer.indexOf('await mic.start("on",false)'));
+ assert.match(renderer,/await mic\.start\("on",false\)/);
+});
