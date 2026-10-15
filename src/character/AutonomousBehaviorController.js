@@ -532,7 +532,7 @@ export class AutonomousBehaviorController{
    this.intent="reacting";
    this.lastToolOutcome={name:String(event?.name||""),success:true,at:Date.now(),status:String(event?.status||"success")};
    this.onMoodChanged("pleased",true);
-   this.setExpression("happy",isCommunication?.72:.62);
+   this.setExpression("happy",isCommunication ? .72 : .62);
    let motion;
    if(isInspection)motion=this.chooseWeighted(["lookCloser","nod","think"],{lookCloser:1.45,nod:1.2,think:.65});
    else if(isCommunication)motion=this.chooseWeighted(["nod","wave","clap"],{nod:1.3,wave:1.15,clap:.65});
