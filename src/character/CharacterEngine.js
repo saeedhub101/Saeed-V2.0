@@ -775,8 +775,8 @@ async function setAccessory(definition,enabled=true,loadFile=null,state={}){
  if(enabled===false){dropAccessory(id);return{ok:true,id,enabled:false}}
  const offset=accessoryVector(state.offset||def.offset),rotation=accessoryVector(state.rot||state.rotation||def.rotation),scale=Math.max(.05,Math.min(10,Number(state.scale??def.scale??1)||1));
  const existing=accessories.get(id);
- if(existing&&existing.type!=="outfit"){existing.inner.position.set(...offset);existing.inner.rotation.set(...rotation.map(v=>v*Math.PI/180));existing.inner.scale.setScalar(scale);render();return{ok:true,id,enabled:true,updated:true}}
  if(existing&&existing.type==="outfit")return{ok:true,id,enabled:true,updated:true};
+ if(existing)dropAccessory(id);
  try{
   if(String(def.type||"").toLowerCase()==="outfit"){
    if(typeof loadFile!=="function"||!def.file)return{ok:false,error:"Outfit asset file is not available"};
