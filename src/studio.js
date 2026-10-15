@@ -137,8 +137,12 @@ async function reloadModel() {
 /* ============ tabs ============ */
 const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test']];
 const EXTRA_TABS = [['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
+const AUTHORING_TABS = new Set(['boneEdit', 'faceHands']);
 function setTab(t) {
   if (tab === 'faceHands' && t !== 'faceHands' && cfg.handCurl) applyHandCurl(cfg.handCurl.side || 'left', 0);
+  const wasAuthoring = AUTHORING_TABS.has(tab), willAuthoring = AUTHORING_TABS.has(t);
+  if (!wasAuthoring && willAuthoring) api.command({ action: 'beginAuthoring' }).catch(error => flash('Could not pause Saeed for editing: ' + (error?.message || String(error))));
+  if (wasAuthoring && !willAuthoring) api.command({ action: 'endAuthoring' }).catch(error => flash('Could not resume Saeed behavior: ' + (error?.message || String(error))));
   tab = t;
   for (const b of $('tabs').querySelectorAll('button[data-tab]')) b.classList.toggle('on', b.dataset.tab === t);
   const more = $('tabs').querySelector('details.more-tools');
@@ -1051,6 +1055,9 @@ function panelPrimitiveAccessories() {
 /* ============ boot ============ */
 const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest, boneEdit: panelBoneTransform, faceHands: panelFaceHands, motionExchange: panelMotionExchange, primitiveAcc: panelPrimitiveAccessories };
 
+window.addEventListener('beforeunload', () => {
+  if (AUTHORING_TABS.has(tab)) { try { void api.command({ action: 'endAuthoring' }); } catch {} }
+});
 $('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));
 $('frontView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); };
 $('resetView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); renderer.render(scene, camera); };
