@@ -5,12 +5,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const source = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterController.js"), "utf8");
+const motionOperationsSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterMotionOperations.js"), "utf8");
 const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterEngine.js"), "utf8");
 const hostSource = fs.readFileSync(path.join(__dirname, "../../src/main/character/character-host.js"), "utf8");
 const performanceSource = fs.readFileSync(path.join(__dirname, "../../src/performance.js"), "utf8");
 const characterClientSource = fs.readFileSync(path.join(__dirname, "../../src/character/client.js"), "utf8");
-const playStart = source.indexOf(" play(id,options={}){");
-const playEnd = source.indexOf("\n stop(id)", playStart);
+const playStart = motionOperationsSource.indexOf(" play(id,options={}){");
+const playEnd = motionOperationsSource.indexOf("\n stop(id)", playStart);
 const playBody = source.slice(playStart, playEnd);
 const semanticStart = source.indexOf(" semantic(intent,options={}){");
 const semanticEnd = source.indexOf("\n}\nwindow.saeedCharacterRuntime", semanticStart);
@@ -109,7 +110,7 @@ test("direct bone editor rest-pose capture persists the authoritative pose",()=>
 });
 
 test("direct bone transforms report failure when no actual GLB bone accepted the edit",()=>{
- const start=source.indexOf(" setPose(pose={}){");
+ const start=motionOperationsSource.indexOf(" setPose(pose={}){");
  const end=source.indexOf("\n  ",start+20);
  const body=source.slice(start,start+1000);
  assert.ok(start>=0);
@@ -119,7 +120,7 @@ test("direct bone transforms report failure when no actual GLB bone accepted the
 });
 
 test("rest-pose capture is not blocked when animation playback is disabled",()=>{
- const start=source.indexOf(" setPose(pose={}){");
+ const start=motionOperationsSource.indexOf(" setPose(pose={}){");
  const body=source.slice(start,start+1000);
  assert.ok(start>=0);
  assert.ok(body.indexOf("if(pose?.__captureRest)")<body.indexOf("if(!this.animationEnabled||this.animationPaused)"));
@@ -137,7 +138,7 @@ test("rig editor prefers the active controller binding over a stale auto-map",()
 
 
 test("direct bone authoring remains available when animation playback is disabled",()=>{
- const start=source.indexOf(" setPose(pose={}){");
+ const start=motionOperationsSource.indexOf(" setPose(pose={}){");
  const body=source.slice(start,start+800);
  assert.ok(start>=0);
  assert.ok(body.indexOf("const bones=pose?.__bones")<body.indexOf("if(!this.animationEnabled||this.animationPaused)"));
