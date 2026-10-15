@@ -83,6 +83,9 @@ test("GLB semantic intent mapping is persisted, dispatched through CharacterCont
  assert.match(fixture,/animations:\[\{name:/);
  for(const token of ["SAEED_CI_GLB_INTENT_FIXTURE","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-map-invalid-clip-rejected","glb-intent-map-clear-readback","glb-intent-test-fixture-restored"])assert.ok(acceptance.includes(token),"missing real GLB mapping acceptance: "+token);
  assert.match(workflow,/SAEED_CI_GLB_INTENT_FIXTURE/);
+ const mandatoryWorkflowChecks=["glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-map-invalid-clip-rejected","glb-intent-map-clear-readback","glb-intent-test-fixture-restored","glb-intent-map-restored"];
+ for(const token of mandatoryWorkflowChecks)assert.ok(workflow.includes(token),"workflow must require functional GLB intent check: "+token);
+ assert.ok((workflow.split("Packaged EXE missing required functional GLB intent check:").length-1)>=1,"packaged EXE acceptance must explicitly enforce GLB intent checks");
 });
 
 test("packaged acceptance exercises real motion edits, invalid-GLB preservation, and fresh-process rest-pose persistence",()=>{
