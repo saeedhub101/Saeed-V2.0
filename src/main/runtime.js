@@ -274,6 +274,7 @@ const registeredFeatureIpc = new Set();
 load("characterIpc", "./ipc/character-ipc").registerCharacterIpc({
   ipcMain, getCharacterWindow: () => characterWin, chooseCharacter,
   command: payload => characterHost.command(payload),
+  saveCharacterModel: (buffer, name) => characterHost.saveCharacterModel(buffer, name),
   getPendingCharacter: () => characterHost.getPendingCharacter?.() || null,
   captureCharacter3DWindowSettings, writeCharacter3DSettings
 });

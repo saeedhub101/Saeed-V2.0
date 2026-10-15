@@ -1,4 +1,4 @@
-function registerCharacterIpc({ipcMain,chooseCharacter,command,captureCharacter3DWindowSettings,writeCharacter3DSettings,getCharacterWindow,getPendingCharacter}){ipcMain.handle("character:choose",async()=>{await chooseCharacter();return true});ipcMain.handle("character:get-pending",()=>getPendingCharacter?.()||null);ipcMain.handle("character:controller:get",async()=>{
+function registerCharacterIpc({ipcMain,chooseCharacter,command,saveCharacterModel,captureCharacter3DWindowSettings,writeCharacter3DSettings,getCharacterWindow,getPendingCharacter}){ipcMain.handle("character:choose",async()=>{await chooseCharacter();return true});ipcMain.handle("character:model:save",async(_,buffer,name)=>{if(typeof saveCharacterModel!=="function")return{ok:false,error:"Character model saving is unavailable"};return saveCharacterModel(buffer,name)});ipcMain.handle("character:get-pending",()=>getPendingCharacter?.()||null);ipcMain.handle("character:controller:get",async()=>{
  let result=await command({action:"status"});
  let status=result?.status||result;
  if(!status?.characterLoaded){

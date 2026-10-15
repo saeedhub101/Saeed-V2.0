@@ -80,6 +80,8 @@ const mainText = mainFiles.map(read).join("\n");
 const invokes = new Set([...preload.matchAll(/\binvoke\(\s*["']([^"']+)["']/g)].map(m => m[1]));
 const handlers = [...mainText.matchAll(/ipcMain\.handle\(\s*["']([^"']+)["']/g)].map(m => m[1]);
 const handlerSet = new Set(handlers);
+if (/window\.saeed\.studio\b/.test(screenJs)) fail("A screen still calls the removed window.saeed.studio API");
+if (!screenJs.includes("window.saeed.character.saveCharacterModel") || !preload.includes("saveCharacterModel:") || !handlerSet.has("character:model:save")) fail("Character Settings custom-rig export is not connected from UI through preload to main-process IPC");
 for (const channel of invokes) if (!handlerSet.has(channel)) fail("Preload invokes IPC channel without a registered ipcMain.handle: " + channel);
 const duplicateHandlers = handlers.filter((channel, i) => handlers.indexOf(channel) !== i);
 for (const channel of [...new Set(duplicateHandlers)]) fail("IPC channel registered more than once: " + channel);
