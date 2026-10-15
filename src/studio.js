@@ -742,7 +742,8 @@ function panelRig() {
 /* ============ boot ============ */
 const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest };
 
-$('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));\nwindow.addEventListener('saeed-studio-model-refresh', () => reloadModel().catch(e => flash(e.message || String(e))));
+$('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));
+window.addEventListener('saeed-studio-model-refresh', () => reloadModel().catch(e => flash(e.message || String(e))));
 $('yaw').value = String(cfg.modelYaw || 0);
 $('yaw').onchange = (e) => { save({ modelYaw: +e.target.value }); ch.applyConfig(cfg); renderPanel(); drawDraft(); };
 $('chkSkel').onchange = (e) => ch.showSkeleton(e.target.checked);
