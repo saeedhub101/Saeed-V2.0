@@ -6,6 +6,7 @@ import { BONES, GROUPS, groupOf, autoMap } from './shared/schema.js';
 import { builtinClips, sampleTrack, INTENTS } from './shared/clips.js';
 import { RIG_TEMPLATES, makeTemplate, makeFingers, makeFace } from './shared/rigbuilder.js';
 import { VISEMES, ROLES, DEFAULT_OPTS, autoFace } from './shared/face.js';
+import { logicalSlots } from './character/AutoRigMapper.js';
 
 const bridge = window.saeed;
 const api = {
@@ -326,10 +327,26 @@ function clipSelect(st, onChange) {
 
 function toRuntimeMotion(clip) {
   const tracks = (clip?.tracks || []).filter(track => Array.isArray(track.keys) && track.keys.length);
-  const boneToSlot = new Map(Object.entries(ch.map || {}).map(([slot, bone]) => [String(bone?.name || bone), slot]));
+  const runtimeSlots = new Set(logicalSlots());
+  const slotAliases = {
+    leftLowerArm: 'leftForeArm', rightLowerArm: 'rightForeArm',
+    leftUpperLeg: 'leftThigh', rightUpperLeg: 'rightThigh',
+    leftLowerLeg: 'leftShin', rightLowerLeg: 'rightShin'
+  };
+  const runtimeSlot = slot => {
+    if (runtimeSlots.has(slot)) return slot;
+    if (slotAliases[slot] && runtimeSlots.has(slotAliases[slot])) return slotAliases[slot];
+    const finger = String(slot).match(/^(left|right)(Thumb|Index|Middle|Ring|Pinky)([1-4])$/);
+    if (finger) {
+      const mapped = finger[1] + 'Hand' + finger[2] + finger[3];
+      if (runtimeSlots.has(mapped)) return mapped;
+    }
+    return null;
+  };
+  const boneToSlot = new Map(Object.entries(ch.map || {}).map(([slot, bone]) => [String(bone?.name || bone), runtimeSlot(slot)]).filter(([,slot]) => slot));
   const usable = tracks.map(track => ({
     track,
-    slot: ch.map?.[track.bone] ? track.bone : boneToSlot.get(String(track.bone))
+    slot: runtimeSlot(String(track.bone)) || boneToSlot.get(String(track.bone))
   })).filter(item => item.slot);
   if (!usable.length) throw new Error('This motion has no tracks matching Saeed’s mapped logical bones. Match the Bones tab first.');
   const times = [...new Set(usable.flatMap(({track}) => track.keys.map(key => Math.max(0, Number(key.t) || 0))))].sort((a,b)=>a-b);
