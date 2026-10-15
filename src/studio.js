@@ -767,20 +767,12 @@ function panelRig() {
 /* ============ Restored Character Studio tools ============ */
 let boneEditSelection = '';
 function applyBoneEdits() {
-  if (!ch.model || !cfg.boneEdits) return;
-  const byName = new Map(ch.allBones.map((b) => [b.name, b]));
-  for (const [name, edit] of Object.entries(cfg.boneEdits)) {
-    const b = byName.get(name);
-    if (!b) continue;
-    const baseP = ch.bindP.get(b), baseQ = ch.bindQ.get(b);
-    if (baseP) b.position.copy(baseP).add(new THREE.Vector3(...(edit.position || [0, 0, 0])));
-    if (baseQ) {
-      const r = edit.rotation || [0, 0, 0];
-      b.quaternion.copy(baseQ).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(r[0] * Math.PI / 180, r[1] * Math.PI / 180, r[2] * Math.PI / 180, 'XYZ')));
-    }
-  }
-  ch.model.updateMatrixWorld(true);
+  if (!ch.model) return;
+  // The shared Character engine owns the actual rest-pose + edit composition.
+  // This keeps Character Setting from maintaining a second bone transform path.
+  ch.applyRestPose();
 }
+
 function panelBoneTransform() {
   if (!ch.allBones.length) return notice('Load a character with bones first. Mesh-only characters remain visible; use Rig Builder to add a rig.');
   const names = [...new Set(ch.allBones.map((b) => b.name))];
