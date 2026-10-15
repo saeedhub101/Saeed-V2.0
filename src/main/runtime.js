@@ -273,7 +273,6 @@ function ensureFeatureIpc(feature) {
 const registeredFeatureIpc = new Set();
 load("characterIpc", "./ipc/character-ipc").registerCharacterIpc({
   ipcMain, getCharacterWindow: () => characterWin, chooseCharacter,
-  saveCharacterModel: characterApi.saveCharacterModel,
   command: payload => characterHost.command(payload),
   getPendingCharacter: () => characterHost.getPendingCharacter?.() || null,
   captureCharacter3DWindowSettings, writeCharacter3DSettings

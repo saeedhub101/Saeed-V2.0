@@ -26,7 +26,7 @@ async function openFeature(label,operation){
  }finally{buttons.forEach(button=>button.disabled=false)}
 }
 $("openFeatureChat").onclick=()=>openFeature("Chat",()=>window.saeed.chat.showChat());
-$("openFeatureCharacter").onclick=()=>openFeature("Character Settings",()=>window.saeed.character.showRestPoseEditor());
+$("openFeatureCharacter").onclick=()=>openFeature("Character Settings",()=>window.saeed.character.showCharacterSettings());
 $("openFeaturePerformance").onclick=()=>openFeature("Performance",()=>window.saeed.system.showPerformance());
 $("openFeatureStatus").onclick=()=>openFeature("Status",()=>window.saeed.system.showStatus());
 $("openFeature3DStatus").onclick=()=>openFeature("3D Status",()=>window.saeed.character.show3DStatus());
