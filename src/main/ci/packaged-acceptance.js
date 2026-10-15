@@ -99,7 +99,9 @@ async function runLifecycle(deps){
    case "status":value=await window.saeed.system.getDiagnosticSnapshot();apiRoundTrip=Boolean(value&&typeof value==="object");break;
    case "3d-status":value=await window.saeed.character.get3DStatus();apiRoundTrip=Boolean(value&&typeof value==="object");break;
    case "character-settings":value=await window.saeed.character.getPendingCharacter();apiRoundTrip=Boolean(value?.data&&(value.data.byteLength||value.data.length));break;
-   case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;\n   case "chat":value=await window.saeed.system.getSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;\n   case "character":value=await window.saeed.character.getCharacter3DSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;
+   case "update-status":value=await window.saeed.system.getUpdateSnapshot();apiRoundTrip=value!==null&&value!==undefined;break;
+   case "chat":value=await window.saeed.system.getSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;
+   case "character":value=await window.saeed.character.getCharacter3DSettings();apiRoundTrip=Boolean(value&&typeof value==="object");break;
   }apiDetail=apiRoundTrip?"API read-back returned a value":"API read-back returned no usable value";}catch(error){apiDetail=String(error?.message||error)}
   return {title,expectedTitle:expected[route],titleOk:title===expected[route],readyState,hasPreload,buttons,buttonInventory,tabResults,apiRoundTrip,apiDetail};
  }
