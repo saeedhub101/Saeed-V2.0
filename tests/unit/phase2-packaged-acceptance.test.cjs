@@ -14,6 +14,15 @@ const engine=fs.readFileSync(path.join(root,"src/character/CharacterEngine.js"),
 const client=fs.readFileSync(path.join(root,"src/character/client.js"),"utf8");
 const workflow=fs.readFileSync(path.join(root,".github/workflows/build-windows-electron.yml"),"utf8");
 
+test("runtime composition exposes 3D status acknowledgements and tracks the update window lifecycle",()=>{
+ const composition=fs.readFileSync(path.join(root,"src/main/application/runtime-composition.js"),"utf8");
+ assert.match(composition,/diagnostic,publish3DStatus,accept3DStatus,request3DStatus/);
+ assert.match(runtime,/threeDStatusWin,updateStatusWin,tray/);
+ assert.match(runtime,/name==="updateStatusWin"\)updateStatusWin=value/);
+ assert.match(runtime,/characterSettingsWin, statusWin, threeDStatusWin, updateStatusWin, characterWin/);
+ assert.match(composition,/getUpdateStatusWindow=\(\)=>getState\(\)\.updateStatusWin/);
+});
+
 test("packaged acceptance launches after startup and exits from a machine-readable result",()=>{
  assert.match(runtime,/process\.argv\.includes\("--ci-acceptance"\)/);
  assert.match(runtime,/require\("\.\/ci\/product-acceptance"\)\.runCiProductAcceptance/);
