@@ -57,17 +57,19 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
       diagnosticFromAgent(e);
       voiceBroadcast("agent:event",e);
       const type=String(e?.type||"");
-      const behaviorType=({
-       "thinking":"thinking",
-       "user-input":"user-input",
-       "tool":"tool",
-       "tool_result":"tool_result",
-       "tool_error":"tool_error",
-       "task-start":"thinking",
-       "task-finished":"chat-end",
-       "answer":"assistant-message",
-       "assistant-response":"assistant-message"
-      })[type];
+      const taskStatus=String(e?.status||"").toLowerCase();
+      const behaviorType=type==="task-finished"
+       ?(taskStatus==="finished"?"task-complete":["needs_attention","failed","error"].includes(taskStatus)?"task-failure":"chat-end")
+       :({
+        "thinking":"thinking",
+        "user-input":"user-input",
+        "tool":"tool",
+        "tool_result":"tool_result",
+        "tool_error":"tool_error",
+        "task-start":"thinking",
+        "answer":"assistant-message",
+        "assistant-response":"assistant-message"
+       })[type];
       if(behaviorType){
        const toolName=String(e?.name||"");
        const result=e?.result&&typeof e.result==="object"?e.result:null;
@@ -78,8 +80,8 @@ function createBrainHost({app,dialog,getMicMode,isChatSurfaceOpen,characterComma
         status:e?.status,
         name:toolName,
         sourceType:type,
-        success:type==="tool_result"?e?.result?.ok!==false:type==="tool_error"?false:undefined,
-        error:type==="tool_error"?String(e?.error||e?.message||"Tool failed").slice(0,240):undefined,
+        success:behaviorType==="task-complete"?true:behaviorType==="task-failure"?false:type==="tool_result"?e?.result?.ok!==false:type==="tool_error"?false:undefined,
+        error:behaviorType==="task-failure"?String(e?.message||e?.status||"Task did not complete successfully").slice(0,240):type==="tool_error"?String(e?.error||e?.message||"Tool failed").slice(0,240):undefined,
         resultMeta:type==="tool_result"?{ok:result?.ok!==false,kind:result?.kind||result?.type||null,hasData:Boolean(result&&Object.keys(result).some(k=>!["ok","status","kind","type"].includes(k)))}:undefined
        });
       }
