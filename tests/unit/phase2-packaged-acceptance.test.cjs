@@ -69,7 +69,20 @@ test("Character IPC serializes logical rig names instead of cyclic THREE.Bone ob
 });
 
 test("packaged acceptance covers GLB, rig, rendering, motion, rest pose, voice lifecycle and repeated show/hide",()=>{
- for(const token of ["bundled-glb-loaded","humanoid-rig-mapped","three-renderer-active","semantic-motion-playback","rest-pose-real-bone-edit-applied","rest-pose-persistent-readback","rest-pose-reapplied-after-character-runtime-reload","packaged-whisper-runtime-present","packaged-whisper-transcription-runs","mute-is-output-only","unmute-restores-tts","unmute-while-hidden-keeps-tts-released","show-after-hidden-unmute-restores-tts","character-survives-repeated-visibility-cycles"])assert.ok(acceptance.includes(token),"missing packaged acceptance check: "+token);
+ for(const token of ["bundled-glb-loaded","humanoid-rig-mapped","three-renderer-active","semantic-motion-playback","glb-intent-map-api-available","glb-intent-test-fixture-loaded","glb-intent-fixture-animation-present","glb-intent-map-set-readback","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-test-fixture-restored","glb-intent-map-restored","rest-pose-real-bone-edit-applied","rest-pose-persistent-readback","rest-pose-reapplied-after-character-runtime-reload","packaged-whisper-runtime-present","packaged-whisper-transcription-runs","mute-is-output-only","unmute-restores-tts","unmute-while-hidden-keeps-tts-released","show-after-hidden-unmute-restores-tts","character-survives-repeated-visibility-cycles"])assert.ok(acceptance.includes(token),"missing packaged acceptance check: "+token);
+});
+
+test("GLB semantic intent mapping is persisted, dispatched through CharacterController, and tested on the packaged EXE",()=>{
+ const controller=fs.readFileSync(path.join(root,"src/character/CharacterController.js"),"utf8");
+ const studio=fs.readFileSync(path.join(root,"src/character-studio.html"),"utf8");
+ const fixture=fs.readFileSync(path.join(root,"scripts/create-ci-static-humanoid-glb.js"),"utf8");
+ for(const token of ["getGlbIntentMap()","setGlbIntentMap(mapping={})","saeed.character.glb-intent-map","this.engine?.playGlbAnimation?.(mappedClip","source:\"glb\""])assert.ok(controller.includes(token),"missing controller mapping behavior: "+token);
+ for(const token of ["glbIntentMapGet","glbIntentMapSet","glbClipList","playGlbClip"])assert.ok(client.includes(token),"missing renderer command: "+token);
+ for(const token of ["saveGlbIntentMapping","testGlbIntentMapping","clearGlbIntentMapping","read-back verification"])assert.ok(studio.includes(token),"missing functional mapping UI: "+token);
+ assert.match(fixture,/CI-GLB-Intent-Wave/);
+ assert.match(fixture,/animations:\[\{name:/);
+ for(const token of ["SAEED_CI_GLB_INTENT_FIXTURE","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-stop","glb-intent-test-fixture-restored"])assert.ok(acceptance.includes(token),"missing real GLB mapping acceptance: "+token);
+ assert.match(workflow,/SAEED_CI_GLB_INTENT_FIXTURE/);
 });
 
 test("packaged acceptance exercises real motion edits, invalid-GLB preservation, and fresh-process rest-pose persistence",()=>{
