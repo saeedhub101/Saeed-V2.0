@@ -4,7 +4,7 @@ import { MotionRegistry } from "./MotionRegistry.js";
 import { MotionSafety } from "./MotionSafety.js";
 
 export class AnimationController {
- constructor(avatar){this.avatar=avatar;this.rig=new CharacterRig();this.pose=new PoseController();this.registry=new MotionRegistry();this.active=[];this.state="idle";this.idlePose={};this.safety=new MotionSafety();this.layers=new Map([["base",0],["body",10],["arms",20],["head",30],["face",40],["hands",50],["special",60]]);}
+ constructor(avatar){this.avatar=avatar;this.rig=new CharacterRig();this.pose=new PoseController();this.registry=new MotionRegistry();this.active=[];this.state="idle";this.idlePose={};this.safety=new MotionSafety();this.motionAxisFixes={};this.layers=new Map([["base",0],["body",10],["arms",20],["head",30],["face",40],["hands",50],["special",60]]);}
  bindRig(bones={},retargeter=null){this.rig.bind(bones,retargeter);return this.rig.snapshot();}
  register(def){return this.registry.register(def);}
  setMotionEnabled(id,enabled=true){return this.registry.setEnabled(id,enabled);}
@@ -19,6 +19,8 @@ export class AnimationController {
  stop(id){const before=this.active.length;this.active=this.active.filter(x=>x.m.id!==id);if(!this.active.length)this.state="idle";this.avatar?.wakeRender?.();return this.active.length!==before;}
  stopLayer(layer){const before=this.active.length;this.active=this.active.filter(x=>x.layer!==layer);if(!this.active.length)this.state="idle";this.avatar?.wakeRender?.();return this.active.length!==before;}
  stopAll({reset=true}={}){this.active=[];this.state="idle";this.pose.clear();if(reset)this.avatar?.resetCharacterPose?.();this.avatar?.wakeRender?.();return true;}
+ setMotionAxisFixes(fixes={}){this.motionAxisFixes=fixes&&typeof fixes==="object"?JSON.parse(JSON.stringify(fixes)):{};return true;}
+ applyMotionAxisFixes(id,pose={}){const fixes=this.motionAxisFixes?.[String(id)]||{},out={...pose};for(const [slot,fix] of Object.entries(fixes)){const value=pose?.[slot];if(!value)continue;const source=[Number(value.x)||0,Number(value.y)||0,Number(value.z)||0],swz=Array.isArray(fix.swz)?fix.swz:[0,1,2],sign=Array.isArray(fix.sign)?fix.sign:[1,1,1],scale=Math.max(0,Math.min(4,Number(fix.scale??1)||0)),offset=Array.isArray(fix.offset)?fix.offset:[0,0,0];out[slot]={...value,x:source[Math.max(0,Math.min(2,Number(swz[0])||0))]*(Number(sign[0])<0?-1:1)*scale+(Number(offset[0])||0),y:source[Math.max(0,Math.min(2,Number(swz[1]??1)))]*(Number(sign[1])<0?-1:1)*scale+(Number(offset[1])||0),z:source[Math.max(0,Math.min(2,Number(swz[2]??2)))]*(Number(sign[2])<0?-1:1)*scale+(Number(offset[2])||0)}}return out;}
  update(dt=.0166666667){
   const delta=Math.max(0,Math.min(.25,Number(dt)||0));this.pose.clear();if(Object.keys(this.idlePose).length)this.pose.setMany(this.idlePose);
   if(!this.active.length){const safe=this.safety.clampPose(this.pose.snapshot());this.avatar?.applyCharacterPose?.(safe,this.rig.retargeter);return safe;}
@@ -28,7 +30,7 @@ export class AnimationController {
    const t=a.duration?(a.loop?a.elapsed%a.duration:a.elapsed):a.elapsed,p=a.duration?Math.max(0,Math.min(1,t/a.duration)):0;
    const fadeIn=a.blend?Math.min(1,t/a.blend):1,fadeOut=a.duration&&a.blend&&!a.loop?Math.min(1,(a.duration-t)/a.blend):1;
    const weight=Math.max(.05,Math.min(1,fadeIn,fadeOut))*Math.max(.05,Math.min(1,a.intensity));
-   const pose=a.m.update({t,p,dt:delta,intensity:a.intensity,rig:this.rig,pose:this.pose,state:this.state})||{};
+   const rawPose=a.m.update({t,p,dt:delta,intensity:a.intensity,rig:this.rig,pose:this.pose,state:this.state})||{};const pose=this.applyMotionAxisFixes(a.m.id,rawPose);
    samples.push({pose,weight,priority:a.priority,layer:a.layer});next.push(a);
   }
   this.active=next;
