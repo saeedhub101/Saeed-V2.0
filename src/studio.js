@@ -813,12 +813,17 @@ function panelRig() {
 /* ============ Restored Character Studio tools ============ */
 let boneEditSelection = '';
 let boneSyncTimer = null;
-function syncBoneToRuntime(name, position, rotation) {
+function syncBoneToRuntime(name, position, rotation, immediate = false) {
   if (boneSyncTimer) clearTimeout(boneSyncTimer);
+  boneSyncTimer = null;
+  const send = () => api.setBoneTransform(name, position, rotation).then(result => {
+    if (result?.ok === false) throw new Error('Saeed could not apply this bone. Check that the same character is loaded.');
+    return result;
+  });
+  if (immediate) return send();
   boneSyncTimer = setTimeout(() => {
-    api.setBoneTransform(name, position, rotation).then(result => {
-      if (result?.ok === false) flash('Live character could not apply this bone. Check that the same character is loaded.');
-    }).catch(error => flash('Live bone update failed: ' + (error?.message || String(error))));
+    boneSyncTimer = null;
+    send().catch(error => flash('Live bone update failed: ' + (error?.message || String(error))));
   }, 45);
 }
 function applyBoneEdits() {
@@ -881,6 +886,7 @@ function panelBoneTransform() {
       h('button', { class: 'primary btn', onclick: async () => {
         persistAndApply();
         try {
+          await syncBoneToRuntime(boneEditSelection, pos, rot, true);
           const result = await api.saveRestPose();
           if (result?.persisted) flash('Bone changes applied to Saeed and the rest pose was saved.');
           else flash('Preview saved; Saeed rest-pose save failed: ' + (result?.error || result?.restPose?.persistenceError || 'unknown error'));
@@ -889,12 +895,14 @@ function panelBoneTransform() {
       h('button', { onclick: async () => {
         delete cfg.boneEdits[boneEditSelection];
         save({ boneEdits: cfg.boneEdits }); applyBoneEdits();
-        try { await api.setBoneTransform(boneEditSelection, [0,0,0], [0,0,0]); } catch (error) { flash(error?.message || String(error)); }
+        try { await syncBoneToRuntime(boneEditSelection, [0,0,0], [0,0,0], true); } catch (error) { flash(error?.message || String(error)); }
         renderPanel();
       } }, 'Reset selected bone'),
       h('button', { onclick: async () => {
         cfg.boneEdits = {}; save({ boneEdits: cfg.boneEdits }); applyBoneEdits();
         try {
+          if (boneSyncTimer) clearTimeout(boneSyncTimer);
+          boneSyncTimer = null;
           const bones = Object.fromEntries(ch.allBones.map(b => [b.name, { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } }]));
           await api.command({ action: 'pose', pose: { __bones: bones } });
         } catch (error) { flash(error?.message || String(error)); }
