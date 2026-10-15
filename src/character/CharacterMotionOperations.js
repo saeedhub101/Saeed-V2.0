@@ -18,6 +18,9 @@ export class CharacterMotionOperations {
   return true;
  }
  
+ getMotionAxisFixes(){const names=this.engine?.getAvailableBoneNames?.()||[];if(!this.characterId&&names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");const profile=this.characterId?(this.profiles.load(this.characterId)||{}):{};const fixes=profile.motionAxisFixes&&typeof profile.motionAxisFixes==="object"?profile.motionAxisFixes:{};this.animation.setMotionAxisFixes?.(fixes);return fixes;}
+ setMotionAxisFix(motionId,slot,fix){const id=String(motionId||"").trim(),joint=String(slot||"").trim();if(!id||!joint||!this.animation.registry.get(id))return{ok:false,error:"A valid motion and logical joint are required"};const current=JSON.parse(JSON.stringify(this.getMotionAxisFixes()||{}));if(!current[id]||typeof current[id]!=="object")current[id]={};if(!fix){delete current[id][joint];if(!Object.keys(current[id]).length)delete current[id]}else{const swz=Array.isArray(fix.swz)?fix.swz.map(Number):[0,1,2],sign=Array.isArray(fix.sign)?fix.sign.map(v=>Number(v)<0?-1:1):[1,1,1],scale=Math.max(0,Math.min(4,Number(fix.scale??1)||0)),offset=Array.isArray(fix.offset)?fix.offset.slice(0,3).map(v=>Number(v)||0):[0,0,0];if(swz.length!==3||new Set(swz).size!==3||swz.some(v=>![0,1,2].includes(v)))return{ok:false,error:"Axis mapping must use X, Y and Z exactly once"};current[id][joint]={swz,sign:sign.slice(0,3),scale,offset}}this.animation.setMotionAxisFixes?.(current);const names=this.engine?.getAvailableBoneNames?.()||[];if(!this.characterId&&names.length)this.characterId=this.profiles.idFor(names,this.engine?.getCharacterProfileKey?.()||"saeed");if(this.characterId)this.profiles.save(this.characterId,{motionAxisFixes:current});return{ok:true,motionAxisFixes:current,motionId:id,slot:joint};}
+ clearMotionAxisFixes(motionId){const id=String(motionId||"").trim();if(!id)return{ok:false,error:"Motion ID is required"};const current=JSON.parse(JSON.stringify(this.getMotionAxisFixes()||{}));delete current[id];this.animation.setMotionAxisFixes?.(current);if(this.characterId)this.profiles.save(this.characterId,{motionAxisFixes:current});return{ok:true,motionAxisFixes:current,motionId:id};}
  play(id,options={}){
   const wasAuthoring=this.authoring;
   this.authoring=false;
@@ -29,6 +32,7 @@ export class CharacterMotionOperations {
   // Binding can enter authoring mode while recovering an incomplete rig. Playback is
   // an explicit transition out of authoring; resume autonomous behavior after it ends.
   this.authoring=false;
+  this.getMotionAxisFixes();
   const key=String(id||"idle");
   if(key==="idle"){
    this.animation.stopAll({reset:false});
