@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(__dirname, "../../src/character/Charact
 const motionOperationsSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterMotionOperations.js"), "utf8");
 const engineSource = fs.readFileSync(path.join(__dirname, "../../src/character/CharacterEngine.js"), "utf8");
 const hostSource = fs.readFileSync(path.join(__dirname, "../../src/main/character/character-host.js"), "utf8");
-const performanceSource = fs.readFileSync(path.join(__dirname, "../../src/performance.js"), "utf8");
+const characterStudioSource = fs.readFileSync(path.join(__dirname, "../../src/character-studio.html"), "utf8");
 const characterClientSource = fs.readFileSync(path.join(__dirname, "../../src/character/client.js"), "utf8");
 const playStart = motionOperationsSource.indexOf(" play(id,options={}){");
 const playEnd = motionOperationsSource.indexOf("\n stop(id)", playStart);
@@ -97,11 +97,12 @@ test("rig editor API exposes bone names instead of renderer object references",(
  assert.match(source,/getRig:\(\)=>\(\{bones:engine\.getAvailableBoneNames\?\.\(\)\|\|\[\],mapping:Object\.fromEntries\(Object\.entries\(engine\.getBoneMap\?\.\(\)\|\|\{\}\)\.map\(\(\[slot,bone\]\)=>\[slot,bone\?\.name\|\|bone\]\)\)/);
 });
 
-test("direct bone editor refreshes its handlers for the currently selected character",()=>{
- assert.match(performanceSource,/rigTabCurrentBoneNames=names/);
- assert.match(performanceSource,/rigTabCurrentActualBones=s\?\.actualBones\|\|\{\}/);
- assert.match(performanceSource,/fillBoneEditor\(rigTabCurrentActualBones\)/);
- assert.match(performanceSource,/updateBoneOptions\(rigTabCurrentBoneNames,esc\)/);
+test("character studio refreshes the bone editor against the active model",()=>{
+ assert.match(characterStudioSource,/function fillBones\(\)/);
+ assert.match(characterStudioSource,/function syncBoneSliders\(\)/);
+ assert.match(characterStudioSource,/async function setRot\(\)/);
+ assert.match(characterStudioSource,/\$\("boneList"\)\.onchange=\(\)=>select\(\$\("boneList"\)\.value\)/);
+ assert.match(characterStudioSource,/\$\("refreshBones"\)\.onclick=/);
 });
 
 test("direct bone editor rest-pose capture persists the authoritative pose",()=>{
@@ -126,8 +127,8 @@ test("rest-pose capture is not blocked when animation playback is disabled",()=>
  assert.ok(body.indexOf("if(pose?.__captureRest)")<body.indexOf("if(!this.animationEnabled||this.animationPaused)"));
 });
 test("motion editor reports failed deletion instead of claiming success",()=>{
- assert.match(performanceSource,/if\(!result\?\.ok\)throw new Error\(result\?\.error\|\|"The selected motion was not removed\."\)/);
- assert.match(performanceSource,/Motion deletion failed:/);
+ assert.match(characterStudioSource,/Motion deletion failed:/);
+ assert.match(characterStudioSource,/if\(!r\?\.ok\)throw new Error/);
 });
 
 test("rig editor prefers the active controller binding over a stale auto-map",()=>{
