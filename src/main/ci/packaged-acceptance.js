@@ -59,14 +59,14 @@ async function runBrainLearning(mode,deps){
  return result;
 }
 async function runLifecycle(deps){
- const {app,BrowserWindow,getState,setWindow,characterApi,showPerformance,showSettings,showLearning,showAddons,showStatus,show3DStatus,showRestPoseEditor,showNormalizeHumanoidRestPose,ensureChatHost,ensureBrain,ensureBrainHost,getAgent,setMicMode,getCurrentMicMode,ensureVoiceHost,diagnostic,stopCpuMonitoring}=deps;
+ const {app,BrowserWindow,getState,setWindow,characterApi,showPerformance,showSettings,showLearning,showAddons,showStatus,show3DStatus,showCharacterSettings,ensureChatHost,ensureBrain,ensureBrainHost,getAgent,setMicMode,getCurrentMicMode,ensureVoiceHost,diagnostic,stopCpuMonitoring}=deps;
  const output=process.env.SAEED_CI_LIFECYCLE_REPORT||path.join(process.cwd(),"dist","ci-lifecycle-report.json");
  const {report,check,finish}=makeReport("lifecycle",output),pause=ms=>wait(ms);
  const windows=()=>BrowserWindow.getAllWindows().filter(w=>w&&!w.isDestroyed());
  const visibleWindows=()=>windows().filter(w=>{try{return w.isVisible()}catch{return false}});
  const featureWindows=()=>windows().filter(w=>w!==getState().characterWin);
  const closeKey=key=>{const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch{}try{setWindow(key,null)}catch{}};
- const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","restPoseEditorWin","normalizeHumanoidRestPoseWin"])closeKey(key);await pause(120);};
+ const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin"])closeKey(key);await pause(120);};
  const screen=(name,key,open,requiresCharacter=false)=>async()=>{
   await closeEverything();
   try{await open();await pause(500);const win=getState()[key];check(name+"-opens",Boolean(win&&!win.isDestroyed()&&win.isVisible()),{exists:Boolean(win&&!win.isDestroyed()),visible:Boolean(win&&!win.isDestroyed()&&win.isVisible()),windowCount:windows().length,requiresCharacter});}
@@ -84,7 +84,7 @@ async function runLifecycle(deps){
    screen("learning-window","learningWin",showLearning),
    screen("status-window","statusWin",showStatus),
    screen("3d-status-window","threeDStatusWin",show3DStatus,true),
-   screen("character-studio-window","restPoseEditorWin",showRestPoseEditor,true)
+   screen("character-settings-window","characterSettingsWin",showCharacterSettings,true)
   ])await fn();
   await closeEverything();
   await ensureChatHost().showChat();await pause(450);await ensureBrain();

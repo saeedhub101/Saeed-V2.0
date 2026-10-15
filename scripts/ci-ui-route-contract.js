@@ -15,6 +15,7 @@ const composition = read("src/main/application/runtime-composition.js");
 const controls = read("src/main/application/system-controls.js");
 const runtime = read("src/main/runtime.js");
 const appIpc = read("src/main/ipc/app-ipc.js");
+const packagedAcceptance = read("src/main/ci/packaged-acceptance.js");
 const preload = read("src/preload.js");
 const characterUi = read("src/character-studio.html");
 const performanceUi = read("src/performance.html");
@@ -53,6 +54,13 @@ check("general-settings-character-button-calls-canonical-api",
   settingsJs.includes("window.saeed.character.showCharacterSettings()") &&
   !settingsJs.includes("showRestPoseEditor"),
   "The general Settings shortcut must call the current namespaced Character Settings preload method");
+check("packaged-lifecycle-tests-the-current-character-settings-window",
+  packagedAcceptance.includes("showCharacterSettings") &&
+  packagedAcceptance.includes('"characterSettingsWin"') &&
+  packagedAcceptance.includes('screen("character-settings-window","characterSettingsWin",showCharacterSettings,true)') &&
+  !packagedAcceptance.includes("showNormalizeHumanoidRestPose") &&
+  !packagedAcceptance.includes("restPoseEditorWin"),
+  "Packaged lifecycle acceptance must open and close the current Character Settings window through the real composition function");
 check("character-settings-page-has-current-authoring-capabilities",
   /<title>Character Setting<\/title>/.test(characterUi) &&
   manager.includes('title:"Character Setting"') &&
