@@ -84,8 +84,7 @@ async function runLifecycle(deps){
    screen("learning-window","learningWin",showLearning),
    screen("status-window","statusWin",showStatus),
    screen("3d-status-window","threeDStatusWin",show3DStatus,true),
-   screen("character-studio-window","restPoseEditorWin",showRestPoseEditor,true),
-   screen("normalize-rest-pose-window","normalizeHumanoidRestPoseWin",showNormalizeHumanoidRestPose,true)
+   screen("character-studio-window","restPoseEditorWin",showRestPoseEditor,true)
   ])await fn();
   await closeEverything();
   await ensureChatHost().showChat();await pause(450);await ensureBrain();
