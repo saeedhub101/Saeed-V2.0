@@ -11,7 +11,7 @@ const viewSettings={
  characterScale:1,characterPositionX:0,characterPositionY:0,characterPositionZ:0,
  characterRotationY:0,canvasPadding:0
 };
-let cameraSettings={zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0};
+let cameraSettings={zoom:1,fov:28,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0};
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
 const modelBaseTransforms=new WeakMap();
@@ -542,7 +542,7 @@ function apply3DSettings(settings={}){
    const value=Number(settings.camera[key]);if(Number.isFinite(value))cameraSettings[key]=value;
   }
  }
- camera.fov=Math.max(10,Math.min(100,Number(cameraSettings.fov)||30));
+ camera.fov=Math.max(10,Math.min(100,Number(cameraSettings.fov)||28));
  fit();
  render();
  return {...viewSettings,camera:{...cameraSettings}};
