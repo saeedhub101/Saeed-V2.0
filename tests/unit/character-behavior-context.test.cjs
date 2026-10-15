@@ -279,3 +279,28 @@ test("a mesh-only GLB keeps supported facial emotion reactions active without a 
  assert.ok(expressions.some(x=>x.name==="sad"&&x.value>0));
  character.destroy();
 });
+
+
+test("listening and assistant speaking are separate character states",async()=>{
+ const {AutonomousBehaviorController}=await import("../../src/character/AutonomousBehaviorController.js");
+ const calls=[];
+ const character={
+  mood:"cheerful",moodPalette:()=>["lookCloser","nod","think"],
+  animation:{registry:{get:id=>({id})},active:[]},
+  face:{expression:(name,intensity)=>calls.push({expression:name,intensity}),blink:()=>true,lookAt:()=>true},
+  play:(id,options)=>{calls.push({motion:id,options});return true},
+  stopAll:()=>true,engine:{setRestRelativeBoneRotation:()=>true}
+ };
+ const behavior=new AutonomousBehaviorController(character);
+ behavior.running=true;
+ assert.equal(behavior.handleEvent({type:"listening-start"}),true);
+ assert.equal(behavior.getStatus().intent,"listening");
+ assert.ok(calls.some(x=>x.expression==="surprised"));
+ assert.equal(behavior.handleEvent({type:"listening-end"}),true);
+ assert.equal(behavior.getStatus().intent,"thinking");
+ assert.ok(calls.some(x=>x.motion==="think"));
+ assert.equal(behavior.handleEvent({type:"speech-start"}),true);
+ assert.equal(behavior.getStatus().intent,"speaking");
+ assert.ok(calls.some(x=>x.motion==="talkGesture"));
+ behavior.stop();
+});
