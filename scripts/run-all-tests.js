@@ -55,6 +55,8 @@ suites.push({ name: "Task engine integrity regression tests", args: ["--test", p
 suites.push({ name: "Character motion editor safety tests", args: ["--test", path.join(root, "tests", "unit", "motion-editor-safety.test.mjs")] });
 suites.push({ name: "Autonomous character contextual behavior tests", args: ["--test", path.join(root, "tests", "unit", "character-behavior-context.test.cjs")] });
 
+suites.push({ name: "shared module loader lifecycle tests", args: ["--test", path.join(root, "tests", "unit", "module-loader.test.cjs")] });
+
 const results = [];
 
 for (const suite of suites) {
