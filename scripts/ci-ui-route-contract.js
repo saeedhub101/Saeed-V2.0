@@ -22,7 +22,7 @@ const performanceUi = read("src/performance.html");
 const settingsUi = read("src/settings.html");
 const settingsJs = read("src/settings.js");
 const testRunner = read("scripts/run-all-tests.js");
-const ciFiles = fs.readdirSync(path.join(root, "scripts")).filter(name => /^ci-.*\\.js$/.test(name));
+const ciFiles = fs.readdirSync(path.join(root, "scripts")).filter(name => /^ci-.*\.js$/.test(name));
 const unitTestFiles = [];
 function collectUnitTests(directory) {
   const full = path.join(root, directory);
@@ -30,7 +30,7 @@ function collectUnitTests(directory) {
   for (const entry of fs.readdirSync(full, { withFileTypes: true })) {
     const relative = path.join(directory, entry.name);
     if (entry.isDirectory()) collectUnitTests(relative);
-    else if (/\\.test\\.(?:cjs|mjs|js)$/.test(entry.name)) unitTestFiles.push(relative);
+    else if (/\.test\.(?:cjs|mjs|js)$/.test(entry.name)) unitTestFiles.push(relative);
   }
 }
 collectUnitTests("tests/unit");
