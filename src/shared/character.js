@@ -161,6 +161,31 @@ export class Character {
       const r = rp[id];
       if (r && (r[0] || r[1] || r[2])) this.rotateIn(b, r, this.bindQ.get(b));
     }
+    // Character Setting bone edits are profile-level offsets layered on top of
+    // the canonical rest pose. Applying them here keeps the runtime and editor
+    // on the same Character implementation instead of maintaining a preview-only rig.
+    const boneEdits = this.cfg.boneEdits || {};
+    if (Object.keys(boneEdits).length) {
+      const byName = new Map();
+      for (const b of this.allBones) if (!byName.has(b.name)) byName.set(b.name, b);
+      for (const [name, edit] of Object.entries(boneEdits)) {
+        const b = byName.get(name);
+        if (!b || !edit) continue;
+        const p = this.bindP.get(b);
+        if (p && Array.isArray(edit.position)) {
+          b.position.set(
+            p.x + (Number(edit.position[0]) || 0),
+            p.y + (Number(edit.position[1]) || 0),
+            p.z + (Number(edit.position[2]) || 0)
+          );
+        }
+        if (Array.isArray(edit.rotation)) {
+          const r = edit.rotation.map(v => Number(v) || 0);
+          _e.set(r[0] * D2R, r[1] * D2R, r[2] * D2R, 'XYZ');
+          b.quaternion.multiply(_R.setFromEuler(_e));
+        }
+      }
+    }
     for (const { b } of this.order) this.restQ.set(b, b.quaternion.clone());
     this.model.updateMatrixWorld(true);
     for (const { b } of this.order) this.restWorldQ.set(b, b.getWorldQuaternion(new THREE.Quaternion()));
