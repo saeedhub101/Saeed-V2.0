@@ -219,6 +219,18 @@ function main() {
 
   const performanceHtml = exists("src/performance.html") ? read("src/performance.html") : "";
   const performanceJs = exists("src/performance.js") ? read("src/performance.js") : "";
+  check("saved-api-brain-settings-activate-direct-api-routing",
+    performanceJs.includes('brainMode: $("apiServiceBrain")?.checked!==false?"api":(settings.brainMode||"auto")'),
+    { note: "Saving enabled API Brain settings must not silently leave chat in local-first routing." });
+
+  const voiceHost = exists("src/main/voice/voice-host.js") ? read("src/main/voice/voice-host.js") : "";
+  check("local-whisper-supports-arabic-language-and-avoids-english-only-model-fallback",
+    voiceHost.includes('async function transcribeLocalWav(base64,language="auto")') &&
+    voiceHost.includes('args.push("-l",lang)') &&
+    voiceHost.includes('find(x=>!(/\\.en(?:[-_.]|$)/i.test(x)))') &&
+    !voiceHost.includes('"ggml-base.en-q5_1.bin","ggml-base.en.bin"'),
+    { note: "Arabic STT must forward a configured language and must not fall back to an English-only Whisper model." });
+
   const systemControls = exists("src/main/application/system-controls.js") ? read("src/main/application/system-controls.js") : "";
   check("microphone-transcript-bubble-toggle-is-wired-to-settings-and-character-menu",
     performanceHtml.includes('id="showSpeechText"') &&
