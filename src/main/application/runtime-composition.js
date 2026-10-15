@@ -33,24 +33,14 @@ function createRuntimeComposition(ctx){
  const {createCharacterHost}=load("characterHost","../character/character-host");
  let characterHost=createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow:()=>getState().characterWin,getRestPoseEditorWindow:()=>getState().restPoseEditorWin,setCharacterWindow:v=>setWindow("characterWin",v),getAgent,characterStore,showChat:()=>ensureChatHost().showChat(),permissionPolicy,confirmPermission,contextMenu});
  const characterApi={...characterHost,showCharacter:async()=>{const result=await characterHost.showCharacter();if(result&&!getVoiceMuted())ensureVoiceHost().ensureTts();return result},hideCharacter:async()=>{
-  // Hide is a true idle transition: shut down every optional surface and service.
+  // Hiding Saeed stops character output and microphone input, but does not close
+  // chat or unrelated tools. BrainHost retains the brain while chat is open.
   try{if(ctx.state.voiceHost)await ctx.state.voiceHost.setMicMode("off")}catch(error){diagnostic("ERROR","HIDE LIFECYCLE MIC STOP",error?.message||String(error))}
   try{ctx.state.voiceHost?.stopVoiceServices?.("Saeed hidden")}catch(error){diagnostic("ERROR","HIDE LIFECYCLE VOICE STOP",error?.message||String(error))}
-  try{await ctx.state.chatHost?.closeChat?.()}catch(error){diagnostic("ERROR","HIDE LIFECYCLE CHAT CLOSE",error?.message||String(error))}
-  for(const key of ["performanceWin","settingsWin","addonsWin","learningWin","restPoseEditorWin","normalizeHumanoidRestPoseWin","statusWin","threeDStatusWin"]){
-   const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch(error){diagnostic("WARN","HIDE LIFECYCLE WINDOW CLOSE",error?.message||String(error),{window:key})}finally{setWindow(key,null)}
-  }
-  if(updateStatusWin&&!updateStatusWin.isDestroyed()){try{updateStatusWin.destroy()}catch{}updateStatusWin=null}
-  try{ctx.state.learningRecorder?.stop?.()}catch{}
-  const target=getState().characterWin;
+  try{ctx.state.voiceHost?.releaseTts?.("Saeed hidden")}catch(error){diagnostic("ERROR","HIDE LIFECYCLE TTS STOP",error?.message||String(error))}
   try{await characterHost.hideCharacter()}catch(error){diagnostic("WARN","HIDE LIFECYCLE CHARACTER HIDE",error?.message||String(error))}
-  // No feature window needs the live renderer while hidden; destroy it so WebGL/GPU
-  // resources are released. Show Saeed creates a fresh renderer and restores saved state.
-  try{if(target&&!target.isDestroyed())target.destroy()}catch(error){diagnostic("ERROR","HIDE LIFECYCLE RENDERER CLOSE",error?.message||String(error))}
-  setWindow("characterWin",null);
   try{await releaseBrainIfIdle({force:true})}catch(error){diagnostic("ERROR","HIDE LIFECYCLE BRAIN RELEASE",error?.message||String(error))}
-  try{stopCpuMonitoring()}catch{}
-  diagnostic("INFO","APPLICATION LIFECYCLE","Saeed hidden: optional windows, brain, STT and TTS stopped; tray remains active");
+  diagnostic("INFO","APPLICATION LIFECYCLE","Saeed hidden: character renderer retained, microphone and voice services stopped; open chat remains active");
   return true
  },ensureTts:()=>ensureVoiceHost().ensureTts(),releaseTts:reason=>ensureVoiceHost().releaseTts(reason)};
  const ensureWindowManager=()=>ctx.state.windowManager||(ctx.state.windowManager=load("windowManager","../application/window-manager").createWindowManager({BrowserWindow,path,getWindow:name=>getState()[name],setWindow,iconPath:windowsIconPath,diagnostic,startCpuMonitoring,stopCpuMonitoring,preloadPath:path.join(__dirname,"..","..","preload.js"),rootPath:path.join(__dirname,"..","..")}));

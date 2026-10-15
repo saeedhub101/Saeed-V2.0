@@ -34,6 +34,7 @@ const viewSettings={
  characterScale:1,characterPositionX:0,characterPositionY:0,characterPositionZ:0,
  characterRotationY:0,canvasPadding:0
 };
+let cameraSettings={zoom:1,fov:30,rotationX:0,rotationY:0,rotationZ:0,offsetX:0,offsetY:0,offsetZ:0};
 
 let model=null,rig=new Map(),base=new Map(),boneGroups=new Map(),boneRest=new Map(),morphs=new Map();
 let loadGeneration=0,activeLoad=false,pendingLoad=null,renderQueued=false,animationTick=null,animationFrame=null,loadError=null,renderCount=0,lastRenderAt=0,renderFps=0,lastFrameAt=0,lastDrawFrameAt=0,renderHoldUntil=0;
@@ -340,6 +341,13 @@ function fit(){
  camera.near=Math.max(.001,Math.min(.1,size.length()/1000));
  camera.far=Math.max(50,size.length()*20);
  camera.lookAt(center);
+ // Reapply persisted camera controls after every fit and resize.
+ const cs=cameraSettings||{};
+ camera.position.add(new THREE.Vector3(Number(cs.offsetX)||0,Number(cs.offsetY)||0,Number(cs.offsetZ)||0));
+ camera.rotateX(THREE.MathUtils.degToRad(Number(cs.rotationX)||0));
+ camera.rotateY(THREE.MathUtils.degToRad(Number(cs.rotationY)||0));
+ camera.rotateZ(THREE.MathUtils.degToRad(Number(cs.rotationZ)||0));
+ camera.zoom=Math.max(.1,Math.min(5,Number(cs.zoom)||1));
  camera.updateProjectionMatrix();
  return true;
 }
@@ -533,10 +541,15 @@ function apply3DSettings(settings={}){
   characterRotationY:Number.isFinite(Number(character.rotationY??character.characterRotationY))?Number(character.rotationY??character.characterRotationY):viewSettings.characterRotationY,
   canvasPadding:0
  });
- if(Number.isFinite(Number(settings.camera?.fov)))camera.fov=Number(settings.camera.fov);
+ if(settings.camera&&typeof settings.camera==="object"){
+  for(const key of ["zoom","fov","rotationX","rotationY","rotationZ","offsetX","offsetY","offsetZ"]){
+   const value=Number(settings.camera[key]);if(Number.isFinite(value))cameraSettings[key]=value;
+  }
+ }
+ camera.fov=Math.max(10,Math.min(100,Number(cameraSettings.fov)||30));
  fit();
  render();
- return {...viewSettings};
+ return {...viewSettings,camera:{...cameraSettings}};
 }
 window.saeedCharacterRuntime.engineApply3DSettings=apply3DSettings;
 window.saeedCharacterRuntime.engineGet3DSettings=()=>({...viewSettings});
@@ -613,7 +626,7 @@ function resetBoneToRest(name){
  render();
  return true;
 }
-function setBoneTransform(name,transform={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];if(!list.length)return false;const rest=boneRest.get(String(name||""));if(!rest)return false;const rr=transform?.rotation||transform||{},pp=transform?.position||{};const rx=Number(rr.x),ry=Number(rr.y),rz=Number(rr.z),px=Number(pp.x),py=Number(pp.y),pz=Number(pp.z);if(!Number.isFinite(rx)||!Number.isFinite(ry)||!Number.isFinite(rz))return false;for(const b of list){b.rotation.set(rest.rotation.x+rx,rest.rotation.y+ry,rest.rotation.z+rz);if(Number.isFinite(px))b.position.x=rest.position.x+px;if(Number.isFinite(py))b.position.y=rest.position.y+py;if(Number.isFinite(pz))b.position.z=rest.position.z+pz}render();return true}
+function setBoneTransform(name,transform={}){getSceneBones();const key=String(name||""),list=boneGroups.get(key)||[],rest=boneRest.get(key);if(!list.length||!rest)return false;const rr=transform?.rotation||transform||{},pp=transform?.position||{},rx=Number(rr.x),ry=Number(rr.y),rz=Number(rr.z),px=Number(pp.x),py=Number(pp.y),pz=Number(pp.z);if(![rx,ry,rz].every(Number.isFinite))return false;const deltaQ=new THREE.Quaternion().setFromEuler(new THREE.Euler(rx,ry,rz,"XYZ"));const parentQ=new THREE.Quaternion(),inverseParentQ=new THREE.Quaternion();for(const b of list){parentQ.identity();b.parent?.getWorldQuaternion?.(parentQ);inverseParentQ.copy(parentQ).invert();const worldBase=getRestWorldQuaternion(b),worldTarget=deltaQ.clone().multiply(worldBase);b.quaternion.copy(inverseParentQ.multiply(worldTarget));if(Number.isFinite(px))b.position.x=rest.position.x+px;if(Number.isFinite(py))b.position.y=rest.position.y+py;if(Number.isFinite(pz))b.position.z=rest.position.z+pz}render();return true}
 function setRestRelativeBoneRotation(name,delta={}){getSceneBones();const list=boneGroups.get(String(name||""))||[];const rest=boneRest.get(String(name||""));if(!list.length||!rest)return false;const x=rest.rotation.x+(Number(delta.x)||0),y=rest.rotation.y+(Number(delta.y)||0),z=rest.rotation.z+(Number(delta.z)||0);for(const b of list)b.rotation.set(x,y,z);render();return true}
 function createVirtualControlBone(name,parentName,position={x:0,y:0,z:0}){const parent=boneGroups.get(String(parentName||""))?.[0];if(!parent||!name||boneGroups.has(String(name)))return false;const b=new THREE.Bone();b.name=String(name);b.position.set(Number(position.x)||0,Number(position.y)||0,Number(position.z)||0);parent.add(b);boneGroups.set(b.name,[b]);captureAuthoritativeRestPose(lastRestPose);render();return true}
 function applyRestPoseSnapshot(snapshot={},normalization=null){

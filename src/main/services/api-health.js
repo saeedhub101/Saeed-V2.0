@@ -24,17 +24,23 @@ function createApiHealth(deps={}){
    if(s.ttsProvider==="local")return finish({connected:true,detail:"Local Browser TTS configured; no API connection required"});
     const base=(s.ttsBaseUrl|| (s.ttsProvider==="groq"?"https://api.groq.com/openai/v1":s.ttsProvider==="elevenlabs"?"https://api.elevenlabs.io/v1":"https://api.openai.com/v1")).replace(/\/$/,"");url=base+"/models";const key=s.ttsApiKey||(s.ttsProvider==="openai"?s.apiKey:"");if(key)headers=s.ttsProvider==="elevenlabs"?{"xi-api-key":key}:{Authorization:"Bearer "+key};
   }else if(service==="realtime"){
-   result.provider=s.realtimeProvider==="gemini"?"Google Gemini Live":"OpenAI Realtime";result.model=s.realtimeModel||(s.realtimeProvider==="gemini"?"gemini-3.8-live":"gpt-realtime-2.1");result.endpoint=s.realtimeProvider==="gemini"?"wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent":"wss://api.openai.com/v1/realtime";
-   url="https://api.openai.com/v1/models";if(s.realtimeApiKey||s.apiKey)headers.Authorization="Bearer "+(s.realtimeApiKey||s.apiKey);
+  const provider=String(s.realtimeProvider||"openai"),key=String(s.realtimeApiKey||s.apiKey||"");
+  result.provider=provider==="gemini"?"Google Gemini Live":"OpenAI Realtime";
+  result.model=s.realtimeModel||(provider==="gemini"?"gemini-3.8-live":"gpt-realtime-2.1");
+  result.endpoint=provider==="gemini"?"wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent":"wss://api.openai.com/v1/realtime";
+  // Validate against the selected provider rather than always querying OpenAI.
+  if(provider==="gemini"){url="https://generativelanguage.googleapis.com/v1beta/models";if(key)url+="?key="+encodeURIComponent(key)}
+  else{url="https://api.openai.com/v1/models";if(key)headers.Authorization="Bearer "+key}
+ }
   }else return finish({detail:"Unknown API service"});
   const localCompatibleEndpoint=s.provider==="openai-compatible"&&/^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(String(s.baseUrl||""));if(!s.apiKey&&service==="brain"&&s.provider!=="ollama"&&!localCompatibleEndpoint)return finish({detail:"Brain API key is missing"});
   if(service==="stt"&&s.sttProvider!=="whisper"&&!s.sttApiKey&&!((s.sttProvider==="openai")&&s.apiKey))return finish({detail:"STT API key is missing"});
   if(service==="tts"&&s.ttsProvider!=="local"&&!s.ttsApiKey&&!((s.ttsProvider==="openai")&&s.apiKey))return finish({detail:"TTS API key is missing"});
-  if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:"Realtime API key is missing"});
+  if(service==="realtime"&&!s.realtimeApiKey&&!s.apiKey)return finish({detail:(s.realtimeProvider==="gemini"?"Gemini Live":"OpenAI Realtime")+" API key is missing"});
   const r=await fetch(url,{method,headers,signal:AbortSignal.timeout(8000)});const body=await r.text().catch(()=>"");
   if(!r.ok)return finish({detail:"HTTP "+r.status+(body?": "+body.slice(0,180):"")});
   let modelAvailable=true;try{const j=JSON.parse(body),ids=[...(j.data||[]).map(x=>x.id).filter(Boolean),...(j.models||[]).map(x=>x.name||x.id).filter(Boolean)];if(ids.length&&service==="brain")modelAvailable=ids.includes(result.model)||result.model==="—"}catch{}
-  return finish({connected:modelAvailable,detail:modelAvailable?"Provider authenticated and reachable"+(service==="realtime"?" (Realtime credentials verified via API authentication)":""): "Provider reachable but configured model was not found"});
+  return finish({connected:modelAvailable,detail:modelAvailable?"Selected provider authenticated and reachable"+(service==="realtime"?" (provider API credentials verified; WebSocket session not opened)":""): "Provider reachable but configured model was not found"});
  }catch(e){return finish({detail:e?.message||String(e)})}
  }
  async function testAllApiConnections(){return Promise.all(["brain","tts","stt","realtime"].map(testApiConnection))}
