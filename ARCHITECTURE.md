@@ -18,6 +18,7 @@ Source code and runtime behavior are authoritative. Update this document when ow
 
 - `src/character/CharacterEngine.js`: Three.js scene, camera, GLB loading, render scheduling, mesh/morph/bone operations.
 - `src/character/CharacterController.js`: one behavior owner; semantic state, mood, event reactions, motion coordination and autonomous behavior.
+- `src/character/AutonomousBehaviorController.js`: the CharacterController-owned scheduler/policy for context-aware idle behavior; it must not become a second character owner.
 - `src/character/AnimationController.js`, `MotionEditor.js`, `CharacterRig.js`, `CharacterRetargeter.js`, `AutoRigMapper.js`: playback/editing, logical rig mapping and retargeting.
 - `src/main/character/character-host.js`: main-process window and GLB delivery.
 - `src/character/client.js` and the namespaced preload API: renderer-to-controller commands.
