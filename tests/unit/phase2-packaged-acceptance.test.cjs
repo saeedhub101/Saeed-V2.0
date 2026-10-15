@@ -103,11 +103,11 @@ test("packaged acceptance opens Learning and Add-ons and verifies renderer IPC r
 
 test("Character Engine/Rig Builder gate runs immediately after EXE packaging and verifies real deformation plus restart persistence",()=>{
  const build=workflow.indexOf("- name: Build Windows installer and unpacked runtime");
- const gate=workflow.indexOf("- name: character ebgine, rig builder");
- const next=workflow.indexOf("- name: Character, behavior");
+ const gate=workflow.indexOf("- name: Character Engine, Rig Builder");
+ const next=workflow.indexOf("- name: Character behavior and GLB intent mapping");
  assert.ok(build>=0&&gate>build&&next>gate,"Character Engine/Rig Builder gate must immediately follow EXE packaging");
  assert.equal(workflow.slice(build,next).match(/- name:/g)?.length,2,"No unrelated workflow step may be placed before the rig gate");
- for(const token of ["--ci-character-rig-builder-save","--ci-character-rig-builder-verify","ci-character-rig-builder-save.json","ci-character-rig-builder-verify.json","ci-character-rig-builder-before.png","ci-character-rig-builder-after.png","create-ci-static-humanoid-glb.js","CHARACTER_ENGINE_RIG_BUILDER_RESTART=PASS"])assert.ok(workflow.includes(token),"missing workflow gate contract: "+token);
+ for(const token of ["--ci-character-rig-builder-save","--ci-character-rig-builder-verify","ci-character-rig-builder-save.json","ci-character-rig-builder-verify.json","ci-character-rig-builder-before.png","ci-character-rig-builder-after.png","create-ci-static-humanoid-glb.js","CHARACTER_ENGINE_RIG_BUILDER_RESTART=PASS","SAEED_CI_GLB_INTENT_FIXTURE","glb-semantic-intent-plays-mapped-glb-clip","glb-intent-map-set-readback","glb-intent-map-stop","glb-intent-test-fixture-restored","glb-intent-map-restored"])assert.ok(workflow.includes(token),"missing workflow gate contract: "+token);
  for(const token of ["runCiCharacterRigBuilder","actual-saeed-glb-has-loaded-skinned-body","actual-saeed-motion-deforms-real-skinned-vertices","actual-saeed-body-visually-changes-during-motion","viseme-alias-changes-real-shape-key","procedural-rig-restored-after-new-process","saved-rest-pose-survives-full-app-restart","custom-motion-survives-full-app-restart","joint-deformation-","leftForeArm","leftUpperArm","leftThigh","leftShin","skin-weight-quality-within-tolerance","joint-pose-visual-diagnostic-captured","getDeformationSnapshot"])assert.ok(runtime.includes(token)||rigBuilder.includes(token)||restPoseRestart.includes(token)||engine.includes(token),"missing runtime deformation/persistence check: "+token);
  assert.ok(engine.includes("function getDeformationSnapshot("),"renderer must expose sampled skinned-vertex data, not only a visible-window assertion");
  assert.ok(client.includes('action==="buildProceduralRig"'),"rig builder must bypass pre-existing-skeleton readiness gates");
