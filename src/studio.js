@@ -25,6 +25,15 @@ const api = {
   sendCommand: (name, args = {}) => name === 'say'
     ? bridge.chat.chat(String(args.text || ''))
     : bridge.character.characterController({ action: 'semantic', intent: name, options: args }),
+  command: payload => bridge.character.characterController(payload),
+  setBoneTransform: (bone, position, rotationDegrees) => bridge.character.characterController({
+    action: 'setBoneTransform', bone,
+    transform: {
+      position: { x: Number(position[0]) || 0, y: Number(position[1]) || 0, z: Number(position[2]) || 0 },
+      rotation: { x: Number(rotationDegrees[0]) * Math.PI / 180, y: Number(rotationDegrees[1]) * Math.PI / 180, z: Number(rotationDegrees[2]) * Math.PI / 180 }
+    }
+  }),
+  saveRestPose: () => bridge.character.characterController({ action: 'saveRestPose' }),
   accessoriesList: () => bridge.addons.accessoriesList(),
   addonFile: (addon, file) => bridge.addons.addonFile(addon, file),
   saveModel: (buffer, name) => bridge.studio.saveModel(buffer, name),
@@ -766,6 +775,15 @@ function panelRig() {
 
 /* ============ Restored Character Studio tools ============ */
 let boneEditSelection = '';
+let boneSyncTimer = null;
+function syncBoneToRuntime(name, position, rotation) {
+  if (boneSyncTimer) clearTimeout(boneSyncTimer);
+  boneSyncTimer = setTimeout(() => {
+    api.setBoneTransform(name, position, rotation).then(result => {
+      if (result?.ok === false) flash('Live character could not apply this bone. Check that the same character is loaded.');
+    }).catch(error => flash('Live bone update failed: ' + (error?.message || String(error))));
+  }, 45);
+}
 function applyBoneEdits() {
   if (!ch.model) return;
   // The shared Character engine owns the actual rest-pose + edit composition.
@@ -784,6 +802,7 @@ function panelBoneTransform() {
     cfg.boneEdits[boneEditSelection] = { position: [...pos], rotation: [...rot] };
     save({ boneEdits: cfg.boneEdits });
     applyBoneEdits();
+    syncBoneToRuntime(boneEditSelection, pos, rot);
   };
   const fields = (label, values, min, max, step, kind) => h('div', {},
     h('h3', {}, label),
@@ -822,9 +841,28 @@ function panelBoneTransform() {
     fields('Position offset', pos, -1, 1, 0.01, 'position'),
     fields('Rotation offset (degrees)', rot, -180, 180, 1, 'rotation'),
     h('div', { class: 'btns' },
-      h('button', { class: 'primary btn', onclick: () => { persistAndApply(); flash('Bone transform saved.'); } }, 'Apply & Save'),
-      h('button', { onclick: () => { delete cfg.boneEdits[boneEditSelection]; save({ boneEdits: cfg.boneEdits }); applyBoneEdits(); renderPanel(); } }, 'Reset selected bone'),
-      h('button', { onclick: () => { cfg.boneEdits = {}; save({ boneEdits: cfg.boneEdits }); applyBoneEdits(); renderPanel(); } }, 'Reset all edits')));
+      h('button', { class: 'primary btn', onclick: async () => {
+        persistAndApply();
+        try {
+          const result = await api.saveRestPose();
+          if (result?.persisted) flash('Bone changes applied to Saeed and the rest pose was saved.');
+          else flash('Preview saved; Saeed rest-pose save failed: ' + (result?.error || result?.restPose?.persistenceError || 'unknown error'));
+        } catch (error) { flash('Live rest-pose save failed: ' + (error?.message || String(error))); }
+      } }, 'Apply to Saeed & Save Rest Pose'),
+      h('button', { onclick: async () => {
+        delete cfg.boneEdits[boneEditSelection];
+        save({ boneEdits: cfg.boneEdits }); applyBoneEdits();
+        try { await api.setBoneTransform(boneEditSelection, [0,0,0], [0,0,0]); } catch (error) { flash(error?.message || String(error)); }
+        renderPanel();
+      } }, 'Reset selected bone'),
+      h('button', { onclick: async () => {
+        cfg.boneEdits = {}; save({ boneEdits: cfg.boneEdits }); applyBoneEdits();
+        try {
+          const bones = Object.fromEntries(ch.allBones.map(b => [b.name, { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } }]));
+          await api.command({ action: 'pose', pose: { __bones: bones } });
+        } catch (error) { flash(error?.message || String(error)); }
+        renderPanel();
+      } }, 'Reset all edits')));
 }
 function applyHandCurl(side, value) {
   if (!ch.model) return;
