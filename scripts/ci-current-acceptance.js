@@ -220,7 +220,7 @@ function main() {
   const performanceHtml = exists("src/performance.html") ? read("src/performance.html") : "";
   const performanceJs = exists("src/performance.js") ? read("src/performance.js") : "";
   check("saved-api-brain-settings-activate-direct-api-routing",
-    performanceJs.includes('brainMode: $("apiServiceBrain")?.checked!==false?"api":(settings.brainMode||"auto")'),
+    /brainMode\s*:\s*\$\("apiServiceBrain"\)\?\.checked\s*!==\s*false\s*\?\s*"api"\s*:\s*\(settings\.brainMode\s*\|\|\s*"auto"\)/.test(performanceJs),
     { note: "Saving enabled API Brain settings must not silently leave chat in local-first routing." });
 
   const voiceHostSource = exists("src/main/voice/voice-host.js") ? read("src/main/voice/voice-host.js") : "";
