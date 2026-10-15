@@ -563,7 +563,7 @@ export class AutonomousBehaviorController{
    this.scheduleReactionFinish(duration*1000+250);
    return true;
   }
-  if(type==="tool_error"||type==="tool-failure"){
+  if(type==="tool_error"||type==="tool-failure"||type==="task-failure"){
    this.clearSleepTimer();
    this.clearCycleTimers();
    this.interruptLowPriorityMotions();
