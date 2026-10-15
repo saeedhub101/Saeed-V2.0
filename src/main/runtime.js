@@ -160,7 +160,6 @@ app.whenReady().then(async () => {
       app, BrowserWindow, getState, setWindow, characterApi, characterHost,
       showPerformance, showSettings, showLearning, showAddons, showStatus, show3DStatus,
       showRestPoseEditor: composition.showRestPoseEditor,
-      showNormalizeHumanoidRestPose: composition.showNormalizeHumanoidRestPose,
       ensureChatHost, ensureBrain, ensureBrainHost, getAgent: () => agent,
       setMicMode, getCurrentMicMode, ensureVoiceHost, diagnostic, stopCpuMonitoring
     });
