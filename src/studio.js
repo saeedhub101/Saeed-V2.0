@@ -267,7 +267,7 @@ function panelPose() {
 /* ============ Test tab ============ */
 function panelTest() {
   const custom = Object.keys(ch.clips).filter((c) => !(c in builtinClips()));
-  const run = (name, args) => { ch.command(name, args); api.sendCommand(name, args); };
+  const run = (name, args) => { ch.command(name, args); if (custom.includes(name)) api.command({ action: 'play', motion: name, options: args || {} }).catch(error => flash(error?.message || String(error))); else api.sendCommand(name, args); };
   const say = h('input', { type: 'text', class: 'grow', value: 'Hello! I am ready.' });
   return h('div', {},
     h('h3', {}, 'Intents'),
@@ -318,6 +318,39 @@ function transport(st) {
 function clipSelect(st, onChange) {
   return h('select', { class: 'grow', value: st.clip, onchange: (e) => { st.clip = e.target.value; st.t = 0; onChange(); } },
     Object.keys(ch.clips).map((n) => h('option', { value: n }, n)));
+}
+
+function toRuntimeMotion(clip) {
+  const tracks = (clip?.tracks || []).filter(track => Array.isArray(track.keys) && track.keys.length);
+  const boneToSlot = new Map(Object.entries(ch.map || {}).map(([slot, bone]) => [String(bone?.name || bone), slot]));
+  const usable = tracks.map(track => ({
+    track,
+    slot: ch.map?.[track.bone] ? track.bone : boneToSlot.get(String(track.bone))
+  })).filter(item => item.slot);
+  if (!usable.length) throw new Error('This motion has no tracks matching Saeed’s mapped logical bones. Match the Bones tab first.');
+  const times = [...new Set(usable.flatMap(({track}) => track.keys.map(key => Math.max(0, Number(key.t) || 0)))].sort((a,b)=>a-b);
+  if (!times.length) throw new Error('This motion has no keyframes.');
+  const keyframes = times.map(time => {
+    const pose = {};
+    for (const {track,slot} of usable) {
+      const sample = sampleTrack(track, time, false, clip.duration);
+      const r = sample?.r || [0,0,0], p = sample?.p;
+      pose[slot] = {
+        x: (Number(r[0]) || 0) * Math.PI / 180,
+        y: (Number(r[1]) || 0) * Math.PI / 180,
+        z: (Number(r[2]) || 0) * Math.PI / 180,
+        ...(p ? { position: { x: Number(p[0]) || 0, y: Number(p[1]) || 0, z: Number(p[2]) || 0 } } : {})
+      };
+    }
+    return { time, pose };
+  });
+  return { id: String(clip.name || 'custom_motion').replace(/[^A-Za-z0-9._-]/g, '_').slice(0,64), duration: Math.max(0.01, Number(clip.duration) || times[times.length-1] || 1), loop: Boolean(clip.loop), enabled: true, layer: 'body', keyframes };
+}
+async function syncClipToRuntime(clip) {
+  const motion = toRuntimeMotion(clip);
+  const result = await api.command({ action: 'defineMotion', motion });
+  if (result?.ok === false) throw new Error(result.error || 'Saeed rejected this motion.');
+  return result?.motion || motion;
 }
 
 /* ============ Fix motions tab (axis fixes per bone) ============ */
@@ -454,6 +487,10 @@ function panelCreate() {
       h('input', { type: 'number', step: 0.1, min: 0.2, value: clip.duration, onchange: (e) => { editable().duration = Math.max(0.2, +e.target.value); commitClips(); renderPanel(); } }),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: clip.loop, onchange: (e) => { editable().loop = e.target.checked; commitClips(); } }), 'Repeats')),
     transport(cr),
+    h('div', { class: 'btns' }, h('button', { class: 'primary btn', onclick: async () => {
+      try { const saved = await syncClipToRuntime(clip); flash('Motion "' + saved.id + '" saved to Saeed and available in Test.'); }
+      catch (error) { flash('Could not save motion to Saeed: ' + (error?.message || String(error))); }
+    } }, 'Save motion to Saeed')),
     h('p', { class: 'muted' }, 'This preview shows the raw keys; axis fixes from the other tab are not applied here.'),
     h('h3', {}, 'Bone'),
     chips(bones.map((b) => b.id), cr.bone, (id) => { cr.bone = id; renderPanel(); }),
@@ -938,20 +975,23 @@ function panelMotionExchange() {
   const selected=h('select',{class:'grow'},Object.keys(ch.clips).map(n=>h('option',{value:n},n)));
   const status=h('div',{class:'notice'},'Import/export accepts clip JSON. Imported clips are saved in this character profile and become available in Create Motion and Test.');
   const exportSelected=()=>{const c=ch.clips[selected.value];if(!c)return flash('Select a motion first.');textArea.value=JSON.stringify({format:'avatar-agent',name:c.name||selected.value,duration:c.duration,loop:c.loop,tracks:c.tracks.map(t=>({bone:t.bone,keys:t.keys.map(k=>({t:k.t,r:k.r.map(v=>v*Math.PI/180),...(k.p?{p:k.p}:{})}))}))},null,2);};
-  const importClips=(requireNine=false)=>{
+  const importClips=async(requireNine=false)=>{
     try{
       const data=JSON.parse(textArea.value);
       const list=Array.isArray(data)?data:(Array.isArray(data.clips)?data.clips:(data.clip?[data.clip]:[data]));
       if(requireNine&&list.length!==9)throw new Error('The motion pack must contain exactly 9 clips.');
       const used=new Set(Object.keys(ch.clips));
-      let count=0;
+      let count=0; const importedNames=[];
       for(let i=0;i<list.length;i++){
         const c=normalizeImportedClip(list[i], 'imported_motion_'+(i+1));
         let name=c.name,n=2;while(used.has(name)){name=(c.name.slice(0,26)+'_'+n++).slice(0,31)}
-        c.name=name;used.add(name);cfg.clips[name]=c;ch.clips[name]=c;count++;
+        c.name=name;used.add(name);cfg.clips[name]=c;ch.clips[name]=c;count++;importedNames.push(name);
       }
-      commitClips();selected.replaceChildren(...Object.keys(ch.clips).map(n=>h('option',{value:n},n)));selected.value=Object.keys(ch.clips).slice(-count)[0];
-      status.textContent='Imported '+count+' motion(s).';flash(status.textContent);renderPanel();
+      commitClips();
+      const synced = await Promise.all(importedNames.map(async name => { try { await syncClipToRuntime(ch.clips[name]); return true; } catch (error) { return false; } }));
+      selected.replaceChildren(...Object.keys(ch.clips).map(n=>h('option',{value:n},n)));selected.value=importedNames[importedNames.length-1] || '';
+      status.textContent='Imported '+count+' motion(s) locally; saved '+synced.filter(Boolean).length+' to Saeed.'+(synced.some(v=>!v)?' Some motions need bone mapping or have unsupported tracks.':'');
+      flash(status.textContent);renderPanel();
     }catch(e){status.textContent='Import failed: '+e.message;flash(status.textContent);}
   };
   return h('div',{},h('h3',{},'Motion interchange'),
