@@ -8,3 +8,7 @@ window.saeed.system.onUpdateDownloaded?.(info=>{setInfo(info);bar.style.width="1
 window.saeed.system.getUpdateSnapshot?.().then(s=>{current.textContent=s?.currentVersion||"—";setInfo(s?.info);setState(s?.state||"idle");}).catch(()=>{});
 install.addEventListener("click",async()=>{install.disabled=true;setState("installing","Installing the update and restarting Saeed…");await window.saeed.system.installUpdate?.();});
 later.addEventListener("click",()=>window.close());
+
+// Visible route back to the centralized feature directory.
+const openFeaturesButton=document.getElementById("openFeatures");
+if(openFeaturesButton)openFeaturesButton.addEventListener("click",async()=>{try{await window.saeed.system.showSettings()}catch(error){console.error("Open Features failed:",error);try{await window.saeed.system.reportDiagnostic?.("ERROR","FEATURE NAVIGATION",error?.message||String(error))}catch{}}});
