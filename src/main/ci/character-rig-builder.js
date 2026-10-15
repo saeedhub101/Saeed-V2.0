@@ -1,5 +1,5 @@
 // Character rig-builder acceptance routine. All Electron/runtime dependencies are injected explicitly.
-async function runCiCharacterRigBuilder(mode){
+async function runCiCharacterRigBuilder(mode, { app, session, process, path, fs, characterHost, getState, diagnostic }){
  const report={schemaVersion:1,mode,startedAt:new Date().toISOString(),passed:false,checks:[],error:null};
  const check=(name,passed,details={})=>{report.checks.push({name,passed:Boolean(passed),details});if(!passed)console.error("CHARACTER_RIG_BUILDER_FAIL="+name,JSON.stringify(details))};
  const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
