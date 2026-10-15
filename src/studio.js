@@ -15,15 +15,12 @@ const api = {
   pickModel: async () => {
     const before = (await bridge.character.getPendingCharacter())?.generation;
     await bridge.character.chooseCharacter();
-    for (let i = 0; i < 120; i++) {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const pending = await bridge.character.getPendingCharacter();
-      if (pending?.data && pending.generation !== before) {
-        window.dispatchEvent(new CustomEvent('saeed-studio-model-refresh'));
-        return pending;
-      }
+    const pending = await bridge.character.getPendingCharacter();
+    if (pending?.data && pending.generation !== before) {
+      window.dispatchEvent(new CustomEvent('saeed-studio-model-refresh'));
+      return pending;
     }
-    throw new Error('Character selection did not produce a new GLB within 60 seconds.');
+    return null;
   },
   sendCommand: (name, args = {}) => name === 'say'
     ? bridge.chat.chat(String(args.text || ''))
