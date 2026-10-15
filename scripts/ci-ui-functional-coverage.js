@@ -81,6 +81,16 @@ const invokes = new Set([...preload.matchAll(/\binvoke\(\s*["']([^"']+)["']/g)].
 const handlers = [...mainText.matchAll(/ipcMain\.handle\(\s*["']([^"']+)["']/g)].map(m => m[1]);
 const handlerSet = new Set(handlers);
 const screenJs = htmlFiles.map(file => scriptsFor(file, read(file)).text).join("\n");
+const preloadNamespaces = new Map();
+for (const match of preload.matchAll(/^\s{1,4}([A-Za-z_$][\w$]*):\{\s*\n([\s\S]*?)^\s{1,4}\},?\s*$/gm)) {
+  preloadNamespaces.set(match[1], new Set([...match[2].matchAll(/\b([A-Za-z_$][\w$]*)\s*:/g)].map(m => m[1])));
+}
+const rendererApiCalls = new Set([...screenJs.matchAll(/window\.saeed(?:\.|\?\.)([A-Za-z_$][\w$]*)(?:\.|\?\.)([A-Za-z_$][\w$]*)/g)].map(m => m[1] + "." + m[2]));
+for (const api of rendererApiCalls) {
+  const [namespace, method] = api.split(".");
+  if (!preloadNamespaces.has(namespace)) fail("Renderer calls missing preload namespace: window.saeed." + namespace + "." + method);
+  else if (!preloadNamespaces.get(namespace).has(method)) fail("Renderer calls missing preload method: window.saeed." + namespace + "." + method);
+}
 if (/window\.saeed\.studio\b/.test(screenJs)) fail("A screen still calls the removed window.saeed.studio API");
 if (!screenJs.includes("window.saeed.character.saveCharacterModel") || !preload.includes("saveCharacterModel:") || !handlerSet.has("character:model:save")) fail("Character Settings custom-rig export is not connected from UI through preload to main-process IPC");
 for (const channel of invokes) if (!handlerSet.has(channel)) fail("Preload invokes IPC channel without a registered ipcMain.handle: " + channel);
