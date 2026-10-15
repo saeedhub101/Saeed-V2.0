@@ -1,5 +1,6 @@
 import * as THREE from "../../node_modules/three/build/three.module.js";
 import { createCharacterScene } from "./CharacterScene.js";
+import { GLTFLoader } from "../three/GLTFLoader.js"; // Used by the 3D diagnostics snapshot.
 import "./CharacterController.js";
 import {autoMapBones} from "./AutoRigMapper.js";
 import {normalizeGlbArrayBuffer} from "./glb-bytes.js";
