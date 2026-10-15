@@ -32,6 +32,8 @@
 
 These guides explain feature workflows; they do not override the architecture contracts above.
 
+`Character_Architecture.md` also contains the consolidated engine, autonomous behavior, GLB intent mapping and 3D resource rules. `Core_Architecture.md` contains the security and trust-boundary rules. Canonical runtime names and anti-duplication rules are summarized here.
+
 ## Change protocol
 
 - Update the contract that owns the behavior; update this index only when ownership or document structure changes.
