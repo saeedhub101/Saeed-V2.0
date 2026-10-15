@@ -66,7 +66,7 @@ async function runLifecycle(deps){
  const visibleWindows=()=>windows().filter(w=>{try{return w.isVisible()}catch{return false}});
  const featureWindows=()=>windows().filter(w=>w!==getState().characterWin);
  const closeKey=key=>{const win=getState()[key];try{if(win&&!win.isDestroyed())win.destroy()}catch{}try{setWindow(key,null)}catch{}};
- const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin"])closeKey(key);await pause(120);};
+ const closeEverything=async()=>{await characterApi.hideCharacter();for(const key of ["chatWin","performanceWin","settingsWin","addonsWin","learningWin","statusWin","threeDStatusWin","characterSettingsWin","updateStatusWin"])closeKey(key);await pause(120);};
  async function probeFeatureScreen(name){
   const expected={"performance":"Saeed Performance","settings":"Saeed Settings","add-ons":"Saeed Add-ons","learning":"Saeed Learning","status":"Saeed Status","3d-status":"Saeed 3D Status","character-settings":"Character Setting","update-status":"Saeed Update Status"};
   const title=document.title,readyState=document.readyState,hasPreload=Boolean(window.saeed),buttons=document.querySelectorAll("button").length;
