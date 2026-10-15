@@ -1,4 +1,4 @@
-function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow,getRestPoseEditorWindow,setCharacterWindow,getAgent,characterStore,contextMenu}){
+function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,diagnostic,windowsIconPath,getCharacterWindow,getCharacterSettingsWindow,setCharacterWindow,getAgent,characterStore,contextMenu}){
  const rendererReadyWaiters=new Map();
  const rendererReadyWindows=new WeakSet();
  ipcMain?.on("character:renderer-ready",event=>{
@@ -201,15 +201,15 @@ function createCharacterHost({app,ipcMain,BrowserWindow,dialog,path,fs,screen,di
   });
  }
  function sendPendingCharacterData(){
-  const editor=getRestPoseEditorWindow?.();
+  const editor=getCharacterSettingsWindow?.();
   if(!editor||editor.isDestroyed()||!pendingCharacterData)return false;
   try{
    editor.webContents.send("character:selected",pendingCharacterData.data,pendingCharacterData.generation);
    return true;
-  }catch(error){diagnostic("ERROR","STUDIO GLB DELIVERY",error?.stack||error?.message||String(error));return false}
+  }catch(error){diagnostic("ERROR","CHARACTER SETTINGS GLB DELIVERY",error?.stack||error?.message||String(error));return false}
  }
- function closeRestPoseEditor(){const editor=getRestPoseEditorWindow?.();if(!editor||editor.isDestroyed())return true;try{editor.hide();return true}catch(error){diagnostic("ERROR","STUDIO CLOSE",error?.stack||error?.message||String(error));return false}}
+ function closeRestPoseEditor(){const editor=getCharacterSettingsWindow?.();if(!editor||editor.isDestroyed())return true;try{editor.hide();return true}catch(error){diagnostic("ERROR","CHARACTER SETTINGS CLOSE",error?.stack||error?.message||String(error));return false}}
  function characterSizeMenu(){return[{label:"Small",click:()=>setSaeedSize("small")},{label:"Medium",click:()=>setSaeedSize("medium")},{label:"Large",click:()=>setSaeedSize("large")}]}
- return{displayForWindow,fitCharacterToDisplay,sendCharacterData,sendPendingCharacterData,closeWindow:closeRestPoseEditor,getPendingCharacter:()=>{if(pendingCharacterData)return{data:pendingCharacterData.data,generation:pendingCharacterData.generation};try{const persisted=readPersistedCharacter?.();if(persisted?.data?.length>=20)return{data:persisted.data,generation:characterLoadGeneration||0};const bundled=path.join(__dirname,"..","..","..","assets","Saeed_AI-3D.glb");if(fs.existsSync(bundled)){const data=new Uint8Array(fs.readFileSync(bundled));if(data.length>=20)return{data,generation:characterLoadGeneration||0}}}catch(error){diagnostic("ERROR","STUDIO GLB DELIVERY",error?.message||String(error))}return null},replaceCharacterForCi,chooseCharacter,saveCharacterModel,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,command,characterSizeMenu,captureCharacter3DWindowSettings,readCharacter3DSettings,writeCharacter3DSettings,character3DSettingsFile};
+ return{displayForWindow,fitCharacterToDisplay,sendCharacterData,sendPendingCharacterData,closeWindow:closeRestPoseEditor,getPendingCharacter:()=>{if(pendingCharacterData)return{data:pendingCharacterData.data,generation:pendingCharacterData.generation};try{const persisted=readPersistedCharacter?.();if(persisted?.data?.length>=20)return{data:persisted.data,generation:characterLoadGeneration||0};const bundled=path.join(__dirname,"..","..","..","assets","Saeed_AI-3D.glb");if(fs.existsSync(bundled)){const data=new Uint8Array(fs.readFileSync(bundled));if(data.length>=20)return{data,generation:characterLoadGeneration||0}}}catch(error){diagnostic("ERROR","CHARACTER SETTINGS GLB DELIVERY",error?.message||String(error))}return null},replaceCharacterForCi,chooseCharacter,saveCharacterModel,setSaeedSize,showCharacter,hideCharacter,createCharacterWindow,command,characterSizeMenu,captureCharacter3DWindowSettings,readCharacter3DSettings,writeCharacter3DSettings,character3DSettingsFile};
 }
 module.exports={createCharacterHost};
