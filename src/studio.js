@@ -338,6 +338,7 @@ function panelFix() {
         h('button', { onclick: () => commit(structuredClone(DEF)) }, 'Reset this bone')),
       h('div', { class: 'btns' },
         h('button', { onclick: () => { for (const t of clip.tracks) setO(fx.clip, t.bone, structuredClone(o)); renderPanel(); } }, 'Use these settings on every bone of this motion'),
+        h('button', { onclick: () => { for (const motionName of Object.keys(ch.clips)) { const motion=ch.clips[motionName]; if (motion.tracks.some(t=>t.bone===fx.bone)) setO(motionName, fx.bone, structuredClone(o)); } renderPanel(); } }, 'Apply this joint correction to every motion'),
         h('button', { class: 'danger', onclick: () => { delete cfg.overrides[fx.clip]; save({ overrides: cfg.overrides }); renderPanel(); } }, 'Reset whole motion')),
       h('div', { class: 'btns' }, h('button', { class: 'primary btn', onclick: () => { cr.clip = fx.clip; setTab('create'); } }, 'Edit the keyframes of this motion…')));
   }
@@ -436,6 +437,13 @@ function panelCreate() {
     h('h3', {}, 'Bone'),
     chips(bones.map((b) => b.id), cr.bone, (id) => { cr.bone = id; renderPanel(); }),
     sliders,
+    h('h3', {}, 'All-joint timeline · seconds'),
+    h('p', { class: 'muted' }, 'Key markers combine every joint in this motion. Select a time, then choose a joint and edit its values to build multi-joint poses at the same second.'),
+    h('div', { class: 'row' },
+      h('input', { type: 'number', min: 0, step: 0.01, value: cr.t, title: 'Timeline time in seconds', onchange: e => { cr.t=Math.max(0,+e.target.value); cr.playing=false; syncSliders(); renderPanel(); } }),
+      h('button', { class: 'btn', onclick: () => { const c=editable(), v=valuesAt(c,cr.bone); setKey(c,cr.bone,cr.t,v.r,v.p); drawKeys(); renderPanel(); } }, 'Add / update key at this time'),
+      h('button', { class: 'btn', onclick: () => { cr.t=0; cr.playing=false; syncSliders(); renderPanel(); } }, 'Go to start')),
+    h('div', { class: 'list' }, [...new Set(clip.tracks.flatMap(t=>t.keys.map(k=>k.t)))].sort((a,b)=>a-b).map(t=>h('button',{class:Math.abs(t-cr.t)<0.02?'on':'',onclick:()=>{cr.t=t;cr.playing=false;if(ui.timeEl)ui.timeEl.value=t;syncSliders();renderPanel();}},t.toFixed(2)+' s'))),
     h('h3', {}, 'Keys of this bone'),
     ui.keys,
     h('div', { class: 'btns' }, h('button', { class: 'danger', onclick: () => { const c = editable(); c.tracks = c.tracks.filter((t) => t.bone !== cr.bone); commitClips(); renderPanel(); } }, 'Clear this bone')),
@@ -897,6 +905,8 @@ function panelPrimitiveAccessories() {
 const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest, boneEdit: panelBoneTransform, faceHands: panelFaceHands, motionExchange: panelMotionExchange, primitiveAcc: panelPrimitiveAccessories };
 
 $('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));
+$('frontView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); };
+$('resetView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); renderer.render(scene, camera); };
 window.addEventListener('saeed-studio-model-refresh', () => reloadModel().catch(e => flash(e.message || String(e))));
 $('yaw').value = String(cfg.modelYaw || 0);
 $('yaw').onchange = (e) => { save({ modelYaw: +e.target.value }); ch.applyConfig(cfg); renderPanel(); drawDraft(); };
