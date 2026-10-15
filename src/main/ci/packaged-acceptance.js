@@ -95,6 +95,22 @@ async function runLifecycle(deps){
   await characterApi.showCharacter();await pause(250);
   const character=getState().characterWin;
   check("character-only-surface-is-visible",Boolean(character&&!character.isDestroyed()&&character.isVisible())&&visibleWindows().length===1&&featureWindows().length===0,{visible:Boolean(character&&!character.isDestroyed()&&character.isVisible()),windowCount:windows().length,visibleWindowCount:visibleWindows().length,featureWindowCount:featureWindows().length,windows:windows().map(w=>w.getTitle())});
+
+  await ensureChatHost().showChat();await pause(250);
+  check("chat-open-does-not-change-character-visibility",Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),{characterVisible:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),visibleWindows:visibleWindows().map(w=>w.getTitle())});
+  await ensureChatHost().closeChat();await pause(150);
+  check("chat-close-does-not-close-character",Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),{characterExists:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()),characterVisible:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible())});
+  await showPerformance();await pause(250);
+  check("performance-open-does-not-change-visible-character",Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),{characterVisible:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),visibleWindows:visibleWindows().map(w=>w.getTitle())});
+  closeKey("performanceWin");await pause(150);
+  check("performance-close-does-not-close-character",Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),{characterExists:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()),characterVisible:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible())});
+  await characterApi.hideCharacter();
+  await ensureChatHost().showChat();await pause(200);
+  check("chat-open-does-not-resurrect-hidden-character",Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&!getState().characterWin.isVisible()),{characterVisible:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),visibleWindows:visibleWindows().map(w=>w.getTitle())});
+  await ensureChatHost().closeChat();await pause(150);
+  await showPerformance();await pause(200);
+  check("performance-open-does-not-resurrect-hidden-character",Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&!getState().characterWin.isVisible()),{characterVisible:Boolean(getState().characterWin&&!getState().characterWin.isDestroyed()&&getState().characterWin.isVisible()),visibleWindows:visibleWindows().map(w=>w.getTitle())});
+  closeKey("performanceWin");await characterApi.showCharacter();await pause(200);
   const readyRig=await deps.characterHost.command({action:"getRig"});
   check("character-rig-ready-before-animation",readyRig?.ok===true&&Array.isArray(readyRig.bones)&&readyRig.bones.length>0,{ok:Boolean(readyRig?.ok),boneCount:readyRig?.bones?.length||0,error:readyRig?.error||null});
   const motion=await deps.characterHost.command({action:"play",motion:"wave",options:{priority:100,blend:.01}});await pause(300);
