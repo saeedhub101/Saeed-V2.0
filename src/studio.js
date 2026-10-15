@@ -6,7 +6,6 @@ import { BONES, GROUPS, groupOf, autoMap } from './shared/schema.js';
 import { builtinClips, sampleTrack, INTENTS } from './shared/clips.js';
 import { RIG_TEMPLATES, makeTemplate, makeFingers, makeFace } from './shared/rigbuilder.js';
 import { VISEMES, ROLES, DEFAULT_OPTS, autoFace } from './shared/face.js';
-import { logicalSlots } from './character/AutoRigMapper.js';
 
 const bridge = window.saeed;
 const api = {
@@ -26,15 +25,6 @@ const api = {
   sendCommand: (name, args = {}) => name === 'say'
     ? bridge.chat.chat(String(args.text || ''))
     : bridge.character.characterController({ action: 'semantic', intent: name, options: args }),
-  command: payload => bridge.character.characterController(payload),
-  setBoneTransform: (bone, position, rotationDegrees) => bridge.character.characterController({
-    action: 'setBoneTransform', bone,
-    transform: {
-      position: { x: Number(position[0]) || 0, y: Number(position[1]) || 0, z: Number(position[2]) || 0 },
-      rotation: { x: Number(rotationDegrees[0]) * Math.PI / 180, y: Number(rotationDegrees[1]) * Math.PI / 180, z: Number(rotationDegrees[2]) * Math.PI / 180 }
-    }
-  }),
-  saveRestPose: () => bridge.character.characterController({ action: 'saveRestPose' }),
   accessoriesList: () => bridge.addons.accessoriesList(),
   addonFile: (addon, file) => bridge.addons.addonFile(addon, file),
   saveModel: (buffer, name) => bridge.studio.saveModel(buffer, name),
@@ -136,18 +126,11 @@ async function reloadModel() {
 }
 
 /* ============ tabs ============ */
-const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test']];
-const EXTRA_TABS = [['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
-const AUTHORING_TABS = new Set(['boneEdit', 'faceHands']);
+const TABS = [['bones', 'Bones'], ['pose', 'Pose'], ['fix', 'Fix motions'], ['create', 'Create motion'], ['face', 'Face'], ['acc', 'Accessories'], ['rig', 'Rig builder'], ['test', 'Test'], ['boneEdit', 'Bone Transform'], ['faceHands', 'Face & Hands'], ['motionExchange', 'Motion Exchange'], ['primitiveAcc', 'Primitive Accessories']];
 function setTab(t) {
   if (tab === 'faceHands' && t !== 'faceHands' && cfg.handCurl) applyHandCurl(cfg.handCurl.side || 'left', 0);
-  const wasAuthoring = AUTHORING_TABS.has(tab), willAuthoring = AUTHORING_TABS.has(t);
-  if (!wasAuthoring && willAuthoring) api.command({ action: 'beginAuthoring' }).catch(error => flash('Could not pause Saeed for editing: ' + (error?.message || String(error))));
-  if (wasAuthoring && !willAuthoring) api.command({ action: 'endAuthoring' }).catch(error => flash('Could not resume Saeed behavior: ' + (error?.message || String(error))));
   tab = t;
-  for (const b of $('tabs').querySelectorAll('button[data-tab]')) b.classList.toggle('on', b.dataset.tab === t);
-  const more = $('tabs').querySelector('details.more-tools');
-  if (more) { more.open = false; more.querySelector('summary')?.classList.toggle('on', EXTRA_TABS.some(([id]) => id === t)); }
+  for (const b of $('tabs').children) b.classList.toggle('on', b.dataset.tab === t);
   ch.mode = t === 'fix' || t === 'create' ? 'preview' : t === 'test' || t === 'face' ? 'engine' : 'rest';
   if (ch.mode === 'rest') { ch.applyRestPose(); applyBoneEdits(); }
   if (ch.mode === 'engine') ch.actions = [];
@@ -163,10 +146,6 @@ function renderPanel() {
   p.scrollTop = st;
 }
 for (const [id, label] of TABS) $('tabs').append(h('button', { 'data-tab': id, onclick: () => setTab(id) }, label));
-const moreTools = h('details', { class: 'more-tools' },
-  h('summary', {}, 'More tools ▾'),
-  h('div', { class: 'more-tools-menu' }, ...EXTRA_TABS.map(([id, label]) => h('button', { 'data-tab': id, onclick: () => setTab(id) }, label))));
-$('tabs').append(moreTools);
 
 /* ============ shared widgets ============ */
 const mappedBones = () => BONES.filter((b) => ch.map[b.id]);
@@ -272,7 +251,7 @@ function panelPose() {
 /* ============ Test tab ============ */
 function panelTest() {
   const custom = Object.keys(ch.clips).filter((c) => !(c in builtinClips()));
-  const run = (name, args) => { ch.command(name, args); if (custom.includes(name)) api.command({ action: 'play', motion: name, options: args || {} }).catch(error => flash(error?.message || String(error))); else api.sendCommand(name, args); };
+  const run = (name, args) => { ch.command(name, args); api.sendCommand(name, args); };
   const say = h('input', { type: 'text', class: 'grow', value: 'Hello! I am ready.' });
   return h('div', {},
     h('h3', {}, 'Intents'),
@@ -323,55 +302,6 @@ function transport(st) {
 function clipSelect(st, onChange) {
   return h('select', { class: 'grow', value: st.clip, onchange: (e) => { st.clip = e.target.value; st.t = 0; onChange(); } },
     Object.keys(ch.clips).map((n) => h('option', { value: n }, n)));
-}
-
-function toRuntimeMotion(clip) {
-  const tracks = (clip?.tracks || []).filter(track => Array.isArray(track.keys) && track.keys.length);
-  const runtimeSlots = new Set(logicalSlots());
-  const slotAliases = {
-    leftLowerArm: 'leftForeArm', rightLowerArm: 'rightForeArm',
-    leftUpperLeg: 'leftThigh', rightUpperLeg: 'rightThigh',
-    leftLowerLeg: 'leftShin', rightLowerLeg: 'rightShin'
-  };
-  const runtimeSlot = slot => {
-    if (runtimeSlots.has(slot)) return slot;
-    if (slotAliases[slot] && runtimeSlots.has(slotAliases[slot])) return slotAliases[slot];
-    const finger = String(slot).match(/^(left|right)(Thumb|Index|Middle|Ring|Pinky)([1-4])$/);
-    if (finger) {
-      const mapped = finger[1] + 'Hand' + finger[2] + finger[3];
-      if (runtimeSlots.has(mapped)) return mapped;
-    }
-    return null;
-  };
-  const boneToSlot = new Map(Object.entries(ch.map || {}).map(([slot, bone]) => [String(bone?.name || bone), runtimeSlot(slot)]).filter(([,slot]) => slot));
-  const usable = tracks.map(track => ({
-    track,
-    slot: runtimeSlot(String(track.bone)) || boneToSlot.get(String(track.bone))
-  })).filter(item => item.slot);
-  if (!usable.length) throw new Error('This motion has no tracks matching Saeed’s mapped logical bones. Match the Bones tab first.');
-  const times = [...new Set(usable.flatMap(({track}) => track.keys.map(key => Math.max(0, Number(key.t) || 0))))].sort((a,b)=>a-b);
-  if (!times.length) throw new Error('This motion has no keyframes.');
-  const keyframes = times.map(time => {
-    const pose = {};
-    for (const {track,slot} of usable) {
-      const sample = sampleTrack(track, time, false, clip.duration);
-      const r = sample?.r || [0,0,0], p = sample?.p;
-      pose[slot] = {
-        x: (Number(r[0]) || 0) * Math.PI / 180,
-        y: (Number(r[1]) || 0) * Math.PI / 180,
-        z: (Number(r[2]) || 0) * Math.PI / 180,
-        ...(p ? { position: { x: Number(p[0]) || 0, y: Number(p[1]) || 0, z: Number(p[2]) || 0 } } : {})
-      };
-    }
-    return { time, pose };
-  });
-  return { id: String(clip.name || 'custom_motion').replace(/[^A-Za-z0-9._-]/g, '_').slice(0,64), duration: Math.max(0.01, Number(clip.duration) || times[times.length-1] || 1), loop: Boolean(clip.loop), enabled: true, layer: 'body', keyframes };
-}
-async function syncClipToRuntime(clip) {
-  const motion = toRuntimeMotion(clip);
-  const result = await api.command({ action: 'defineMotion', motion });
-  if (result?.ok === false) throw new Error(result.error || 'Saeed rejected this motion.');
-  return result?.motion || motion;
 }
 
 /* ============ Fix motions tab (axis fixes per bone) ============ */
@@ -508,10 +438,6 @@ function panelCreate() {
       h('input', { type: 'number', step: 0.1, min: 0.2, value: clip.duration, onchange: (e) => { editable().duration = Math.max(0.2, +e.target.value); commitClips(); renderPanel(); } }),
       h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: clip.loop, onchange: (e) => { editable().loop = e.target.checked; commitClips(); } }), 'Repeats')),
     transport(cr),
-    h('div', { class: 'btns' }, h('button', { class: 'primary btn', onclick: async () => {
-      try { const saved = await syncClipToRuntime(clip); flash('Motion "' + saved.id + '" saved to Saeed and available in Test.'); }
-      catch (error) { flash('Could not save motion to Saeed: ' + (error?.message || String(error))); }
-    } }, 'Save motion to Saeed')),
     h('p', { class: 'muted' }, 'This preview shows the raw keys; axis fixes from the other tab are not applied here.'),
     h('h3', {}, 'Bone'),
     chips(bones.map((b) => b.id), cr.bone, (id) => { cr.bone = id; renderPanel(); }),
@@ -833,102 +759,47 @@ function panelRig() {
 
 /* ============ Restored Character Studio tools ============ */
 let boneEditSelection = '';
-let boneSyncTimer = null;
-function syncBoneToRuntime(name, position, rotation, immediate = false) {
-  if (boneSyncTimer) clearTimeout(boneSyncTimer);
-  boneSyncTimer = null;
-  const send = () => api.setBoneTransform(name, position, rotation).then(result => {
-    if (result?.ok === false) throw new Error('Saeed could not apply this bone. Check that the same character is loaded.');
-    return result;
-  });
-  if (immediate) return send();
-  boneSyncTimer = setTimeout(() => {
-    boneSyncTimer = null;
-    send().catch(error => flash('Live bone update failed: ' + (error?.message || String(error))));
-  }, 45);
-}
 function applyBoneEdits() {
-  if (!ch.model) return;
-  // The shared Character engine owns the actual rest-pose + edit composition.
-  // This keeps Character Setting from maintaining a second bone transform path.
-  ch.applyRestPose();
+  if (!ch.model || !cfg.boneEdits) return;
+  const byName = new Map(ch.allBones.map((b) => [b.name, b]));
+  for (const [name, edit] of Object.entries(cfg.boneEdits)) {
+    const b = byName.get(name);
+    if (!b) continue;
+    const baseP = ch.bindP.get(b), baseQ = ch.bindQ.get(b);
+    if (baseP) b.position.copy(baseP).add(new THREE.Vector3(...(edit.position || [0, 0, 0])));
+    if (baseQ) {
+      const r = edit.rotation || [0, 0, 0];
+      b.quaternion.copy(baseQ).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(r[0] * Math.PI / 180, r[1] * Math.PI / 180, r[2] * Math.PI / 180, 'XYZ')));
+    }
+  }
+  ch.model.updateMatrixWorld(true);
 }
-
 function panelBoneTransform() {
   if (!ch.allBones.length) return notice('Load a character with bones first. Mesh-only characters remain visible; use Rig Builder to add a rig.');
-  const names = [...new Set(ch.allBones.map((b) => b.name))];
+  const names = ch.allBones.map((b) => b.name);
   if (!names.includes(boneEditSelection)) boneEditSelection = names[0];
   const selected = ch.allBones.find((b) => b.name === boneEditSelection);
   const state = (cfg.boneEdits ||= {})[boneEditSelection] || { position: [0,0,0], rotation: [0,0,0] };
   const pos = [...(state.position || [0,0,0])], rot = [...(state.rotation || [0,0,0])];
-  const persistAndApply = () => {
-    cfg.boneEdits[boneEditSelection] = { position: [...pos], rotation: [...rot] };
-    save({ boneEdits: cfg.boneEdits });
-    applyBoneEdits();
-    syncBoneToRuntime(boneEditSelection, pos, rot);
-  };
-  const fields = (label, values, min, max, step, kind) => h('div', {},
-    h('h3', {}, label),
-    ...['X','Y','Z'].map((axis,i) => {
-      const number = h('input', { type: 'number', min: kind === 'position' ? -10 : min, max: kind === 'position' ? 10 : max, step, value: values[i], 'aria-label': label + ' ' + axis });
-      const slider = h('input', { type: 'range', min, max, step, value: Math.max(min, Math.min(max, values[i])), 'aria-label': label + ' ' + axis + ' slider' });
-      const update = (value) => {
-        values[i] = Number(value);
-        number.value = String(values[i]);
-        slider.value = String(Math.max(min, Math.min(max, values[i])));
-        persistAndApply();
-      };
-      number.addEventListener('input', () => update(number.value));
-      slider.addEventListener('input', () => update(slider.value));
-      return h('div', { class: 'transform-row' }, h('span', { class: 'axis-label' }, axis), slider, number);
-    }));
-  const select = h('select', { class: 'grow', value: boneEditSelection, onchange: e => { boneEditSelection = e.target.value; renderPanel(); } },
-    names.map(n => h('option', { value: n }, n)));
-  const search = h('input', { type: 'search', class: 'grow', placeholder: 'Search bone or parent…', 'aria-label': 'Search bones' });
-  const tree = h('div', { class: 'tree bone-edit-tree' });
-  const drawTree = () => {
-    const q = search.value.trim().toLowerCase();
-    tree.replaceChildren(...ch.allBones
-      .filter(b => !q || b.name.toLowerCase().includes(q) || String(b.parent?.name || '').toLowerCase().includes(q))
-      .map(b => h('button', { class: 'bone-pick' + (b.name === boneEditSelection ? ' selected' : ''), title: 'Parent: ' + (b.parent?.name || '—'), onclick: () => { boneEditSelection = b.name; markTarget = b; renderPanel(); } },
-        h('span', {}, b.name), h('small', {}, '↳ ' + (b.parent?.name || 'root')))));
-  };
-  search.addEventListener('input', drawTree);
-  drawTree();
-  return h('div', {},
-    h('h3', {}, 'Move and rotate a bone'),
-    h('p', { class: 'muted' }, 'Select a bone, then drag its sliders or enter exact values. Changes appear immediately on the character preview and are saved to this character profile.'),
-    h('div', { class: 'row' }, h('span', { class: 'lbl' }, 'Selected bone'), select),
-    h('p', { class: 'muted' }, 'Parent: ' + (selected?.parent?.name || '—') + ' · ' + ch.allBones.length + ' bones detected'),
-    h('details', { class: 'bone-picker', open: false }, h('summary', {}, 'Browse skeleton tree'), search, tree),
-    fields('Position offset', pos, -1, 1, 0.01, 'position'),
-    fields('Rotation offset (degrees)', rot, -180, 180, 1, 'rotation'),
-    h('div', { class: 'btns' },
-      h('button', { class: 'primary btn', onclick: async () => {
-        persistAndApply();
-        try {
-          await syncBoneToRuntime(boneEditSelection, pos, rot, true);
-          const result = await api.saveRestPose();
-          if (result?.persisted) flash('Bone changes applied to Saeed and the rest pose was saved.');
-          else flash('Preview saved; Saeed rest-pose save failed: ' + (result?.error || result?.restPose?.persistenceError || 'unknown error'));
-        } catch (error) { flash('Live rest-pose save failed: ' + (error?.message || String(error))); }
-      } }, 'Apply to Saeed & Save Rest Pose'),
-      h('button', { onclick: async () => {
-        delete cfg.boneEdits[boneEditSelection];
-        save({ boneEdits: cfg.boneEdits }); applyBoneEdits();
-        try { await syncBoneToRuntime(boneEditSelection, [0,0,0], [0,0,0], true); } catch (error) { flash(error?.message || String(error)); }
-        renderPanel();
-      } }, 'Reset selected bone'),
-      h('button', { onclick: async () => {
-        cfg.boneEdits = {}; save({ boneEdits: cfg.boneEdits }); applyBoneEdits();
-        try {
-          if (boneSyncTimer) clearTimeout(boneSyncTimer);
-          boneSyncTimer = null;
-          const bones = Object.fromEntries(ch.allBones.map(b => [b.name, { position: { x: 0, y: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } }]));
-          await api.command({ action: 'pose', pose: { __bones: bones } });
-        } catch (error) { flash(error?.message || String(error)); }
-        renderPanel();
-      } }, 'Reset all edits')));
+  const fields = (label, values, min, max, step, kind) => h('div', {}, h('h3', {}, label),
+    ...['X','Y','Z'].map((axis,i)=>h('div',{class:'row'},h('span',{class:'lbl'},axis),
+      h('input',{type:'number',min,max,step,value:values[i],onchange:e=>{
+        values[i]=+e.target.value;
+        cfg.boneEdits[boneEditSelection] = {position:[...pos],rotation:[...rot]};
+        save({boneEdits:cfg.boneEdits}); applyBoneEdits();
+      }}))));
+  const select = h('select',{class:'grow',value:boneEditSelection,onchange:e=>{boneEditSelection=e.target.value;renderPanel();}},
+    names.map(n=>h('option',{value:n},n)));
+  return h('div',{},h('h3',{},'Direct bone transform'),
+    h('p',{class:'muted'},'Adjust the selected real GLB bone relative to its imported bind pose. Values are saved in the Character Setting profile. This is a local editor preview and does not overwrite the original GLB until you export it.'),
+    h('div',{class:'row'},h('span',{class:'lbl'},'Bone'),select),
+    h('p',{class:'muted'},'Parent: '+(selected?.parent?.name||'—')),
+    fields('Local position offset (model units)',pos,-10,10,0.01,'position'),
+    fields('Local rotation offset (degrees)',rot,-180,180,1,'rotation'),
+    h('div',{class:'btns'},
+      h('button',{class:'primary btn',onclick:()=>{cfg.boneEdits[boneEditSelection]={position:[...pos],rotation:[...rot]};save({boneEdits:cfg.boneEdits});applyBoneEdits();flash('Bone transform saved.');}},'Apply & Save'),
+      h('button',{onclick:()=>{delete cfg.boneEdits[boneEditSelection];save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset selected bone'),
+      h('button',{onclick:()=>{cfg.boneEdits={};save({boneEdits:cfg.boneEdits});applyBoneEdits();renderPanel();}},'Reset all edits')));
 }
 function applyHandCurl(side, value) {
   if (!ch.model) return;
@@ -951,41 +822,17 @@ function panelFaceHands() {
   const expression = h('select',{class:'grow'},['neutral','happy','sad','angry','surprised','thinking','worried','laugh','wink','kiss','tongueOut'].map(n=>h('option',{value:n},n)));
   const strength = h('input',{type:'range',min:0,max:1,step:0.05,value:0.7});
   const status = h('div',{class:'notice'},fingerNames.length?fingerNames.length+' finger bones detected.':'No finger bones matched by name; expression and gaze tools remain available.');
-  const live = payload => api.command(payload).then(result => { if (result?.ok === false) flash(result.error || 'Saeed could not apply this control.'); }).catch(error => flash('Live character control failed: ' + (error?.message || String(error))));
   const applyCurl = () => applyHandCurl(side.value,+curl.value);
-  const look = (x,y,z) => { ch.face.lookAt(x,y,z); void live({action:'lookAt',x,y,z}); };
   return h('div',{},h('h3',{},'Quick facial expressions'),
-    h('p',{class:'muted'},'These controls update both the editor preview and the actual Saeed character. Results depend on the GLB face rig and available morph targets.'),
-    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{
-      if(expression.value==='neutral'){for(const v of Object.values(ch.face.expr||{})){v.target=0;v.hold=0;}ch.face.eyeHold=null;}
-      else ch.face.expression(expression.value,+strength.value,2.5);
-      const runtimeName = ({ worried: 'sad', laugh: 'happy', wink: 'happy', kiss: 'neutral', tongueOut: 'neutral' })[expression.value] || expression.value;
-      void live({action:'face',expression:runtimeName,intensity:+strength.value});
-      if (expression.value === 'wink') void live({action:'blink'});
-      if (expression.value === 'kiss') void live({action:'viseme',viseme:'O',value:+strength.value});
-      if (expression.value === 'tongueOut') void live({action:'viseme',viseme:'A',value:+strength.value});
-      flash('Expression sent to Saeed.');
-    }},'Apply expression')),
-    h('div',{class:'btns'},
-      h('button',{onclick:()=>{ch.face.blinkT=0.17;void live({action:'blink'});}},'Blink'),
-      h('button',{onclick:()=>look(0,0,1.2)},'Look forward'),
-      h('button',{onclick:()=>look(0,1,1.2)},'Look up'),
-      h('button',{onclick:()=>look(1,0,1.2)},'Look left'),
-      h('button',{onclick:()=>look(-1,0,1.2)},'Look right')),
+    h('p',{class:'muted'},'Apply and test expressions, blinking, and gaze on the live preview. Actual results depend on the GLB’s available morph targets and face rig.'),
+    h('div',{class:'row'},expression,strength,h('button',{class:'primary btn',onclick:()=>{if(expression.value==='neutral'){for(const v of Object.values(ch.face.expr||{})){v.target=0;v.hold=0;}ch.face.eyeHold=null;}else ch.face.expression(expression.value,+strength.value,2.5);flash('Expression applied to preview.');}},'Apply expression')),
+    h('div',{class:'btns'},h('button',{onclick:()=>{ch.face.blinkT=0.17;}},'Blink'),h('button',{onclick:()=>ch.face.lookAt(0,0,1.2)},'Look forward'),h('button',{onclick:()=>ch.face.lookAt(0,1,1.2)},'Look up'),h('button',{onclick:()=>ch.face.lookAt(1,0,1.2)},'Look left'),h('button',{onclick:()=>ch.face.lookAt(-1,0,1.2)},'Look right')),
     h('h3',{},'Finger curl'),
-    h('p',{class:'muted'},'Select a hand and curl its fingers on the actual character. Naming differences between GLB rigs are handled by Saeed’s finger controller.'),
-    h('div',{class:'row'},side,curl,
-      h('button',{class:'primary btn',onclick:()=>{
-        applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});
-        void live({action:'fingers',hand:side.value,amount:+curl.value});
-      }},'Apply curl'),
-      h('button',{onclick:()=>{
-        curl.value=0;applyCurl();cfg.handCurl={side:side.value,value:0};save({handCurl:cfg.handCurl});
-        void live({action:'fingers',hand:side.value,amount:0});
-      }},'Relax hand')),
+    h('p',{class:'muted'},'Select a hand and curl detected finger bones. Finger naming differs between GLB rigs; unmatched bones are left unchanged.'),
+    h('div',{class:'row'},side,curl,h('button',{class:'primary btn',onclick:()=>{applyCurl();cfg.handCurl={side:side.value,value:+curl.value};save({handCurl:cfg.handCurl});}},'Apply curl'),h('button',{onclick:()=>{curl.value=0;applyCurl();cfg.handCurl={side:side.value,value:0};save({handCurl:cfg.handCurl});}},'Relax hand')),
     status,
     h('h3',{},'Shape keys and visemes'),
-    h('p',{class:'muted'},'The Face tab retains detailed shape-key mapping, visemes, custom expressions, lip-sync, and GLB facial animation controls.'),
+    h('p',{class:'muted'},'The existing Face tab retains the full shape-key mapping, viseme mapping, custom expressions, lip-sync, and GLB facial animation controls. Use it for detailed face authoring.'),
     h('button',{class:'btn',onclick:()=>setTab('face')},'Open full Face editor'));
 }
 function normalizeImportedClip(raw, fallbackName) {
@@ -1008,23 +855,20 @@ function panelMotionExchange() {
   const selected=h('select',{class:'grow'},Object.keys(ch.clips).map(n=>h('option',{value:n},n)));
   const status=h('div',{class:'notice'},'Import/export accepts clip JSON. Imported clips are saved in this character profile and become available in Create Motion and Test.');
   const exportSelected=()=>{const c=ch.clips[selected.value];if(!c)return flash('Select a motion first.');textArea.value=JSON.stringify({format:'avatar-agent',name:c.name||selected.value,duration:c.duration,loop:c.loop,tracks:c.tracks.map(t=>({bone:t.bone,keys:t.keys.map(k=>({t:k.t,r:k.r.map(v=>v*Math.PI/180),...(k.p?{p:k.p}:{})}))}))},null,2);};
-  const importClips=async(requireNine=false)=>{
+  const importClips=(requireNine=false)=>{
     try{
       const data=JSON.parse(textArea.value);
       const list=Array.isArray(data)?data:(Array.isArray(data.clips)?data.clips:(data.clip?[data.clip]:[data]));
       if(requireNine&&list.length!==9)throw new Error('The motion pack must contain exactly 9 clips.');
       const used=new Set(Object.keys(ch.clips));
-      let count=0; const importedNames=[];
+      let count=0;
       for(let i=0;i<list.length;i++){
         const c=normalizeImportedClip(list[i], 'imported_motion_'+(i+1));
         let name=c.name,n=2;while(used.has(name)){name=(c.name.slice(0,26)+'_'+n++).slice(0,31)}
-        c.name=name;used.add(name);cfg.clips[name]=c;ch.clips[name]=c;count++;importedNames.push(name);
+        c.name=name;used.add(name);cfg.clips[name]=c;ch.clips[name]=c;count++;
       }
-      commitClips();
-      const synced = await Promise.all(importedNames.map(async name => { try { await syncClipToRuntime(ch.clips[name]); return true; } catch (error) { return false; } }));
-      selected.replaceChildren(...Object.keys(ch.clips).map(n=>h('option',{value:n},n)));selected.value=importedNames[importedNames.length-1] || '';
-      status.textContent='Imported '+count+' motion(s) locally; saved '+synced.filter(Boolean).length+' to Saeed.'+(synced.some(v=>!v)?' Some motions need bone mapping or have unsupported tracks.':'');
-      flash(status.textContent);renderPanel();
+      commitClips();selected.replaceChildren(...Object.keys(ch.clips).map(n=>h('option',{value:n},n)));selected.value=Object.keys(ch.clips).slice(-count)[0];
+      status.textContent='Imported '+count+' motion(s).';flash(status.textContent);renderPanel();
     }catch(e){status.textContent='Import failed: '+e.message;flash(status.textContent);}
   };
   return h('div',{},h('h3',{},'Motion interchange'),
@@ -1044,14 +888,8 @@ function panelPrimitiveAccessories() {
   const offset=[0,0.1,0].map(v=>h('input',{type:'number',step:0.01,value:v}));
   const customList=h('div',{});
   const draw=()=>customList.replaceChildren(...cfg.customAccessories.map(d=>h('div',{class:'box'},
-    h('div',{class:'row'},h('strong',{class:'grow'},d.name),h('label',{class:'chk'},h('input',{type:'checkbox',checked:!!cfg.accessories[d.id]?.on,onchange:e=>{
-      cfg.accessories[d.id]={...(cfg.accessories[d.id]||{}),on:e.target.checked};save({accessories:cfg.accessories});applyAcc();
-      api.command({action:'setAccessory',definition:d,enabled:e.target.checked,state:{...(cfg.accessories[d.id]||{}),bone:d.bone}}).then(r=>{if(r?.ok===false)flash(r.error||'Saeed could not apply this accessory.');}).catch(error=>flash(error?.message||String(error)));
-    }}),'Enabled')),
-    h('div',{class:'btns'},h('button',{onclick:()=>{
-      api.command({action:'setAccessory',definition:d,enabled:false,state:{}}).catch(error=>flash(error?.message||String(error)));
-      delete cfg.accessories[d.id];cfg.customAccessories=cfg.customAccessories.filter(x=>x.id!==d.id);save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();
-    }},'Delete accessory')))));
+    h('div',{class:'row'},h('strong',{class:'grow'},d.name),h('label',{class:'chk'},h('input',{type:'checkbox',checked:!!cfg.accessories[d.id]?.on,onchange:e=>{cfg.accessories[d.id]={...(cfg.accessories[d.id]||{}),on:e.target.checked};save({accessories:cfg.accessories});applyAcc();}}),'Enabled')),
+    h('div',{class:'btns'},h('button',{onclick:()=>{delete cfg.accessories[d.id];cfg.customAccessories=cfg.customAccessories.filter(x=>x.id!==d.id);save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();}},'Delete accessory')))));
   return h('div',{},h('h3',{},'Create a primitive accessory'),
     h('p',{class:'muted'},'Create a box, sphere, cylinder, cone, ring or plane and attach it to a logical character bone. Accessories are stored in the Character Setting profile.'),
     h('div',{class:'row'},h('span',{class:'lbl'},'Name'),name),
@@ -1062,8 +900,7 @@ function panelPrimitiveAccessories() {
       const id='custom_'+Date.now().toString(36),n=name.value.trim()||'Accessory',s=Math.max(0.01,Math.min(2,+size.value||0.12));
       const dims=shape.value==='sphere'?[s]:shape.value==='torus'?[s,s*0.18]:shape.value==='plane'?[s*2,s*2]:shape.value==='cone'||shape.value==='cylinder'?[s,s*2]:[s,s,s];
       const d={id,name:n,bone:bone.value,parts:[{shape:shape.value,color:color.value,size:dims,position:[0,0,0]}],offset:offset.map(x=>+x.value||0),rotation:[0,0,0],scale:1};
-      cfg.customAccessories.push(d);cfg.accessories[id]={on:true,offset:d.offset,rot:[0,0,0],scale:1};save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();
-      api.command({action:'setAccessory',definition:d,enabled:true,state:{on:true,bone:d.bone,offset:d.offset,rot:[0,0,0],scale:1}}).then(r=>{if(r?.ok===false)flash('Preview created, but Saeed could not attach it: '+(r.error||'unknown error'));else flash('Accessory created on Saeed and in the preview.');}).catch(error=>flash('Preview created, but live accessory failed: '+(error?.message||String(error))));
+      cfg.customAccessories.push(d);cfg.accessories[id]={on:true,offset:d.offset,rot:[0,0,0],scale:1};save({customAccessories:cfg.customAccessories,accessories:cfg.accessories});applyAcc();draw();flash('Accessory created.');
     }},'Create and attach')),
     h('h3',{},'Saved custom accessories'),customList,
     h('button',{class:'btn',onclick:()=>setTab('acc')},'Open installed accessories and mesh visibility'));
@@ -1072,9 +909,6 @@ function panelPrimitiveAccessories() {
 /* ============ boot ============ */
 const PANELS = { bones: panelBones, pose: panelPose, fix: panelFix, create: panelCreate, face: panelFace, acc: panelAcc, rig: panelRig, test: panelTest, boneEdit: panelBoneTransform, faceHands: panelFaceHands, motionExchange: panelMotionExchange, primitiveAcc: panelPrimitiveAccessories };
 
-window.addEventListener('beforeunload', () => {
-  if (AUTHORING_TABS.has(tab)) { try { void api.command({ action: 'endAuthoring' }).catch(() => {}); } catch {} }
-});
 $('btnModel').onclick = () => api.pickModel().catch(e => flash(e.message || String(e)));
 $('frontView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); };
 $('resetView').onclick = () => { camera.position.set(0, 1.1, 4.2); controls.target.set(0, 0.9, 0); controls.update(); renderer.render(scene, camera); };
@@ -1106,8 +940,5 @@ let last = performance.now();
   renderer.render(scene, camera);
 })(performance.now());
 
-if (!PANELS[tab]) tab = 'bones';
-if (AUTHORING_TABS.has(tab)) api.command({ action: 'beginAuthoring' }).catch(error => flash('Could not pause Saeed for editing: ' + (error?.message || String(error))));
-setTab(tab);
 await reloadModel();
 applyI18n();
