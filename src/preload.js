@@ -17,7 +17,7 @@ contextBridge.exposeInMainWorld("saeed",{
  },
  voice:{
   voiceChat:text=>invoke("voice:chat",String(text||"")),reportMicLevel:level=>send("mic:level",Number(level)||0),onMicLevel:f=>on("mic:level",f),startRealtime:o=>invoke("realtime:start",o||{}),stopRealtime:()=>invoke("realtime:stop"),sendRealtimeAudio:b=>invoke("realtime:audio",b),cancelRealtime:()=>invoke("realtime:cancel"),
-  ttsSpeak:text=>invoke("tts:speak",String(text||"")),speakText:text=>invoke("voice:speak",String(text||"")),sttTranscribe:base64=>invoke("stt:transcribe",String(base64||"")),transcribeLocalWav:b=>invoke("local-stt:transcribe",b),setMicMode:mode=>invoke("mic:mode",mode),setVoiceMuted:muted=>invoke("voice:mute",Boolean(muted)),
+  ttsSpeak:text=>invoke("tts:speak",String(text||"")),speakText:text=>invoke("voice:speak",String(text||"")),sttTranscribe:base64=>invoke("stt:transcribe",String(base64||"")),transcribeLocalWav:(b,language="auto")=>invoke("local-stt:transcribe",b,language),setMicMode:mode=>invoke("mic:mode",mode),setVoiceMuted:muted=>invoke("voice:mute",Boolean(muted)),
   onVoiceMute:f=>on("voice:mute",f),onVoiceTts:f=>on("voice:tts",f),onVoiceSpeak:f=>on("voice:speak",f),onVoiceStop:f=>on("voice:stop",f),onMicMode:f=>on("mic:mode",f),onLocalSttState:f=>on("local-stt:state",f),onRealtimeState:f=>on("realtime:state",f),onRealtimeAudio:f=>on("realtime:audio",f),onRealtimeAssistantDelta:f=>on("realtime:assistant-delta",f),onRealtimeAssistantFinal:f=>on("realtime:assistant-final",f),onRealtimeUserFinal:f=>on("realtime:user-final",f),onRealtimeError:f=>on("realtime:error",f)
  },
  chat:{
