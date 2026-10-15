@@ -21,6 +21,7 @@ aside { display: flex; flex-direction: column; min-height: 0; background: var(--
 #tabs details.more-tools > summary { list-style: none; cursor: pointer; padding: 10px 9px; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
 #tabs details.more-tools > summary::-webkit-details-marker { display: none; }
 #tabs details.more-tools[open] > summary { color: var(--text); border-bottom-color: var(--accent); }
+#tabs details.more-tools > summary.on { color: var(--text); border-bottom-color: var(--accent); }
 #tabs .more-tools-menu { position: absolute; z-index: 20; right: 0; top: 100%; width: 190px; padding: 5px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 8px 24px #0008; }
 #tabs .more-tools-menu button { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
 #tabs .more-tools-menu button:hover, #tabs .more-tools-menu button.on { background: var(--raise); color: var(--accent); }
