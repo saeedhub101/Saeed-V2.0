@@ -312,8 +312,10 @@ function fit(){
  const hf=2*Math.atan(Math.tan(vf)*aspect);
  const verticalDistance=size.y*.5/Math.tan(vf);
  const horizontalDistance=size.x*.5/Math.tan(hf*.5);
- const dist=Math.max(verticalDistance,horizontalDistance);
- if(!Number.isFinite(dist)||dist<=0){traceGlb("fit-invalid-camera",{dist});return false;}
+ const zoom=Math.max(.1,Math.min(5,Number(cameraSettings?.zoom)||1));
+ // Reserve framing space and compensate for persisted zoom to prevent clipped bodies.
+ const dist=Math.max(verticalDistance,horizontalDistance)*1.16/zoom;
+ if(!Number.isFinite(dist)||dist<=0){traceGlb("fit-invalid-camera",{dist,aspect,width:size.x,height:size.y});return false;}
  camera.position.set(center.x,center.y,center.z+Math.max(.01,dist));
  camera.near=Math.max(.001,Math.min(.1,size.length()/1000));
  camera.far=Math.max(50,size.length()*20);
@@ -797,7 +799,7 @@ window.saeedCharacterRuntime.engine={
  getRestPoseNormalization:()=>({...lastRestPose}),
  getLoadError:()=>loadError,getGlbTrace:()=>glbTrace.slice(),
  applyRawBonePose,setCharacterExpression:setMorph,blinkCharacter:blink,setCharacterViseme:setMorph,
- lookCharacterAt:lookAt,wakeRender:render,setAnimationTick,destroy:destroyEngine
+ lookCharacterAt:lookAt,resize,wakeRender:render,setAnimationTick,destroy:destroyEngine
 };
 window.dispatchEvent(new CustomEvent("saeed-character-engine-ready"));
 
