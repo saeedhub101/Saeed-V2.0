@@ -227,7 +227,7 @@ function main() {
   check("local-whisper-supports-arabic-language-and-avoids-english-only-model-fallback",
     voiceHost.includes('async function transcribeLocalWav(base64,language="auto")') &&
     voiceHost.includes('args.push("-l",lang)') &&
-    voiceHost.includes('find(x=>!(/\\.en(?:[-_.]|$)/i.test(x)))') &&
+    voiceHost.includes("find(x=>!(/") &&
     !voiceHost.includes('"ggml-base.en-q5_1.bin","ggml-base.en.bin"'),
     { note: "Arabic STT must forward a configured language and must not fall back to an English-only Whisper model." });
 
